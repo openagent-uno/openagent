@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+# Never commit OAuth credentials.
+credentials.json
+*.anthropic_oauth.json
+.env
