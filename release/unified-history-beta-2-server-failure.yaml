@@ -1,0 +1,39 @@
+schema: 1
+train_id: unified-history-beta.1
+component: server
+tag: v0.20.0-beta.2
+source_sha: e0d60d210c219a7c974ce54f551877e96e67a287
+intent_sha256: c715e37be94ef79e5e421ed4adf1bfd034c789e384dc08f2b406590707343cd1
+release_run: 32971908272
+status: tagged_not_published
+
+failure:
+  failed_job: release
+  failed_job_id: 98192099308
+  failed_step: Verify the exact local release set
+  class: windows_binary_checksum_marker_parser
+  detail: verifier rejected the valid GNU binary checksum marker in *filename
+
+completed_before_failure:
+  full_test_gate: pass
+  supply_chain_gate: pass
+  linux_native_package_and_smoke: pass
+  macos_native_package_and_smoke: pass
+  windows_native_package_and_smoke: pass
+  windows_sha256sum_check: pass
+
+publication:
+  release_job_reached: true
+  draft_creation: skipped
+  asset_upload: skipped
+  draft_digest_verification: skipped
+  publish: skipped
+  github_release_created: false
+  assets_published: false
+
+stable_latest_after_failure:
+  release_id: 377133997
+  tag: v0.19.27
+
+tag_retained: true
+superseded_by: v0.20.0-beta.3

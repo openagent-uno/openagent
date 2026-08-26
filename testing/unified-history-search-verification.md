@@ -8,12 +8,23 @@
 - Storage decisions: [ADR-001](../architecture/adr-001-operational-storage-sqlite-first.md), [ADR-002](../architecture/adr-002-canonical-history-retention.md), [ADR-003](../architecture/adr-003-operational-search-index.md)
 - Security: [Operational search threat model](../security/operational-search-threat-model.md)
 - Release process: [Beta unified-history runbook](../release/beta-unified-history-runbook.md)
+- Active server candidate: `v0.20.0-beta.3` at
+  `cc66f96cb22ee80349a004edb9cfee056e7e9ee7`, based on frozen stable
+  `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1`
 
 ::: danger The external authorization does not waive verification
 The user authorized this beta train on 2026-08-26. Nothing in this verification
 document authorizes a stable release, a `latest` mutation, a reused tag, or a release
 that skips these gates. Candidate packages and production-like data migration remain
 subject to the backup, rollback, isolation, and evidence rules in the beta runbook.
+:::
+
+::: info Candidate and main-branch boundary
+Verification is bound to the exact candidate SHA above. New commits on `main`
+are neither integrated automatically nor grounds to replace this evidence. Only
+an explicitly selected train change or reviewed critical fix may enter the beta
+branch; after such an integration the resulting new SHA must rerun every
+affected gate.
 :::
 
 ## 1. Purpose
@@ -98,6 +109,13 @@ Therefore this command remains an existing regression gate, but it is not
 approved for destructive migration, retention, restore, full-disk, or hostile
 path fixtures.
 
+For the active Beta 3 candidate, the complete local runner recorded `1647`
+passed, `0` failed, and `46` skipped in `155.1s`. The exact log SHA-256 is
+`ec1eeda7763ae01cb08da74f1f851e5922d28a1c3481cc95a0ad64899bdcf407`.
+Supply-chain run `32974967908` passed on the same source SHA; branch test run
+`32974968028` also passed on that SHA. Their successful terminal jobs are
+`98197349011` and `98197348947`, respectively.
+
 Feature tests may register additional categories in the same framework, but the
 exact category names and command must be taken from `--list` after they exist.
 This document does not invent a command for tests that have not been added.
@@ -131,6 +149,12 @@ for Python 3.11 and 3.12. The exact source-checkout command is:
 python -m pip install -e .
 python -m unittest discover -s tests -v
 ```
+
+Candidate `6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98` records `36/36` local
+tests and successful branch run `32975861077`; that run covered unit tests on
+Python 3.11/3.12 plus the wheel-only and full isolated packaging gates. The SHA
+includes the same valid GNU Windows checksum-marker handling required by the
+server's Beta 3 release-set verifier.
 
 The release workflow runs the same suite on Python 3.12, then runs the `full`
 isolated distribution check before its platform matrix. Each platform job also
@@ -608,9 +632,9 @@ Exercise these pairs with real binaries or packages:
   fixtures;
 - packaged/frozen server beta updater opt-in through
   `OPENAGENT_UPDATE_CHANNEL=beta` (and config-channel precedence), with
-  beta.1 → beta.2 and beta → newer stable; an unknown channel must fail
+  beta.2 → beta.3, beta.N → beta.N+1, and beta → newer stable; an unknown channel must fail
   safe to stable, while the environment alone must not enable `auto_update`;
-- a `0.19.x` server must not auto-select `0.20.0-beta.2`: seed Friday manually
+- a `0.19.x` server must not auto-select `0.20.0-beta.3`: seed Friday manually
   from the exact Linux x64 package after sibling-checksum and GitHub asset-digest
   verification, then prove later compatible `0.20.0-beta.N` selection;
 - missing, corrupt, interrupted, wrong-platform, wrong-architecture, unsigned and

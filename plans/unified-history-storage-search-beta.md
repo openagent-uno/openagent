@@ -1,6 +1,7 @@
 # Piano beta: storage normalizzato, history unificata e ricerca globale
 
-Stato: candidate Beta 1 congelato e testato; tag workflow, Friday e rilascio pendenti
+Stato: candidate server Beta 3 congelato e gate pre-tag verdi; tag workflow,
+Friday e rilascio pendenti
 
 Branch: beta/unified-history-ui
 
@@ -8,11 +9,23 @@ Repository coinvolti: openagent-server, openagent-app, openagent-cli, openagent-
 
 Release: prerelease beta autorizzata il 2026-08-26; stable non autorizzata
 
-Train: server `0.20.0-beta.2`, app `0.17.0-beta.1`, CLI `0.16.0-beta.1`
+Train: server `0.20.0-beta.3`, app `0.17.0-beta.1`, CLI `0.16.0-beta.1`
 
-Base server del candidate: `v0.19.27` (`ea6acc52e2cb4b07e733075bc6469a6479e11cd1`); rebase e gate pre-tag completati sul candidate `e0d60d210c219a7c974ce54f551877e96e67a287`
+Base server congelata: `v0.19.27`
+(`ea6acc52e2cb4b07e733075bc6469a6479e11cd1`); candidate
+`cc66f96cb22ee80349a004edb9cfee056e7e9ee7`, con suite locale
+`1647/0/46`, CI test branch `32974968028` e supply-chain `32974967908` verdi
 
 Ultimo aggiornamento: 2026-08-26
+
+::: warning Politica del branch beta
+Il branch `beta/unified-history-ui` non segue automaticamente il tip mobile di
+`main`. I nuovi commit su `main` non entrano nel candidate e non ne bloccano il
+rilascio. Si integra soltanto una modifica esplicitamente selezionata per il
+train o una correzione critica revisionata; l'integrazione produce un nuovo SHA
+candidate e riapre i gate impattati. La base server resta quindi il tag stabile
+`v0.19.27` sopra indicato, non il `main` corrente.
+:::
 
 ## Pacchetto di specifica
 
@@ -220,7 +233,7 @@ test interessati.
   sconosciuto ricade su stable. La selezione del canale non abilita da sola il
   job `auto_update`.
 - L'updater beta server accetta prerelease sulla major/minor già installata:
-  Friday su `0.19.x` non seleziona automaticamente `0.20.0-beta.2`. Il seed è
+  Friday su `0.19.x` non seleziona automaticamente `0.20.0-beta.3`. Il seed è
   quindi manuale dal package Linux x64 pubblicato, dopo verifica combinata del
   checksum sibling e del digest GitHub; dalla beta installata gli update
   successivi restano sulla linea compatibile `0.20`.
@@ -2476,7 +2489,7 @@ Dataset:
 - restart durante ogni migration phase;
 - rebuild indice;
 - stable non vede beta;
-- beta.1 → beta.2;
+- beta.2 → beta.3 e beta.N → beta.N+1;
 - beta → stable più nuova;
 - checksum errato;
 - download interrotto;
@@ -2500,7 +2513,7 @@ ai gate e non risultano eseguiti:
   `OPENAGENT_UPDATE_CHANNEL=beta`, con feed, lineage, asset, checksum e
   bad-version guard separati;
 - Friday parte da `0.19.x`: poiché il selector beta non attraversa una
-  major/minor verso una prerelease, `0.20.0-beta.2` viene installato una sola
+  major/minor verso una prerelease, `0.20.0-beta.3` viene installato una sola
   volta manualmente dal package Linux x64 verificato per checksum e digest;
   soltanto dopo il seed il feed beta gestisce la linea `0.20`;
 - Friday usa un drop-in systemd dedicato con
@@ -2620,10 +2633,19 @@ Completato come specifica/audit (non come prova dei gate di rilascio):
 
 Implementato nei worktree beta, senza dichiarazione di gate end-to-end superati:
 
-- base server aggiornata a stable `v0.19.27`; rebase finale e gate pre-tag
-  completati sullo SHA congelato `e0d60d210c219a7c974ce54f551877e96e67a287`
-  (`1645` test passati, `0` falliti, CI branch e supply-chain verdi); versioni fissate a server
-  `0.20.0-beta.2`, app `0.17.0-beta.1`, CLI `0.16.0-beta.1`;
+- base server congelata sulla stable `v0.19.27`, senza inseguire i commit
+  successivi su `main`; candidate fissato a
+  `cc66f96cb22ee80349a004edb9cfee056e7e9ee7` (`1647` test passati, `0`
+  falliti, `46` saltati; CI test branch e supply-chain verdi sullo stesso SHA);
+  versioni fissate a server `0.20.0-beta.3`, app
+  `0.17.0-beta.1`, CLI `0.16.0-beta.1`;
+- record immutabili conservati per i fallimenti Beta 1 e Beta 2: Beta 2 ha
+  superato tutti i package smoke nativi ma si è fermata prima di creare il
+  draft perché il verifier finale non accettava il marker checksum GNU
+  `*filename` emesso su Windows; nessuna delle due ha pubblicato una release;
+- il preflight CLI ha individuato e corretto lo stesso caso checksum prima del
+  tag: candidate CLI `6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98`, `36/36` test locali e
+  CI `32975861077` verde;
 - storage v2, migrazione/dual-write/reconcile/backfill, proiezione automazioni e
   indice FTS redatto e separato sul server;
 - capability/history/search a cinque scope e nove target, inclusi resolver detail;
