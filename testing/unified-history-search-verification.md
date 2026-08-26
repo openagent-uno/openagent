@@ -1,6 +1,7 @@
 # Unified history and search verification plan
 
-- Status: Active beta verification contract; required end-to-end evidence is pending
+- Status: Active beta verification contract; Beta 4 replacement pre-tag gates
+  pass; tag/package and live-gateway evidence pending
 - Date: 2026-08-26
 - Release effect: blocking for the authorized beta; this document does not authorize stable
 - Related plan: [Unified history, storage, and global search beta](../plans/unified-history-storage-search-beta.md)
@@ -8,9 +9,15 @@
 - Storage decisions: [ADR-001](../architecture/adr-001-operational-storage-sqlite-first.md), [ADR-002](../architecture/adr-002-canonical-history-retention.md), [ADR-003](../architecture/adr-003-operational-search-index.md)
 - Security: [Operational search threat model](../security/operational-search-threat-model.md)
 - Release process: [Beta unified-history runbook](../release/beta-unified-history-runbook.md)
-- Active server candidate: `v0.20.0-beta.3` at
+- Last published server candidate: `v0.20.0-beta.3` at
   `cc66f96cb22ee80349a004edb9cfee056e7e9ee7`, based on frozen stable
-  `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1`
+  `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1`;
+  dogfood blocked
+- Rejected pre-tag Beta 4 source:
+  `699ffe8fa20d960e90ce7ade45a440301085e72a`; tag unused and replacement SHA
+  supersedes it
+- Accepted Beta 4 source:
+  `b9d8ab50619ce89129146027c7ec21f83ce4f337`; pre-tag verified, tag unused
 
 ::: danger The external authorization does not waive verification
 The user authorized this beta train on 2026-08-26. Nothing in this verification
@@ -20,11 +27,39 @@ subject to the backup, rollback, isolation, and evidence rules in the beta runbo
 :::
 
 ::: info Candidate and main-branch boundary
-Verification is bound to the exact candidate SHA above. New commits on `main`
-are neither integrated automatically nor grounds to replace this evidence. Only
-an explicitly selected train change or reviewed critical fix may enter the beta
-branch; after such an integration the resulting new SHA must rerun every
-affected gate.
+Recorded Beta 3 verification is bound to its exact SHA. New commits on
+`main` are neither integrated automatically nor grounds to replace this
+evidence. The projection repair was explicitly selected at `ebcfedc…`, but its
+first versioned source `699ffe8…` failed branch CI. Replacement `b9d8ab5…`
+contains the readiness correction/regression and has its own green gates and
+intent rather than editing the Beta 3 record.
+:::
+
+::: warning Beta 3 evidence boundary
+Release run `32976311521` published GitHub prerelease `377189126` successfully.
+The exact Linux package then projected `583/585` Friday legacy sessions: two
+provider call IDs reused across distinct runs collided with a root-scoped
+unique constraint. `history_ready` stayed false and Friday was rolled back to
+stable `0.19.26`. Beta 3 is non-promotable; its passing suite and package
+evidence are historical evidence for those immutable bytes, not a waiver for
+the successor. See the
+[`sanitized failure record`](../release/unified-history-beta-3-friday-failure.yaml).
+:::
+
+::: warning First Beta 4 source rejected
+`699ffe8…` passed local full/targeted/selfcheck, supply chain and the isolated
+Friday repair rehearsal. Branch Tests `32981309012` recorded `1647` passed,
+one failed and `51` skipped because of a search-cache readiness race. No tag or
+release was created. The Beta 4 tag remains unused, but this source cannot be
+released; see the
+[`CI failure record`](../release/unified-history-beta-4-ci-failure.yaml).
+:::
+
+::: info Beta 4 replacement accepted pre-tag
+`b9d8ab5…` passed exact-source full suite `1653/0/46`, Tests
+`32982520288`, Supply chain `32982520375`, and the exact-source Friday repair
+rehearsal. Its intent is frozen, but no tag, release or packaged-live E2E has
+run yet.
 :::
 
 ## 1. Purpose
@@ -109,12 +144,42 @@ Therefore this command remains an existing regression gate, but it is not
 approved for destructive migration, retention, restore, full-disk, or hostile
 path fixtures.
 
-For the active Beta 3 candidate, the complete local runner recorded `1647`
+For the immutable Beta 3 candidate, the complete local runner recorded `1647`
 passed, `0` failed, and `46` skipped in `155.1s`. The exact log SHA-256 is
 `ec1eeda7763ae01cb08da74f1f851e5922d28a1c3481cc95a0ad64899bdcf407`.
 Supply-chain run `32974967908` passed on the same source SHA; branch test run
 `32974968028` also passed on that SHA. Their successful terminal jobs are
 `98197349011` and `98197348947`, respectively.
+
+Those results continue to describe Beta 3 accurately, but the Friday defect
+changes server source and migration behavior. The successor must record its own
+full-suite counts, log digest, branch tests, supply-chain jobs and package
+matrix on its exact new SHA.
+
+The first Beta 4 source `699ffe8fa20d960e90ce7ade45a440301085e72a`
+recorded these local gates:
+
+- full suite: `1653` passed, `0` failed, `46` skipped in `164.0s`, log
+  SHA-256 `2c996ff5243b7caae43ee02bb6709aff3d3741837ba129f2ff2ceb37a15d7b89`;
+- operational storage/API: `32/32`;
+- updater: `29/29`;
+- Beta 4 selfcheck: pass;
+- supply-chain run `32981309094`: pass.
+
+Branch Tests `32981309012` failed with `1647` passed, one failed and `51`
+skipped. The failure was a search-cache readiness race. The source is rejected
+before tag and its passing results must not be presented as final Beta 4 gates.
+The replacement SHA gets its own complete evidence.
+
+Replacement `b9d8ab50619ce89129146027c7ec21f83ce4f337` records:
+
+- local full suite `1653` passed, `0` failed, `46` skipped in `213.6s`, log
+  SHA-256 `731e3f59c9cebe9893b1faa5471e5cf62d2239a25ec26f984dedf87f9e26c2f1`;
+- branch Tests `32982520288`, terminal job `98222391421`: success;
+- Supply chain `32982520375`, terminal job `98222392469`: success.
+
+These are the accepted pre-tag source/CI gates. Package-native and live-gateway
+gates remain separate.
 
 Feature tests may register additional categories in the same framework, but the
 exact category names and command must be taken from `--list` after they exist.
@@ -139,6 +204,11 @@ and update metadata, and launches both macOS architectures. This describes
 configured coverage, not a recorded pass. It still does not provide a committed
 Playwright/Electron real-gateway flow, iOS/Android automation,
 visual-regression, or accessibility automation.
+
+Tag `v0.17.0-beta.1` has dispatched run `32983788693`. It is in progress and
+no app release is published at this evidence snapshot. A running workflow is
+not a pass; installation, real-gateway E2E and promotion remain behind the
+server Friday gate.
 
 #### CLI
 
@@ -176,6 +246,10 @@ a live gateway integration or the cross-version/Friday matrix below. The
 per-platform release jobs separately smoke each final signed/frozen package
 before upload; the release job then downloads the platform artifacts and
 verifies the exact merged union and checksums before opening a hidden draft.
+
+Tag `v0.16.0-beta.1` has dispatched run `32983586871`. It is in progress and
+no CLI release is published at this evidence snapshot. Installation, Friday
+live E2E and train promotion remain behind the server gate.
 
 #### Docs
 
@@ -245,8 +319,9 @@ The generator creates stable IDs and expected normalized/search projections for:
 - messages from two users, an agent, and a system record;
 - visible reasoning plus provider-hidden reasoning;
 - tool success, error, cancellation, child session, large result, and artifact result;
-- two invocations sharing a provider `tool_call_id` but having different canonical
-  `tool_invocation_id` values;
+- two invocations sharing a provider `tool_call_id` in distinct runs under the
+  same session/root but having different canonical `tool_invocation_id` values,
+  plus a same-run duplicate fixture for the idempotency/uniqueness boundary;
 - image, voice, video, text-file, and generated artifact links;
 - deleted, revoked, private, shared, and quarantined resources;
 - ownerless `installation_shared` legacy workflow/scheduled/event definitions
@@ -379,7 +454,9 @@ implicitly passed.
 - append a message without rewriting prior canonical message rows;
 - stable IDs and ordinals under retry;
 - duplicate idempotency key returns the same turn;
-- unique provider tool-call IDs are scoped correctly;
+- provider tool-call identity is scoped to the canonical run: reuse across
+  distinct runs projects distinct invocations, while a duplicate in one run is
+  rejected or resolved by the documented idempotency rule;
 - artifact object created, linked, reconciled, and collected safely;
 - child/delegation/causation links preserve lineage;
 - author principal and display snapshot remain distinct;
@@ -420,6 +497,9 @@ content without a canonical record, no duplicate invocation, and replayable outb
 - a cross-tenant ACL projection insert fails its composite foreign key;
 - corrupt index rebuild and atomic generation swap;
 - warming/degraded/partial coverage is truthful;
+- a tool/message anchor joins through both canonical run context and provider
+  call ID, so a repeated `tool_call_id` cannot attach to a message in another
+  run;
 - cancellation and deadline interrupt the SQLite query and extraction work.
 
 ## 6. Migration matrix
@@ -447,8 +527,36 @@ For each source version test:
 12. complete `v2`, then return to legacy read mode without restoring a snapshot;
 13. downgrade to a pre-v2 binary, create/update/delete data, and run retention;
 14. re-upgrade, force `shadow`, consume `legacy_session_changes`, and reconcile;
-15. prove deleted data is not resurrected in history or search;
-16. exercise offline restore plan and apply in a disposable directory.
+15. open an exact Beta-3-shaped ledger/database fixture whose original storage
+    migration is complete, apply a separately checksum-ledgered repair without
+    changing the old migration checksum, and prove interruption/resume is
+    idempotent;
+16. requeue every legacy session absent from v2 exactly once, without duplicating
+    an already pending journal row; reconcile cross-run call-ID collisions and
+    reset the failed-session gauge only when the current unresolved set is empty;
+17. prove deleted data is not resurrected in history or search;
+18. exercise offline restore plan and apply in a disposable directory.
+
+Rejected source `699ffe8…` ran this repair on Friday against a fresh Backup API
+copy. Its digest stayed
+`526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd`.
+Before: `586` legacy, `583` normalized, two failed and one pending. After:
+`586/586/0/0`, search ready/pending zero, exact legacy canary hit, eight
+collision groups/`16` invocations preserved, and clean quick/foreign-key
+checks. Live Friday stayed stable `0.19.26` at the before counts and was not
+mutated by rehearsal.
+
+Because the same source failed branch CI, the rehearsal proves the repair on
+that source but does not qualify the future package. No user content enters the
+evidence bundle. Future live counts remain set-based because legitimate stable
+writes may continue.
+
+Accepted replacement `b9d8ab5…` repeated the exact-source rehearsal. It
+recorded `586/586`, complete, zero failed/pending/anti-join gaps, ready and
+caught-up search, exact canary hit, eight collision groups/`16` invocations,
+complete base/repair ledgers, and clean quick/FK checks. The backup digest
+remained unchanged. This qualifies the repair rehearsal for the frozen source;
+the published-package/live-service drill remains pending.
 
 The matrix covers clean exit, power-loss simulation, WAL present, full disk, read-only
 artifact directory, corrupt source row, corrupt index, and insufficient backup space.
@@ -634,7 +742,7 @@ Exercise these pairs with real binaries or packages:
   `OPENAGENT_UPDATE_CHANNEL=beta` (and config-channel precedence), with
   beta.2 → beta.3, beta.N → beta.N+1, and beta → newer stable; an unknown channel must fail
   safe to stable, while the environment alone must not enable `auto_update`;
-- a `0.19.x` server must not auto-select `0.20.0-beta.3`: seed Friday manually
+- a `0.19.x` server must not auto-select `0.20.0-beta.4` (nor Beta 3): seed Friday manually
   from the exact Linux x64 package after sibling-checksum and GitHub asset-digest
   verification, then prove later compatible `0.20.0-beta.N` selection;
 - missing, corrupt, interrupted, wrong-platform, wrong-architecture, unsigned and
@@ -652,6 +760,26 @@ metadata verification is a separate post-publication check and never mutates
 `latest`.
 
 ## 12. Evidence bundle and exit criteria
+
+Beta 3 provides a deliberately split evidence record: source/package/release
+gates passed, while the Friday storage gate failed. GitHub release
+`377189126` and workflow `32976311521` remain valid provenance for the exact
+immutable bytes; `release/unified-history-beta-3-friday-failure.yaml` records
+the sanitized deployment counts, failure class and safe rollback. This is not a
+complete train exit and cannot be copied forward as successor test evidence.
+
+The first Beta 4 source likewise has split evidence: repair rehearsal and
+local/supply-chain gates passed, but branch Tests failed. Its record is
+`release/unified-history-beta-4-ci-failure.yaml`. Because no tag was created,
+Beta 4 remains available; because the SHA failed, none of its passing results
+may be relabeled as replacement-source evidence.
+
+Replacement `b9d8ab5…` has its own full-suite, CI and exact-source rehearsal
+evidence, all green, and a frozen intent/checksum
+`338ea5f00f88fde99c10e7f2452c7204e3429b209ed12c5e78ae9de677beac7a`.
+This satisfies the pre-tag
+source gate only. It does not satisfy native tag-matrix, published digest,
+live-gateway, rollback/re-upgrade, app or CLI gates.
 
 ### 12.1 Exact packaged-artifact evidence
 
@@ -747,9 +875,13 @@ The beta is blocked by any:
 - unbounded lock, query, snapshot, memory, disk, or response behavior;
 - failed required platform or accessibility flow.
 
-The beta train is already authorized, but execution remains gated. All pre-tag
-items must pass before the immutable beta tag is pushed; the tag workflow must
-hold GitHub Release creation until its exact-artifact smoke passes. Until those
-conditions are recorded there is no GitHub prerelease, updater publication, or
-user-data migration outside the explicitly backed-up Friday dogfood procedure.
-Nothing here authorizes stable.
+The beta train is already authorized, but execution remains gated. Beta 3 proved
+its pre-tag and exact-artifact publication path, then failed the separately
+required Friday migration gate; it is therefore a published prerelease but not
+a train exit. The first Beta 4 source then failed pre-tag branch CI. Replacement
+`b9d8ab5…` has passed its own pre-tag items; the still-unused tag may proceed
+only after intent review, and its workflow must hold GitHub Release creation
+until exact-artifact smoke passes. App/CLI beta package workflows may publish
+their isolated prereleases in parallel; installation, live E2E, train promotion
+and further user-data deployment remain blocked until the successor Friday gate
+succeeds. Nothing here authorizes stable.

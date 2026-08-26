@@ -1,7 +1,7 @@
 # Piano beta: storage normalizzato, history unificata e ricerca globale
 
-Stato: candidate server Beta 3 congelato e gate pre-tag verdi; tag workflow,
-Friday e rilascio pendenti
+Stato: replacement server Beta 4 congelato e gate pre-tag verdi; tag workflow,
+package dogfood e rilascio app/CLI pendenti
 
 Branch: beta/unified-history-ui
 
@@ -9,12 +9,22 @@ Repository coinvolti: openagent-server, openagent-app, openagent-cli, openagent-
 
 Release: prerelease beta autorizzata il 2026-08-26; stable non autorizzata
 
-Train: server `0.20.0-beta.3`, app `0.17.0-beta.1`, CLI `0.16.0-beta.1`
+Train: server `0.20.0-beta.3` pubblicato e non promuovibile; tag server
+`v0.20.0-beta.4` congelato su `b9d8ab5…` e ancora inutilizzato;
+tag app `v0.17.0-beta.1` e CLI `v0.16.0-beta.1` dispatchati, release non
+ancora pubblicate
 
 Base server congelata: `v0.19.27`
-(`ea6acc52e2cb4b07e733075bc6469a6479e11cd1`); candidate
-`cc66f96cb22ee80349a004edb9cfee056e7e9ee7`, con suite locale
-`1647/0/46`, CI test branch `32974968028` e supply-chain `32974967908` verdi
+(`ea6acc52e2cb4b07e733075bc6469a6479e11cd1`). Il candidate Beta 3
+`cc66f96cb22ee80349a004edb9cfee056e7e9ee7` ha superato suite locale
+`1647/0/46`, CI test branch `32974968028`, supply-chain `32974967908` e
+release workflow `32976311521`; il package pubblicato ha poi esposto due gap
+di proiezione su Friday. Il repair `ebcfedc…` ha chiuso i gap su una copia
+Backup API, ma il source Beta 4 `699ffe8…` è stato respinto perché la branch CI
+ha rilevato una race di readiness della cache di ricerca. Il replacement
+`b9d8ab50619ce89129146027c7ec21f83ce4f337` include la correzione e la
+regressione deterministica; suite locale e le due branch CI sono verdi sullo
+stesso SHA, così come il rehearsal Friday exact-source.
 
 Ultimo aggiornamento: 2026-08-26
 
@@ -36,6 +46,8 @@ contratti normativi e verificabili sono:
 - [ADR-002: storia canonica, compaction e retention](../architecture/adr-002-canonical-history-retention.md);
 - [ADR-003: indice testuale operativo](../architecture/adr-003-operational-search-index.md);
 - DDL canonica v2: `architecture/operational-storage-v2.sql`;
+- migrazione additiva tool-call context:
+  `architecture/operational-tool-call-context-v1.sql`;
 - bridge trigger per la tabella legacy: `architecture/legacy-session-change-triggers.sql`;
 - bridge trigger per le automazioni legacy: `architecture/legacy-automation-change-triggers.sql`;
 - DDL indice operativo v1: `architecture/operational-search-v1.sql`;
@@ -44,16 +56,22 @@ contratti normativi e verificabili sono:
 - [threat model](../security/operational-search-threat-model.md);
 - [specifica visuale e ricerca globale](../design/global-search-visual-refresh-spec.md);
 - [piano di verifica cross-repository](../testing/unified-history-search-verification.md);
-- [runbook beta](../release/beta-unified-history-runbook.md).
+- [runbook beta](../release/beta-unified-history-runbook.md);
+- [esito dogfood server Beta 3](../release/unified-history-beta-3-friday-failure.yaml);
+- [esito CI del primo source Beta 4](../release/unified-history-beta-4-ci-failure.yaml);
+- [intent server Beta 4](../release/unified-history-beta-4-intent.yaml);
+- [evidenza e preparazione server Beta 4](../release/unified-history-beta-4-preparation.md).
 
 In caso di conflitto: vision, ADR approvati, OpenAPI/DDL e infine questo piano.
 Ogni modifica di implementazione dovrà citare il requisito e il test che soddisfa.
 
-::: info Freeze DDL completato
-Le quattro copie SQL in `architecture/` coincidono byte per byte con gli
-schemi runtime del candidate dopo l'audit operativo. Il rollout usa comunque i
-file inclusi nel package server; le copie documentali restano riferimenti
-revisionati e devono essere ricontrollate per hash a ogni modifica dello schema.
+::: info Contratti SQL verificati
+Le quattro copie SQL Beta 3 in `architecture/` restano byte-identiche al
+runtime. `operational-storage-v2.sql` mantiene il checksum
+`ce406057…`; la nuova migrazione additiva
+`operational-tool-call-context-v1.sql` è una quinta copia byte-identica al
+runtime con checksum `14fc8629…`. Il repair non riscrive la DDL o il ledger già
+applicati da Beta 3.
 :::
 
 ## 1. Obiettivo
@@ -218,8 +236,9 @@ test interessati.
 
 - I workflow GitHub beta validano tag/versioni `vX.Y.Z-beta.N`, eseguono test e
   package smoke nativi, verificano l'unione esatta degli asset e producono
-  attestazioni; la presenza di questi job non costituisce ancora evidenza di
-  una loro esecuzione riuscita.
+  attestazioni. Per il server Beta 3 l'esecuzione `32976311521` è riuscita e ha
+  pubblicato la prerelease GitHub `377189126`; questa prova di packaging non
+  sostituisce il dogfood storage, che ha poi attivato una stop condition.
 - Il push del tag avvia ancora build e preparazione della release nello stesso
   workflow. La pubblicazione è però visibility-atomic: gli asset vengono
   caricati in un draft nascosto con overwrite disabilitato, quindi nomi, size e
@@ -233,10 +252,35 @@ test interessati.
   sconosciuto ricade su stable. La selezione del canale non abilita da sola il
   job `auto_update`.
 - L'updater beta server accetta prerelease sulla major/minor già installata:
-  Friday su `0.19.x` non seleziona automaticamente `0.20.0-beta.3`. Il seed è
+  Friday su `0.19.x` non seleziona automaticamente una `0.20.0-beta.N`. Il seed è
   quindi manuale dal package Linux x64 pubblicato, dopo verifica combinata del
   checksum sibling e del digest GitHub; dalla beta installata gli update
   successivi restano sulla linea compatibile `0.20`.
+- Il seed esatto di Beta 3 su Friday ha proiettato `583/585` sessioni legacy.
+  Due sessioni con lo stesso `tool_call_id` in run distinti collidevano con una
+  unicità troppo ampia; `history_ready` è rimasto `false` e la ricerca globale
+  non è stata pubblicizzata. Il server è stato riportato in sicurezza alla
+  stable `0.19.26`, il drop-in beta è stato disabilitato e le tabelle additive
+  sono state conservate senza restore del database. Un canary scritto nel path
+  legacy mentre la stable era attiva resta intenzionalmente pending per il
+  drill di riconciliazione del successore.
+- Il primo source Beta 4 `699ffe8fa20d960e90ce7ade45a440301085e72a`
+  ha superato localmente `1653/0/46`, storage/API `32/32`, updater `29/29` e
+  selfcheck. Su una copia Backup API Friday ha portato la copertura da
+  `586/583`, due failed e un pending a `586/586`, zero/zero, preservando otto
+  gruppi di collisione e `16` invocazioni; source digest, quick check e FK sono
+  rimasti integri e il live server non è stato mutato.
+- Lo stesso source è stato respinto pre-tag: Tests `32981309012` ha registrato
+  `1647` pass, un failure e `51` skip per una race di readiness della cache di
+  ricerca. Supply chain `32981309094` è verde, ma non compensa il test fallito.
+  Nessun tag o release Beta 4 esiste; il replacement deve avere un nuovo SHA e
+  ripetere i gate impattati.
+- Il replacement `b9d8ab50619ce89129146027c7ec21f83ce4f337` ha superato la
+  suite locale `1653/0/46` in `213.6s` (log SHA-256 `731e3f59…`), Tests
+  `32982520288`/job `98222391421` e Supply chain
+  `32982520375`/job `98222392469`. Il rehearsal exact-source è completo:
+  `586/586`, zero failed/pending/gap anti-join, search ready/caught-up, canary
+  trovata, otto gruppi/`16` invocation preservate, ledger e SQLite check verdi.
 - Un'app installata da un artifact `-beta.N` seleziona il canale beta e abilita
   prerelease; una build stable resta su `latest`. Non esiste ancora un channel
   picker persistente nell'UI.
@@ -2500,8 +2544,16 @@ Le versioni server, app e CLI restano indipendenti. La compatibilità è per cap
 
 ## 33. Canale beta
 
-L'autorizzazione beta è registrata, ma tag e pubblicazione restano subordinati
-ai gate e non risultano eseguiti:
+L'autorizzazione beta è registrata. Server Beta 3 resta l'unica release
+pubblicata ed è non-latest; il suo dogfood è stato bloccato. App e CLI hanno tag
+ma non release pubblicate. Il primo source Beta 4 è stato respinto
+prima del tag; `v0.20.0-beta.4` è ora congelato sul replacement verificato
+`b9d8ab5…` ma resta non creato. Ogni successor server e ogni componente restano
+subordinati ai rispettivi gate:
+
+I tag app e CLI sono stati creati dopo il freeze per parallelizzare i build;
+le run `32983788693` e `32983586871` sono in corso. Questo non anticipa
+installazione, E2E live o promozione, che restano dietro il gate server Friday.
 
 - tag vX.Y.Z-beta.N;
 - GitHub Release prerelease=true;
@@ -2513,9 +2565,10 @@ ai gate e non risultano eseguiti:
   `OPENAGENT_UPDATE_CHANNEL=beta`, con feed, lineage, asset, checksum e
   bad-version guard separati;
 - Friday parte da `0.19.x`: poiché il selector beta non attraversa una
-  major/minor verso una prerelease, `0.20.0-beta.3` viene installato una sola
-  volta manualmente dal package Linux x64 verificato per checksum e digest;
-  soltanto dopo il seed il feed beta gestisce la linea `0.20`;
+  major/minor verso una prerelease, Beta 3 è stata installata manualmente dal
+  package Linux x64 verificato per checksum e digest. Il successor dovrà
+  ripetere il seed manuale dai propri byte pubblicati dopo il rollback alla
+  stable, senza riusare l'evidenza o il package Beta 3;
 - Friday usa un drop-in systemd dedicato con
   `OPENAGENT_UPDATE_CHANNEL=beta` soltanto dopo backup/preflight; il rollback
   rimuove o ripristina quel drop-in e verifica il processo riavviato, mentre un
@@ -2554,8 +2607,10 @@ Pubblicazione immutabile con il workflow corrente:
    run ID, attestazioni e digest locali/GitHub degli artifact.
 
 Un test su build locale o su byte ricostruiti non soddisfa il gate. Un fallimento
-di upload/verifica lascia la release nascosta; tag e versione vengono
-abbandonati a favore di un nuovo `beta.N`, mai riutilizzati.
+di upload/verifica lascia la release nascosta; un fallimento successivo al
+publish, come quello di Beta 3 su Friday, lascia immutabili tag e asset ma rende
+il candidate non promuovibile. In entrambi i casi la correzione usa un nuovo
+`beta.N`, mai un tag riutilizzato.
 
 Updater gate:
 
@@ -2631,18 +2686,45 @@ Completato come specifica/audit (non come prova dei gate di rilascio):
 - threat model, specifica visuale, piano di verifica e runbook beta;
 - questo piano consolidato.
 
-Implementato nei worktree beta, senza dichiarazione di gate end-to-end superati:
+Implementato nei worktree beta e, dove indicato, verificato sul package server
+pubblicato:
 
 - base server congelata sulla stable `v0.19.27`, senza inseguire i commit
   successivi su `main`; candidate fissato a
   `cc66f96cb22ee80349a004edb9cfee056e7e9ee7` (`1647` test passati, `0`
   falliti, `46` saltati; CI test branch e supply-chain verdi sullo stesso SHA);
-  versioni fissate a server `0.20.0-beta.3`, app
+  versioni fissate per quel freeze a server `0.20.0-beta.3`, app
   `0.17.0-beta.1`, CLI `0.16.0-beta.1`;
 - record immutabili conservati per i fallimenti Beta 1 e Beta 2: Beta 2 ha
   superato tutti i package smoke nativi ma si è fermata prima di creare il
   draft perché il verifier finale non accettava il marker checksum GNU
   `*filename` emesso su Windows; nessuna delle due ha pubblicato una release;
+- Beta 3 ha superato il workflow di release `32976311521` e ha pubblicato la
+  GitHub prerelease non-latest `377189126` con tag e sei asset immutabili;
+- il package Linux pubblicato e verificato per digest è stato installato
+  esattamente su Friday in `shadow`: `583/585` sessioni legacy sono state
+  proiettate, due sono rimaste gap per collisioni di `tool_call_id` tra run
+  distinti, `history_ready` è rimasto `false` e il gate ha fermato il rollout;
+- Friday è tornato alla stable `0.19.26` con drop-in beta disabilitato; il
+  database additivo è stato mantenuto, non è stato restaurato uno snapshot e un
+  canary legacy resta pending per provare il reconcile del nuovo candidate;
+- l'esito Beta 3 è immutabile in
+  `release/unified-history-beta-3-friday-failure.yaml`;
+- repair additivo `ebcfedc3779421f874a1e0d079bb06b002fa79f9`, con storage-v2
+  hash invariato `ce406057…` e nuova migrazione ledgerizzata `14fc8629…`;
+- primo source Beta 4 `699ffe8fa20d960e90ce7ade45a440301085e72a`:
+  local full `1653/0/46`, targeted `32/32` e `29/29`, selfcheck e supply chain
+  verdi; rehearsal Friday su copia completa `586/586`, zero failed/pending,
+  search ready, canary trovata e `16` invocazioni collision-preserved;
+- lo stesso source è respinto in
+  `release/unified-history-beta-4-ci-failure.yaml`: branch Tests
+  `32981309012` ha trovato una race readiness (`1647/1/51`). Nessun tag è
+  stato creato e quel source resta ineleggibile;
+- replacement Beta 4 congelato a
+  `b9d8ab50619ce89129146027c7ec21f83ce4f337`: full suite `1653/0/46`, log
+  `731e3f59…`, Tests `32982520288` e Supply chain `32982520375` verdi con job
+  terminali registrati; rehearsal exact-source completo e source backup
+  immutato; intent SHA-256 `338ea5f0…`;
 - il preflight CLI ha individuato e corretto lo stesso caso checksum prima del
   tag: candidate CLI `6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98`, `36/36` test locali e
   CI `32975861077` verde;
@@ -2681,11 +2763,14 @@ Allineamento contratto verificato sui worktree correnti:
 
 Non completato o non ancora verificato end-to-end:
 
-- prova live di migrazione, backup, restore e downgrade su fixture rappresentative;
-- canary ACL/API gateway-only, bridge filter e benchmark Friday;
+- review del freeze/intent Beta 4, tag workflow e verifica dei package
+  pubblicati senza mutare stable `latest`;
+- canary ACL/API gateway-only, bridge filter e benchmark Friday sul successore;
 - realtime history/search, che resta opzionale e non pubblicizzato;
 - matrice UI/deep-link multipiattaforma, QA visuale e test E2E con server reale;
-- dogfood Friday/Bluehost con principal temporaneo e rollback;
-- tag;
-- push;
-- prerelease pubblicate e verifica post-publish che stable `latest` sia invariata.
+- nuovo dogfood Friday/Bluehost con principal temporaneo, rollback e re-upgrade;
+- tag, push e prerelease del server; raccolta delle run app/CLI già dispatchate,
+  mentre installazione, E2E live e promozione restano bloccati fino al gate
+  server Friday;
+- verifica post-publish per ogni nuovo candidate che stable `latest` sia
+  invariata.

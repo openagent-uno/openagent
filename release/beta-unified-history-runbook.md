@@ -4,7 +4,8 @@ Status: Active release train
 
 Branch: `beta/unified-history-ui`
 
-Release status: **beta prerelease authorized on 2026-08-26; stable is not authorized**
+Release status: **server Beta 4 replacement pre-tag verified and intent frozen;
+tag/release pending; stable is not authorized**
 
 ::: danger Authorization is beta-only and conditional on the gates
 The explicit authorization covers implementation, Friday/Bluehost dogfood, and
@@ -12,7 +13,36 @@ GitHub prereleases for this train. It does not authorize a stable release, a
 `latest` mutation, skipping a gate, reusing a tag, or publishing from a dirty or
 unverified worktree. The server tag follows local gates plus the non-mutating
 Friday preflight/backup rehearsal; the published server bytes are then the input
-to Friday package E2E. App and CLI publication follows the Friday server gate.
+to Friday package E2E. App and CLI beta package workflows may run in parallel,
+but installation, live E2E and train promotion follow the Friday server gate.
+:::
+
+::: warning Recorded Beta 3 stop condition
+`v0.20.0-beta.3` successfully published as GitHub prerelease `377189126`, but
+the exact Linux package projected only `583/585` Friday legacy sessions. Two
+cross-run `tool_call_id` collisions kept `history_ready=false`; rollout stopped
+and Friday returned safely to stable `0.19.26`. Beta 3 is immutable and not
+promotable. See
+[`unified-history-beta-3-friday-failure.yaml`](./unified-history-beta-3-friday-failure.yaml)
+and the non-intent
+[`Beta 4 preparation checklist`](./unified-history-beta-4-preparation.md).
+:::
+
+::: info Beta 4 replacement verified; tag remains unused
+Source `699ffe8fa20d960e90ce7ade45a440301085e72a` repaired the Friday
+projection on an isolated backup copy and passed local/supply-chain gates, but
+branch Tests `32981309012` found one search-cache readiness race. The source is
+rejected. No Beta 4 tag or release was created, so `v0.20.0-beta.4` remains
+available only for a new fully verified SHA. See
+[`unified-history-beta-4-ci-failure.yaml`](./unified-history-beta-4-ci-failure.yaml).
+
+Replacement `b9d8ab50619ce89129146027c7ec21f83ce4f337` has now passed local
+full suite, branch Tests `32982520288`, Supply chain `32982520375`, and its
+exact-source Friday rehearsal. Its freeze is
+[`unified-history-beta-4-intent.yaml`](./unified-history-beta-4-intent.yaml).
+Intent SHA-256 is
+`338ea5f00f88fde99c10e7f2452c7204e3429b209ed12c5e78ae9de677beac7a`.
+No tag or release has been created yet.
 :::
 
 This runbook defines the active, gated beta release train for the work described in
@@ -42,22 +72,34 @@ The beta process must ensure that:
 All four repositories use the same branch name so the workstream is easy to
 trace, but their versions remain independent.
 
-| Repository | Branch | Version source | Stable/base integrated | Active candidate |
+| Repository | Branch | Version source | Stable/base integrated | Candidate state |
 |---|---|---|---|---|
-| `openagent-server` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py` | frozen `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1` | `0.20.0-beta.3` at `cc66f96cb22ee80349a004edb9cfee056e7e9ee7` |
-| `openagent-app` | `beta/unified-history-ui` | `desktop/package.json`, `universal/package.json` | `0.16.0` at `cc6a45b6a31aa61087839c950596db0c18bc70c7` | `0.17.0-beta.1` |
-| `openagent-cli` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py`, `src/openagent_cli/__init__.py` | `0.15.1` plus the post-release main fix at `58b236ab2cd6f8662036351ace9c2ee972bb2d17` | `0.16.0-beta.1` at `6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98` |
+| `openagent-server` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py` | frozen `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1` | Beta 4 `b9d8ab5…` pre-tag verified; tag unused |
+| `openagent-app` | `beta/unified-history-ui` | `desktop/package.json`, `universal/package.json` | `0.16.0` at `cc6a45b6a31aa61087839c950596db0c18bc70c7` | tag `v0.17.0-beta.1`; run `32983788693` in progress; no release |
+| `openagent-cli` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py`, `src/openagent_cli/__init__.py` | `0.15.1` plus the post-release main fix at `58b236ab2cd6f8662036351ace9c2ee972bb2d17` | tag `v0.16.0-beta.1` at `6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98`; run `32983586871` in progress; no release |
 | `openagent-docs` | `beta/unified-history-ui` | no product package | `356f80003015c0a5e56a300b6477c12418af398f` | n/a |
 
 Stable moved first to `v0.19.26` and then to `v0.19.27` during candidate
-preparation. That stable tag and SHA are now the deliberately frozen server
-base. The active candidate is
+preparation. That stable tag and SHA remain the deliberately frozen server
+base even though stable may advance independently. The Beta 3 candidate was
 `cc66f96cb22ee80349a004edb9cfee056e7e9ee7`; its complete local suite passed
 with `1647` tests, `0` failures and `46` skips. Supply-chain run `32974967908`
 and branch test run `32974968028` both passed on that SHA. Their terminal jobs
 were `98197349011` and `98197348947`, respectively. The frozen record is
-`release/unified-history-beta-3-intent.yaml`. Never substitute a moving branch
-name for those SHAs.
+`release/unified-history-beta-3-intent.yaml`. Release run `32976311521` then
+published prerelease `377189126` with `make_latest=false`. That workflow evidence
+remains valid for the immutable package, but Friday dogfood exposed an
+unresolved projection defect and no successor may reuse its runtime gates.
+Never substitute a moving branch name for frozen SHAs.
+
+The additive repair is commit
+`ebcfedc3779421f874a1e0d079bb06b002fa79f9`. It preserves the original
+storage DDL hash `ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863`
+and adds migration `operational-tool-call-context-v1` with hash
+`14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46`.
+The first version-bump source `699ffe8…` is evidence-bearing but rejected; it
+is not the release SHA. The accepted replacement is
+`b9d8ab50619ce89129146027c7ec21f83ce4f337`.
 
 The Beta 1 and Beta 2 tags and intents remain immutable. Beta 1 stopped at its
 Windows package smoke. Beta 2 passed every native build/package smoke, then
@@ -81,18 +123,23 @@ the intent record.
 ### 3.1 Independent component versions
 
 The train coordination identifier is `unified-history-beta.1`; each component
-has its own current candidate release version and tag:
+has an independent release line. The server line burned Beta 3 and froze the
+verified Beta 4 replacement before tag:
 
 ```text
 train:  unified-history-beta.1
-server: v0.20.0-beta.3
+server: v0.20.0-beta.4 at b9d8ab5… (pre-tag verified; tag unused)
 app:    v0.17.0-beta.1
 cli:    v0.16.0-beta.1
 ```
 
-These are the planned versions for this authorized train. If any immutable tag,
-artifact, or hidden draft fails its gate, that version is burned and the fix
-uses a monotonically newer `beta.N`; no tag or asset is replaced in place.
+App and CLI retain their planned Beta 1 versions; their tags are now dispatched
+but their runs are still in progress and no release is published. Server
+`v0.20.0-beta.3` is already a published, immutable prerelease and
+is not promotable after the Friday stop condition. `v0.20.0-beta.4` is the next
+version, but source `699ffe8…` failed before tag creation and is not eligible.
+The same unused version is now assigned in the frozen intent to replacement
+`b9d8ab5…`, whose gates pass; no Beta 3 tag or asset is replaced in place.
 
 The server's `v0.20.0-beta.1` tag is the first recorded application of this
 rule: release run `32969087557` stopped at the Windows package smoke because
@@ -112,6 +159,39 @@ stable `latest` remained `v0.19.27` (release `377133997`), and the immutable tag
 was retained. The narrowly scoped parser fix advances the server to
 `v0.20.0-beta.3`; app and CLI remain Beta 1.
 
+Release run `32976311521` for Beta 3 passed the full test and native package
+matrix, exact release-set verifier, attestations, hidden-draft digest gate and
+publication checks. GitHub release `377189126` is a non-latest prerelease. The
+exact published Linux asset was then deployed on Friday. The migration stayed
+fail-closed at `583/585` normalized sessions because two provider call IDs were
+reused in distinct runs under the same root and collided with a root-scoped
+unique constraint. `history_ready` remained false, so authenticated search E2E
+did not begin. Friday was rolled back to stable `0.19.26` without restoring the
+healthy canonical database; additive v2 structures remain for the required
+successor reconciliation drill.
+
+The first Beta 4 candidate `699ffe8fa20d960e90ce7ade45a440301085e72a`
+passed local full suite `1653/0/46`, targeted storage/API `32/32`, updater
+`29/29`, selfcheck and supply-chain run `32981309094`. Its isolated Friday
+rehearsal repaired a fresh copy from `586/583`, two failed and one pending to
+`586/586`, zero/zero, with search ready, the exact canary hit, eight collision
+groups/16 invocations preserved and clean SQLite checks. The source database
+digest stayed unchanged and live Friday remained stable `0.19.26` at the
+pre-rehearsal counts.
+
+Branch Tests `32981309012` nevertheless failed with `1647` passed, one failed
+and `51` skipped because of a search-cache readiness race. Supply-chain success
+does not waive that gate. No tag or release was created, so the source is
+rejected and the Beta 4 version remains available for a replacement SHA.
+
+Replacement `b9d8ab50619ce89129146027c7ec21f83ce4f337` adds readiness fix
+`ec859dfe943f2da2af3a9554a1909160ad94687c` and a deterministic regression.
+Its exact-source full suite passed `1653/0/46` in `213.6s` with log SHA-256
+`731e3f59c9cebe9893b1faa5471e5cf62d2239a25ec26f984dedf87f9e26c2f1`.
+Tests `32982520288`/job `98222391421` and Supply chain
+`32982520375`/job `98222392469` both succeeded. Its exact-source Friday copy
+rehearsal is complete and the tag remains unused.
+
 Rules:
 
 - External tags use `vX.Y.Z-beta.N` and are never reused or moved.
@@ -128,10 +208,10 @@ Rules:
   version. RC and stable promotion require separate explicit authorization.
 
 This mapping is a blocker because Python normalizes `0.20.0-beta.3` to
-`0.20.0b3`, while the current package scripts derive asset names from installed
-metadata and the updater derives the expected name from the Git tag. The
-release and updater tests must prove that tag, metadata, asset name, and version
-comparison all agree.
+`0.20.0b3` and `0.20.0-beta.4` to `0.20.0b4`, while the current package
+scripts derive asset names from installed metadata and the updater derives the
+expected name from the Git tag. The release and updater tests must prove that
+tag, metadata, asset name, and version comparison all agree.
 
 ### 3.2 Version consistency gate
 
@@ -148,23 +228,26 @@ Before candidate build, automated checks compare every declared version:
 ## 4. Observed beta release-system state and remaining live gates
 
 The beta worktrees contain the following release configuration as of
-2026-08-26. “Implemented” describes reviewed workflow code; it is not evidence
-that the tag workflow or published-package checks have already passed.
+2026-08-26. Beta 3's row includes recorded workflow evidence; rows for unreleased
+components and any successor still describe configuration or pending gates.
 
 | Component | Implemented in the beta worktree | Remaining candidate evidence |
 |---|---|---|
-| Server workflow | Exact tag/source version gate; complete server suite; per-platform frozen build with the computer-control sidecar; final package checksum, extraction, exact `--version`, `selfcheck`, macOS signature/notarization checks; exact six-file release union; provenance attestation; hidden draft upload and GitHub digest verification before publication | Successful tagged matrix and Friday live-gateway/migration/rollback E2E using the exact Linux package digest |
-| Server updater | Stable remains on `releases/latest`; explicit beta reads the release list, filters lineage/platform/version, verifies the exact asset and SHA-256, and retains pre-swap selfcheck, journal, `.old`, and boot guards | Stable/beta feed evidence and Friday channel cleanup; the first `0.19.x` to `0.20.0-beta.3` seed is manual by digest |
-| App workflow | Exact dual-package version gate; `test.sh`; per-OS installers with mandatory macOS signing/notarization; extraction/install and executable launch smoke; update-metadata SHA-512/size checks; Apple Silicon plus Intel DMG/ZIP launch; exact merged asset union; provenance attestation; hidden draft digest gate | Successful tagged matrix plus real-gateway search/deep-link E2E and recovery evidence using the published stable `v0.16.0` installer |
+| Server workflow | Beta 3 passed publication; rejected `699ffe8…` is retained; Beta 4 replacement `b9d8ab5…` passed full suite, exact-source rehearsal, Tests and Supply chain | Review frozen intent, then run the still-unused Beta 4 tag matrix and exact published-package Friday gate |
+| Server updater | Stable remains on `releases/latest`; explicit beta reads the release list, filters lineage/platform/version, verifies the exact asset and SHA-256, and retains pre-swap selfcheck, journal, `.old`, and boot guards | Successor stable/beta feed evidence plus Friday channel cleanup; after rollback to `0.19.26`, the successor seed is again manual by its own digest |
+| App workflow | Tag `v0.17.0-beta.1` dispatched run `32983788693`; exact dual-package/version, `test.sh`, native installers, metadata, signing/notarization, merged assets, provenance and hidden-draft gates configured | Run terminal result and release state; installation/real-gateway search/deep-link E2E remain behind server Friday |
 | Electron updater | Stable stays on `latest`; a `-beta.N` build selects the isolated beta metadata and permits prereleases; beta updates remain manual rather than install-on-quit | Published metadata isolation and manual recovery check |
-| CLI workflow | Exact three-source version gate; Python 3.12 unit/distribution gate; per-OS frozen launch; final package checksum, extraction, exact version/help probes; exact six-file release union; provenance attestation; hidden draft digest gate | Successful tagged matrix and Friday live-gateway history/search/JSON/pagination E2E using the exact Linux package digest |
+| CLI workflow | Tag `v0.16.0-beta.1` dispatched run `32983586871`; exact version, tests/distribution, native frozen launch, package checks, six-file union, provenance and hidden-draft gates configured | Run terminal result and release state; installation/Friday history/search/JSON/pagination E2E remain behind server Friday |
 | CLI updater | No local self-updater is advertised | Manual prerelease installation and rollback remain the Beta 1 procedure |
 
 `scripts/release.sh` is excluded from this train. Pushing an immutable tag still
 starts build and release preparation in one workflow, but no public prerelease
 is exposed until every required job passes and the complete hidden draft has
 been verified byte-for-byte. A failed tag or draft is superseded by a new
-`beta.N`; it is never moved, reused, or repaired in place.
+`beta.N`; it is never moved, reused, or repaired in place. Beta 3 demonstrates
+that a candidate can also pass publication and fail later dogfood: its public
+tag and assets stay immutable, promotion stops, and a new candidate repeats
+every affected gate.
 
 ## 5. Roles and authority
 
@@ -224,6 +307,20 @@ draft
   verification creates a new candidate and invalidates prior evidence.
 - A revoked or superseded version is never repaired in place. A new version and
   tag are required.
+
+Beta 3 reached `published_prerelease -> dogfood`, then entered the recorded stop
+condition. Its workflow/package evidence is retained, but its state is
+non-promotable. The successor starts again from a new `draft` and new intent;
+it does not resume Beta 3 after the failed dogfood node.
+
+The first Beta 4 source stopped inside pre-tag verification when branch Tests
+failed. Because it never reached `tag_pushed`, the version/tag is not burned;
+the source SHA is rejected and the replacement starts a fresh pre-tag evidence
+cycle before an intent can become `pretag_verified`.
+
+Replacement `b9d8ab5…` has completed that cycle and is now
+`pretag_verified`. The next state is `tag_pushed`, but this documentation commit
+does not perform it.
 
 Before tags are pushed, the work remains in `draft`; the actual state must be
 updated in the evidence record as the workflow advances.
@@ -373,9 +470,9 @@ components:
   server:
     repository: openagent-uno/openagent-server
     source_sha: <40-hex>
-    tag: v0.20.0-beta.3
-    release_version: 0.20.0-beta.3
-    package_version: 0.20.0b3
+    tag: v0.20.0-beta.4
+    release_version: 0.20.0-beta.4
+    package_version: 0.20.0b4
     api_revision: 2
     capabilities:
       history: 2
@@ -530,10 +627,10 @@ installations do not use this GitHub artifact selector and cannot claim this
 automatic beta-channel behavior.
 
 The same-line rule is intentional and controls the Friday seed. A running
-`0.19.x` binary does **not** auto-select `0.20.0-beta.3`, even after the
+`0.19.x` binary does **not** auto-select `0.20.0-beta.4` or another `0.20` beta, even after the
 installation opts into beta. The first Friday upgrade is therefore a manual,
 offline service replacement from the exact published
-`openagent-0.20.0-beta.3-linux-x64.tar.gz` bytes after both the sibling checksum
+the frozen beta's Linux x64 package bytes after both the sibling checksum
 and GitHub `sha256:` asset digest match. Once that exact package is installed
 and healthy, the beta channel may select only later eligible `0.20.0-beta.N`
 releases (or a strictly newer stable) according to the normal updater policy.
@@ -640,6 +737,53 @@ pre-DDL backup/restore rehearsal complete:
    service under `0.20.0-beta.3`;
 5. verify exact version, selfcheck, health, `api_revision=2`, storage in
    `shadow`, and eventual history/search readiness before connecting app or CLI.
+
+#### Recorded Beta 3 outcome
+
+Steps 1–4 succeeded with the exact published Linux package whose SHA-256 is
+`0c03cb93beda0e1f538d1d5af24c034d1c4108196ce15410e8fa5820da68775a`.
+Step 5 correctly failed closed: the legacy source contained `585` sessions,
+while v2 contained `583`. The two gaps were caused by provider
+`tool_call_id` values reused across distinct session runs under the same root;
+the Beta 3 uniqueness rule was scoped only to root plus call ID. No same-run
+collision was observed, and no source row was rewritten to work around it.
+
+`history_ready` remained false and global search was not advertised, so the
+temporary-principal live search matrix did not start. The service was stopped
+cleanly, the recorded stable `0.19.26` executable and sidecar were restored,
+the beta drop-in was disabled, and the service returned healthy without beta
+eligibility. The healthy additive schema was retained and no snapshot restore
+was performed.
+
+After rollback, one narrowly identified synthetic legacy session was written
+through the legacy `sessions` path while stable `0.19.26` was active. Its
+`legacy_session_changes` entry remains pending. It is a deliberate
+downgrade/re-upgrade canary, not user content.
+
+Rejected source `699ffe8…` exercised the repair on a fresh Backup API copy. The
+copy moved from `586` legacy / `583` normalized / two failed / one pending to
+`586/586/0/0`, search ready and pending zero. The exact canary hit, all eight
+cross-run collision groups and `16` invocations survived, and quick/FK checks
+passed. Source digest
+`526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd`
+was identical before and after. Live Friday was not touched and still holds the
+canary/pending state on stable `0.19.26`.
+
+Replacement `b9d8ab5…` repeated the exact-source rehearsal: `586/586`, complete,
+zero failed/pending/anti-join gaps, search ready and caught up, canary hit,
+eight groups/`16` invocations preserved, both migration ledgers complete and
+SQLite checks clean. The backup digest remained identical. It removes only the
+exact live canary after an exact packaged-candidate proof. Counts at the future
+package drill remain observational because legitimate Friday activity may
+continue; readiness is gated on set parity and zero unresolved work, not a
+hard-coded total.
+
+The immutable detailed record is
+`release/unified-history-beta-3-friday-failure.yaml`; the rejected pre-tag
+source is in `release/unified-history-beta-4-ci-failure.yaml`. The replacement
+follows `release/unified-history-beta-4-preparation.md` and is frozen in
+`release/unified-history-beta-4-intent.yaml`. Beta 3's tag, release, assets and
+intent are not mutated; the unused Beta 4 tag is created only after review.
 
 The updater is not used to cross the `0.19` → `0.20` boundary. After the seed,
 the drop-in enrolls only that installation in future compatible `0.20` beta
@@ -805,6 +949,14 @@ The dogfood owner records the stop, affected manifest/version, evidence, and
 recovery decision. Resumption requires a new candidate; prior technical evidence
 is not reused, while the existing beta-only authorization remains in force.
 
+Beta 3 exercised this rule: incomplete shadow projection triggered the stop,
+the record names the immutable release and sanitized failure class, and Friday
+was rolled back before live search/client promotion. The requested Beta 4
+successor is a new candidate, not a resumption or in-place repair of Beta 3.
+Its first source was then rejected by pre-tag CI; because no tag existed, Beta 4
+remains the replacement version while `699ffe8…` remains permanently
+ineligible.
+
 ## 15. Current authorization boundary
 
 Allowed now:
@@ -841,23 +993,29 @@ Assumptions:
 
 Remaining gates and first-train order:
 
-1. Run the configured server tag matrix and retain its exact workflow artifact
-   IDs, platform smoke output, attestation, and hidden-draft digest gate.
-2. Using that published digest, perform Friday's manual
-   `0.20.0-beta.3` seed, temporary-principal package E2E,
-   `0.19.x` binary rollback/re-upgrade, and cleanup without secret/query leakage.
-3. Only after the Friday server gate, run the configured app and CLI tag
-   matrices and retain exact platform smoke, attestation, and hidden-draft
-   verification evidence.
-4. Record stable/beta feed isolation for server and app, including the Friday
+1. Review the Beta 4 intent and checksum for exact source `b9d8ab5…`, including
+   the distinct rejected-source record and exact-source local/CI/rehearsal
+   evidence.
+2. Run the new server tag matrix and retain its exact workflow artifact IDs,
+   platform smoke output, attestation, hidden-draft digest gate and non-latest
+   publication metadata.
+3. Using only that successor's published digest, perform Friday's manual seed,
+   temporary-principal package E2E, `0.19.x` binary rollback/re-upgrade, exact
+   canary cleanup, and credential/resource cleanup without secret/query leakage.
+4. Monitor the already dispatched app/CLI tag matrices and retain exact platform
+   smoke, attestation and release-state evidence. Installation, live E2E and
+   train promotion wait for the successor Friday server gate.
+5. Record stable/beta feed isolation for server and app, including the Friday
    drop-in removal on rollback; keep CLI installation manual and do not
    advertise a local CLI self-updater.
-5. Retain the published stable app `v0.16.0` installer, verify its available
+6. Retain the published stable app `v0.16.0` installer, verify its available
    digest/signature evidence, and prove the documented manual recovery path.
-6. Finalize the train evidence index, known limitations, retention/revocation
+7. Finalize the train evidence index, known limitations, retention/revocation
    ownership, and post-publication checks that stable `latest` is unchanged.
 
 The API contract itself is aligned across the current server/app/CLI code at
 five scopes, nine targets, `api_revision=2`, and
-`definition_field_anchors=false`. This document does not mark runtime gates as
-passed. Stable remains outside the authorization.
+`definition_field_anchors=false`. It records Beta 3's passed publication gates
+and failed Friday gate, the first Beta 4 pre-tag rejection, and the accepted
+replacement gates separately. It does not mark tag/package dogfood as passed.
+Stable remains outside the authorization.

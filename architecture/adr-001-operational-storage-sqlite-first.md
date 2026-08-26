@@ -6,6 +6,8 @@
 - Related plan: [Piano beta: storage normalizzato, history unificata e ricerca globale](../plans/unified-history-storage-search-beta.md)
 - Normative source: [vision.md](../vision.md)
 - Reference DDL: `architecture/operational-storage-v2.sql`
+- Additive Beta 4 repair migration:
+  `architecture/operational-tool-call-context-v1.sql`
 - Version-gated legacy bridges: `architecture/legacy-session-change-triggers.sql`, `architecture/legacy-automation-change-triggers.sql`
 
 ## Context
@@ -236,6 +238,16 @@ legacy -> shadow -> prefer_v2 -> v2
 Before the first DDL statement, the migration leader acquires an OS file lock, prevents secondary writers from starting, and creates a backup through the SQLite Backup API or `VACUUM INTO`. The backup is verified with `integrity_check` and a restore rehearsal.
 
 Migrations have checksums and a ledger. Backfill uses a `(updated_at, session_id)` keyset plus source hash/version and conditional upsert. A session that changes during extraction is requeued.
+
+Completed migration identities are immutable. The Beta 3 storage DDL remains
+at SHA-256
+`ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863`;
+the cross-run tool-call correction is a separate ledger entry,
+`operational-tool-call-context-v1`, whose SQL SHA-256 is
+`14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46`.
+It scopes session tool-call uniqueness to `session_run_id`, preserves guarded
+fallback indexes for runless/non-session records, and requeues only unresolved
+legacy projection gaps.
 
 Additive triggers on legacy `sessions` populate `legacy_session_changes`. They are a detection net for downgrade to a pre-v2 binary, not a replacement for application dual-write. After re-upgrade, the server returns to `shadow` and reconciles inserts, updates, and deletes before enabling `prefer_v2` again.
 
