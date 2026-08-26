@@ -610,7 +610,7 @@ Exercise these pairs with real binaries or packages:
   `OPENAGENT_UPDATE_CHANNEL=beta` (and config-channel precedence), with
   beta.1 → beta.2 and beta → newer stable; an unknown channel must fail
   safe to stable, while the environment alone must not enable `auto_update`;
-- a `0.19.x` server must not auto-select `0.20.0-beta.1`: seed Friday manually
+- a `0.19.x` server must not auto-select `0.20.0-beta.2`: seed Friday manually
   from the exact Linux x64 package after sibling-checksum and GitHub asset-digest
   verification, then prove later compatible `0.20.0-beta.N` selection;
 - missing, corrupt, interrupted, wrong-platform, wrong-architecture, unsigned and

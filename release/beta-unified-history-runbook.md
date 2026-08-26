@@ -42,20 +42,22 @@ The beta process must ensure that:
 All four repositories use the same branch name so the workstream is easy to
 trace, but their versions remain independent.
 
-| Repository | Branch | Version source | Stable/base integrated | Beta 1 candidate |
+| Repository | Branch | Version source | Stable/base integrated | Active candidate |
 |---|---|---|---|---|
-| `openagent-server` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py` | current target base `v0.19.26` at `dcf39f77c7e25738a15517817a5ebed97a9d5490` | `0.20.0-beta.1` |
+| `openagent-server` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py` | `v0.19.27` at `ea6acc52e2cb4b07e733075bc6469a6479e11cd1` | `0.20.0-beta.2` at `e0d60d210c219a7c974ce54f551877e96e67a287` |
 | `openagent-app` | `beta/unified-history-ui` | `desktop/package.json`, `universal/package.json` | `0.16.0` at `cc6a45b6a31aa61087839c950596db0c18bc70c7` | `0.17.0-beta.1` |
 | `openagent-cli` | `beta/unified-history-ui` | `pyproject.toml`, `src/__init__.py`, `src/openagent_cli/__init__.py` | `0.15.1` plus the post-release main fix at `58b236ab2cd6f8662036351ace9c2ee972bb2d17` | `0.16.0-beta.1` |
 | `openagent-docs` | `beta/unified-history-ui` | no product package | `356f80003015c0a5e56a300b6477c12418af398f` | n/a |
 
-Stable moved to `v0.19.26` during candidate preparation. The final reviewed
-rebase onto `dcf39f77c7e25738a15517817a5ebed97a9d5490` and the complete local and
-branch server gates passed for candidate
-`1711e515315f0a7f8ceb14a74cbfdeb1f24cba61`. The SHAs in the table remain base
-provenance; the frozen candidate SHAs are recorded in
-`release/unified-history-beta-1-intent.yaml`. Never substitute a moving branch
-name for those SHAs.
+Stable moved first to `v0.19.26` and then to `v0.19.27` during candidate
+preparation. The active server candidate was reviewed and rebased onto
+`ea6acc52e2cb4b07e733075bc6469a6479e11cd1`; its complete local suite passed
+with `1645` tests, `0` failures and `46` skips, and branch test run
+`32971003072` plus supply-chain run `32971003054` passed on the same frozen SHA
+`e0d60d210c219a7c974ce54f551877e96e67a287`. The failed Beta 1 provenance is
+retained in `release/unified-history-beta-1-intent.yaml`; the active frozen
+candidate is recorded separately in `release/unified-history-beta-2-intent.yaml`.
+Never substitute a moving branch name for those SHAs.
 
 Changes from `origin/main` are integrated into each beta branch through a
 reviewed merge or rebase before candidate freeze. A candidate is never built
@@ -70,7 +72,7 @@ has its own approved Beta 1 release version and tag:
 
 ```text
 train:  unified-history-beta.1
-server: v0.20.0-beta.1
+server: v0.20.0-beta.2
 app:    v0.17.0-beta.1
 cli:    v0.16.0-beta.1
 ```
@@ -78,6 +80,15 @@ cli:    v0.16.0-beta.1
 These are the planned versions for this authorized train. If any immutable tag,
 artifact, or hidden draft fails its gate, that version is burned and the fix
 uses a monotonically newer `beta.N`; no tag or asset is replaced in place.
+
+The server's `v0.20.0-beta.1` tag is the first recorded application of this
+rule: release run `32969087557` stopped at the Windows package smoke because
+Git Bash could not list a ZIP through `tar`. The release job was skipped, no
+GitHub Release or assets were published, stable `latest` remained `v0.19.26`,
+and the immutable tag was retained. The portable `zipfile` fix advances only
+the server candidate to `v0.20.0-beta.2`; app and CLI remain Beta 1. Stable
+subsequently advanced independently to `v0.19.27`, which was integrated and
+fully re-tested before freezing Beta 2.
 
 Rules:
 
@@ -94,8 +105,8 @@ Rules:
 - `beta.N` is monotonically increasing within a component's chosen base
   version. RC and stable promotion require separate explicit authorization.
 
-This mapping is a blocker because Python normalizes `0.20.0-beta.1` to
-`0.20.0b1`, while the current package scripts derive asset names from installed
+This mapping is a blocker because Python normalizes `0.20.0-beta.2` to
+`0.20.0b2`, while the current package scripts derive asset names from installed
 metadata and the updater derives the expected name from the Git tag. The
 release and updater tests must prove that tag, metadata, asset name, and version
 comparison all agree.
@@ -121,7 +132,7 @@ that the tag workflow or published-package checks have already passed.
 | Component | Implemented in the beta worktree | Remaining candidate evidence |
 |---|---|---|
 | Server workflow | Exact tag/source version gate; complete server suite; per-platform frozen build with the computer-control sidecar; final package checksum, extraction, exact `--version`, `selfcheck`, macOS signature/notarization checks; exact six-file release union; provenance attestation; hidden draft upload and GitHub digest verification before publication | Successful tagged matrix and Friday live-gateway/migration/rollback E2E using the exact Linux package digest |
-| Server updater | Stable remains on `releases/latest`; explicit beta reads the release list, filters lineage/platform/version, verifies the exact asset and SHA-256, and retains pre-swap selfcheck, journal, `.old`, and boot guards | Stable/beta feed evidence and Friday channel cleanup; the first `0.19.x` to `0.20.0-beta.1` seed is manual by digest |
+| Server updater | Stable remains on `releases/latest`; explicit beta reads the release list, filters lineage/platform/version, verifies the exact asset and SHA-256, and retains pre-swap selfcheck, journal, `.old`, and boot guards | Stable/beta feed evidence and Friday channel cleanup; the first `0.19.x` to `0.20.0-beta.2` seed is manual by digest |
 | App workflow | Exact dual-package version gate; `test.sh`; per-OS installers with mandatory macOS signing/notarization; extraction/install and executable launch smoke; update-metadata SHA-512/size checks; Apple Silicon plus Intel DMG/ZIP launch; exact merged asset union; provenance attestation; hidden draft digest gate | Successful tagged matrix plus real-gateway search/deep-link E2E and recovery evidence using the published stable `v0.16.0` installer |
 | Electron updater | Stable stays on `latest`; a `-beta.N` build selects the isolated beta metadata and permits prereleases; beta updates remain manual rather than install-on-quit | Published metadata isolation and manual recovery check |
 | CLI workflow | Exact three-source version gate; Python 3.12 unit/distribution gate; per-OS frozen launch; final package checksum, extraction, exact version/help probes; exact six-file release union; provenance attestation; hidden draft digest gate | Successful tagged matrix and Friday live-gateway history/search/JSON/pagination E2E using the exact Linux package digest |
@@ -338,9 +349,9 @@ components:
   server:
     repository: openagent-uno/openagent-server
     source_sha: <40-hex>
-    tag: v0.20.0-beta.1
-    release_version: 0.20.0-beta.1
-    package_version: 0.20.0b1
+    tag: v0.20.0-beta.2
+    release_version: 0.20.0-beta.2
+    package_version: 0.20.0b2
     api_revision: 2
     capabilities:
       history: 2
@@ -495,10 +506,10 @@ installations do not use this GitHub artifact selector and cannot claim this
 automatic beta-channel behavior.
 
 The same-line rule is intentional and controls the Friday seed. A running
-`0.19.x` binary does **not** auto-select `0.20.0-beta.1`, even after the
+`0.19.x` binary does **not** auto-select `0.20.0-beta.2`, even after the
 installation opts into beta. The first Friday upgrade is therefore a manual,
 offline service replacement from the exact published
-`openagent-0.20.0-beta.1-linux-x64.tar.gz` bytes after both the sibling checksum
+`openagent-0.20.0-beta.2-linux-x64.tar.gz` bytes after both the sibling checksum
 and GitHub `sha256:` asset digest match. Once that exact package is installed
 and healthy, the beta channel may select only later eligible `0.20.0-beta.N`
 releases (or a strictly newer stable) according to the normal updater policy.
@@ -588,13 +599,13 @@ also uses a manual digest-pinned seed. With the service stopped and the verified
 pre-DDL backup/restore rehearsal complete:
 
 1. download the exact Linux x64 server package and sibling checksum from the
-   `v0.20.0-beta.1` GitHub prerelease;
+   `v0.20.0-beta.2` GitHub prerelease;
 2. compare the local SHA-256 with both the checksum file and the authenticated
    GitHub asset `digest`, and record the workflow/source identity;
 3. retain the current `0.19.x` executable as the explicit rollback binary, then
    replace only the resolved server executable and packaged sidecar targets;
 4. enable the captured beta drop-in, reload the named unit, and start the
-   service under `0.20.0-beta.1`;
+   service under `0.20.0-beta.2`;
 5. verify exact version, selfcheck, health, `api_revision=2`, storage in
    `shadow`, and eventual history/search readiness before connecting app or CLI.
 
@@ -801,7 +812,7 @@ Remaining gates and first-train order:
 1. Run the configured server tag matrix and retain its exact workflow artifact
    IDs, platform smoke output, attestation, and hidden-draft digest gate.
 2. Using that published digest, perform Friday's manual
-   `0.20.0-beta.1` seed, temporary-principal package E2E,
+   `0.20.0-beta.2` seed, temporary-principal package E2E,
    `0.19.x` binary rollback/re-upgrade, and cleanup without secret/query leakage.
 3. Only after the Friday server gate, run the configured app and CLI tag
    matrices and retain exact platform smoke, attestation, and hidden-draft
