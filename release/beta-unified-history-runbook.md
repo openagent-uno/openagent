@@ -575,6 +575,14 @@ binary/installers, and a canonical backup made through the SQLite Backup API or
 `VACUUM INTO`. The backup must pass digest, `integrity_check`, manifest, and an
 isolated restore rehearsal; copying only a live WAL-mode `.db` file is invalid.
 
+During this train, the stable updater completed `0.19.16` → `0.19.26` while the
+first preflight record was being assembled. Its SQLite backup was valid, but
+the executable filename and `source_version` metadata were stale. The original
+record remains immutable; the discrepancy and a second, coherent Backup API
+snapshot with both rollback binaries are recorded additively in
+`release/friday-preflight-correction-20260826.yaml`. Friday rollout uses only
+the corrected snapshot as its rollback baseline.
+
 For the published server-beta rollout, Friday opts in at the installation
 boundary with a dedicated systemd drop-in for `openagent-friday.service` whose
 only beta-channel setting is:

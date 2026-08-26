@@ -1,0 +1,43 @@
+schema: 1
+train_id: unified-history-beta.1
+component: server
+status: corrected_preflight_verified
+recorded_at: 2026-08-26T13:05:04Z
+
+bound_intent:
+  path: release/unified-history-beta-2-intent.yaml
+  sha256: c715e37be94ef79e5e421ed4adf1bfd034c789e384dc08f2b406590707343cd1
+  mutated: false
+
+discrepancy:
+  class: stable_update_race_during_preflight
+  stable_update: 0.19.16_to_0.19.26
+  update_installed_at: 2026-08-26T12:17:23Z
+  update_confirmed_at: 2026-08-26T12:18:49Z
+  discovered_at: 2026-08-26T13:04:00Z
+  original_backup: /srv/friday/backups/beta-unified-history-20260826T122809Z
+  original_database_valid: true
+  stale_fields:
+    - source_version
+    - current_executable_filename
+  original_record_retained: true
+
+corrected_backup:
+  path: /srv/friday/backups/beta-unified-history-20260826T130504Z-corrected
+  source_version: 0.19.26
+  source_executable_sha256: 4f4d32e2fee22ca542ff812d389db7769de0975fdd24a37dd933e906dbd7b3a5
+  secondary_rollback_version: 0.19.16
+  secondary_rollback_sha256: 199af3dd79a112fb2259a1692b7a7b3a7c67e7019ccba517ea3e9079e6fe4a4b
+  computer_control_sha256: fdfc9fddc594007106e72177a91e3dcc82546f4e7ae131a3e9cfc254abe70ae1
+  database_sha256: f2abd698ee19adcf21e8ede6e639d4d83ab3d7f59c58e0e4c7cc5f89621fd75d
+  backup_api: sqlite_backup
+  quick_check: pass
+  foreign_key_check: pass
+  restore_rehearsal: pass
+  service_active_after_backup: true
+
+rollout_decision:
+  rollback_baseline: corrected_backup
+  primary_rollback_version: 0.19.26
+  preserve_secondary_rollback: true
+  database_restore_only_on_verified_corruption: true
