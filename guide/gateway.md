@@ -36,10 +36,11 @@ The Gateway uses **device certificate authentication**, not bearer tokens or sha
 The `NetworkAuthState` middleware runs on every request:
 1. Extract the cert wire bytes from the Iroh stream
 2. Verify the Ed25519 signature against the pinned coordinator public key
-3. Check the cert hasn't expired (30-day TTL)
-4. Check the cert is for this network (`network_id` match)
-5. Check the device hasn't been revoked (`network_devices.status = 'active'`)
-6. Annotate the request with `device_cert`, `client_id`, and `user_handle`
+3. Prove the cert device key is the Iroh peer key for this connection
+4. Check the cert hasn't expired (30-day TTL)
+5. Check the cert is for this network (`network_id` match)
+6. Check live device membership/revocation
+7. Annotate the request with `device_cert`, `client_id`, and `user_handle`
 
 Failed auth returns `401 unauthorized`. Unlike the legacy shared-token model, each device has its own credential — revoking one device doesn't affect others for the same user.
 
@@ -48,6 +49,11 @@ See [Invitation System & Networking](./invitation-system.md) for the full cert l
 ## WebSocket protocol
 
 All traffic on `/ws` is JSON. The protocol uses typed messages for both directions.
+
+Desktop and CLI may additionally open `/ws/capabilities` for the versioned,
+turn-scoped local computer tool plane. It uses the same device certificate but
+rejects token, bridge and agent-peer identities. See
+[Client Computer Capabilities](./client-capabilities.md).
 
 ### Client → Server
 
