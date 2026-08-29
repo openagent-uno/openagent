@@ -1,0 +1,2459 @@
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
+
+info:
+  title: OpenAgent Unified History and Operational Search API
+  version: 0.1.0-beta
+  summary: Beta contract for unified activity, operational search, and typed result targets.
+  description: |
+    This document is the implementation contract for the first beta of unified
+    history and global operational search.
+
+    The gateway derives the authenticated principal from the device certificate.
+    A caller cannot select an owner or principal in a query. ACL filtering happens
+    before candidate limits, returned counts, snippets, and serialization.
+
+    The beta corpus is deliberately limited to chats, tools, workflows, scheduled
+    work, and events. The Markdown memory vault is not part of these capabilities
+    or enums. Vault search remains a separate service and API.
+
+    Cursors are opaque, principal-bound, filter-bound, and signed by the server.
+    History pages use an immutable activity snapshot. Search pages use a bounded,
+    TTL-backed search session. A normal index sequence advance does not invalidate
+    an open search session; only an incompatible index generation, expiry, ACL
+    change, or invalid cursor does.
+servers:
+  - url: "{gateway}"
+    description: Authenticated OpenAgent gateway or desktop loopback proxy.
+    variables:
+      gateway:
+        default: http://127.0.0.1
+
+security:
+  - DeviceCertificate: []
+
+tags:
+  - name: Capabilities
+    description: Feature discovery and storage/search readiness.
+  - name: History
+    description: Unified chronological operational activity.
+  - name: Search
+    description: Principal-scoped operational full-text search.
+  - name: Sessions
+    description: Durable, stable-ID transcript navigation.
+  - name: Detail resolvers
+    description: Exact canonical targets opened from search results.
+
+x-openagent-websocket:
+  description: |
+    Reserved event schemas for a later capability revision. The first beta does
+    not advertise either realtime event and clients must use bounded REST
+    refresh. If a later server advertises one of these event names, it shares
+    the authenticated gateway WebSocket used by the app, is filtered for the
+    connection principal, and invalidates or patches client state without
+    replacing snapshot pagination.
+  messages:
+    oneOf:
+      - $ref: "#/components/schemas/HistoryChangedEvent"
+      - $ref: "#/components/schemas/SearchIndexChangedEvent"
+
+paths:
+  /api/capabilities:
+    get:
+      tags: [Capabilities]
+      operationId: getCapabilities
+      summary: Discover independently versioned beta capabilities.
+      description: |
+        This endpoint is the interrogable source of truth. The first beta does
+        not embed this payload in the WebSocket auth_ok frame. Clients cache it
+        per server and account, and retry while history or search is warming.
+      responses:
+        "200":
+          description: Capability set visible to the authenticated principal.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CapabilitiesResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/history:
+    get:
+      tags: [History]
+      operationId: listHistory
+      summary: List a unified, summary-only activity snapshot.
+      description: |
+        The first request creates a principal-scoped snapshot containing stable
+        activity ids and their order. Later pages address that same snapshot
+        through the opaque cursor, so concurrent inserts do not create gaps or
+        duplicates.
+
+        On cursor requests, all filters must be byte-for-byte equivalent after
+        normalization to the first request. A mismatch returns cursor_stale.
+        Child sessions already represented by a workflow run, scheduled run, or
+        event delivery are absorbed by that causal root. Delegated sessions remain
+        first-class activity and carry their parent.
+      parameters:
+        - name: kinds
+          in: query
+          required: false
+          description: Comma-separated activity kinds. Omit for every beta kind.
+          style: form
+          explode: false
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              $ref: "#/components/schemas/ActivityKind"
+        - name: status
+          in: query
+          required: false
+          description: Comma-separated run statuses. Chat rows have no status.
+          style: form
+          explode: false
+          schema:
+            type: array
+            uniqueItems: true
+            items:
+              $ref: "#/components/schemas/RunStatus"
+        - name: origin
+          in: query
+          required: false
+          description: |
+            Extensible channel or execution origin. It is intentionally not a
+            closed enum because OpenAgent channels are extensible.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 128
+        - name: parent_type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ActivityParentKind"
+        - name: parent_id
+          in: query
+          required: false
+          description: Requires parent_type.
+          schema:
+            $ref: "#/components/schemas/OpaqueId"
+        - name: from
+          in: query
+          required: false
+          description: Inclusive UTC lower bound.
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: false
+          description: Exclusive UTC upper bound.
+          schema:
+            type: string
+            format: date-time
+        - name: include_children
+          in: query
+          required: false
+          description: |
+            Includes causal child sessions as separate rows. Defaults to false
+            because causal roots already expose those sessions in detail.
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OpaqueCursor"
+      responses:
+        "200":
+          description: One page from an immutable activity snapshot.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryPage"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/CursorStale"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+  /api/search:
+    post:
+      tags: [Search]
+      operationId: searchOperationalHistory
+      summary: Search the authorized operational corpus.
+      description: |
+        Search query text is sent in the body so it is not placed in URL history
+        or normal proxy access logs. Middleware and application telemetry must
+        not log request bodies for this operation.
+
+        sort=relevance requires a non-empty query. An empty query is accepted only
+        with sort=recent, primarily for the Tools category. Callers must send at
+        least one explicit scope so cursor-bound request normalization is
+        deterministic. Memory/vault is not a beta scope.
+
+        grouping=root returns at most two best passages per root. grouping=match
+        returns one match per result and is used by the N more affordance together
+        with filters.root. On cursor requests, query, scopes, filters, sort, and
+        grouping must match the first page.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+      responses:
+        "200":
+          description: One page from a principal-bound search session.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchPage"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          $ref: "#/components/responses/CursorStale"
+        "413":
+          $ref: "#/components/responses/RequestTooLarge"
+        "422":
+          $ref: "#/components/responses/UnprocessableQuery"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+        "503":
+          $ref: "#/components/responses/SearchUnavailable"
+
+  /api/sessions/{sessionId}/messages:
+    get:
+      tags: [Sessions]
+      operationId: listSessionMessages
+      summary: Read a durable transcript tail, page, or window around an anchor.
+      description: |
+        Exactly one navigation mode is allowed:
+
+        - no cursor and no around: return the newest limit messages;
+        - around plus before/after: return a window containing that message;
+        - cursor plus direction: continue before or after a prior window.
+
+        before and after are valid only with around. direction is required with a
+        cursor. The response always uses canonical stable message ids and ordinal
+        ordering. A live tail may advance without changing the historical window.
+      parameters:
+        - $ref: "#/components/parameters/SessionId"
+        - name: around
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OpaqueId"
+        - name: before
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 30
+        - name: after
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 100
+            default: 30
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/OpaqueCursor"
+        - name: direction
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/MessagePageDirection"
+        - name: limit
+          in: query
+          required: false
+          description: Used by tail and cursor modes. Ignored by around mode.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 100
+      responses:
+        "200":
+          description: A bidirectionally pageable message window.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionMessagePage"
+        "400":
+          $ref: "#/components/responses/InvalidRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/TargetNotFound"
+        "409":
+          $ref: "#/components/responses/CursorStale"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+  /api/tool-invocations/{toolInvocationId}:
+    get:
+      tags: [Detail resolvers]
+      operationId: getToolInvocation
+      summary: Resolve an authorized tool invocation to user-visible detail.
+      parameters:
+        - $ref: "#/components/parameters/ToolInvocationId"
+      responses:
+        "200":
+          description: Canonical user-visible detail with sensitive values redacted.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ToolInvocationDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/TargetNotFound"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+  /api/workflow-runs/{runId}:
+    get:
+      tags: [Detail resolvers]
+      operationId: getWorkflowRunResolver
+      summary: Resolve a workflow run and its stable trace-step anchors.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Minimal normalized detail required by workflow search targets.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowRunDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/TargetNotFound"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+  /api/scheduled-runs/{runId}:
+    get:
+      tags: [Detail resolvers]
+      operationId: getScheduledRun
+      summary: Resolve one scheduled run independently of parent list windows.
+      description: |
+        This endpoint is required for old search hits. It must not scan only the
+        newest N runs of the parent task, and it remains readable when the parent
+        definition has been deleted but the authorized run is retained.
+      parameters:
+        - $ref: "#/components/parameters/RunId"
+      responses:
+        "200":
+          description: Minimal normalized scheduled-run detail.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduledRunDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/TargetNotFound"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+  /api/event-deliveries/{deliveryId}:
+    get:
+      tags: [Detail resolvers]
+      operationId: getEventDeliveryResolver
+      summary: Resolve an event delivery and its real downstream target.
+      parameters:
+        - $ref: "#/components/parameters/DeliveryId"
+      responses:
+        "200":
+          description: Minimal normalized event-delivery detail.
+          headers:
+            Cache-Control:
+              $ref: "#/components/headers/NoStore"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventDeliveryDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/TargetNotFound"
+        "501":
+          $ref: "#/components/responses/Unsupported"
+
+components:
+  securitySchemes:
+    DeviceCertificate:
+      type: mutualTLS
+      description: |
+        Conceptual OpenAPI representation of gateway authentication. The actual
+        transport uses a coordinator-signed OpenAgent device certificate over
+        Iroh; clients do not send a bearer token or choose a principal.
+
+  headers:
+    NoStore:
+      description: Sensitive, account-scoped data must not be cached by intermediaries.
+      schema:
+        type: string
+        const: no-store
+
+  parameters:
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/OpaqueId"
+    ToolInvocationId:
+      name: toolInvocationId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/OpaqueId"
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/OpaqueId"
+    DeliveryId:
+      name: deliveryId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/OpaqueId"
+
+  responses:
+    InvalidRequest:
+      description: Request parameters or body are invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: invalid_request
+              message: around cannot be combined with cursor
+              retryable: false
+    Unauthorized:
+      description: Device authentication is absent or invalid.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: unauthorized
+              message: Authentication required
+              retryable: false
+    Forbidden:
+      description: The principal is authenticated but cannot access this target.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: forbidden
+              message: Access denied
+              retryable: false
+    TargetNotFound:
+      description: |
+        The target does not exist, was deleted, or is intentionally hidden from
+        this principal. Servers may use the same response as Forbidden to avoid
+        disclosing target existence.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: target_not_found
+              message: This result is no longer available
+              retryable: false
+    CursorStale:
+      description: The cursor cannot safely reproduce its snapshot or search session.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: cursor_stale
+              message: The result snapshot expired; refresh to continue
+              retryable: true
+              details:
+                reason: expired
+    Unsupported:
+      description: This server does not implement the advertised beta capability.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: unsupported
+              message: Global search is not supported by this server
+              retryable: false
+    SearchUnavailable:
+      description: Search is warming or degraded. History may remain available.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          examples:
+            warming:
+              value:
+                error:
+                  code: warming
+                  message: Search is still indexing authorized history
+                  retryable: true
+                  details:
+                    retry_after_ms: 1000
+            degraded:
+              value:
+                error:
+                  code: degraded
+                  message: Search is temporarily degraded
+                  retryable: true
+    RequestTooLarge:
+      description: The request exceeds a configured parser or body-size budget.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: request_too_large
+              message: The request exceeds the supported size
+              retryable: false
+    UnprocessableQuery:
+      description: The query is syntactically valid JSON but cannot be executed safely.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: unprocessable_query
+              message: The query exceeds the supported search complexity
+              retryable: false
+    RateLimited:
+      description: The authenticated principal exceeded a bounded query budget.
+      headers:
+        Retry-After:
+          description: Whole seconds until the caller may retry, when known.
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiErrorResponse"
+          example:
+            error:
+              code: rate_limited
+              message: Too many requests
+              retryable: true
+              details:
+                retry_after_ms: 1000
+
+  schemas:
+    OpaqueId:
+      type: string
+      minLength: 1
+      maxLength: 512
+      description: Opaque server-owned identifier. Clients must not parse it.
+
+    OpaqueCursor:
+      type: string
+      minLength: 16
+      maxLength: 8192
+      description: |
+        Signed, principal-bound continuation token. Clients must treat it as an
+        opaque secret and must not persist it across logout or account changes.
+
+    Revision:
+      type: string
+      minLength: 1
+      maxLength: 256
+
+    Sequence:
+      type: integer
+      minimum: 0
+
+    ActivityKind:
+      type: string
+      enum:
+        - chat
+        - delegated_session
+        - workflow_run
+        - scheduled_run
+        - event_delivery
+
+    ActivityParentKind:
+      type: string
+      enum:
+        - session
+        - workflow
+        - scheduled_task
+        - event
+
+    SearchScope:
+      type: string
+      description: Initial beta operational scope. Memory/vault is intentionally absent.
+      enum:
+        - chats
+        - tools
+        - workflows
+        - scheduled
+        - events
+
+    SearchSort:
+      type: string
+      enum:
+        - relevance
+        - recent
+
+    SearchGrouping:
+      type: string
+      enum:
+        - root
+        - match
+      default: root
+
+    SearchQueryMode:
+      type: string
+      description: The first beta supports local keyword search only.
+      enum:
+        - keyword
+
+    SearchState:
+      type: string
+      enum:
+        - unavailable
+        - warming
+        - ready
+        - degraded
+
+    StoragePhase:
+      type: string
+      enum:
+        - legacy
+        - shadow
+        - prefer_v2
+        - v2
+
+    RunStatus:
+      type: string
+      enum:
+        - pending
+        - queued
+        - received
+        - running
+        - success
+        - failed
+        - cancelled
+        - rejected
+        - interrupted
+        - skipped
+        - timed_out
+
+    Completeness:
+      type: string
+      description: Canonical fidelity state defined by ADR-002.
+      enum:
+        - complete
+        - partial
+        - legacy_compacted
+        - malformed_source
+        - unknown
+
+    MessageStatus:
+      type: string
+      enum:
+        - streaming
+        - complete
+        - interrupted
+        - cancelled
+        - failed
+
+    Sensitivity:
+      type: string
+      enum:
+        - safe
+        - redacted
+
+    SearchTargetKind:
+      type: string
+      enum:
+        - chat
+        - chat_message
+        - chat_tool
+        - workflow_definition
+        - workflow_run
+        - scheduled_definition
+        - scheduled_run
+        - event_definition
+        - event_delivery
+
+    SearchRootKind:
+      type: string
+      enum:
+        - chat
+        - delegated_session
+        - workflow_definition
+        - workflow_run
+        - scheduled_definition
+        - scheduled_run
+        - event_definition
+        - event_delivery
+
+    SearchMatchKind:
+      type: string
+      enum:
+        - title
+        - description
+        - prompt
+        - message
+        - tool_name
+        - tool_args
+        - tool_result
+        - error
+        - workflow_step
+
+    MessageRole:
+      type: string
+      enum:
+        - user
+        - assistant
+        - tool
+        - compaction
+
+    AuthorKind:
+      type: string
+      enum:
+        - user
+        - agent
+        - system
+
+    ToolInvocationStatus:
+      type: string
+      enum:
+        - pending
+        - running
+        - success
+        - error
+        - cancelled
+
+    CursorStaleReason:
+      type: string
+      enum:
+        - expired
+        - generation_changed
+        - acl_changed
+        - filter_mismatch
+        - invalid_signature
+        - snapshot_missing
+
+    ApiErrorCode:
+      type: string
+      enum:
+        - invalid_request
+        - unauthorized
+        - forbidden
+        - target_not_found
+        - cursor_stale
+        - unsupported
+        - warming
+        - degraded
+        - conflict
+        - request_too_large
+        - unprocessable_query
+        - rate_limited
+        - internal_error
+
+    ApiError:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - retryable
+      properties:
+        code:
+          $ref: "#/components/schemas/ApiErrorCode"
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2048
+        retryable:
+          type: boolean
+        request_id:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 256
+            - type: "null"
+        details:
+          type: object
+          additionalProperties: true
+          properties:
+            reason:
+              $ref: "#/components/schemas/CursorStaleReason"
+            retry_after_ms:
+              type: integer
+              minimum: 0
+
+    ApiErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: "#/components/schemas/ApiError"
+
+    HistoryFeature:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - kinds
+        - snapshot_pagination
+        - max_page_size
+      properties:
+        version:
+          type: integer
+          const: 2
+        kinds:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/ActivityKind"
+        snapshot_pagination:
+          type: boolean
+          const: true
+        max_page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        realtime_event:
+          type: string
+          const: history_changed
+          description: Optional; present only when the authenticated server implements this event.
+
+    GlobalSearchFeature:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - scopes
+        - sorts
+        - query_modes
+        - tool_content
+        - targets
+        - snapshot_pagination
+        - max_page_size
+      properties:
+        version:
+          type: integer
+          const: 1
+        scopes:
+          type: array
+          description: The complete five-scope global-search v1 contract.
+          minItems: 5
+          maxItems: 5
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SearchScope"
+        sorts:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SearchSort"
+        query_modes:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SearchQueryMode"
+        tool_content:
+          type: string
+          enum: [redacted]
+        targets:
+          type: array
+          description: The complete nine-target global-search v1 contract.
+          minItems: 9
+          maxItems: 9
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SearchTargetKind"
+        snapshot_pagination:
+          type: boolean
+          const: true
+        max_page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+        realtime_event:
+          type: string
+          const: search_index_changed
+          description: Optional; present only when the authenticated server implements this event.
+
+    SessionMessagesFeature:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - around
+        - bidirectional
+        - max_page_size
+      properties:
+        version:
+          type: integer
+          const: 1
+        around:
+          type: boolean
+          const: true
+        bidirectional:
+          type: boolean
+          const: true
+        max_page_size:
+          type: integer
+          minimum: 1
+          maximum: 100
+
+    DetailResolversFeature:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - tool_invocation
+        - workflow_run
+        - scheduled_run
+        - event_delivery
+        - definition_field_anchors
+      properties:
+        version:
+          type: integer
+          const: 1
+        tool_invocation:
+          type: boolean
+        workflow_run:
+          type: boolean
+        scheduled_run:
+          type: boolean
+        event_delivery:
+          type: boolean
+        definition_field_anchors:
+          type: boolean
+          description: |
+            False in the first beta. Workflow, scheduled, and event search
+            guarantees the correct definition root or run/delivery, not the
+            exact node, field, trace step, or nested tool that matched.
+
+    CapabilityFeatures:
+      type: object
+      additionalProperties: false
+      description: |
+        Feature entries are optional during bootstrap/warm-up and are advertised
+        only when the authenticated server can satisfy their complete versioned
+        contract. A client retries capability discovery according to storage state;
+        it never interprets an absent entry as an empty result set.
+      properties:
+        history:
+          $ref: "#/components/schemas/HistoryFeature"
+        global_search:
+          $ref: "#/components/schemas/GlobalSearchFeature"
+        session_messages:
+          $ref: "#/components/schemas/SessionMessagesFeature"
+        detail_resolvers:
+          $ref: "#/components/schemas/DetailResolversFeature"
+
+    StorageCapability:
+      type: object
+      additionalProperties: false
+      required:
+        - phase
+        - schema_version
+        - history_ready
+        - history_pending
+        - search_state
+        - search_ready
+        - index_generation
+        - indexed_seq
+      properties:
+        phase:
+          $ref: "#/components/schemas/StoragePhase"
+        schema_version:
+          type: integer
+          minimum: 1
+        history_ready:
+          type: boolean
+          description: False while canonical history v2 is still bootstrapping.
+        history_pending:
+          type: integer
+          minimum: 0
+          description: Number of legacy session or automation changes still awaiting projection.
+        search_state:
+          $ref: "#/components/schemas/SearchState"
+        search_ready:
+          type: boolean
+        index_generation:
+          $ref: "#/components/schemas/Revision"
+        indexed_seq:
+          $ref: "#/components/schemas/Sequence"
+
+    CapabilitiesResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - api_revision
+        - features
+        - storage
+      properties:
+        api_revision:
+          type: integer
+          const: 2
+        features:
+          $ref: "#/components/schemas/CapabilityFeatures"
+        storage:
+          $ref: "#/components/schemas/StorageCapability"
+      example:
+        api_revision: 2
+        features:
+          history:
+            version: 2
+            kinds:
+              - chat
+              - delegated_session
+              - workflow_run
+              - scheduled_run
+              - event_delivery
+            snapshot_pagination: true
+            max_page_size: 100
+          global_search:
+            version: 1
+            scopes: [chats, tools, workflows, scheduled, events]
+            sorts: [relevance, recent]
+            query_modes: [keyword]
+            tool_content: redacted
+            targets:
+              - chat
+              - chat_message
+              - chat_tool
+              - workflow_definition
+              - workflow_run
+              - scheduled_definition
+              - scheduled_run
+              - event_definition
+              - event_delivery
+            snapshot_pagination: true
+            max_page_size: 100
+          session_messages:
+            version: 1
+            around: true
+            bidirectional: true
+            max_page_size: 100
+          detail_resolvers:
+            version: 1
+            tool_invocation: true
+            workflow_run: true
+            scheduled_run: true
+            event_delivery: true
+            definition_field_anchors: false
+        storage:
+          phase: shadow
+          schema_version: 2
+          history_ready: true
+          history_pending: 0
+          search_state: ready
+          search_ready: true
+          index_generation: generation-1
+          indexed_seq: 12345
+
+    ActivityParent:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - id
+        - title
+      properties:
+        kind:
+          $ref: "#/components/schemas/ActivityParentKind"
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+
+    ActivityItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - resource_id
+        - title
+        - occurred_at
+        - updated_at
+        - live
+        - completeness
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        kind:
+          $ref: "#/components/schemas/ActivityKind"
+        resource_id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          anyOf:
+            - $ref: "#/components/schemas/RunStatus"
+            - type: "null"
+        origin:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 128
+            - type: "null"
+        occurred_at:
+          type: string
+          format: date-time
+          description: Immutable timestamp used by the activity snapshot order.
+        updated_at:
+          type: string
+          format: date-time
+        parent:
+          anyOf:
+            - $ref: "#/components/schemas/ActivityParent"
+            - type: "null"
+        session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        live:
+          type: boolean
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    HistorySnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - snapshot_id
+        - revision
+        - expires_at
+      properties:
+        snapshot_id:
+          $ref: "#/components/schemas/OpaqueId"
+        revision:
+          $ref: "#/components/schemas/Revision"
+        expires_at:
+          type: string
+          format: date-time
+
+    HistoryPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+        - has_more
+        - revision
+        - snapshot
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/ActivityItem"
+        next_cursor:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueCursor"
+            - type: "null"
+        has_more:
+          type: boolean
+        revision:
+          $ref: "#/components/schemas/Revision"
+        snapshot:
+          $ref: "#/components/schemas/HistorySnapshot"
+
+    SearchRootRef:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      properties:
+        kind:
+          $ref: "#/components/schemas/SearchRootKind"
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+
+    SearchFilters:
+      type: object
+      additionalProperties: false
+      properties:
+        status:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/RunStatus"
+        from:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        to:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        parent_type:
+          anyOf:
+            - $ref: "#/components/schemas/ActivityParentKind"
+            - type: "null"
+        parent_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        origin:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 128
+            - type: "null"
+        root:
+          anyOf:
+            - $ref: "#/components/schemas/SearchRootRef"
+            - type: "null"
+
+    SearchRequest:
+      type: object
+      additionalProperties: false
+      allOf:
+        - if:
+            properties:
+              sort:
+                const: relevance
+            required: [sort]
+          then:
+            properties:
+              query:
+                minLength: 1
+      required:
+        - query
+        - scopes
+        - filters
+        - sort
+        - grouping
+        - limit
+        - cursor
+      properties:
+        query:
+          type: string
+          maxLength: 4096
+          description: |
+            Must be non-empty when sort is relevance. The server also enforces
+            a finite UTF-8 byte and normalized-term budget; violations return
+            request_too_large or unprocessable_query.
+        scopes:
+          type: array
+          minItems: 1
+          maxItems: 5
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/SearchScope"
+        filters:
+          $ref: "#/components/schemas/SearchFilters"
+        sort:
+          $ref: "#/components/schemas/SearchSort"
+        grouping:
+          $ref: "#/components/schemas/SearchGrouping"
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 40
+        cursor:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueCursor"
+            - type: "null"
+
+    SearchRoot:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - id
+        - title
+        - occurred_at
+        - completeness
+      properties:
+        kind:
+          $ref: "#/components/schemas/SearchRootKind"
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          anyOf:
+            - $ref: "#/components/schemas/RunStatus"
+            - type: "null"
+        occurred_at:
+          type: string
+          format: date-time
+        session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        parent:
+          anyOf:
+            - $ref: "#/components/schemas/ActivityParent"
+            - type: "null"
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    HighlightFragment:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+        - highlight
+      properties:
+        text:
+          type: string
+          maxLength: 400
+        highlight:
+          type: boolean
+
+    SearchAuthor:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+      properties:
+        kind:
+          $ref: "#/components/schemas/AuthorKind"
+        principal_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        handle:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+        display:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+
+    EventCause:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - event_id
+        - delivery_id
+        - title
+      properties:
+        kind:
+          type: string
+          const: event_delivery
+        event_id:
+          $ref: "#/components/schemas/OpaqueId"
+        delivery_id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+
+    ChatTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - session_id
+      properties:
+        kind:
+          type: string
+          const: chat
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+
+    ChatMessageTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - session_id
+        - message_id
+      properties:
+        kind:
+          type: string
+          const: chat_message
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+        message_id:
+          $ref: "#/components/schemas/OpaqueId"
+
+    ChatToolTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - session_id
+        - message_id
+        - tool_invocation_id
+      properties:
+        kind:
+          type: string
+          const: chat_tool
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+        message_id:
+          $ref: "#/components/schemas/OpaqueId"
+        tool_invocation_id:
+          $ref: "#/components/schemas/OpaqueId"
+
+    WorkflowDefinitionTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - workflow_id
+      properties:
+        kind:
+          type: string
+          const: workflow_definition
+        workflow_id:
+          $ref: "#/components/schemas/OpaqueId"
+        node_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future match anchor; not emitted as a beta guarantee while definition_field_anchors is false.
+        field:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Optional future match anchor; not emitted as a beta guarantee while definition_field_anchors is false.
+
+    WorkflowRunTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - run_id
+        - workflow_id
+      properties:
+        kind:
+          type: string
+          const: workflow_run
+        run_id:
+          $ref: "#/components/schemas/OpaqueId"
+        workflow_id:
+          $ref: "#/components/schemas/OpaqueId"
+        trace_step_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future match anchor; the first beta guarantees the run root.
+        tool_invocation_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the run root.
+
+    ScheduledDefinitionTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - task_id
+      properties:
+        kind:
+          type: string
+          const: scheduled_definition
+        task_id:
+          $ref: "#/components/schemas/OpaqueId"
+        field:
+          type: string
+          description: Optional future match anchor; the first beta guarantees the task root.
+          enum:
+            - name
+            - prompt
+            - schedule
+
+    ScheduledRunTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - run_id
+        - task_id
+      properties:
+        kind:
+          type: string
+          const: scheduled_run
+        run_id:
+          $ref: "#/components/schemas/OpaqueId"
+        task_id:
+          $ref: "#/components/schemas/OpaqueId"
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the scheduled-run root.
+        message_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the scheduled-run root.
+        tool_invocation_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the scheduled-run root.
+
+    EventDefinitionTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - event_id
+      properties:
+        kind:
+          type: string
+          const: event_definition
+        event_id:
+          $ref: "#/components/schemas/OpaqueId"
+        field:
+          type: string
+          minLength: 1
+          maxLength: 256
+          description: Optional future match anchor; the first beta guarantees the event root.
+
+    EventDeliveryTarget:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - delivery_id
+        - event_id
+      properties:
+        kind:
+          type: string
+          const: event_delivery
+        delivery_id:
+          $ref: "#/components/schemas/OpaqueId"
+        event_id:
+          $ref: "#/components/schemas/OpaqueId"
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the event-delivery root.
+        message_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the event-delivery root.
+        tool_invocation_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Optional future nested match anchor; the first beta guarantees the event-delivery root.
+
+    SearchTarget:
+      oneOf:
+        - $ref: "#/components/schemas/ChatTarget"
+        - $ref: "#/components/schemas/ChatMessageTarget"
+        - $ref: "#/components/schemas/ChatToolTarget"
+        - $ref: "#/components/schemas/WorkflowDefinitionTarget"
+        - $ref: "#/components/schemas/WorkflowRunTarget"
+        - $ref: "#/components/schemas/ScheduledDefinitionTarget"
+        - $ref: "#/components/schemas/ScheduledRunTarget"
+        - $ref: "#/components/schemas/EventDefinitionTarget"
+        - $ref: "#/components/schemas/EventDeliveryTarget"
+      discriminator:
+        propertyName: kind
+        mapping:
+          chat: "#/components/schemas/ChatTarget"
+          chat_message: "#/components/schemas/ChatMessageTarget"
+          chat_tool: "#/components/schemas/ChatToolTarget"
+          workflow_definition: "#/components/schemas/WorkflowDefinitionTarget"
+          workflow_run: "#/components/schemas/WorkflowRunTarget"
+          scheduled_definition: "#/components/schemas/ScheduledDefinitionTarget"
+          scheduled_run: "#/components/schemas/ScheduledRunTarget"
+          event_definition: "#/components/schemas/EventDefinitionTarget"
+          event_delivery: "#/components/schemas/EventDeliveryTarget"
+
+    EventDownstreamTarget:
+      description: |
+        A concrete downstream execution or transcript anchor created by an event
+        delivery. Event definitions and deliveries are deliberately excluded so
+        the causal chain cannot recurse through another breadcrumb target.
+      oneOf:
+        - $ref: "#/components/schemas/ChatTarget"
+        - $ref: "#/components/schemas/ChatMessageTarget"
+        - $ref: "#/components/schemas/ChatToolTarget"
+        - $ref: "#/components/schemas/WorkflowRunTarget"
+        - $ref: "#/components/schemas/ScheduledRunTarget"
+      discriminator:
+        propertyName: kind
+        mapping:
+          chat: "#/components/schemas/ChatTarget"
+          chat_message: "#/components/schemas/ChatMessageTarget"
+          chat_tool: "#/components/schemas/ChatToolTarget"
+          workflow_run: "#/components/schemas/WorkflowRunTarget"
+          scheduled_run: "#/components/schemas/ScheduledRunTarget"
+
+    SearchMatch:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+        - id
+        - field
+        - occurred_at
+        - fragments
+        - sensitivity
+        - completeness
+        - target
+      properties:
+        kind:
+          $ref: "#/components/schemas/SearchMatchKind"
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        field:
+          type: string
+          minLength: 1
+          maxLength: 256
+        author:
+          anyOf:
+            - $ref: "#/components/schemas/SearchAuthor"
+            - type: "null"
+        occurred_at:
+          type: string
+          format: date-time
+        fragments:
+          type: array
+          minItems: 1
+          maxItems: 64
+          description: |
+            Ordered plain-text spans. Their concatenated passage is limited to
+            approximately 400 Unicode grapheme clusters by the server; this
+            aggregate constraint cannot be expressed by JSON Schema alone.
+          items:
+            $ref: "#/components/schemas/HighlightFragment"
+        sensitivity:
+          $ref: "#/components/schemas/Sensitivity"
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+        target:
+          $ref: "#/components/schemas/SearchTarget"
+
+    SearchResult:
+      type: object
+      additionalProperties: false
+      required:
+        - result_id
+        - root
+        - matches
+        - match_count
+        - target
+      properties:
+        result_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: |
+            root kind plus root id when grouping=root; match id (or tool
+            invocation id in Tools) when grouping=match.
+        root:
+          $ref: "#/components/schemas/SearchRoot"
+        matches:
+          type: array
+          minItems: 1
+          maxItems: 2
+          items:
+            $ref: "#/components/schemas/SearchMatch"
+        match_count:
+          type: integer
+          minimum: 1
+          description: Authorized matches for this root.
+        target:
+          $ref: "#/components/schemas/SearchTarget"
+          description: Default target. It must equal matches[0].target.
+        caused_by:
+          anyOf:
+            - $ref: "#/components/schemas/EventCause"
+            - type: "null"
+
+    SearchSnapshot:
+      type: object
+      additionalProperties: false
+      required:
+        - search_session_id
+        - index_generation
+        - indexed_seq
+        - expires_at
+      properties:
+        search_session_id:
+          $ref: "#/components/schemas/OpaqueId"
+        index_generation:
+          $ref: "#/components/schemas/Revision"
+        indexed_seq:
+          $ref: "#/components/schemas/Sequence"
+        expires_at:
+          type: string
+          format: date-time
+
+    CorpusCoverage:
+      type: object
+      additionalProperties: false
+      required:
+        - complete
+        - indexed_documents
+        - estimated_total
+        - pending
+        - lag_ms
+      properties:
+        complete:
+          type: boolean
+        indexed_documents:
+          type: integer
+          minimum: 0
+          description: Count within the authorized corpus only.
+        estimated_total:
+          type: integer
+          minimum: 0
+          description: Authorized estimate only; never a global tenant count.
+        pending:
+          type: integer
+          minimum: 0
+        lag_ms:
+          type: integer
+          minimum: 0
+
+    SearchCoverage:
+      type: object
+      additionalProperties: false
+      required:
+        - state
+        - complete
+        - indexed_documents
+        - estimated_total
+        - pending
+        - indexed_through
+        - lag_ms
+        - last_error
+        - per_corpus
+      properties:
+        state:
+          $ref: "#/components/schemas/SearchState"
+        complete:
+          type: boolean
+        indexed_documents:
+          type: integer
+          minimum: 0
+          description: Count within the authorized corpus only.
+        estimated_total:
+          type: integer
+          minimum: 0
+          description: Authorized estimate only.
+        pending:
+          type: integer
+          minimum: 0
+        indexed_through:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        lag_ms:
+          type: integer
+          minimum: 0
+        last_error:
+          anyOf:
+            - type: string
+              maxLength: 2048
+            - type: "null"
+        per_corpus:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/CorpusCoverage"
+          propertyNames:
+            enum:
+              - chats
+              - tools
+              - workflows
+              - scheduled
+              - events
+
+    SearchPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - next_cursor
+        - has_more
+        - snapshot
+        - index_generation
+        - indexed_seq
+        - coverage
+        - query_mode
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/SearchResult"
+        next_cursor:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueCursor"
+            - type: "null"
+        has_more:
+          type: boolean
+        snapshot:
+          $ref: "#/components/schemas/SearchSnapshot"
+        index_generation:
+          $ref: "#/components/schemas/Revision"
+        indexed_seq:
+          $ref: "#/components/schemas/Sequence"
+        coverage:
+          $ref: "#/components/schemas/SearchCoverage"
+        query_mode:
+          $ref: "#/components/schemas/SearchQueryMode"
+
+    MessagePageDirection:
+      type: string
+      enum:
+        - before
+        - after
+
+    MessageAuthor:
+      type: object
+      additionalProperties: false
+      required:
+        - kind
+      properties:
+        kind:
+          $ref: "#/components/schemas/AuthorKind"
+        principal_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        handle:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+        display:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+
+    MessageAttachment:
+      type: object
+      additionalProperties: false
+      required:
+        - artifact_id
+        - kind
+        - filename
+        - mime
+      properties:
+        artifact_id:
+          $ref: "#/components/schemas/OpaqueId"
+        kind:
+          type: string
+          enum:
+            - image
+            - file
+            - voice
+            - video
+        filename:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        mime:
+          type: string
+          minLength: 1
+          maxLength: 256
+        size_bytes:
+          type: integer
+          minimum: 0
+
+    SessionMessage:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - session_id
+        - ordinal
+        - role
+        - status
+        - author
+        - text
+        - created_at
+        - completeness
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+        run_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        ordinal:
+          type: integer
+          minimum: 0
+        role:
+          $ref: "#/components/schemas/MessageRole"
+        status:
+          $ref: "#/components/schemas/MessageStatus"
+        author:
+          $ref: "#/components/schemas/MessageAuthor"
+        text:
+          type: string
+        visible_reasoning:
+          anyOf:
+            - type: string
+            - type: "null"
+        tool_invocation_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageAttachment"
+        created_at:
+          type: string
+          format: date-time
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    SessionMessagePage:
+      type: object
+      additionalProperties: false
+      required:
+        - session_id
+        - messages
+        - anchor_found
+        - before_cursor
+        - after_cursor
+        - has_more_before
+        - has_more_after
+        - revision
+      properties:
+        session_id:
+          $ref: "#/components/schemas/OpaqueId"
+        messages:
+          type: array
+          description: Tail/cursor modes return at most 100; around mode at most 201.
+          maxItems: 201
+          items:
+            $ref: "#/components/schemas/SessionMessage"
+        anchor_found:
+          anyOf:
+            - type: boolean
+            - type: "null"
+          description: Null when the request did not use around.
+        anchor_message_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        before_cursor:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueCursor"
+            - type: "null"
+        after_cursor:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueCursor"
+            - type: "null"
+        has_more_before:
+          type: boolean
+        has_more_after:
+          type: boolean
+        revision:
+          $ref: "#/components/schemas/Revision"
+
+    SafeJsonValue:
+      description: JSON value after the server redaction and size policy.
+      oneOf:
+        - type: "null"
+        - type: boolean
+        - type: number
+        - type: string
+        - type: array
+          items:
+            $ref: "#/components/schemas/SafeJsonValue"
+        - type: object
+          additionalProperties:
+            $ref: "#/components/schemas/SafeJsonValue"
+
+    ArtifactMetadata:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - kind
+        - filename
+        - mime
+        - size_bytes
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        kind:
+          type: string
+        filename:
+          type: string
+        mime:
+          type: string
+        size_bytes:
+          type: integer
+          minimum: 0
+
+    ToolInvocationRootKind:
+      type: string
+      enum:
+        - chat
+        - delegated_session
+        - workflow_run
+        - scheduled_run
+        - event_delivery
+
+    ToolInvocationDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - root_kind
+        - root_id
+        - tool_name
+        - status
+        - args_safe
+        - result_safe
+        - error_safe
+        - sensitivity
+        - completeness
+        - artifacts
+        - created_at
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        tool_call_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        root_kind:
+          $ref: "#/components/schemas/ToolInvocationRootKind"
+        root_id:
+          $ref: "#/components/schemas/OpaqueId"
+        session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        message_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        workflow_run_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        trace_step_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        scheduled_run_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        event_delivery_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        tool_server:
+          anyOf:
+            - type: string
+              maxLength: 512
+            - type: "null"
+        tool_name:
+          type: string
+          minLength: 1
+          maxLength: 512
+        status:
+          $ref: "#/components/schemas/ToolInvocationStatus"
+        args_safe:
+          $ref: "#/components/schemas/SafeJsonValue"
+        result_safe:
+          $ref: "#/components/schemas/SafeJsonValue"
+        error_safe:
+          anyOf:
+            - type: string
+              maxLength: 65536
+            - type: "null"
+        child_session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        sensitivity:
+          $ref: "#/components/schemas/Sensitivity"
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+        artifacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArtifactMetadata"
+        created_at:
+          type: string
+          format: date-time
+        finished_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+
+    WorkflowTraceStep:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - node_id
+        - attempt
+        - type
+        - status
+        - started_at
+        - tool_invocation_ids
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Stable attempt-level anchor; never substitute node_id.
+        node_id:
+          $ref: "#/components/schemas/OpaqueId"
+        attempt:
+          type: integer
+          minimum: 0
+        type:
+          type: string
+          minLength: 1
+          maxLength: 256
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        child_session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        error_safe:
+          anyOf:
+            - type: string
+              maxLength: 65536
+            - type: "null"
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        tool_invocation_ids:
+          type: array
+          items:
+            $ref: "#/components/schemas/OpaqueId"
+
+    WorkflowRunDetail:
+      type: object
+      additionalProperties: true
+      description: |
+        Canonical resolver fields layered additively over the pre-existing
+        workflow-run response. Legacy-compatible raw fields may also be present
+        during the beta and clients must ignore unknown members.
+      required:
+        - id
+        - workflow_id
+        - title
+        - status
+        - trace_steps
+        - started_at
+        - started_at_iso
+        - completeness
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        workflow_id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        trigger:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+        trace_steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkflowTraceStep"
+        started_at:
+          type: number
+          description: Legacy-compatible Unix epoch seconds; its primitive type is stable.
+        finished_at:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Legacy-compatible Unix epoch seconds, or null.
+        started_at_iso:
+          type: string
+          format: date-time
+          description: Additive ISO 8601 rendering of started_at.
+        finished_at_iso:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Additive ISO 8601 rendering of finished_at, or null.
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    ScheduledRunDetail:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - task_id
+        - title
+        - status
+        - started_at
+        - completeness
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        task_id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        trigger:
+          anyOf:
+            - type: string
+              maxLength: 256
+            - type: "null"
+        session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        output_summary_safe:
+          anyOf:
+            - type: string
+              maxLength: 65536
+            - type: "null"
+        error_safe:
+          anyOf:
+            - type: string
+              maxLength: 65536
+            - type: "null"
+        caused_by:
+          anyOf:
+            - $ref: "#/components/schemas/EventCause"
+            - type: "null"
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    EventDeliveryDetail:
+      type: object
+      additionalProperties: true
+      description: |
+        Canonical resolver fields layered additively over the pre-existing
+        event-delivery response. Legacy-compatible raw fields may also be
+        present during the beta and clients must ignore unknown members.
+      required:
+        - id
+        - event_id
+        - title
+        - status
+        - source
+        - started_at
+        - occurred_at
+        - completeness
+      properties:
+        id:
+          $ref: "#/components/schemas/OpaqueId"
+        event_id:
+          $ref: "#/components/schemas/OpaqueId"
+        title:
+          type: string
+          minLength: 1
+          maxLength: 1024
+        status:
+          $ref: "#/components/schemas/RunStatus"
+        source:
+          type: string
+          minLength: 1
+          maxLength: 256
+        session_id:
+          anyOf:
+            - $ref: "#/components/schemas/OpaqueId"
+            - type: "null"
+        downstream_target:
+          anyOf:
+            - $ref: "#/components/schemas/EventDownstreamTarget"
+            - type: "null"
+          description: |
+            The actual workflow, scheduled, or chat target. Clients navigate
+            directly to it and render this delivery as causal breadcrumb.
+        error_safe:
+          anyOf:
+            - type: string
+              maxLength: 65536
+            - type: "null"
+        started_at:
+          type: number
+          description: Legacy-compatible Unix epoch seconds; its primitive type is stable.
+        occurred_at:
+          type: string
+          format: date-time
+          description: Additive ISO 8601 rendering of started_at.
+        finished_at:
+          anyOf:
+            - type: number
+            - type: "null"
+          description: Legacy-compatible Unix epoch seconds, or null.
+        finished_at_iso:
+          anyOf:
+            - type: string
+              format: date-time
+            - type: "null"
+          description: Additive ISO 8601 rendering of finished_at, or null.
+        completeness:
+          $ref: "#/components/schemas/Completeness"
+
+    HistoryChangedEvent:
+      type: object
+      additionalProperties: false
+      allOf:
+        - if:
+            properties:
+              action:
+                const: upsert
+            required: [action]
+          then:
+            required: [item]
+            properties:
+              item:
+                $ref: "#/components/schemas/ActivityItem"
+        - if:
+            properties:
+              action:
+                const: delete
+            required: [action]
+          then:
+            properties:
+              item:
+                type: "null"
+      required:
+        - type
+        - revision
+        - action
+        - activity_id
+        - kind
+        - resource_id
+      properties:
+        type:
+          type: string
+          const: history_changed
+        revision:
+          $ref: "#/components/schemas/Revision"
+        action:
+          type: string
+          enum:
+            - upsert
+            - delete
+        activity_id:
+          $ref: "#/components/schemas/OpaqueId"
+          description: Stable ActivityItem.id used as the client-store key.
+        kind:
+          $ref: "#/components/schemas/ActivityKind"
+        resource_id:
+          $ref: "#/components/schemas/OpaqueId"
+        item:
+          anyOf:
+            - $ref: "#/components/schemas/ActivityItem"
+            - type: "null"
+          description: Required for upsert and omitted or null for delete.
+
+    SearchIndexChangedEvent:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - index_generation
+        - indexed_seq
+      properties:
+        type:
+          type: string
+          const: search_index_changed
+        index_generation:
+          $ref: "#/components/schemas/Revision"
+        indexed_seq:
+          $ref: "#/components/schemas/Sequence"

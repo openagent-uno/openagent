@@ -1,0 +1,230 @@
+schema: 1
+train_id: unified-history-beta.1
+channel: beta
+status: pretag_verified
+created_at: 2026-08-26T14:58:37Z
+
+authorization:
+  reference: user request in the current OpenAgent implementation task
+  recorded_at: 2026-08-26
+  scope: beta_prerelease_only
+  stable: false
+
+predecessors:
+  - component: server
+    tag: v0.20.0-beta.1
+    source_sha: 1711e515315f0a7f8ceb14a74cbfdeb1f24cba61
+    release_run: 32969087557
+    outcome: tagged_not_published
+    evidence: release/unified-history-beta-1-server-failure.yaml
+  - component: server
+    tag: v0.20.0-beta.2
+    source_sha: e0d60d210c219a7c974ce54f551877e96e67a287
+    release_run: 32971908272
+    outcome: tagged_not_published
+    evidence: release/unified-history-beta-2-server-failure.yaml
+  - component: server
+    tag: v0.20.0-beta.3
+    source_sha: cc66f96cb22ee80349a004edb9cfee056e7e9ee7
+    release_run: 32976311521
+    github_release_id: 377189126
+    outcome: published_prerelease_dogfood_blocked
+    evidence: release/unified-history-beta-3-friday-failure.yaml
+  - component: server
+    candidate_label: beta4
+    tag: null
+    source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
+    branch_test_run: 32981309012
+    outcome: pretag_candidate_rejected
+    evidence: release/unified-history-beta-4-ci-failure.yaml
+
+branch_policy:
+  branch: beta/unified-history-ui
+  server_base_frozen: true
+  server_base_tag: v0.19.27
+  server_base_sha: ea6acc52e2cb4b07e733075bc6469a6479e11cd1
+  main_tip_auto_integration: false
+  selected_or_critical_changes_only: true
+  integration_requires_new_candidate_and_affected_gates: true
+
+components:
+  server:
+    repository: openagent-uno/openagent-server
+    branch: beta/unified-history-ui
+    source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+    source_on_remote_branch: true
+    base_tag: v0.19.27
+    base_sha: ea6acc52e2cb4b07e733075bc6469a6479e11cd1
+    repair_source_sha: ebcfedc3779421f874a1e0d079bb06b002fa79f9
+    readiness_fix_sha: ec859dfe943f2da2af3a9554a1909160ad94687c
+    deterministic_regression_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+    tag: v0.20.0-beta.4
+    tag_state: unused
+    github_release_state: absent
+    release_version: 0.20.0-beta.4
+    package_version: 0.20.0b4
+    api_revision: 2
+    capabilities:
+      history: 2
+      global_search: 1
+      session_messages: 1
+      detail_resolvers: 1
+      definition_field_anchors: false
+    storage:
+      operational_schema_version: 2
+      default_phase: shadow
+      legacy_storage_retained: true
+      search_index_rebuildable: true
+      repair_migration_id: operational-tool-call-context-v1
+    expected_artifacts:
+      - openagent-0.20.0-beta.4-linux-x64.tar.gz
+      - openagent-0.20.0-beta.4-linux-x64.tar.gz.sha256
+      - openagent-0.20.0-beta.4-macos-arm64.pkg
+      - openagent-0.20.0-beta.4-macos-arm64.pkg.sha256
+      - openagent-0.20.0-beta.4-windows-x64.zip
+      - openagent-0.20.0-beta.4-windows-x64.zip.sha256
+
+  app:
+    repository: openagent-uno/openagent-app
+    branch: beta/unified-history-ui
+    source_sha: d85f0eb8c23d3f93942402dd42d900107de4f638
+    base_tag: v0.16.0
+    base_sha: cc6a45b6a31aa61087839c950596db0c18bc70c7
+    tag: v0.17.0-beta.1
+    release_version: 0.17.0-beta.1
+    package_version: 0.17.0-beta.1
+    required_capabilities:
+      history: 2
+      global_search: 1
+    expected_artifacts:
+      - openagent-app-0.17.0-beta.1-macos-arm64.dmg
+      - openagent-app-0.17.0-beta.1-macos-arm64.dmg.sha256
+      - openagent-app-0.17.0-beta.1-macos-arm64.zip
+      - openagent-app-0.17.0-beta.1-macos-arm64.zip.sha256
+      - openagent-app-0.17.0-beta.1-macos-x64.dmg
+      - openagent-app-0.17.0-beta.1-macos-x64.dmg.sha256
+      - openagent-app-0.17.0-beta.1-macos-x64.zip
+      - openagent-app-0.17.0-beta.1-macos-x64.zip.sha256
+      - openagent-app-0.17.0-beta.1-windows-x64.exe
+      - openagent-app-0.17.0-beta.1-windows-x64.exe.sha256
+      - openagent-app-0.17.0-beta.1-linux-amd64.deb
+      - openagent-app-0.17.0-beta.1-linux-amd64.deb.sha256
+      - openagent-app-0.17.0-beta.1-linux-x86_64.AppImage
+      - openagent-app-0.17.0-beta.1-linux-x86_64.AppImage.sha256
+      - beta-mac.yml
+      - beta.yml
+      - beta-linux.yml
+      - release-manifest-macos.json
+      - release-manifest-windows.json
+      - release-manifest-linux.json
+
+  cli:
+    repository: openagent-uno/openagent-cli
+    branch: beta/unified-history-ui
+    source_sha: 6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98
+    base_tag: v0.15.1
+    base_sha: 58b236ab2cd6f8662036351ace9c2ee972bb2d17
+    tag: v0.16.0-beta.1
+    release_version: 0.16.0-beta.1
+    package_version: 0.16.0b1
+    expected_artifacts:
+      - openagent-cli-0.16.0-beta.1-linux-x64.tar.gz
+      - openagent-cli-0.16.0-beta.1-linux-x64.tar.gz.sha256
+      - openagent-cli-0.16.0-beta.1-macos-arm64.pkg
+      - openagent-cli-0.16.0-beta.1-macos-arm64.pkg.sha256
+      - openagent-cli-0.16.0-beta.1-windows-x64.zip
+      - openagent-cli-0.16.0-beta.1-windows-x64.zip.sha256
+
+compatibility:
+  install_order: [server, app, cli]
+  old_clients_supported: true
+  new_clients_fallback_to_old_server: true
+  legacy_storage_retained: true
+  friday_seed: manual_exact_digest
+
+pretag_gates:
+  server:
+    exact_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+    local_full_suite:
+      result: pass
+      passed: 1653
+      failed: 0
+      skipped: 46
+      duration_seconds: 213.6
+      log_sha256: 731e3f59c9cebe9893b1faa5471e5cf62d2239a25ec26f984dedf87f9e26c2f1
+    branch_test_run: 32982520288
+    branch_test_job: 98222391421
+    branch_test_result: pass
+    branch_supply_chain_run: 32982520375
+    branch_supply_chain_job: 98222392469
+    branch_supply_chain_result: pass
+    prior_source_supporting_evidence:
+      source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
+      release_qualifying_for_replacement: false
+      targeted_operational_storage_and_api:
+        result: pass
+        passed: 32
+        failed: 0
+      targeted_updater:
+        result: pass
+        passed: 29
+        failed: 0
+      beta4_selfcheck: pass
+  app:
+    branch_test_run: 32965788605
+    local_package_smoke: pass
+    dependency_audit_vulnerabilities: 0
+  cli:
+    branch_test_run: 32975861077
+    branch_test_result: pass
+    branch_test_jobs:
+      packaging_python_3_12_full: 98200310985
+      packaging_python_3_11_wheel_only: 98200311143
+      unit_python_3_11: 98200311374
+      unit_python_3_12: 98200311605
+    branch_runs_source_sha: 6f2af66481b7c1a9862fd6ac8bd05f2062fa2a98
+    local_tests_passed: 36
+    local_package_smoke: pass
+
+contracts:
+  operational_storage_v2_sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
+  operational_tool_call_context_v1_sha256: 14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46
+  operational_search_v1_sha256: 6d9b406980e287089e9b5595dfbf3362817f00b6d48e6c9b19f776bd302bfd4d
+  legacy_session_bridge_sha256: 7c45f580af4abba61ef3a7cc690f9e7b02479cff1d3c32c041cee2bc7039f0ee
+  legacy_automation_bridge_sha256: bbb5253f728bf46d4078838de11ec7b162a67450c1588d52323eaeeff4ca21fe
+
+friday_rehearsal:
+  environment_alias: Friday
+  hosting_alias: Bluehost
+  execution_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+  database_copy_method: sqlite_backup_api
+  source_database_sha256_before: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+  source_database_sha256_after: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+  source_unchanged: true
+  result:
+    legacy_sessions: 586
+    normalized_sessions: 586
+    projection_complete: true
+    failed_sessions: 0
+    pending_legacy_changes: 0
+    anti_join_missing_sessions: 0
+    quick_check: pass
+    foreign_key_check_violations: 0
+    search_state: ready
+    search_caught_up: true
+    search_pending: 0
+    exact_legacy_canary_hit: true
+    collision_groups_preserved: 8
+    collision_invocations_preserved: 16
+    base_ledger:
+      sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
+      status: complete
+    repair_ledger:
+      sha256: 14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46
+      status: complete
+
+publication_guard:
+  tag_unused: true
+  github_release_absent: true
+  make_latest: false
+  stable_release_authorized: false
