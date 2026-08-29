@@ -15,6 +15,7 @@ const guideSidebar = [
       { text: "Invitation System & Networking", link: "/guide/invitation-system" },
       { text: "Models", link: "/guide/models" },
       { text: "MCP Tools", link: "/guide/mcp" },
+      { text: "Client Computer Tools", link: "/guide/client-capabilities" },
       { text: "Phone & SMS MCP", link: "/guide/phone-mcp" },
       { text: "Gateway", link: "/guide/gateway" },
       { text: "Channels", link: "/guide/channels" },

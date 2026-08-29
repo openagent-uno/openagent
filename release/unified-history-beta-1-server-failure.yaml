@@ -1,0 +1,17 @@
+schema: 1
+train_id: unified-history-beta.1
+component: server
+tag: v0.20.0-beta.1
+source_sha: 1711e515315f0a7f8ceb14a74cbfdeb1f24cba61
+intent_sha256: 5a606b75834b68038bc00c564faa742518194c2effb22e8696900248919f9ae0
+release_run: 32969087557
+status: tagged_not_published
+failed_job: executable (windows-latest, windows-x64, .exe)
+failed_step: Smoke-test the packaged release
+failure_class: windows_zip_listing_incompatible
+release_job: skipped
+github_release_created: false
+stable_latest_after_failure:
+  release_id: 377092764
+  tag: v0.19.26
+superseded_by: v0.20.0-beta.2
