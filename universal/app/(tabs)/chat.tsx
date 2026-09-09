@@ -22,6 +22,7 @@ import { attachmentsForSend } from '../../../common/attachments';
 import { chatSessionIntent, resolveChatAnchor } from '../../../common/search-navigation';
 import { useConnection } from '../../stores/connection';
 import { useChat } from '../../stores/chat';
+import { sessionReadGuard } from '../../stores/sessionReadAccess';
 import { useEvents } from '../../stores/events';
 import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
@@ -423,6 +424,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!anchorSession || !anchorMessage) return;
     const controller = new AbortController();
+    const current = sessionReadGuard(anchorSession);
     setAnchorError(null);
     void (async () => {
       try {
@@ -436,7 +438,7 @@ export default function ChatScreen() {
             ? getToolInvocationDetail(anchorToolInvocation, controller.signal)
             : Promise.resolve(undefined),
         ]);
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !current()) return;
         if (page.anchor_found === false) {
           setAnchorError('This result is no longer available.');
           return;

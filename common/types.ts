@@ -1003,6 +1003,8 @@ export interface ChatMessage {
 }
 
 export interface ChatSession {
+  /** An explicit access withdrawal clears every transcript projection. */
+  accessRevoked?: boolean;
   sharedSnapshot?: import('./collaboration').SharedSnapshot;
   id: string;
   title: string;

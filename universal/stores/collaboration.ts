@@ -3,6 +3,7 @@ import type { SharedPerson, SharedTarget } from '../../common/collaboration';
 import { mergeSharedTranscript } from '../../common/shared-transcript';
 import { CollaborationClient } from '../services/collaboration';
 import { useChat } from './chat';
+import { sessionIsRevoked, setSessionRevoked } from './sessionReadAccess';
 import { getSessionModelPin } from '../services/api';
 
 export const useCollaboration = create<{ client: CollaborationClient | null; people: readonly SharedPerson[] }>(() => ({ client: null, people: [] }));
@@ -32,25 +33,35 @@ export function bindShared(next: CollaborationClient | null) {
   const unsubscribe = next.subscribe(() => {
     if (client !== next) return;
     useCollaboration.setState({ people: next.presence() });
-    const ids = new Set([...leases.values()].flatMap(l => l.sessions));
+    const ids = new Set([
+      ...[...leases.values()].flatMap(l => [...l.sessions, ...(l.focus?.kind === 'session' ? [l.focus.id] : [])]),
+      ...useChat.getState().sessions.filter(se => next.revoked(se.id)).map(se => se.id),
+    ]);
     for (const id of ids) {
       const snapshot = next.snapshot(id);
       if (!snapshot) {
-        if (revisions.delete(id)) {
+        const withdrawn = next.revoked(id);
+        if (revisions.delete(id) || (withdrawn && !sessionIsRevoked(id))) {
           generations.set(id, (generations.get(id) ?? 0) + 1);
           // A withdrawn grant (or logout) must drop the cached snapshot AND the
           // visible text: a history fetch still in flight would otherwise merge
           // the revoked transcript back in. A socket that merely dropped keeps
           // the transcript, but still discards the snapshot so nothing stale
           // can be re-merged before the reconnect delivers a fresh one.
-          const withdrawn = next.revoked(id);
-          useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id
+          if (withdrawn) setSessionRevoked(id, true);
+          useChat.setState(s => ({ sessions: (withdrawn && !s.sessions.some(se => se.id === id)
+            ? [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false }]
+            : s.sessions).map(se => se.id === id
             ? (withdrawn
-              ? { ...se, messages: [], sharedSnapshot: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
+              ? { ...se, accessRevoked: true, messages: [], sharedSnapshot: undefined, messageWindow: undefined, contextUsage: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
               : { ...se, sharedSnapshot: undefined })
             : se) }));
         }
         continue;
+      }
+      if (sessionIsRevoked(id)) {
+        setSessionRevoked(id, false);
+        useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id ? { ...se, accessRevoked: false } : se) }));
       }
       if (revisions.get(id) === snapshot.revision) continue;
       revisions.set(id, snapshot.revision);
@@ -62,7 +73,7 @@ export function bindShared(next: CollaborationClient | null) {
       let status = last?.status;
       try { const tool = JSON.parse(status || ''); if (tool.tool_name) status = `Using ${tool.tool_name}`; } catch { /* plain status */ }
       useChat.setState(s => ({ sessions: (s.sessions.some(se => se.id === id) ? s.sessions : [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false, origin: 'delegation' as const }]).map(se => se.id === id ? {
-        ...se, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
+        ...se, accessRevoked: false, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
         sharedSnapshot: snapshot,
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));

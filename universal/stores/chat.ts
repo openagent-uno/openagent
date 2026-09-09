@@ -3,6 +3,7 @@
  */
 
 import { create } from 'zustand';
+import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
 import { mergeSharedTranscript } from '../../common/shared-transcript';
 import {
   toolPhase,
@@ -825,8 +826,10 @@ export const useChat = create<ChatState>((set, get) => ({
     if (state.sessionsHydrated) {
       const ses = sessions.find((s) => s.id === id);
       if (ses && ses.messages.length === 0) {
+        const current = sessionReadGuard(id);
         loadSessionTranscript(id, state.sessionHistoryMode)
           .then((loaded) => {
+            if (!current()) return;
             const hasMessages = loaded.kind === 'v2'
               ? loaded.page.messages.length > 0
               : loaded.messages.length > 0;
@@ -962,8 +965,10 @@ export const useChat = create<ChatState>((set, get) => ({
     const importedIds = new Set(imported.map((i) => i.id));
     if (autoSelectId && importedIds.has(autoSelectId)) {
       const mode = get().sessionHistoryMode;
+      const current = sessionReadGuard(autoSelectId);
       loadSessionTranscript(autoSelectId, mode)
         .then((loaded) => {
+          if (!current()) return;
           const hasMessages = loaded.kind === 'v2'
             ? loaded.page.messages.length > 0
             : loaded.messages.length > 0;
@@ -993,6 +998,7 @@ export const useChat = create<ChatState>((set, get) => ({
   setSessionHistoryMode: (sessionHistoryMode) => set({ sessionHistoryMode }),
 
   mergeMessageWindow: (page, tool) => set((state) => {
+    if (sessionIsRevoked(page.session_id)) return {};
     const incoming = page.messages.map(canonicalMessageToChat);
     if (tool) {
       const messageId = tool.message_id;
@@ -1056,12 +1062,14 @@ export const useChat = create<ChatState>((set, get) => ({
         || !current?.messageWindow?.hasMoreBefore || !cursor) return;
     const running = earlierPageLoads.get(sessionId);
     if (running) return running;
+    const authorized = sessionReadGuard(sessionId);
     const request = listSessionMessages(sessionId, {
       cursor,
       direction: 'before',
       limit: SESSION_MESSAGE_PAGE_SIZE,
     })
       .then((page) => {
+        if (!authorized()) return;
         // Ignore a page for a cursor superseded by an anchor navigation or a
         // reconnect refresh while this request was in flight.
         const latest = get().sessions.find((session) => session.id === sessionId);
@@ -1257,6 +1265,8 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   handleServerMessage: (msg) => set((s) => {
+    const sessionId = (msg as { session_id?: string }).session_id;
+    if (sessionId && sessionIsRevoked(sessionId)) return {};
     noteFrame((msg as { session_id?: string }).session_id);
     // A streaming frame may arrive for a freshly-spawned child session (a
     // delegated sub-agent streaming live) a beat before the sidebar's
@@ -1691,8 +1701,10 @@ export const useChat = create<ChatState>((set, get) => ({
     // message.)
     if (!ses || ses.isProcessing) return;
     const mode = get().sessionHistoryMode;
+    const current = sessionReadGuard(sessionId);
     return loadSessionTranscript(sessionId, mode)
       .then((loaded) => {
+        if (!current()) return;
         // Empty result → keep the optimistic transcript (the runs may not be
         // flushed yet); never wipe a visible conversation to nothing.
         const hasMessages = loaded.kind === 'v2'
@@ -1724,8 +1736,10 @@ export const useChat = create<ChatState>((set, get) => ({
 
   refreshContext: (sessionId) => {
     if (!sessionId) return;
+    const current = sessionReadGuard(sessionId);
     getSessionContext(sessionId)
       .then((report) => {
+        if (!current()) return;
         // A valid report has a real window; the empty-session shape
         // (context_window 0) is ignored so the panel keeps its last good state.
         if (!report || !report.context_window) return;
@@ -1744,12 +1758,16 @@ export const useChat = create<ChatState>((set, get) => ({
     return { sessions, activeSessionId };
   }),
 
-  clearAll: () => set({
-    sessions: [],
-    activeSessionId: null,
-    sessionsHydrated: false,
-    sessionHistoryMode: 'unknown',
-  }),
+  clearAll: () => {
+    resetSessionReadAccess();
+    earlierPageLoads.clear();
+    set({
+      sessions: [],
+      activeSessionId: null,
+      sessionsHydrated: false,
+      sessionHistoryMode: 'unknown',
+    });
+  },
 
   loadSession: (id, title, history) => {
     const buildToolInfo = (entry: typeof history[0]): ToolInfo | undefined => {

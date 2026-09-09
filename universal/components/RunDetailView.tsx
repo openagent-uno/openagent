@@ -39,6 +39,7 @@ import {
 } from '../../common/run-date-normalization';
 import { openDetached } from '../services/windows';
 import { useChat } from '../stores/chat';
+import { sessionReadGuard } from '../stores/sessionReadAccess';
 import { useConnection } from '../stores/connection';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import Markdown from './Markdown';
@@ -99,12 +100,14 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   useSharedView('session', sessionId);
   const liveMessages = liveSession?.messages;
   const liveProcessing = liveSession?.isProcessing;
+  const accessRevoked = liveSession?.accessRevoked;
   const hasLive = !!liveMessages?.length;
   const mergeMessageWindow = useChat((s) => s.mergeMessageWindow);
 
   useEffect(() => {
     if (!messageId) return;
     const controller = new AbortController();
+    const current = sessionReadGuard(sessionId);
     void (async () => {
       try {
         const [page, tool] = await Promise.all([
@@ -113,7 +116,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
             ? getToolInvocationDetail(toolInvocationId, controller.signal)
             : Promise.resolve(undefined),
         ]);
-        if (!controller.signal.aborted && page.anchor_found !== false) {
+        if (current() && !controller.signal.aborted && page.anchor_found !== false) {
           mergeMessageWindow(page, tool);
         }
       } catch {
@@ -129,20 +132,21 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   useEffect(() => {
     setMessages(null);
     setError(null);
-  }, [sessionId, reloadKey]);
+  }, [sessionId, reloadKey, accessRevoked]);
 
   useEffect(() => {
     // Once the live store copy has content the DB poll is pure waste — the
     // broadcast stream drives the transcript. Poll only as the seed/fallback
     // (a completed run not in the store, or a server without live streaming).
-    if (hasLive) return;
+    if (hasLive || accessRevoked) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
     const tick = async () => {
+      const current = sessionReadGuard(sessionId);
       try {
         const raw = await fetchSessionRuns(sessionId);
-        if (cancelled) return;
+        if (cancelled || !current()) return;
         const mapped = raw.map(runMsgToChat);
         setMessages(mapped);
         setError(null);
@@ -154,7 +158,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
           : mapped.length === 0 && attempts < EMPTY_RETRY_MAX;
         if (keepPolling) timer = setTimeout(tick, POLL_MS);
       } catch (e: any) {
-        if (cancelled) return;
+        if (cancelled || !current()) return;
         setError(e?.message ?? String(e));
         setMessages((m) => m ?? []);  // leave the loading state either way
         attempts += 1;
@@ -166,7 +170,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
     };
     tick();
     return () => { cancelled = true; if (timer) clearTimeout(timer); };
-  }, [sessionId, live, reloadKey, hasLive]);
+  }, [sessionId, live, reloadKey, hasLive, accessRevoked]);
 
   // Prefer the live streamed copy whenever it has content; otherwise fall back
   // to the polled DB transcript. A live run with no deltas yet shows the
@@ -184,6 +188,8 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   // keeping that false is what lets ``reconcileSession`` snap to the canonical
   // transcript on turn_complete.
   const streaming = !!live || !!liveProcessing;
+
+  if (accessRevoked) return <EmptyNote text="This session is no longer available." />;
 
   if (display == null && !error) {
     return (

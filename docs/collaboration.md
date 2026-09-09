@@ -38,6 +38,12 @@ Reopening observes the existing run; it never resends the user's input. Canonica
 run IDs reconcile replay, and command history survives the live replay window.
 Integrations may resolve actual avatar images from their own user directory.
 
+Explicit withdrawal clears chat and run transcript projections even after a
+socket disconnect or before the first snapshot. History reads, pagination and
+search anchors are fenced across revocation/regrant and account resets, so a
+delayed response cannot restore the previous grant's text. A temporary network
+disconnect retains the transcript until the server confirms access again.
+
 Run the shared protocol and transport tests with
 `node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs`
 after installing Desktop dependencies, and type-check the service normally.
