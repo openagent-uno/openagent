@@ -27,6 +27,31 @@ class CollaborationClient:
         self.session = session
         self.base_url = base_url.rstrip("/")
 
+    async def supported(self):
+        async with self.session.get(
+            self.base_url + "/api/collaboration",
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as response:
+            if response.status in {404, 405}:
+                return False
+            response.raise_for_status()
+            return (await response.json()).get("version") == 1
+
+    async def ensure_session(self, session_id, title="Chat"):
+        from urllib.parse import quote
+
+        path = (
+            self.base_url + "/api/sessions/" + quote(_identifier(session_id), safe="")
+        )
+        async with self.session.get(path) as response:
+            if response.status != 404:
+                response.raise_for_status()
+                return
+        async with self.session.patch(
+            path, json={"title": title[:70] or "Chat"}
+        ) as response:
+            response.raise_for_status()
+
     async def _post(self, path, body):
         async with self.session.post(
             self.base_url + path,
@@ -40,7 +65,14 @@ class CollaborationClient:
             return result
 
     async def send_turn(
-        self, session_id: str, request_id: str, message: str, *, delivery="queue"
+        self,
+        session_id: str,
+        request_id: str,
+        message: str,
+        *,
+        delivery="queue",
+        client_instance_id=None,
+        attachments=None,
     ):
         if (
             delivery not in {"queue", "steer"}
@@ -56,6 +88,12 @@ class CollaborationClient:
                 "request_id": _identifier(request_id),
                 "message": message,
                 "delivery": delivery,
+                **(
+                    {"client_instance_id": _identifier(client_instance_id)}
+                    if client_instance_id
+                    else {}
+                ),
+                **({"attachments": attachments} if attachments else {}),
             },
         )
 

@@ -21,6 +21,7 @@ from typing import Any
 from urllib.parse import quote
 
 import aiohttp
+import uuid
 import click
 from rich.console import Console
 from rich.live import Live
@@ -1793,263 +1794,302 @@ async def _interactive_loop(client: GatewayClient, *, network_name: str, handle:
     except Exception:
         pass
 
-    while True:
-        try:
-            user_input = Prompt.ask("[bold]You[/bold]")
-        except (EOFError, KeyboardInterrupt):
-            break
+    shared_repl = None
+    try:
+        if await client.collaboration().supported():
+            from .shared_repl import SharedRepl
+            shared_repl = SharedRepl(client, console)
+            client.shared_repl = shared_repl
+            if active == "cli-default":
+                active = "cli-" + uuid.uuid4().hex
+                sessions = {active: "New Chat"}
+    except aiohttp.ClientResponseError as exc:
+        if exc.status not in {404, 405}:
+            raise
 
-        text = user_input.strip()
-        if not text:
-            continue
-
-        # ── Local CLI commands ──
-        if text in ("/quit", "/exit", "/q"):
-            break
-
-        if text == "/help":
-            _print_help()
-            continue
-
-        if text == "/history":
+    # The observer task and its socket outlive any error raised inside the
+    # loop; closing them here also detaches without cancelling server work.
+    try:
+        while True:
             try:
-                api = client.operational_api
-                capabilities = await api.capabilities()
-                api.require_history_v2(capabilities)
-                _print_history_page(await api.collect_history(
-                    HistoryQuery(limit=50), all_pages=False,
-                ))
-            except Exception as exc:
-                _emit_remote_error(exc, as_json=False)
-            continue
-
-        if text == "/search" or text.startswith("/search "):
-            query_text = text[len("/search"):].strip()
-            if not query_text:
-                console.print("[red]Usage: /search <query>[/red]")
-                continue
-            try:
-                api = client.operational_api
-                capabilities = await api.capabilities()
-                api.require_global_search_v1(capabilities)
-                query = SearchQuery(
-                    query=query_text,
-                    scopes=(
-                        "chats", "tools", "workflows", "scheduled", "events", "views",
-                    ),
-                    limit=40,
-                )
-                _print_search_page(await api.collect_search(query, all_pages=False))
-            except Exception as exc:
-                _emit_remote_error(exc, as_json=False)
-            continue
-
-        if text == "/sessions":
-            if len(sessions) <= 1 and next(iter(sessions)) == "cli-default":
-                console.print("[dim]No sessions yet. Start typing to create one.[/dim]")
-            else:
-                for sid, label in sessions.items():
-                    marker = "→ " if sid == active else "  "
-                    sid_short = sid[-12:] if len(sid) > 12 else sid
-                    console.print(f"{marker}[cyan]{sid_short}[/cyan] {label}")
-            continue
-
-        if text.startswith("/switch "):
-            target = text.split(" ", 1)[1].strip()
-            found = [s for s in sessions if s.endswith(target)]
-            if found:
-                active = found[0]
-                console.print(f"Switched to session [cyan]{active[-8:]}[/cyan]")
-            else:
-                console.print(f"[red]No session matching '{target}'[/red]")
-            continue
-
-        if text == "/new":
-            result = await client.send_command("new")
-            session_id = f"cli-{len(sessions)}"
-            sessions[session_id] = f"Chat {len(sessions)}"
-            active = session_id
-            console.print(f"[green]{result}[/green]")
-            continue
-
-        if text.startswith("/rename "):
-            parts = text.split(" ", 2)
-            if len(parts) < 3:
-                console.print("[red]Usage: /rename <id_suffix> <new name>[/red]")
-                continue
-            target = parts[1].strip()
-            new_name = parts[2].strip()
-            found = [s for s in sessions if s.endswith(target)]
-            if not found:
-                console.print(f"[red]No session matching '{target}'[/red]")
-                continue
-            sid = found[0]
-            sessions[sid] = new_name
-            try:
-                await client.rest_patch(f"/api/sessions/{sid}", {"title": new_name})
-                console.print(f"[green]Renamed to '{new_name}'[/green]")
-            except Exception as e:
-                console.print(f"[yellow]Renamed locally (server update failed: {e})[/yellow]")
-            continue
-
-        if text.startswith("/delete "):
-            target = text.split(" ", 1)[1].strip()
-            found = [s for s in sessions if s.endswith(target)]
-            if not found:
-                console.print(f"[red]No session matching '{target}'[/red]")
-                continue
-            sid = found[0]
-            label = sessions[sid]
-            # Deleting a chat also removes the sub-agent sessions it spawned —
-            # warn before the typed-yes confirmation so it's never a surprise.
-            console.print(
-                "[dim]This also deletes any sub-agent sessions this chat "
-                "spawned.[/dim]"
-            )
-            confirm = Prompt.ask(
-                f"[yellow]Delete session '{label}'?[/yellow] Type [bold]yes[/bold] to confirm",
-            )
-            if confirm.strip().lower() != "yes":
-                console.print("[dim]Cancelled[/dim]")
-                continue
-            del sessions[sid]
-            if active == sid:
-                active = next(iter(sessions), "cli-default")
-            try:
-                res = await client.rest_delete(f"/api/sessions/{sid}")
-                if isinstance(res, dict) and res.get("error"):
-                    console.print(f"[red]{res['error']}[/red]")
+                if shared_repl:
+                    await shared_repl.switch(active)
+                    user_input = await shared_repl.read()
                 else:
-                    # The server reports how many rows it removed (the chat
-                    # plus any cascaded sub-agents).
-                    count = res.get("deleted_count") if isinstance(res, dict) else None
-                    if isinstance(count, int) and count > 1:
-                        console.print(
-                            f"[green]Deleted '{label}' and {count - 1} "
-                            f"sub-agent session(s)[/green]"
-                        )
+                    user_input = Prompt.ask("[bold]You[/bold]")
+            except (EOFError, KeyboardInterrupt):
+                break
+
+            text = user_input.strip()
+            if not text:
+                continue
+
+            # ── Local CLI commands ──
+            if text in ("/quit", "/exit", "/q"):
+                break
+
+            if shared_repl and text in {"/help", "/context", "/usage"}:
+                shared_repl.submit(text, active)
+                if text == "/help":
+                    _print_help()
+                continue
+
+            if text == "/help":
+                _print_help()
+                continue
+
+            if text == "/history":
+                try:
+                    api = client.operational_api
+                    capabilities = await api.capabilities()
+                    api.require_history_v2(capabilities)
+                    _print_history_page(await api.collect_history(
+                        HistoryQuery(limit=50), all_pages=False,
+                    ))
+                except Exception as exc:
+                    _emit_remote_error(exc, as_json=False)
+                continue
+
+            if text == "/search" or text.startswith("/search "):
+                query_text = text[len("/search"):].strip()
+                if not query_text:
+                    console.print("[red]Usage: /search <query>[/red]")
+                    continue
+                try:
+                    api = client.operational_api
+                    capabilities = await api.capabilities()
+                    api.require_global_search_v1(capabilities)
+                    query = SearchQuery(
+                        query=query_text,
+                        scopes=(
+                            "chats", "tools", "workflows", "scheduled", "events", "views",
+                        ),
+                        limit=40,
+                    )
+                    _print_search_page(await api.collect_search(query, all_pages=False))
+                except Exception as exc:
+                    _emit_remote_error(exc, as_json=False)
+                continue
+
+            if text == "/sessions":
+                if len(sessions) <= 1 and next(iter(sessions)) == "cli-default":
+                    console.print("[dim]No sessions yet. Start typing to create one.[/dim]")
+                else:
+                    for sid, label in sessions.items():
+                        marker = "→ " if sid == active else "  "
+                        sid_short = sid[-12:] if len(sid) > 12 else sid
+                        console.print(f"{marker}[cyan]{sid_short}[/cyan] {label}")
+                continue
+
+            if text.startswith("/switch "):
+                target = text.split(" ", 1)[1].strip()
+                found = [s for s in sessions if s.endswith(target)]
+                if found:
+                    active = found[0]
+                    console.print(f"Switched to session [cyan]{active[-8:]}[/cyan]")
+                else:
+                    console.print(f"[red]No session matching '{target}'[/red]")
+                continue
+
+            if text == "/new":
+                result = "New chat" if shared_repl else await client.send_command("new")
+                session_id = "cli-" + uuid.uuid4().hex
+                sessions[session_id] = f"Chat {len(sessions)}"
+                active = session_id
+                console.print(f"[green]{result}[/green]")
+                continue
+
+            if text.startswith("/rename "):
+                parts = text.split(" ", 2)
+                if len(parts) < 3:
+                    console.print("[red]Usage: /rename <id_suffix> <new name>[/red]")
+                    continue
+                target = parts[1].strip()
+                new_name = parts[2].strip()
+                found = [s for s in sessions if s.endswith(target)]
+                if not found:
+                    console.print(f"[red]No session matching '{target}'[/red]")
+                    continue
+                sid = found[0]
+                sessions[sid] = new_name
+                try:
+                    await client.rest_patch(f"/api/sessions/{sid}", {"title": new_name})
+                    console.print(f"[green]Renamed to '{new_name}'[/green]")
+                except Exception as e:
+                    console.print(f"[yellow]Renamed locally (server update failed: {e})[/yellow]")
+                continue
+
+            if text.startswith("/delete "):
+                target = text.split(" ", 1)[1].strip()
+                found = [s for s in sessions if s.endswith(target)]
+                if not found:
+                    console.print(f"[red]No session matching '{target}'[/red]")
+                    continue
+                sid = found[0]
+                label = sessions[sid]
+                # Deleting a chat also removes the sub-agent sessions it spawned —
+                # warn before the typed-yes confirmation so it's never a surprise.
+                console.print(
+                    "[dim]This also deletes any sub-agent sessions this chat "
+                    "spawned.[/dim]"
+                )
+                confirm = Prompt.ask(
+                    f"[yellow]Delete session '{label}'?[/yellow] Type [bold]yes[/bold] to confirm",
+                )
+                if confirm.strip().lower() != "yes":
+                    console.print("[dim]Cancelled[/dim]")
+                    continue
+                del sessions[sid]
+                if active == sid:
+                    active = next(iter(sessions), "cli-default")
+                try:
+                    res = await client.rest_delete(f"/api/sessions/{sid}")
+                    if isinstance(res, dict) and res.get("error"):
+                        console.print(f"[red]{res['error']}[/red]")
                     else:
-                        console.print(f"[green]Deleted '{label}'[/green]")
-            except Exception as e:
-                console.print(f"[yellow]Deleted locally (server cleanup failed: {e})[/yellow]")
-            continue
+                        # The server reports how many rows it removed (the chat
+                        # plus any cascaded sub-agents).
+                        count = res.get("deleted_count") if isinstance(res, dict) else None
+                        if isinstance(count, int) and count > 1:
+                            console.print(
+                                f"[green]Deleted '{label}' and {count - 1} "
+                                f"sub-agent session(s)[/green]"
+                            )
+                        else:
+                            console.print(f"[green]Deleted '{label}'[/green]")
+                except Exception as e:
+                    console.print(f"[yellow]Deleted locally (server cleanup failed: {e})[/yellow]")
+                continue
 
-        if text.startswith("/file "):
-            rest = text.split(" ", 1)[1].strip()
-            try:
-                paths = shlex.split(rest)
-            except ValueError:
-                paths = rest.split()
-            if paths:
-                await _send_files(client, paths, active)
+            if text.startswith("/file "):
+                rest = text.split(" ", 1)[1].strip()
+                try:
+                    paths = shlex.split(rest)
+                except ValueError:
+                    paths = rest.split()
+                if paths:
+                    await _send_files(client, paths, active)
+                else:
+                    console.print("[red]Usage: /file <path> [more paths...][/red]")
+                continue
+
+            if text == "/vault":
+                await _vault_menu(client)
+                continue
+
+            if text == "/config":
+                await _config_menu(client)
+                continue
+
+            if text == "/tasks":
+                await _tasks_menu(client)
+                continue
+
+            if text in ("/workflows", "/workflow"):
+                await _workflows_menu(client)
+                continue
+
+            if text in ("/events", "/event"):
+                await _events_menu(client)
+                continue
+
+            if text == "/mcps":
+                await _mcps_menu(client)
+                continue
+
+            if text in ("/terminal", "/shell"):
+                console.print(
+                    "[dim]Opening terminal — Ctrl-] to detach, type 'exit' to close.[/dim]"
+                )
+                await _run_terminal(client)
+                continue
+
+            if text == "/models":
+                await _models_menu(client, active)
+                continue
+
+            # ``/model`` opens a focused picker for the ACTIVE session (list
+            # enabled LLMs, pick one to pin, 0 = Auto). ``/model <partial>``
+            # fuzzy-matches — a unique match switches directly, ``/model
+            # default`` clears the pin. This replaces typing the exact
+            # runtime_id by hand.
+            if text == "/model" or text.startswith("/model "):
+                model_arg = text[len("/model"):].strip() or None
+                await _model_quick_pick(client, active, model_arg)
+                continue
+
+            if text == "/providers":
+                await _providers_menu(client)
+                continue
+
+            if text == "/usage":
+                await _usage_menu(client)
+                continue
+
+            if text == "/context":
+                await _context_menu(client, active)
+                continue
+
+            if text == "/settings":
+                await _settings_menu(client)
+                continue
+
+            # ── /stop — barge-in the active session's live turn ──
+            # Routes to the stream ``interrupt`` frame (the verb that actually
+            # cancels a StreamSession turn) rather than the legacy COMMAND
+            # ``stop`` that targets an unused queue. Typed ``/stop`` is only
+            # reachable between turns here (the REPL blocks during a turn —
+            # use Ctrl-C to stop mid-stream), so this is mostly a no-op safety
+            # net, but it now hits the correct path.
+            if text == "/stop":
+                try:
+                    if shared_repl:
+                        await shared_repl.stop(active)
+                    else:
+                        await client.send_interrupt(active, reason="manual")
+                    console.print("[dim]Stop requested.[/dim]")
+                except Exception as e:
+                    console.print(f"[red]Command failed: {e}[/red]")
+                continue
+
+            # ── Gateway pass-through commands ──
+            # /clear, /restart, /update, /status, /queue, /reset,
+            # /compact, /model [arg]
+            if text.startswith("/"):
+                parts = text[1:].split(None, 1)  # split into [cmd, rest] or [cmd]
+                cmd = parts[0]
+                if shared_repl and cmd in {"compact", "status", "queue"}:
+                    shared_repl.submit(text, active)
+                    continue
+                cmd_arg = parts[1] if len(parts) > 1 else None
+                # Session-scoped commands need session_id forwarded
+                session_scoped = {"compact", "model", "clear", "stop", "new", "reset"}
+                sid_for_cmd = active if cmd in session_scoped else None
+                try:
+                    if cmd == "compact":
+                        # Show the start of the fold before the (blocking) command
+                        # round-trips — the same "Compacting conversation" step the
+                        # automatic path shows; the concise result below is the
+                        # outcome. (The session_compacted frames still drive the
+                        # desktop app's card; a command has no turn to route them
+                        # through here, so we surface the start locally.)
+                        console.print(Text("🗜 Compacting conversation…", style="dim"))
+                    result = await client.send_command(cmd, arg=cmd_arg, session_id=sid_for_cmd)
+                    console.print(f"[dim]{result}[/dim]")
+                except Exception as e:
+                    console.print(f"[red]Command failed: {e}[/red]")
+                continue
+
+            # ── Chat message ──
+            if shared_repl:
+                shared_repl.submit(text, active)
             else:
-                console.print("[red]Usage: /file <path> [more paths...][/red]")
-            continue
+                await _send_message_with_indicator(client, text, active)
 
-        if text == "/vault":
-            await _vault_menu(client)
-            continue
-
-        if text == "/config":
-            await _config_menu(client)
-            continue
-
-        if text == "/tasks":
-            await _tasks_menu(client)
-            continue
-
-        if text in ("/workflows", "/workflow"):
-            await _workflows_menu(client)
-            continue
-
-        if text in ("/events", "/event"):
-            await _events_menu(client)
-            continue
-
-        if text == "/mcps":
-            await _mcps_menu(client)
-            continue
-
-        if text in ("/terminal", "/shell"):
-            console.print(
-                "[dim]Opening terminal — Ctrl-] to detach, type 'exit' to close.[/dim]"
-            )
-            await _run_terminal(client)
-            continue
-
-        if text == "/models":
-            await _models_menu(client, active)
-            continue
-
-        # ``/model`` opens a focused picker for the ACTIVE session (list
-        # enabled LLMs, pick one to pin, 0 = Auto). ``/model <partial>``
-        # fuzzy-matches — a unique match switches directly, ``/model
-        # default`` clears the pin. This replaces typing the exact
-        # runtime_id by hand.
-        if text == "/model" or text.startswith("/model "):
-            model_arg = text[len("/model"):].strip() or None
-            await _model_quick_pick(client, active, model_arg)
-            continue
-
-        if text == "/providers":
-            await _providers_menu(client)
-            continue
-
-        if text == "/usage":
-            await _usage_menu(client)
-            continue
-
-        if text == "/context":
-            await _context_menu(client, active)
-            continue
-
-        if text == "/settings":
-            await _settings_menu(client)
-            continue
-
-        # ── /stop — barge-in the active session's live turn ──
-        # Routes to the stream ``interrupt`` frame (the verb that actually
-        # cancels a StreamSession turn) rather than the legacy COMMAND
-        # ``stop`` that targets an unused queue. Typed ``/stop`` is only
-        # reachable between turns here (the REPL blocks during a turn —
-        # use Ctrl-C to stop mid-stream), so this is mostly a no-op safety
-        # net, but it now hits the correct path.
-        if text == "/stop":
-            try:
-                await client.send_interrupt(active, reason="manual")
-                console.print("[dim]Stop requested.[/dim]")
-            except Exception as e:
-                console.print(f"[red]Command failed: {e}[/red]")
-            continue
-
-        # ── Gateway pass-through commands ──
-        # /clear, /restart, /update, /status, /queue, /reset,
-        # /compact, /model [arg]
-        if text.startswith("/"):
-            parts = text[1:].split(None, 1)  # split into [cmd, rest] or [cmd]
-            cmd = parts[0]
-            cmd_arg = parts[1] if len(parts) > 1 else None
-            # Session-scoped commands need session_id forwarded
-            session_scoped = {"compact", "model", "clear", "stop", "new", "reset"}
-            sid_for_cmd = active if cmd in session_scoped else None
-            try:
-                if cmd == "compact":
-                    # Show the start of the fold before the (blocking) command
-                    # round-trips — the same "Compacting conversation" step the
-                    # automatic path shows; the concise result below is the
-                    # outcome. (The session_compacted frames still drive the
-                    # desktop app's card; a command has no turn to route them
-                    # through here, so we surface the start locally.)
-                    console.print(Text("🗜 Compacting conversation…", style="dim"))
-                result = await client.send_command(cmd, arg=cmd_arg, session_id=sid_for_cmd)
-                console.print(f"[dim]{result}[/dim]")
-            except Exception as e:
-                console.print(f"[red]Command failed: {e}[/red]")
-            continue
-
-        # ── Chat message ──
-        await _send_message_with_indicator(client, text, active)
-
+    finally:
+        if shared_repl:
+            client.shared_repl = None
+            await shared_repl.close()
     await client.disconnect()
     console.print("[dim]Disconnected.[/dim]")
 
@@ -3111,6 +3151,9 @@ async def _mcps_menu(client: GatewayClient):
 # ── Models ────────────────────────────────────────────────────────────────
 
 async def _model_pin(client: GatewayClient, session_id: str, m: dict) -> None:
+    if getattr(client, "shared_repl", None):
+        client.shared_repl.submit("/model " + m["runtime_id"], session_id)
+        return
     try:
         await client.rest_put(
             f"/api/sessions/{session_id}/model", {"runtime_id": m["runtime_id"]},
@@ -3124,6 +3167,9 @@ async def _model_pin(client: GatewayClient, session_id: str, m: dict) -> None:
 
 
 async def _model_unpin(client: GatewayClient, session_id: str) -> None:
+    if getattr(client, "shared_repl", None):
+        client.shared_repl.submit("/model auto", session_id)
+        return
     try:
         await client.rest_delete(f"/api/sessions/{session_id}/model")
         console.print("[green]Model pin cleared — back to Auto (the router chooses).[/green]")
@@ -3160,7 +3206,7 @@ async def _model_quick_pick(
 
     if query:
         q = query.strip().lower()
-        if q in ("default", "none", "reset"):
+        if q in ("auto", "default", "none", "reset"):
             await _model_unpin(client, session_id)
             return
         filtered = [
@@ -3196,6 +3242,9 @@ async def _model_quick_pick(
                       str(m.get("provider_name", "")), marker)
     console.print(table)
 
+    if getattr(client, "shared_repl", None):
+        console.print("Use /model <runtime_id> or /model auto. Input remains available during generation.", markup=False)
+        return
     choice = Prompt.ask("Pick # (0 = Auto, q = cancel)", default="q").strip().lower()
     if choice in ("q", ""):
         return
@@ -3720,6 +3769,9 @@ async def _send_files(client: GatewayClient, filepaths: list[str], session_id: s
         f"The user attached {noun}. Inspect {inspect} before answering."
     )
 
+    if getattr(client, "shared_repl", None):
+        client.shared_repl.submit(msg, session_id, attachments=uploaded)
+        return
     await _send_message_with_indicator(
         client,
         msg,

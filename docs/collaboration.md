@@ -24,9 +24,14 @@ deduplication lasts 60 seconds after completion in the current process; it does
 not promise exactly-once execution across a restart. Cancelling the HTTP task
 does not stop the server-owned run. Explicit stop targets only the supplied ID.
 
-This is an additive programmatic client surface. Existing interactive CLI,
-voice/attachment protocol and command handling remain compatible and unchanged.
-The shared endpoint currently accepts text and session commands; local machine
-capabilities still belong to the existing authenticated native transport.
+CLI 0.17 discovers this API and uses an asynchronous prompt for interactive chat.
+Incoming text and participant names continue rendering while the user types;
+another message steers the current run. Session commands queue behind generation,
+and `/stop` targets the active request shown in the current snapshot. Leaving or
+changing a view detaches the observer without cancelling server execution.
+Uploaded attachment refs and the current verified capability-host instance are
+included with the turn. Native audio and capability registration remain separate.
+A 404/405 capability probe preserves older server compatibility.
 
 Tests: `python -m unittest discover -s tests -p test_collaboration.py -v`.
+Interactive lifecycle tests: `python -m unittest discover -s tests -p test_shared_repl.py -v`.
