@@ -17,7 +17,9 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-          cache-dependency-path: desktop/package-lock.json
+          cache-dependency-path: |
+            desktop/package-lock.json
+            universal/package-lock.json
       - name: Install Desktop dependencies
         working-directory: desktop
         run: npm ci
@@ -25,7 +27,9 @@ jobs:
         working-directory: desktop
         run: npm test
       - name: Run shared collaboration contracts
-        run: node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs
+        run: |
+          npm --prefix universal ci
+          node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs
 
   packaged-release-smoke:
     name: Packaged release smoke (${{ matrix.platform_key }})
