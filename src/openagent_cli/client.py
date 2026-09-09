@@ -1091,6 +1091,14 @@ class GatewayClient:
         })
 
     # REST helpers
+    def collaboration(self):
+        """Shared turns/observers over this account's authenticated transport."""
+        from .collaboration import CollaborationClient
+
+        if self._session is None or self._session.closed:
+            raise ConnectionError("Connect before opening collaboration")
+        return CollaborationClient(self._session, self.base_url)
+
     async def rest_get(self, path: str) -> dict:
         async with self._session.get(f"{self.base_url}{path}") as r:
             return await r.json()
