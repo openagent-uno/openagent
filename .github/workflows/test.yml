@@ -24,6 +24,8 @@ jobs:
       - name: Run Electron main/network/capability tests
         working-directory: desktop
         run: npm test
+      - name: Run shared collaboration contracts
+        run: node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs
 
   packaged-release-smoke:
     name: Packaged release smoke (${{ matrix.platform_key }})
