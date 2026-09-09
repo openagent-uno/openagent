@@ -4,6 +4,7 @@
  */
 import { validSharedSnapshot, validSharedTarget } from '../../common/collaboration';
 import type { SharedPerson, SharedSnapshot, SharedTarget, SharedTurnResult } from '../../common/collaboration';
+import type { Attachment } from '../../common/types';
 
 export class CollaborationClient {
   private ws: WebSocket | null = null;
@@ -16,6 +17,11 @@ export class CollaborationClient {
   private focus: SharedTarget | null = null;
   private states = new Map<string, SharedSnapshot>();
   private people: SharedPerson[] = [];
+  // Sessions the server explicitly took away, as opposed to ones whose
+  // snapshot is merely absent because the socket dropped or the observation
+  // changed. Only the former may discard a transcript a viewer can still see.
+  private revokedIds = new Set<string>();
+  private disposed = false;
   private listeners = new Set<() => void>();
   onResource: ((frame: { resource: string; action: string; id?: string }) => void) | null = null;
   onError: ((error: Error) => void) | null = null;
@@ -29,6 +35,19 @@ export class CollaborationClient {
 
   snapshot(sessionId: string): SharedSnapshot | undefined { return this.states.get(sessionId); }
   presence(): readonly SharedPerson[] { return this.people; }
+  /** True when access was withdrawn (or this client was disposed on logout),
+   *  false while a snapshot is only temporarily missing. */
+  revoked(sessionId: string): boolean { return this.disposed || this.revokedIds.has(sessionId); }
+
+  async commands(sessionId: string): Promise<SharedSnapshot> {
+    const response = await fetch(this.origin.replace(/\/$/, '') + '/api/collaboration/' + encodeURIComponent(sessionId) + '/commands');
+    if (!response.ok) throw new Error('Command history unavailable');
+    const result = await response.json();
+    if (!Array.isArray(result.turns) || result.turns.length > 64) throw new Error('Invalid command history');
+    // Reuse the bounded live validator on each durable command.
+    if (result.turns.some((turn: unknown) => !validSharedSnapshot({ session_id: sessionId, revision: 0, turns: [turn] }))) throw new Error('Invalid command history');
+    return { session_id: sessionId, revision: 0, turns: result.turns };
+  }
 
   observe(sessions: string[], focus: SharedTarget | null = null): void {
     if (sessions.length > 16 || sessions.some(id => !validSharedTarget({ kind: 'session', id }))
@@ -36,6 +55,7 @@ export class CollaborationClient {
     this.sessions = [...new Set(sessions)];
     this.focus = focus;
     for (const id of this.states.keys()) if (!this.sessions.includes(id)) this.states.delete(id);
+    for (const id of [...this.revokedIds]) if (!this.sessions.includes(id)) this.revokedIds.delete(id);
     this.changed();
     if (this.stopped) { this.stopped = false; this.connect(); }
     else this.sendObservation();
@@ -74,9 +94,11 @@ export class CollaborationClient {
           if (!this.sessions.includes(frame.session_id)) return;
           const previous = this.states.get(frame.session_id);
           if (previous && previous.revision >= frame.revision) return;
+          this.revokedIds.delete(frame.session_id);
           this.states.set(frame.session_id, frame);
           this.changed();
         } else if (frame.type === 'shared_revoked') {
+          this.revokedIds.add(frame.session_id);
           this.states.delete(frame.session_id);
           this.people = this.people.filter(person => !(person.target.kind === 'session' && person.target.id === frame.session_id));
           this.changed();
@@ -88,7 +110,12 @@ export class CollaborationClient {
           this.people = frame.people;
           this.changed();
         } else if (frame.type === 'resource_event' && this.ready) this.onResource?.(frame);
-        else if (frame.type === 'auth_error') { this.clear(); ws.close(); }
+        else if (frame.type === 'auth_error') {
+          // The device itself lost access: every observed transcript goes.
+          for (const id of this.sessions) this.revokedIds.add(id);
+          this.clear();
+          ws.close();
+        }
       } catch (error) {
         this.onError?.(error instanceof Error ? error : new Error('Invalid shared frame'));
         this.clear();
@@ -113,8 +140,10 @@ export class CollaborationClient {
     }, Math.min(8000, 250 * 2 ** Math.min(this.retry++, 5)));
   }
 
-  async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal): Promise<SharedTurnResult> {
-    return this.post('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery }, signal);
+  async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal, attachments?: Attachment[], clientInstanceId?: string): Promise<SharedTurnResult> {
+    return this.post('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
+      ...(attachments?.length ? { attachments } : {}), ...(clientInstanceId ? { client_instance_id: clientInstanceId } : {}),
+    }, signal);
   }
 
   async stopTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<{ stopped: boolean; request_id: string }> {
@@ -132,6 +161,7 @@ export class CollaborationClient {
 
   dispose(): void {
     this.stopped = true;
+    this.disposed = true;
     if (this.reconnect) clearTimeout(this.reconnect);
     if (this.greeting) clearTimeout(this.greeting);
     this.reconnect = this.greeting = null;

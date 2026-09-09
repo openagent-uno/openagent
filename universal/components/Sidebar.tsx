@@ -37,6 +37,7 @@ import {
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { useChat } from '../stores/chat';
+import SharedPresence from './SharedPresence';
 import { isHiddenChildSession } from '../../common/types';
 import { useActivity, type ActivityRun } from '../stores/activity';
 import { useConnection } from '../stores/connection';
@@ -657,6 +658,7 @@ function FeedRow({ item }: { item: FeedItem }) {
         <Text style={[styles.feedText, item.active && styles.feedTextActive]} numberOfLines={1}>
           {item.label}
         </Text>
+        {item.key.startsWith('c-session:') && <SharedPresence id={item.key.slice(10)} compact />}
         {item.ts ? (
           <Text
             style={styles.feedMeta}

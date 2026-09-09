@@ -24,11 +24,19 @@ their predecessors and retain their authors. Disconnect/revocation discards live
 caches; reconnect re-observes the current views without resending a turn.
 
 The gateway must support `/ws/collaboration` and `/api/collaboration/*` and the
-user must have the relevant session ACLs. Existing OpenAgentWS/native screens
-continue using their existing protocol. This change supplies an opt-in client
-API; it does not migrate the native chat UI or its audio/video/local-tool flows.
-Integrations can render names/avatar directory lookups and presence from
-`common/collaboration.ts` without coupling OpenAgent to their product model.
+user must have the relevant session ACLs. App 0.18 discovers the API on connection
+and uses shared requests for native typed chat, steering, model changes and session
+commands. A 404/405 keeps compatibility with older gateways; transient failures
+are reported. Audio/video and capability registration retain the native protocol.
+Finish an active media turn before switching transports.
+
+The root observer follows chat/history and focused run/workflow/schedule/event
+views. Names and presence initials appear in the composer and history; Share
+session lets its native owner add/remove collaborators by username. Corrections
+and regenerations append authorized turns rather than truncating shared history.
+Reopening observes the existing run; it never resends the user's input. Canonical
+run IDs reconcile replay, and command history survives the live replay window.
+Integrations may resolve actual avatar images from their own user directory.
 
 Run the shared protocol and transport tests with
 `node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs`

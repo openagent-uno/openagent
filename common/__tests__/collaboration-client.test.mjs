@@ -55,6 +55,44 @@ test('disconnect resets and reconnect reobserves current view without sending a 
   assert.equal(value.snapshot('chat'), undefined);
 });
 
+test('withdrawn access is distinguished from a socket that merely dropped', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.observe(['chat'], { kind: 'session', id: 'chat' });
+  sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  assert.equal(value.revoked('chat'), false);
+  // A dropped socket loses the snapshot but must not look like a revocation:
+  // treating it as one would wipe a transcript the viewer may still read.
+  sockets[0].close();
+  assert.equal(value.snapshot('chat'), undefined);
+  assert.equal(value.revoked('chat'), false);
+  t.mock.timers.tick(250);
+  sockets[1].receive({ type: 'auth_ok', shared: true });
+  sockets[1].receive({ type: 'shared_revoked', session_id: 'chat' });
+  assert.equal(value.revoked('chat'), true);
+  // A regrant delivers a fresh snapshot and clears the withdrawal.
+  sockets[1].receive(snapshot(2));
+  assert.equal(value.revoked('chat'), false);
+  // Losing the device itself withdraws every observed session.
+  sockets[1].receive({ type: 'auth_error', text: 'gone' });
+  assert.equal(value.revoked('chat'), true);
+  // Dropping the observation forgets the withdrawal along with the state.
+  value.observe(['other']);
+  assert.equal(value.revoked('chat'), false);
+});
+
+test('logout marks every session withdrawn so no cached transcript survives', t => {
+  const { value, sockets } = client();
+  value.observe(['chat']);
+  sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  assert.equal(value.revoked('chat'), false);
+  value.dispose();
+  assert.equal(value.snapshot('chat'), undefined);
+  assert.equal(value.revoked('chat'), true);
+});
+
 test('account instances and views never share cached text or presence', t => {
   const alice = client(), bob = client();
   t.after(() => { alice.value.dispose(); bob.value.dispose(); });

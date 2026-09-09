@@ -4,6 +4,7 @@ import { Animated, StyleSheet } from 'react-native';
 import { ThemeProvider, type Theme } from '@react-navigation/native';
 import { useConnection, directedAccountId, rememberDirectedAccount } from '../stores/connection';
 import { useChat } from '../stores/chat';
+import { bindShared, observeShared } from '../stores/collaboration';
 import { useNavHistory, trailHref } from '../stores/navHistory';
 import { ConfirmProvider } from '../components/ConfirmDialog';
 import { RenameSessionProvider } from '../components/RenameSessionDialog';
@@ -48,6 +49,36 @@ function desktop(): any {
 
 export default function RootLayout() {
   const ws = useConnection((s) => s.ws);
+  useEffect(() => {
+    if (!ws) return;
+    let current = true;
+    let unbind = () => {};
+    let release = () => {};
+    void ws.enableShared().then(shared => {
+      if (!current || !shared) return;
+      unbind = bindShared(shared);
+      const update = () => {
+        const state = useChat.getState();
+        // Take the new lease before dropping the old one: releasing first
+        // would briefly leave a session unobserved, and the client discards
+        // the snapshot of anything outside the current observation.
+        const next = observeShared([state.activeSessionId, ...state.sessions.slice(0, 15).map(s => s.id)].filter((id): id is string => !!id), null);
+        release();
+        release = next;
+      };
+      let key = '';
+      const unsub = useChat.subscribe(state => {
+        const nextKey = state.activeSessionId + ':' + state.sessions.slice(0, 15).map(s => s.id).join(',');
+        if (key !== nextKey) { key = nextKey; update(); }
+      });
+      const oldUnbind = unbind;
+      unbind = () => { unsub(); oldUnbind(); };
+      update();
+    }).catch(error => {
+      if (current) useConnection.setState({ error: String(error) });
+    });
+    return () => { current = false; release(); unbind(); };
+  }, [ws]);
   const handleServerMessage = useChat((s) => s.handleServerMessage);
   const loadAccounts = useConnection((s) => s.loadAccounts);
   const resumeConnection = useConnection((s) => s.resumeConnection);

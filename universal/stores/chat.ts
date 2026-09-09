@@ -3,6 +3,7 @@
  */
 
 import { create } from 'zustand';
+import { mergeSharedTranscript } from '../../common/shared-transcript';
 import {
   toolPhase,
   toolDisplay,
@@ -50,6 +51,7 @@ function canonicalMessageToChat(message: SessionMessage): ChatMessage {
   const parsedTimestamp = Date.parse(message.created_at);
   return {
     id: message.id,
+    providerRunId: message.run_id || undefined,
     role: message.role,
     text: message.text,
     // Never manufacture a current time for an old/malformed row. The shared
@@ -100,10 +102,12 @@ async function loadSessionTranscript(
 function transcriptPatch(
   loaded: LoadedTranscript,
   previous: readonly ChatMessage[],
+  sharedSnapshot?: ChatSession['sharedSnapshot'],
 ): Pick<ChatSession, 'messages' | 'messageWindow'> {
   if (loaded.kind === 'legacy') {
     return {
-      messages: preserveToolMetadataAcrossReplay([...previous], loaded.messages),
+      messages: sharedSnapshot ? mergeSharedTranscript(loaded.messages, sharedSnapshot)
+        : preserveToolMetadataAcrossReplay([...previous], loaded.messages),
       messageWindow: undefined,
     };
   }
@@ -121,7 +125,7 @@ function transcriptPatch(
   // user just observed it on the live frame.
   const messages = preserveToolMetadataAcrossReplay([...previous], projected);
   return {
-    messages,
+    messages: sharedSnapshot ? mergeSharedTranscript(messages, sharedSnapshot) : messages,
     messageWindow: {
       revision: loaded.page.revision,
       beforeCursor: loaded.page.before_cursor,
@@ -728,7 +732,7 @@ interface ChatState {
    *  delegation cards with child_session_id, no missing/duplicated messages).
    *  No-op while the session is still processing (so it never clobbers a turn
    *  the user just started) or when the server returns nothing. */
-  reconcileSession: (sessionId: string) => void;
+  reconcileSession: (sessionId: string) => Promise<void>;
   /** Set a session's live context-window composition (from the
    *  ``context_report`` push frame or the ``/context`` command_result). */
   applyContextReport: (sessionId: string, report: SessionContext) => void;
@@ -829,9 +833,9 @@ export const useChat = create<ChatState>((set, get) => ({
             if (!hasMessages) return;
             set((s) => ({
               sessions: s.sessions.map((se) =>
-                se.id !== id || se.messages.length > 0
+                se.id !== id || (se.messages.length > 0 && !se.sharedSnapshot)
                   ? se
-                  : { ...se, ...transcriptPatch(loaded, se.messages) },
+                  : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) },
               ),
             }));
           })
@@ -968,7 +972,7 @@ export const useChat = create<ChatState>((set, get) => ({
             sessions: s.sessions.map((se) =>
               se.id !== autoSelectId || se.messages.length > 0
                 ? se
-                : { ...se, ...transcriptPatch(loaded, se.messages) },
+                : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) },
             ),
           }));
         })
@@ -1644,6 +1648,7 @@ export const useChat = create<ChatState>((set, get) => ({
     // So: heard nothing since we attached ⇒ nobody is running this turn.
     const stale = get().sessions.filter((se) => (
       (se.isProcessing || se.isReasoning)
+      && !se.messages.some(message => message.sharedTurnId && message.streaming)
       && (lastFrameAt.get(se.id) ?? 0) < attachedAt
     ));
     if (stale.length === 0) return;
@@ -1679,14 +1684,14 @@ export const useChat = create<ChatState>((set, get) => ({
     staleIds.forEach((sid) => get().reconcileSession(sid));
   },
 
-  reconcileSession: (sessionId) => {
+  reconcileSession: async (sessionId) => {
     const ses = get().sessions.find((s) => s.id === sessionId);
     // Only reconcile a session we know about and that isn't mid-turn. (A new
     // turn flips isProcessing true; clobbering it would drop the just-typed
     // message.)
     if (!ses || ses.isProcessing) return;
     const mode = get().sessionHistoryMode;
-    loadSessionTranscript(sessionId, mode)
+    return loadSessionTranscript(sessionId, mode)
       .then((loaded) => {
         // Empty result → keep the optimistic transcript (the runs may not be
         // flushed yet); never wipe a visible conversation to nothing.
@@ -1699,7 +1704,7 @@ export const useChat = create<ChatState>((set, get) => ({
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
             if (se.isProcessing) return se;
-            return { ...se, ...transcriptPatch(loaded, se.messages) };
+            return { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) };
           }),
         }));
       })

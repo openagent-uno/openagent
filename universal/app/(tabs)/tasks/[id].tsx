@@ -14,6 +14,7 @@
  */
 
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import SharedPresence, { useSharedView } from '../../../components/SharedPresence';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
@@ -40,6 +41,7 @@ const EMPTY_FORM: TaskForm = { name: '', cron_expression: '', prompt: '', model:
 
 export default function TaskEditScreen() {
   const { id, field } = useLocalSearchParams<{ id: string; field?: string }>();
+  useSharedView('scheduled_task', id === 'new' ? undefined : id);
   const navigation = useNavigation();
   const router = useRouter();
   const headerInset = useHeaderInset();
@@ -169,6 +171,7 @@ export default function TaskEditScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: headerInset }]}>
+      <SharedPresence kind="scheduled_task" id={id} />
       {loading ? (
         <View style={styles.statusPane}>
           <ActivityIndicator size="small" color={colors.textMuted} />

@@ -972,6 +972,8 @@ export interface CompactionInfo {
 }
 
 export interface ChatMessage {
+  providerRunId?: string;
+  sharedTurnId?: string;
   id: string;
   role: 'user' | 'assistant' | 'tool' | 'compaction';
   text: string;
@@ -1001,6 +1003,7 @@ export interface ChatMessage {
 }
 
 export interface ChatSession {
+  sharedSnapshot?: import('./collaboration').SharedSnapshot;
   id: string;
   title: string;
   messages: ChatMessage[];

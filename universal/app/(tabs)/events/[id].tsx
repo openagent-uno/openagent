@@ -14,6 +14,7 @@
  */
 
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import SharedPresence, { useSharedView } from '../../../components/SharedPresence';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
@@ -67,6 +68,7 @@ const EMPTY: Form = {
 
 export default function EventEditScreen() {
   const { id, field } = useLocalSearchParams<{ id: string; field?: string }>();
+  useSharedView('event', id === 'new' ? undefined : id);
   const navigation = useNavigation();
   const router = useRouter();
   const headerInset = useHeaderInset();
@@ -248,6 +250,7 @@ export default function EventEditScreen() {
 
   return (
     <View style={[styles.screen, { paddingTop: headerInset }]}>
+      <SharedPresence kind="event" id={id} />
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
         {/* Name */}
         <Text style={styles.label}>Name</Text>

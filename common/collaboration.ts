@@ -1,11 +1,13 @@
 /** Additive collaboration/1 contract. Snapshots replace, never append deltas. */
+import type { AttachmentRef } from './attachments';
+import type { MessagePart } from './ui-views';
 export type SharedTarget = { kind: 'session' | 'workflow' | 'scheduled_task' | 'event'; id: string };
 export type SharedPerson = { userId: string; name: string; target: SharedTarget };
 export type SharedAuthor = { kind: 'human' | 'agent'; userId?: string; handle?: string; display?: string };
 export type SharedTurn = {
-  id: string; runId: string | null; active: boolean; startedAt: number;
+  id: string; runId: string | null; providerRunId?: string; active: boolean; startedAt: number;
   finishedAt?: number; status?: string; reasoning?: boolean; error?: string; truncated?: boolean;
-  messages: { id: string; role: 'user' | 'assistant'; text: string; timestamp: number; author?: SharedAuthor; model?: string }[];
+  messages: { id: string; role: 'user' | 'assistant'; text: string; timestamp: number; author?: SharedAuthor; model?: string; attachments?: AttachmentRef[]; parts?: MessagePart[] }[];
 };
 export type SharedSnapshot = { session_id: string; revision: number; turns: SharedTurn[] };
 export type SharedTurnResult = { session_id: string; request_id: string; response: string; model?: string; errored?: boolean; interrupted?: boolean };

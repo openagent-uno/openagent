@@ -6,6 +6,8 @@
 import type { Attachment, ClientMessage, ServerMessage } from '../../common/types';
 import { attachmentsForSend } from '../../common/attachments';
 import { isConnectionReplacedClose } from '../../common/websocket-close';
+import { CollaborationClient } from './collaboration';
+const sharedRequestId = () => globalThis.crypto?.randomUUID?.() || `request-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export type MessageHandler = (msg: ServerMessage) => void;
 
@@ -27,6 +29,74 @@ export type CloseHandler = (info: {
 export type ErrorHandler = (info: { detail?: string }) => void;
 
 export class OpenAgentWS {
+  collaboration: CollaborationClient | null = null;
+  private sharedProbe: Promise<CollaborationClient | null> | null = null;
+  private sharedClosed = false;
+  private sharedDiscovered = false;
+  private sharedSessions = new Map<string, Promise<boolean>>();
+
+  enableShared(): Promise<CollaborationClient | null> {
+    if (this.sharedProbe) return this.sharedProbe;
+    const origin = this.url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+    this.sharedProbe = (async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      let response: Response;
+      try { response = await fetch(origin + '/api/collaboration', { signal: controller.signal }); }
+      finally { clearTimeout(timeout); }
+      if (response.status === 404 || response.status === 405) { this.sharedDiscovered = true; return null; }
+      if (!response.ok) throw new Error('Could not discover shared sessions');
+      const info = await response.json();
+      if (info.version !== 1) throw new Error('Unsupported shared session protocol');
+      if (this.sharedClosed) return null;
+      const shared = new CollaborationClient(origin);
+      shared.onResource = frame => this.handlers.forEach(h => h(frame as ServerMessage));
+      this.collaboration = shared;
+      this.sharedDiscovered = true;
+      return shared;
+    })();
+    return this.sharedProbe;
+  }
+
+  /** Resolves true only for the client that actually created the session. A
+   *  session that already exists carries whatever prelude it was opened with;
+   *  re-sending ours would duplicate it after every reconnect, and would let a
+   *  second participant prepend their own system text to a shared history. */
+  private async ensureSharedSession(sessionId: string, title: string): Promise<boolean> {
+    let pending = this.sharedSessions.get(sessionId);
+    if (!pending) {
+      pending = (async () => {
+        const origin = this.url.replace(/^ws/, 'http').replace(/\/ws$/, '');
+        const path = '/api/sessions/' + encodeURIComponent(sessionId);
+        const response = await fetch(origin + path);
+        if (response.status === 404) {
+          const created = await fetch(origin + path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title.slice(0, 70) || 'Chat' }) });
+          if (!created.ok) throw new Error('Could not create shared session');
+          return true;
+        }
+        if (!response.ok) throw new Error('Session unavailable');
+        return false;
+      })();
+      this.sharedSessions.set(sessionId, pending);
+      pending.catch(() => this.sharedSessions.delete(sessionId));
+    }
+    return pending;
+  }
+
+  async sendSharedCommand(sessionId: string, command: string): Promise<void> {
+    const shared = await this.enableShared();
+    if (!shared) throw new Error('Shared sessions are unavailable');
+    await this.ensureSharedSession(sessionId, 'Chat');
+    const result = await shared.sendTurn(sessionId, sharedRequestId(), command);
+    if (result.errored) throw new Error(result.response);
+    this.handlers.forEach(h => h({ type: 'command_result', text: result.response, session_id: sessionId } as ServerMessage));
+  }
+
+  private sharedError(sessionId: string, error: unknown): void {
+    this.handlers.forEach(h => h({ type: 'error', session_id: sessionId,
+      text: error instanceof Error ? error.message : 'Shared turn failed' }));
+  }
   private ws: WebSocket | null = null;
   private url: string;
   private token: string;
@@ -290,6 +360,10 @@ export class OpenAgentWS {
   }
 
   disconnect(): void {
+    this.sharedClosed = true;
+    this.collaboration?.dispose();
+    this.collaboration = null;
+    this.sharedSessions.clear();
     this.shouldReconnect = false;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.openedSessions.clear();
@@ -351,6 +425,25 @@ export class OpenAgentWS {
       attachments?: Attachment[];
     },
   ): void {
+    if (!this.sharedDiscovered && (!options?.source || options.source === 'user_typed')) {
+      void this.enableShared().then(() => {
+        if (!this.sharedClosed) this.sendMessage(text, sessionId, options);
+      }).catch(error => this.sharedError(sessionId, error));
+      return;
+    }
+    if (this.collaboration && (!options?.source || options.source === 'user_typed')) {
+      const shared = this.collaboration;
+      const requestId = sharedRequestId();
+      void this.ensureSharedSession(sessionId, text).then(async (opened) => {
+        if (this.sharedClosed) return;
+        if (options?.systemPrompt && opened) {
+          await shared.sendTurn(sessionId, sharedRequestId(), `[system] ${options.systemPrompt}`);
+        }
+        await shared.sendTurn(sessionId, requestId, text, 'steer', undefined,
+          attachmentsForSend(options?.attachments || []), this.clientInstanceId || undefined);
+      }).catch(error => this.sharedError(sessionId, error));
+      return;
+    }
     if (!this.openedSessions.has(sessionId)) {
       this.sendSessionOpen(sessionId, {
         profile: 'batched',
@@ -389,6 +482,10 @@ export class OpenAgentWS {
     sessionId?: string,
     arg?: string,
   ): void {
+    if (this.collaboration && sessionId && ['compact', 'model', 'context', 'status', 'queue', 'help', 'usage', 'stop'].includes(name)) {
+      void this.sendSharedCommand(sessionId, '/' + name + (arg ? ' ' + arg : '')).catch(error => this.sharedError(sessionId, error));
+      return;
+    }
     // Scope scope-sensitive commands (stop/new/clear/reset/compact/model)
     // to the specific chat tab so other tabs stay intact. Pass `undefined`
     // for global admin commands (help/usage/update/restart).
@@ -531,6 +628,11 @@ export class OpenAgentWS {
     sessionId: string,
     reason: 'user_speech' | 'user_text' | 'manual' = 'manual',
   ): void {
+    const turn = this.collaboration?.snapshot(sessionId)?.turns.findLast(t => t.active);
+    if (this.collaboration && turn?.runId) {
+      void this.collaboration.stopTurn(sessionId, turn.runId).catch(error => this.sharedError(sessionId, error));
+      return;
+    }
     this.send({ type: 'interrupt', session_id: sessionId, reason });
   }
 

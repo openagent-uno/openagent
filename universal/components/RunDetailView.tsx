@@ -43,6 +43,7 @@ import { useConnection } from '../stores/connection';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import Markdown from './Markdown';
 import MessageList from './MessageList';
+import SharedPresence, { useSharedView } from './SharedPresence';
 import MessageComposer from './MessageComposer';
 import type {
   BlockType,
@@ -95,6 +96,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   // copy so the transcript renders token-by-token; the polled DB read below is
   // the seed for a completed run that isn't in the store (or an older server).
   const liveSession = useChat((s) => s.sessions.find((x) => x.id === sessionId));
+  useSharedView('session', sessionId);
   const liveMessages = liveSession?.messages;
   const liveProcessing = liveSession?.isProcessing;
   const hasLive = !!liveMessages?.length;
@@ -202,7 +204,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
       : <EmptyNote text="This run produced no transcript." />;
   }
   return (
-    <MessageList
+    <><SharedPresence kind="session" id={sessionId} /><MessageList
       messages={display}
       isProcessing={streaming}
       anchorMessageId={messageId}
@@ -212,7 +214,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
         const path = runRoutePath(target);
         if (path) openDetached(router, path);
       }}
-    />
+    /></>
   );
 }
 

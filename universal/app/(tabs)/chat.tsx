@@ -27,6 +27,8 @@ import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
 import MessageComposer, { type PendingFile, type SlashCommand } from '../../components/MessageComposer';
 import MessageList from '../../components/MessageList';
+import SharedPresence, { useSharedView } from '../../components/SharedPresence';
+import SessionSharing from '../../components/SessionSharing';
 import SessionDetailsDrawerShell from '../../components/SessionDetailsDrawer';
 import BrandLogo from '../../components/BrandLogo';
 import {
@@ -110,6 +112,7 @@ export default function ChatScreen() {
   // never trigger a re-render on their own.
   const sessions = useChat((s) => s.sessions);
   const activeSessionId = useChat((s) => s.activeSessionId);
+  useSharedView('session', activeSessionId || undefined);
   const sessionsHydrated = useChat((s) => s.sessionsHydrated);
   const createSession = useChat((s) => s.createSession);
   const setActiveSession = useChat((s) => s.setActiveSession);
@@ -853,10 +856,11 @@ export default function ChatScreen() {
     const previous = sessions.find((s) => s.id === sessionId)?.llmPin;
     setLlmPin(sessionId, modelId);
     setModelPinError(null);
-    if (ws) ws.sendSessionClose(sessionId);
+    if (ws && !ws.collaboration) ws.sendSessionClose(sessionId);
     (async () => {
       try {
-        if (modelId) await pinSessionModel(sessionId, modelId);
+        if (ws?.collaboration) await ws.sendSharedCommand(sessionId, '/model ' + (modelId || 'auto'));
+        else if (modelId) await pinSessionModel(sessionId, modelId);
         else await unpinSessionModel(sessionId);
       } catch (e) {
         // A pin that never reached the agent is not a model problem, and
@@ -868,7 +872,7 @@ export default function ChatScreen() {
         console.error('[chat] failed to persist model pin:', msg);
         setLlmPin(sessionId, previous);
         setModelPinError(msg);
-        if (ws) ws.sendSessionClose(sessionId);
+        if (ws && !ws.collaboration) ws.sendSessionClose(sessionId);
       }
     })();
   }, [ws, activeSessionId, sessions, setLlmPin, startNewSession]);
@@ -941,7 +945,8 @@ export default function ChatScreen() {
     if (!conn || !sid) return;
     const original = ses?.messages.find((message) => message.id === messageId);
     const attachments = attachmentsForSend(original?.attachments);
-    const ok = editUserMessage(sid, messageId, newText);
+    // Shared history belongs to every participant; a correction is a new turn.
+    const ok = conn.collaboration || editUserMessage(sid, messageId, newText);
     if (!ok) return;
     conn.sendMessage(newText, sid, {
       llmPin: ses?.llmPin,
@@ -975,7 +980,7 @@ export default function ChatScreen() {
     const lastUser = [...ses.messages].reverse().find((m) => m.role === 'user');
     if (!lastUser) return;
     const attachments = attachmentsForSend(lastUser.attachments);
-    addUserMessage(sid, lastUser.text || '(regenerate)', lastUser.attachments);
+    if (!conn.collaboration) addUserMessage(sid, lastUser.text || '(regenerate)', lastUser.attachments);
     conn.sendMessage(lastUser.text, sid, {
       llmPin: ses.llmPin,
       systemPrompt: ses.systemPrompt,
@@ -1091,7 +1096,7 @@ export default function ChatScreen() {
       return f.remotePath ? [{ type: f.kind, path: f.remotePath, filename: f.filename }] : [];
     });
 
-    addUserMessage(activeSessionId, text, attachments.length ? attachments : undefined);
+    if (!ws.collaboration) addUserMessage(activeSessionId, text, attachments.length ? attachments : undefined);
     ws.sendMessage(text, activeSessionId, {
       llmPin: activeSession?.llmPin,
       systemPrompt: activeSession?.systemPrompt,
@@ -1694,6 +1699,8 @@ export default function ChatScreen() {
               </Notice>
             )}
 
+            <SharedPresence id={activeSessionId || undefined} />
+            {activeSessionId && <SessionSharing sessionId={activeSessionId} />}
             <MessageComposer
               inputRef={composerInputRef}
               input={input}

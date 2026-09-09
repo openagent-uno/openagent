@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { colors, font } from '../../../theme';
 import WorkflowEditor from '../../../components/workflow/WorkflowEditor';
+import SharedPresence, { useSharedView } from '../../../components/SharedPresence';
 import { useConnection } from '../../../stores/connection';
 import { setBaseUrl, getWorkflow } from '../../../services/api';
 import { goBack } from '../../../services/windows';
@@ -24,6 +25,7 @@ import type { WorkflowTask } from '../../../../common/types';
 
 export default function WorkflowEditorScreen() {
   const { id, node, field } = useLocalSearchParams<{ id: string; node?: string; field?: string }>();
+  useSharedView('workflow', id === 'new' ? undefined : id);
   const router = useRouter();
   const connConfig = useConnection((s) => s.config);
   const [workflow, setWorkflow] = useState<WorkflowTask | null>(null);
@@ -71,6 +73,8 @@ export default function WorkflowEditorScreen() {
   }
 
   return (
+    <View style={{ flex: 1 }}>
+    <SharedPresence kind="workflow" id={id} />
     <WorkflowEditor
       workflow={workflow}
       onBack={backToList}
@@ -78,6 +82,7 @@ export default function WorkflowEditorScreen() {
       initialNodeId={node}
       initialField={field}
     />
+    </View>
   );
 }
 
