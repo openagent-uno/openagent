@@ -80,3 +80,11 @@ checks; the external `frozen-core12` evidence directory holds all input wheel
 hashes and the complete 140-distribution dependency lock. Signing/notarization
 receipts describe package qualification separately from a real installation;
 no generated installer has been applied to the user's system.
+
+The final server App was notarized and stapled; Gatekeeper accepts it. The
+signed archive and exact signature metadata are recorded in
+`artifacts/frozen-server-distribution.json`. The installer payload was generated,
+but `productsign` requires the user's login-keychain password for the existing
+Installer key. Until that macOS dialog is completed, the `.pkg` is not a signed,
+notarized release artifact. No credentials were exported or requested in chat,
+and no key-access policy was changed.

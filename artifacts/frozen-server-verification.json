@@ -1,7 +1,7 @@
 {
   "binary": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent.app/Contents/MacOS/openagent",
   "sha256": "84168a7a0a6e9db390198a3c6c7eefd647a6be92c99b2fb1aab4a5593d9108ea",
-  "signing": "existing Developer ID signature verified; notarization pending",
+  "signing": "existing Developer ID signature verified; notarization accepted and stapled",
   "commands": [
     {
       "command": [
