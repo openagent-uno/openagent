@@ -16,6 +16,14 @@ Validated during extraction: existing suite 87 passed, 2 skipped; clean wheel
 installation outside repositories 35 passed, 1 Windows-only skip. These checks do
 not qualify signed installers, updater transitions or real OS interaction.
 
+Host composition can explicitly select its built-ins with
+`CapabilityHost(builtin_names=("filesystem", "editor", "shell"), paths=..., cwd=...,
+process_environment=...)`. Omitting `builtin_names` preserves the complete
+standalone bundle. A selection without device sidecars performs no sidecar
+discovery; explicit process environments also apply to shell calls. This is a
+host configuration API, not a routing argument accepted from a model or client.
+The selected-bundle tests verify these boundaries using a real shell process.
+
 The usage reference below documents the preserved product behavior.
 
 # OpenAgent Host Tools
@@ -51,8 +59,8 @@ Desktop and CLI share `~/.openagent/user/client-mcps.toml` and
 `OPENAGENT_HOST_TOOLS_HOME` to override that user directory. Internal lease,
 idempotency and audit databases live in its `host-tools/` child directory.
 
-The release bundles are built from the computer-control and Agent-in-Chrome
-sources under `sidecars/` in this repository. Each native bundle contains a
+The release bundles obtain computer-control and Agent-in-Chrome sources from
+the installed `openagent-device-tools` package, maintained in `openagent-tools`. Each native bundle contains a
 `bundle-manifest.json` with the version, size and SHA-256 of every runtime file;
 frozen hosts verify it before starting a sidecar. Tag `v0.1.0` publishes the
 universal Python wheel and native macOS, Linux and Windows x64/arm64 archives

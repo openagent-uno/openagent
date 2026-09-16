@@ -18,15 +18,24 @@ from .paths import HostPaths
 from .sidecars import AGENT_IN_CHROME_MANIFEST, COMPUTER_CONTROL_MANIFEST, discover_sidecars
 
 class CapabilityHost(BaseCapabilityHost):
-    def __init__(self, *, paths=None, cwd=None, **kwargs):
+    def __init__(self, *, paths=None, cwd=None, builtin_names=None, **kwargs):
         paths = paths or HostPaths.discover()
         cwd = Path(cwd or Path.cwd()).expanduser().resolve()
-        servers = (FilesystemServer(cwd), EditorServer(cwd), ShellServer(cwd, event_sink=self._emit_event))
+        all_names = ("filesystem", "editor", "shell", "computer-control", "agent-in-chrome")
+        selected = tuple(all_names if builtin_names is None else builtin_names)
+        if len(selected) != len(set(selected)) or any(name not in all_names for name in selected):
+            raise ValueError("builtin_names must contain distinct supported local capabilities")
+        kwargs.setdefault("process_environment", dict(os.environ))
+        factories = {"filesystem": lambda: FilesystemServer(cwd), "editor": lambda: EditorServer(cwd),
+                     "shell": lambda: ShellServer(cwd, event_sink=self._emit_event, environment=kwargs["process_environment"])}
+        servers = tuple(factories[name]() for name in selected if name in factories)
         platforms = ("darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64")
         for server in servers:
             server.manifest = replace(server.manifest, platforms=platforms, os_requirements=("Runs with the signed-in user's OS permissions",), data_directory=str(paths.internal / server.manifest.name))
-        inventory = tuple(replace(manifest, data_directory=str(paths.internal / manifest.name)) for manifest in (COMPUTER_CONTROL_MANIFEST, AGENT_IN_CHROME_MANIFEST))
-        kwargs.setdefault("process_environment", dict(os.environ))
+        self._selected_sidecars = frozenset(name for name in selected if name not in factories)
+        inventory = tuple(replace(manifest, data_directory=str(paths.internal / manifest.name))
+                          for manifest in (COMPUTER_CONTROL_MANIFEST, AGENT_IN_CHROME_MANIFEST)
+                          if manifest.name in self._selected_sidecars)
         super().__init__(paths=paths, cwd=cwd, servers=servers, inventory=inventory, allow_plugins=True, **kwargs)
 
     def _normalize_principal(self, value):
@@ -134,7 +143,9 @@ class CapabilityHost(BaseCapabilityHost):
             configured.pop(name, None)
 
         # Explicit config wins for optional sidecars; otherwise use packaged/PATH discovery.
-        for candidate in discover_sidecars():
+        for candidate in (discover_sidecars() if self._selected_sidecars else ()):
+            if candidate.name not in self._selected_sidecars:
+                continue
             placeholder = self._inventory.get(candidate.name, candidate.placeholder)
             spec = configured.pop(candidate.name, None)
             if spec is None and candidate.command is not None:
