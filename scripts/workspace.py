@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
             if selected["kind"] != "python":
                 raise ValueError("wheel requires a Python component")
             output = args.output.resolve()
-            return subprocess.run([sys.executable, "-m", "pip", "wheel", "--no-deps", "--wheel-dir", str(output), "."], cwd=ROOT / selected["path"]).returncode
+            return subprocess.run([sys.executable, str(ROOT/"scripts/build_wheels.py"), "--out", str(output), "--components", args.component],cwd=ROOT).returncode
         elif args.action == "release-manifest":
             value = release_manifest(args.artifacts.absolute())
             args.output.parent.mkdir(parents=True, exist_ok=True)

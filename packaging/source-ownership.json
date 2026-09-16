@@ -37,7 +37,14 @@
     "src.channels.tts_base": "openagent_core.voice.tts_base",
     "src.channels.tts_chunker": "openagent_core.voice.tts_chunker",
     "src.channels.tts_local": "openagent_core.voice.tts_local",
-    "src.channels.tts_streaming": "openagent_core.voice.tts_streaming"
+    "src.channels.tts_streaming": "openagent_core.voice.tts_streaming",
+    "src.core.paths.ensure_agent_dir": "openagent_product_config.paths.ensure_agent_dir",
+    "src.core.paths._DEFAULT_YAML": "openagent_product_config.paths",
+    "src.wal_monitor": "openagent_server.wal_monitor",
+    "src.core.execution_profile.should_use_lean_local_event": "openagent_support.execution_profile.select_profile",
+    "src.core.execution_profile.should_use_lean_local_scheduled_task": "openagent_support.execution_profile.select_profile",
+    "src.mcp.servers.agent_manager": "openagent_product_config.tools.agent_manager",
+    "src.mcp.servers.agent_federation": "openagent_mcp.federation"
   },
   "core_distribution": "openagent-core",
   "core_namespace": "openagent_core"

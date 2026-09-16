@@ -1,0 +1,8 @@
+{
+  "qualification": "local-authenticated-terminal",
+  "provider": "deterministic-local-http",
+  "transport": "PAKE certificate + Iroh",
+  "model_calls": 2,
+  "unrelated_app_capabilities": false,
+  "exit_code": 0
+}

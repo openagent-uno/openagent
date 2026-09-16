@@ -42,22 +42,24 @@ def checked_clean(path: Path, parent: Path) -> None:
         shutil.rmtree(resolved)
 
 
-def _build_computer_control(source: Path) -> None:
+def _build_computer_control(source: Path) -> Path:
     cargo = shutil.which("cargo")
     if cargo is None:
         raise SystemExit("Rust/cargo is required to build computer-control")
+    target = ROOT / "build" / "computer-control"
     subprocess.run(
-        [cargo, "build", "--release", "--locked", "--manifest-path", str(source / "Cargo.toml")],
+        [cargo, "build", "--release", "--locked", "--target-dir", str(target), "--manifest-path", str(source / "Cargo.toml")],
         cwd=ROOT,
         check=True,
     )
+    return target / "release" / ("openagent-computer-control.exe" if sys.platform == "win32" else "openagent-computer-control")
 
 
 def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
     """Build and stage the host-owned optional MCP sidecars.
 
-    Their source lives in this repository.  A release therefore cannot
-    silently pick up a different openagent-server branch or commit.
+    Source comes from the pinned openagent-device-tools distribution. Cargo
+    outputs stay in the product build directory; installed packages are read-only.
     """
 
     suffix = ".exe" if key.startswith("win32-") else ""
@@ -69,8 +71,7 @@ def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
     ]
     computer = next((path for path in candidates if path.is_file()), None)
     if computer is None and not args_no_build_sidecars():
-        _build_computer_control(computer_root)
-        computer = computer_root / "target" / "release" / computer_name
+        computer = _build_computer_control(computer_root)
         if not computer.is_file():
             computer = None
     if computer is not None:

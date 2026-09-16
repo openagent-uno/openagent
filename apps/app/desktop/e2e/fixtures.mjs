@@ -475,7 +475,7 @@ export function resolveHostToolsBinary(desktopRoot) {
     ? 'openagent-host-tools.exe'
     : 'openagent-host-tools';
   const override = process.env.OPENAGENT_E2E_HOST_TOOLS_BIN?.trim();
-  const repo = resolve(desktopRoot, '..', '..', 'openagent-host-tools');
+  const repo = resolve(desktopRoot, '..', '..', '..', 'packages', 'host-tools');
   const candidates = [
     override,
     join(repo, 'dist', `${process.platform}-${process.arch}`, executable),

@@ -4,7 +4,7 @@ set -euo pipefail
 bundle="${1:?usage: sign_macos_bundle.sh <bundle-dir>}"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
-for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
   test -n "${!name:-}" || { echo "missing required release secret: $name" >&2; exit 1; }
 done
 test -d "$bundle" || { echo "bundle does not exist: $bundle" >&2; exit 1; }
@@ -20,22 +20,33 @@ while IFS= read -r existing; do
   test -n "$existing" && original_keychains+=("$existing")
 done < <(security list-keychains -d user)
 cleanup() {
-  if ((${#original_keychains[@]})); then
+  if [[ -f "$keychain" ]] && ((${#original_keychains[@]})); then
     security list-keychains -d user -s "${original_keychains[@]}" >/dev/null 2>&1 || true
   fi
-  security delete-keychain "$keychain" >/dev/null 2>&1 || true
+  if [[ -f "$keychain" ]]; then
+    security delete-keychain "$keychain" >/dev/null 2>&1 || true
+  fi
   rm -rf "$work_root"
 }
 trap cleanup EXIT
 
-security create-keychain -p "$keychain_password" "$keychain"
-security unlock-keychain -p "$keychain_password" "$keychain"
-security set-keychain-settings -lut 3600 "$keychain"
-security list-keychains -d user -s "$keychain" "${original_keychains[@]}"
-printf '%s' "$CSC_LINK" | base64 --decode > "$p12"
-security import "$p12" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign
-security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
-identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+if [[ -n "${CSC_NAME:-}" ]]; then
+  # Local qualification reuses an existing identity without exporting its key
+  # or mutating the user's keychain search list. CI retains its isolated import.
+  identity="$CSC_NAME"
+else
+  for name in CSC_LINK CSC_KEY_PASSWORD; do
+    test -n "${!name:-}" || { echo "missing required release secret: $name" >&2; exit 1; }
+  done
+  security create-keychain -p "$keychain_password" "$keychain"
+  security unlock-keychain -p "$keychain_password" "$keychain"
+  security set-keychain-settings -lut 3600 "$keychain"
+  security list-keychains -d user -s "$keychain" "${original_keychains[@]}"
+  printf '%s' "$CSC_LINK" | base64 --decode > "$p12"
+  security import "$p12" -k "$keychain" -P "$CSC_KEY_PASSWORD" -T /usr/bin/codesign
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain"
+  identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+fi
 test -n "$identity" || { echo "Developer ID Application identity not found" >&2; exit 1; }
 
 helper="$bundle/openagent-computer-control.app"

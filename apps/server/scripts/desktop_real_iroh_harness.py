@@ -118,183 +118,84 @@ async def _seed_deterministic_model(db: Any, model_base_url: str) -> None:
 
 
 async def run(root: Path) -> None:
-    # Import after argument parsing so ``--help`` works even when this script
-    # is inspected outside the server virtualenv.
-    from scripts.tests.test_real_iroh_client_e2e import (
-        _start_deterministic_model_endpoint,
-        _wait_for_direct_addresses,
-    )
-    from openagent_core.core import child_session as child_session_hooks
-    from openagent_core.core.agent import Agent
-    from openagent_server.gateway.server import Gateway
-    from openagent_core.memory.db import MemoryDB
-    from openagent_core.mcp.pool import MCPPool
-    from openagent_core.mcp.servers.agent_federation import handlers as federation_handlers
-    from openagent_core.models.native_provider import NativeProvider
+    from aiohttp import web
+    import ast
+    from openagent_core.core.paths import set_agent_dir
+    from openagent_core.engine import module_pool
+    from openagent_server.server import AgentServer
     from openagent_identity.coordinator.store import CoordinatorStore
-    from openagent_identity.identity import load_or_create_identity
-    from openagent_identity.state import NetworkState
     from openagent_identity.ticket import InviteTicket
-    from openagent_core.stream import child_stream as child_stream_hooks
-    from openagent_core.stream import resource_events as resource_event_hooks
 
-    root = root.resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    target = root / "desktop-machine" / "sentinel.txt"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    evidence_path = root / "model-calls.json"
-    _atomic_json(evidence_path, [])
+    root=root.resolve();root.mkdir(parents=True,exist_ok=True);set_agent_dir(root)
+    target=root/'desktop-machine'/'sentinel.txt';target.parent.mkdir(parents=True,exist_ok=True)
+    evidence_path=root/'model-calls.json';calls=[];_atomic_json(evidence_path,calls)
+    def data(text):
+        try:return json.loads(text)
+        except ValueError:return ast.literal_eval(text)
+    async def complete(request):
+        payload=await request.json();calls.append(payload);_atomic_json(evidence_path,calls)
+        messages=payload.get('messages',[])
+        start=max((i for i,m in enumerate(messages) if m.get('role')=='user' and ('Desktop Iroh sentinel' in str(m.get('content','')) or 'cli: fixture' in str(m.get('content','')))),default=0)
+        cli_turn = 'cli: fixture' in str(messages[start].get('content',''))
+        results=[data(m['content']) for m in messages[start:] if m.get('role')=='tool']
+        call=None;final='desktop file read failed'
+        if payload.get('tools'):
+            if not results:call=('tool_search_list_servers',{})
+            elif cli_turn:
+                if any(source['source_ref'].startswith(('app/','app-dashboard/')) for source in results[0]):
+                    raise web.HTTPConflict(text='CLI inherited an unrelated App capability')
+                final='CLI fixture complete'
+            elif len(results)==1:
+                sources=[source for source in results[0] if source['source_ref'].endswith('/filesystem')]
+                if len(sources)!=1:raise web.HTTPConflict(text='Expected exactly one originating filesystem')
+                call=('tool_search_list_tools',{'source_ref':sources[0]['source_ref']})
+            elif len(results)==2:
+                ref=next(tool['tool_ref'] for tool in results[1] if tool['name']=='write_file')
+                call=('tool_search_call_tool',{'tool_ref':ref,'args':{'path':str(target),'content':'desktop-sentinel'}})
+            elif len(results)==3 and not results[-1].get('isError'):
+                ref=next(tool['tool_ref'] for tool in results[1] if tool['name']=='read_text_file')
+                call=('tool_search_call_tool',{'tool_ref':ref,'args':{'path':str(target)}})
+            elif len(results)>=4 and not results[-1].get('isError') and 'desktop-sentinel' in json.dumps(results[-1]):
+                final='desktop file written'
+        elif 'response_format' in payload:final=json.dumps({'summary':'Desktop fixture complete','topics':['desktop']})
+        message={'role':'assistant'}
+        if call:
+            message['tool_calls']=[{'index':0,'id':'desktop-fixture-'+str(len(calls)),'type':'function','function':{'name':call[0],'arguments':json.dumps(call[1])}}]
+            reason='tool_calls'
+        else:message['content']=final;reason='stop'
+        if payload.get('stream'):
+            response=web.StreamResponse(headers={'Content-Type':'text/event-stream'});await response.prepare(request)
+            for delta,finish in ((message,None),({},reason)):
+                chunk={'id':'fixture','object':'chat.completion.chunk','created':1,'model':'deterministic-client-e2e','choices':[{'index':0,'delta':delta,'finish_reason':finish}]}
+                await response.write(('data: '+json.dumps(chunk)+'\n\n').encode())
+            await response.write(b'data: [DONE]\n\n');await response.write_eof();return response
+        for item in message.get('tool_calls',[]):item.pop('index',None)
+        return web.json_response({'id':'fixture','object':'chat.completion','created':1,'model':'deterministic-client-e2e','choices':[{'index':0,'message':message,'finish_reason':reason}],
+            'usage':{'prompt_tokens':1,'completion_tokens':1,'total_tokens':2}})
 
-    db = MemoryDB(str(root / "gateway.db"))
-    await db.connect()
-    store = CoordinatorStore(db)
-    network_id = "desktop-real-iroh-" + uuid.uuid4().hex[:12]
-    network_name = "desktop-real-iroh-e2e"
-    identity_path = root / "coordinator.key"
-    coordinator_identity = load_or_create_identity(identity_path)
-    await store.set_network_role(
-        role="coordinator",
-        network_id=network_id,
-        name=network_name,
-        coordinator_node_id=coordinator_identity.public_hex,
-        coordinator_pubkey=coordinator_identity.public_bytes,
-    )
-    await store.register_agent(
-        handle="coordinator",
-        node_id=coordinator_identity.public_hex,
-        owner_handle="system",
-        label="Desktop Real Iroh E2E",
-    )
-
-    model_runner, model_base_url, model_calls = (
-        await _start_deterministic_model_endpoint({
-            "desktop": target,
-            "cli": root / "unused-cli-machine" / "sentinel.txt",
-        })
-    )
-    # The canonical catalog is the dispatch authority even when the harness
-    # supplies a concrete NativeProvider instance.  Keep it in sync with that
-    # runtime provider so Gateway's pre-dispatch enabled-model gate accepts
-    # the turn and Agent hot-reload can materialise the same configuration.
-    await _seed_deterministic_model(db, model_base_url)
-    model_evidence_task = asyncio.create_task(
-        _persist_model_evidence(evidence_path, model_calls),
-        name="desktop-real-iroh-model-evidence",
-    )
-
-    pool = MCPPool.from_config(
-        mcp_config=[{"builtin": "tool-search"}],
-        include_defaults=False,
-        db_path=str(root / "runtime.db"),
-    )
-    model = NativeProvider(
-        model="local:deterministic-client-e2e",
-        api_key="local",
-        base_url=model_base_url,
-        providers_config=[{
-            "name": "local",
-            "framework": "api-based",
-            "api_key": "local",
-            "base_url": model_base_url,
-        }],
-        db_path=str(root / "runtime.db"),
-    )
-    agent = Agent(
-        name="Desktop Real Iroh E2E",
-        model=model,
-        system_prompt=(
-            "You are the deterministic Desktop acceptance agent. "
-            "Client paths are never server paths."
-        ),
-        mcp_pool=pool,
-        # The harness is a production-shaped vertical slice: Agent lifecycle
-        # services and Gateway REST surfaces must share the coordinator's
-        # canonical store.  A separate/absent DB leaves Custom Views without
-        # an authoritative repository and makes Gateway startup fail.
-        memory=db,
-    )
-    state = await NetworkState.from_db(db=db, identity_path=identity_path)
-    gateway = Gateway(agent=agent, network_state=state)
-
-    # The production Gateway binds a few process-level stream hooks. Restore
-    # them because this executable is also useful from an in-process CI
-    # launcher, not only as a one-shot child process.
-    previous_process_hooks = (
-        child_session_hooks._listener,
-        child_stream_hooks._broadcast_sink,
-        resource_event_hooks._sink,
-        federation_handlers._iroh_node,
-        federation_handlers._db,
-    )
-
+    model_app=web.Application();model_app.router.add_post('/v1/chat/completions',complete)
+    model_runner=web.AppRunner(model_app);await model_runner.setup()
+    model_site=web.TCPSite(model_runner,'127.0.0.1',0);await model_site.start()
+    model_base_url='http://127.0.0.1:'+str(model_site._server.sockets[0].getsockname()[1])+'/v1'
+    server=AgentServer.from_config({'name':'coordinator','_local_e2e':True,'memory':{'db_path':str(root/'gateway.db')},'channels':{},'voice':{'prefetch':False}})
+    db=server.agent.memory_db;await db.connect();store=CoordinatorStore(db)
+    network_id='desktop-real-iroh-'+uuid.uuid4().hex[:12];network_name='desktop-real-iroh-e2e'
+    await store.set_network_role(role='coordinator',network_id=network_id,name=network_name)
+    await _seed_deterministic_model(db,model_base_url)
+    server.agent.set_capability_pool(module_pool((),db_path=db.db_path))
+    await server.agent.load_model_catalog();await db.close()
     try:
-        gateway._prepare_iroh_site()
-        await state.start()
-        await gateway.start()
-
-        coordinator_node_id = await state.node_id()
-        relay_url, addresses = await _wait_for_direct_addresses(state.iroh_node)
-        if not relay_url and not addresses:
-            raise RuntimeError("coordinator published no Iroh address hints")
-
-        handle = "desktop-e2e"
-        password = "desktop-real-iroh-password"
-        invitation = await store.create_invitation(
-            role="user",
-            created_by="desktop-real-iroh-playwright",
-            ttl_seconds=900,
-            uses=1,
-            bind_to_handle=handle,
-        )
-        ticket = InviteTicket(
-            code=invitation.code,
-            coordinator_node_id=coordinator_node_id,
-            network_name=network_name,
-            network_id=network_id,
-            role="user",
-            bind_to="",
-            relay_url=relay_url,
-            addresses=tuple(addresses) or None,
-        ).encode()
-
-        ready = {
-            "ticket": ticket,
-            "password": password,
-            "handle": handle,
-            "network_id": network_id,
-            "coordinator_node_id": coordinator_node_id,
-            "target_path": str(target),
-            "evidence_path": str(evidence_path),
-        }
-        print(READY_PREFIX + json.dumps(ready, sort_keys=True), flush=True)
+        await server.start();state=server._network_state
+        coordinator_node_id=await state.node_id()
+        handle='desktop-e2e';password='desktop-real-iroh-password'
+        await store.register_agent(handle='coordinator',node_id=coordinator_node_id,owner_handle=handle,label='Desktop Real Iroh E2E')
+        relay_url,addresses=await state.iroh_node.local_node_addr()
+        invitation=await store.create_invitation(role='user',created_by='desktop-real-iroh-playwright',ttl_seconds=900,uses=1,bind_to_handle=handle)
+        ticket=InviteTicket(code=invitation.code,coordinator_node_id=coordinator_node_id,network_name=network_name,network_id=network_id,role='user',bind_to='',relay_url=relay_url,addresses=tuple(addresses) or None).encode()
+        print(READY_PREFIX+json.dumps({'ticket':ticket,'password':password,'handle':handle,'network_id':network_id,'coordinator_node_id':coordinator_node_id,'target_path':str(target),'evidence_path':str(evidence_path)},sort_keys=True),flush=True)
         await _wait_for_stop()
     finally:
-        model_evidence_task.cancel()
-        await asyncio.gather(model_evidence_task, return_exceptions=True)
-        with suppress(Exception):
-            await gateway.stop()
-        with suppress(Exception):
-            await agent.shutdown()
-        with suppress(Exception):
-            await state.stop()
-        with suppress(Exception):
-            await model_runner.cleanup()
-        with suppress(Exception):
-            await db.close()
-
-        (
-            previous_child_listener,
-            previous_child_broadcast,
-            previous_resource_sink,
-            previous_federation_node,
-            previous_federation_db,
-        ) = previous_process_hooks
-        child_session_hooks.set_child_session_listener(previous_child_listener)
-        child_stream_hooks.set_child_broadcast_sink(previous_child_broadcast)
-        resource_event_hooks.set_resource_event_sink(previous_resource_sink)
-        federation_handlers.set_agent_runtime(
-            previous_federation_node, previous_federation_db,
-        )
+        await server.stop();await model_runner.cleanup();set_agent_dir(None)
 
 
 def main() -> None:

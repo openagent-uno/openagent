@@ -213,6 +213,7 @@ test('release verifier accepts the complete architecture-specific updater set', 
     const repositoryRoot = path.resolve(import.meta.dirname, '../../..');
     const desktopRoot = path.join(repositoryRoot, 'desktop');
     const version = String(JSON.parse(fs.readFileSync(path.join(desktopRoot, 'package.json'))).version);
+    const channel = /-beta\.\d+$/.test(version) ? 'beta' : 'latest';
     const metadataRoot = path.join(root, 'release-metadata');
     fs.mkdirSync(metadataRoot, { recursive: true });
 
@@ -237,12 +238,12 @@ test('release verifier accepts the complete architecture-specific updater set', 
       ]],
     ]);
     const metadataForRunner = (runner) => runner.startsWith('darwin')
-      ? 'latest-mac.yml'
+      ? `${channel}-mac.yml`
       : runner.startsWith('win32')
-        ? 'latest.yml'
+        ? `${channel}.yml`
         : runner === 'linux-arm64'
-          ? 'latest-linux-arm64.yml'
-          : 'latest-linux.yml';
+          ? `${channel}-linux-arm64.yml`
+          : `${channel}-linux.yml`;
     const fileRecords = new Map();
 
     for (const [runner, installers] of builds) {
@@ -265,37 +266,37 @@ test('release verifier accepts the complete architecture-specific updater set', 
         schema: 1,
         version,
         runner,
-        channel: 'latest',
+        channel,
         primary: installers,
         assets,
       }));
     }
 
     const metadataGroups = new Map([
-      ['latest-mac.yml', [
+      [`${channel}-mac.yml`, [
         `openagent-app-${version}-macos-arm64.dmg`,
         `openagent-app-${version}-macos-arm64.zip`,
         `openagent-app-${version}-macos-x64.dmg`,
         `openagent-app-${version}-macos-x64.zip`,
       ]],
-      ['latest.yml', [
+      [`${channel}.yml`, [
         `openagent-app-${version}-windows-arm64.exe`,
         `openagent-app-${version}-windows-x64.exe`,
       ]],
-      ['latest-linux.yml', [
+      [`${channel}-linux.yml`, [
         `openagent-app-${version}-linux-amd64.deb`,
         `openagent-app-${version}-linux-x86_64.AppImage`,
       ]],
-      ['latest-linux-arm64.yml', [
+      [`${channel}-linux-arm64.yml`, [
         `openagent-app-${version}-linux-arm64.deb`,
         `openagent-app-${version}-linux-arm64.AppImage`,
       ]],
     ]);
     const legacyPaths = new Map([
-      ['latest-mac.yml', `openagent-app-${version}-macos-x64.zip`],
-      ['latest.yml', `openagent-app-${version}-windows-x64.exe`],
-      ['latest-linux.yml', `openagent-app-${version}-linux-x86_64.AppImage`],
-      ['latest-linux-arm64.yml', `openagent-app-${version}-linux-arm64.AppImage`],
+      [`${channel}-mac.yml`, `openagent-app-${version}-macos-x64.zip`],
+      [`${channel}.yml`, `openagent-app-${version}-windows-x64.exe`],
+      [`${channel}-linux.yml`, `openagent-app-${version}-linux-x86_64.AppImage`],
+      [`${channel}-linux-arm64.yml`, `openagent-app-${version}-linux-arm64.AppImage`],
     ]);
     for (const [metadataName, urls] of metadataGroups) {
       const files = urls.map((url) => fileRecords.get(url));

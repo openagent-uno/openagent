@@ -12,8 +12,9 @@ const DESKTOP_ROOT = resolve(HERE, '..');
 const APP_ROOT = resolve(DESKTOP_ROOT, '..');
 const WEB_ROOT = join(APP_ROOT, 'universal', 'dist');
 const REAL_IROH_ENABLED = process.env.OPENAGENT_REAL_DESKTOP_IROH_E2E === '1';
+const PACKAGED_APP = process.env.OPENAGENT_E2E_PACKAGED_APP;
 
-test('real Electron enrolls and executes client:filesystem over coordinator + Gateway + Iroh', async () => {
+test('real Electron enrolls and executes filesystem through the uniform catalog over coordinator + Gateway + Iroh', async () => {
   test.skip(
     !REAL_IROH_ENABLED,
     'set OPENAGENT_REAL_DESKTOP_IROH_E2E=1 with a server checkout to run the real-wire E2E',
@@ -32,7 +33,9 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
     mkdir(serverState, { recursive: true }),
   ]);
   const hostHome = await realpath(hostHomeCandidate);
-  const hostBinary = resolveHostToolsBinary(DESKTOP_ROOT);
+  const hostBinary = PACKAGED_APP
+    ? join(PACKAGED_APP, 'Contents/Resources/host-tools/darwin-arm64/openagent-host-tools')
+    : resolveHostToolsBinary(DESKTOP_ROOT);
   const brokerPidsBefore = await listOwnedBrokerPids(hostBinary, hostHome);
   let renderer;
   let harness;
@@ -40,16 +43,19 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
   const mainOutput = [];
 
   try {
-    renderer = await new StaticRendererServer({ webRoot: WEB_ROOT }).start();
+    if (!PACKAGED_APP) renderer = await new StaticRendererServer({ webRoot: WEB_ROOT }).start();
     harness = await startServerHarness(serverState);
     electronApp = await electron.launch({
-      args: [DESKTOP_ROOT, `--user-data-dir=${userData}`],
+      executablePath: PACKAGED_APP ? join(PACKAGED_APP, 'Contents/MacOS/OpenAgent') : undefined,
+      args: PACKAGED_APP
+        ? ['--use-mock-keychain', '--local-e2e', `--e2e-user-data-dir=${userData}`]
+        : [DESKTOP_ROOT, `--user-data-dir=${userData}`],
       cwd: DESKTOP_ROOT,
       env: {
         ...process.env,
         NODE_ENV: 'test',
         OPENAGENT_DESKTOP_E2E: '1',
-        OPENAGENT_DESKTOP_E2E_RENDERER_URL: renderer.baseUrl,
+        OPENAGENT_DESKTOP_E2E_RENDERER_URL: renderer?.baseUrl || '',
         OPENAGENT_HOST_TOOLS_BIN: hostBinary,
         OPENAGENT_HOST_TOOLS_HOME: hostHome,
         HOME: clientHome,
@@ -62,8 +68,15 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
     electronApp.process().stderr?.on('data', (chunk) => mainOutput.push(chunk.toString()));
 
     const page = await electronApp.firstWindow();
+    page.on('console', message => mainOutput.push(`[renderer:${message.type()}] ${message.text()}\n`));
+    page.on('pageerror', error => mainOutput.push(`[renderer:error] ${error.message}\n`));
+    page.on('response', response => {
+      if (response.url().includes('/api/')) mainOutput.push(`[http] ${response.status()} ${response.request().method()} ${new URL(response.url()).pathname}\n`);
+    });
+    page.on('requestfailed', request => mainOutput.push(`[http:failed] ${new URL(request.url()).pathname}: ${request.failure()?.errorText}\n`));
     await page.setViewportSize({ width: 1_440, height: 960 });
-    await expect(page).toHaveURL(renderer.baseUrl + '/');
+    if (renderer) await expect(page).toHaveURL(renderer.baseUrl + '/');
+    else await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:\d+\/$/);
 
     // Retain the first BrowserWindow before evaluating in Electron's main
     // realm.  Cold macOS CI launches can otherwise collect the pending
@@ -103,6 +116,7 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
 
     const composer = page.getByPlaceholder('Message OpenAgent...');
     await composer.fill('desktop: write and read the Desktop Iroh sentinel');
+    await expect(composer).toHaveValue('desktop: write and read the Desktop Iroh sentinel');
     await composer.press('Enter');
     await expect(page.getByText('desktop file written', { exact: true }))
       // A clean release runner pays the full first-turn MCP/provider startup
@@ -117,19 +131,21 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
     // ExecutionHost must survive the runtime envelope and the live Gateway
     // stream into the real renderer, not merely exist in a server-side log.
     const deviceLabel = `${hostname()} (OpenAgent Desktop)`;
-    const locationLabel = `This computer · ${deviceLabel}`;
+    const locationLabel = deviceLabel;
     await expect(page.getByText(locationLabel, { exact: true }).last())
       .toBeVisible({ timeout: 15_000 });
     await page.getByText(locationLabel, { exact: true }).last().click();
     await expect(page.getByText('Execution host', { exact: true }).last()).toBeVisible();
     await expect(page.getByText(
-      `${deviceLabel} · client ${clientInstanceId}`,
+      `${deviceLabel} · instance ${clientInstanceId}`,
       { exact: true },
     ).last()).toBeVisible();
 
-    const evidence = await waitForModelEvidence(harness.ready.evidence_path, 3);
+    const evidence = await waitForModelEvidence(harness.ready.evidence_path, 5);
     const transcript = JSON.stringify(evidence);
-    expect(transcript).toContain('client:filesystem');
+    expect(transcript).toContain('/filesystem');
+    expect(transcript).toContain('tool_ref');
+    expect(transcript).not.toContain('client:filesystem');
     expect(transcript).toContain('desktop-sentinel');
     expect(transcript).toContain('execution_host');
     expect(transcript).toContain(clientInstanceId);
@@ -138,20 +154,36 @@ test('real Electron enrolls and executes client:filesystem over coordinator + Ga
     // results instead of assuming the final provider request is the turn.
     const toolResults = [...evidence].reverse()
       .map((call) => (call?.messages || []).filter((message) => message?.role === 'tool'))
-      .find((messages) => messages.length >= 2) || [];
-    expect(toolResults).toHaveLength(2);
+      .find((messages) => messages.length >= 4) || [];
+    expect(toolResults).toHaveLength(4);
     const readResult = JSON.stringify(toolResults.at(-1)?.content);
     expect(readResult).toContain('desktop-sentinel');
     expect(readResult).not.toMatch(/"isError"\s*:\s*true/i);
     const enrolledNetworks = await readFile(
-      join(clientHome, '.openagent', 'user', 'networks.toml'),
+      PACKAGED_APP ? join(userData, 'openagent-user/networks.toml')
+        : join(clientHome, '.openagent', 'user', 'networks.toml'),
       'utf8',
     );
     expect(enrolledNetworks).toContain(harness.ready.network_id);
 
     // The renderer origin is static-only. If chat or capability traffic ever
     // bypassed the native loopback, this list would expose the regression.
-    expect(renderer.requests.filter((request) => request.path.startsWith('/api/'))).toEqual([]);
+    if (renderer) expect(renderer.requests.filter((request) => request.path.startsWith('/api/'))).toEqual([]);
+    // Reload the actual renderer: cards and their destinations must come from
+    // canonical history, without replaying the tool's external effect.
+    await page.reload();
+    await expect(page.getByText('desktop file written', { exact: true }).last()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(locationLabel, { exact: true }).last()).toBeVisible();
+    await expect(page.getByText('desktop file written', { exact: true })).toHaveCount(1);
+    await expect(page.getByTestId('oa-user-message')).toHaveCount(1);
+    await expect(page.getByTestId('oa-assistant-message')).toHaveCount(1);
+    await expect(page.getByTestId('oa-assistant-message').getByText('desktop file written', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Stop generating', exact: true })).toHaveCount(0, { timeout: 20_000 });
+    const persistedEvidence = await waitForModelEvidence(harness.ready.evidence_path, 5);
+    expect(persistedEvidence.filter(call => Array.isArray(call.tools) && call.tools.length)).toHaveLength(5);
+    const screenshot = test.info().outputPath('desktop-success.png');
+    await page.screenshot({ path: screenshot });
+    await test.info().attach('Authenticated desktop after reload', { path: screenshot, contentType: 'image/png' });
   } catch (error) {
     const electronOutput = mainOutput.join('').trim();
     if (electronOutput) error.message += `\n\nElectron main output:\n${electronOutput}`;
@@ -286,8 +318,8 @@ function waitForExit(child, timeoutMs) {
 
 function resolveServerRoot() {
   const override = process.env.OPENAGENT_REAL_DESKTOP_SERVER_ROOT?.trim();
-  const candidate = override || resolve(APP_ROOT, '..', 'openagent-server');
-  if (!existsSync(join(candidate, 'src', 'gateway', 'server.py'))) {
+  const candidate = override || resolve(APP_ROOT, '..', 'server');
+  if (!existsSync(join(candidate, 'src', 'openagent_server', 'gateway', 'server.py'))) {
     throw new Error(
       `OpenAgent server checkout not found at ${candidate}; set ` +
       'OPENAGENT_REAL_DESKTOP_SERVER_ROOT',

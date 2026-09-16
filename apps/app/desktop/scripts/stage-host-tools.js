@@ -21,7 +21,7 @@ if (
 }
 const source = process.env.OPENAGENT_HOST_TOOLS_DIST
   ? path.resolve(process.env.OPENAGENT_HOST_TOOLS_DIST)
-  : path.resolve(desktop, '..', '..', 'openagent-host-tools', 'dist');
+  : path.resolve(desktop, '..', '..', '..', 'packages', 'host-tools', 'dist');
 const target = process.env.OPENAGENT_HOST_TOOLS_STAGE_DIR
   ? path.resolve(process.env.OPENAGENT_HOST_TOOLS_STAGE_DIR)
   : path.join(desktop, 'resources', 'host-tools');

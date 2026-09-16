@@ -2,22 +2,18 @@
 """PyInstaller spec file for building the OpenAgent standalone executable.
 
 Usage:
-    pip install pyinstaller
-    ./scripts/build-executable.sh    # installs deps + builds Node MCPs + runs pyinstaller
-
-To run pyinstaller directly (skipping the helper) make sure the bundled Node
-MCPs in src/mcp/servers/ have been built first (npm install + npm run
-build for each), then:
-    pyinstaller openagent.spec --clean --noconfirm
+    Provision an isolated environment from the hash-locked release wheelhouse,
+    then run ./scripts/build-executable.sh with OPENAGENT_HOST_TOOLS_BUNDLE
+    pointing to the verified prebuilt native bundle. This spec never installs
+    dependencies or compiles module resources inside installed packages.
 
 Output: dist/openagent (single-file binary).
 
 onefile mode is intentional: shipping a single ``openagent`` binary keeps
 the downloads UX trivial ("drag it onto your PATH and run") and hides the
 ``_internal/`` directory PyInstaller normally exposes in onedir mode.
-First launch pays a one-time cost (~5-10s) while the bundled archive
-extracts into the OS temp dir (``$TMPDIR/_MEI_xxxxx``). Subsequent runs
-reuse that cache and start in under a second.
+Each launch extracts the bundled archive into its own OS temporary
+directory (``$TMPDIR/_MEI_xxxxx``), removed when the process exits.
 """
 
 import os
@@ -25,6 +21,7 @@ import platform
 import sys
 from pathlib import Path
 from importlib.resources import files
+from importlib.metadata import distributions
 from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
@@ -135,6 +132,17 @@ hiddenimports = [
     *collect_submodules("openagent_identity"),
     *collect_submodules("openagent_dashboards"),
     *collect_submodules("openagent_product_config"),
+    *collect_submodules("openagent_support"),
+    *collect_submodules("openagent_storage_sqlite"),
+    *collect_submodules("openagent_modules"),
+    *collect_submodules("openagent_client_transport"),
+    *collect_submodules("openagent_device_tools"),
+    *collect_submodules("openagent_filesystem"),
+    *collect_submodules("openagent_editor"),
+    *collect_submodules("openagent_shell"),
+    *collect_submodules("openagent_tool_protocol"),
+    *collect_submodules("openagent_capability_host"),
+    *collect_submodules("openagent_execution"),
     # openagent-mcp: the in-process agent-federation builtin
     # (src/mcp/servers/agent_federation) imports the standalone openagent-mcp
     # package — oa_agent_client (Iroh agent-ALPN wire core) + openagent_mcp
@@ -203,21 +211,15 @@ binaries = collect_dynamic_libs("iroh")
 binaries += _numpy_all[1]
 
 # ── Data files ──
-# Bundle the entire mcp/servers/ directory (built-in MCP servers).
-# Each Node MCP needs its dist/ and node_modules/ directories.
+# Reusable modules ship precompiled assets in their optional distribution.
 
-mcps_dir = Path(str(files("openagent_core").joinpath("mcp/servers")))
-
-# Node module artifacts must already belong to the installed, verified module
-# packages. Packaging must not mutate an installed dependency or download code.
-_vault_dir = mcps_dir / "vault"
-if _vault_dir.exists() and not (_vault_dir / "dist").is_dir():
+from openagent_modules import module_assets
+_vault_dir = module_assets("vault")
+if not (_vault_dir / "dist").is_dir():
     raise RuntimeError("The installed vault module has no built runtime artifacts")
 
-# agent-in-chrome (the CDP browser MCP) needs its Node deps (ws, MCP SDK, zod)
-# bundled. CI's release.yml "Build Node MCPs" loop doesn't cover its host/ dir,
-# so install here — idempotent, best-effort; the MCP self-bootstraps at first
-# launch (resolve_builtin_entry) if this is skipped.
+# Browser resources come from the verified device bundle. Packaging never
+# installs dependencies or mutates the installed tools distribution.
 _host_bundle = os.environ.get("OPENAGENT_HOST_TOOLS_BUNDLE", "").strip()
 _release_build = os.environ.get("OPENAGENT_RELEASE_BUILD") == "1"
 if _release_build and not _host_bundle:
@@ -238,44 +240,34 @@ if _host_bundle and not (_aic_dir / "node_modules").exists():
     )
 if not (_aic_dir / "node_modules").exists():
     raise RuntimeError("The installed browser tools have no bundled runtime dependencies")
+_node_name = "node.exe" if sys.platform == "win32" else "node"
+_node_binary = Path(_host_bundle) / _node_name
+if not _node_binary.is_file():
+    raise RuntimeError("The verified host-tools bundle has no Node runtime")
+# The vault resolver checks the frozen extraction root, so the standalone
+# server remains usable on a computer without a separate Node installation.
+binaries.append((str(_node_binary), "."))
 
 datas = []
 datas += _numpy_all[0]  # numpy data files (from collect_all)
 # Normative additive operational-storage/search schemas.  The runtime loads
 # these through importlib.resources, so one-file builds must carry them too.
 datas += collect_data_files("openagent_core.memory.operational", includes=["sql/*.sql"])
-if mcps_dir.exists():
-    # Bundle every MCP EXCEPT computer-control. The Rust binary for
-    # computer-control must ship as a *sidecar* next to the openagent
-    # executable — never inside the PyInstaller archive — because
-    # PyInstaller's macOS bundling strips the Developer-ID signature
-    # from nested Mach-O binaries and re-signs them ad-hoc. An ad-hoc
-    # signature has no stable Team ID or bundle identifier, so macOS
-    # TCC (Accessibility, Screen Recording) can prompt the user but
-    # can't record a persistent grant. Every openagent update then
-    # produces a new ad-hoc identifier and the user has to re-grant —
-    # or worse, as observed on v0.6.4, the prompt fires but the
-    # Accessibility toggle never appears in System Settings at all.
-    #
-    # The sidecar's signature stays intact on disk, TCC uses its
-    # stable ``com.openagent.computer-control`` identifier, and
-    # permission grants survive across updates. See
-    # ``scripts/sign-notarize-macos.sh`` (bundles the sidecar into
-    # the .pkg alongside the onefile) and
-    # ``src/mcp/builtins.py::_resolve_native_binary`` (looks
-    # for the sidecar next to ``sys.executable`` first).
-    for child in mcps_dir.iterdir():
-        if child.name in {"computer-control", "agent-in-chrome"}:
-            continue
-        datas.append((str(child), f"openagent_core/mcp/servers/{child.name}"))
+datas += collect_data_files("openagent_core", includes=["prompts/*.json"])
+datas += collect_data_files("openagent_modules")
+datas += collect_data_files("openagent_dashboards")
+datas += collect_data_files("openagent_product_config")
 
 # computer-control and Agent-in-Chrome are owned by the exact pinned
 # openagent-host-tools package.  Keep the browser source/dependencies available
 # at the same package-relative path used by sidecar_source() in a frozen build.
-datas.append((str(_aic_source), "openagent_host_tools/sidecars/agent-in-chrome"))
+datas.append((str(_aic_source), "openagent_device_tools/sidecars/agent-in-chrome"))
 
 # litellm needs its JSON data files (model prices, cost maps, etc.)
 datas += collect_data_files("litellm", includes=["**/*.json", "**/*.yaml", "**/*.yml"])
+# Encoding tables use extensionless SHA filenames. Without these packaged
+# assets, LiteLLM's import-time cl100k_base setup attempts a network download.
+datas += collect_data_files("litellm", includes=["litellm_core_utils/tokenizers/*"])
 # tiktoken needs its encoding data
 datas += collect_data_files("tiktoken")
 datas += collect_data_files("tiktoken_ext")
@@ -299,12 +291,16 @@ datas += collect_data_files("openagent_host_tools")
 datas += copy_metadata("pydantic")
 datas += copy_metadata("pydantic_core")
 datas += copy_metadata("email_validator")
+for distribution in distributions():
+    name = distribution.metadata.get("Name", "")
+    if name.lower().replace("_", "-").startswith("openagent-"):
+        datas += copy_metadata(name)
 
 # ── Analysis ──
 
 a = Analysis(
-    ["src/openagent_server/cli.py"],
-    pathex=["src"],
+    [str(files("openagent_server") / "cli.py")],
+    pathex=[],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
@@ -314,10 +310,8 @@ a = Analysis(
     excludes=[
         # Exclude heavy packages not needed at runtime
         "matplotlib",
-        "numpy",
         "scipy",
         "pandas",
-        "PIL",
         "tkinter",
         "test",
         "unittest",
@@ -327,6 +321,22 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+# Analysis reclassifies native helpers from DATA to BINARY. Its subsequent
+# Mach-O processing would thin/re-sign our already verified module/sidecar
+# assets, invalidating their manifests. DATA retains an executable source's
+# executable bit in the one-file archive while preserving its exact bytes.
+_preserved_assets = []
+_processed_binaries = []
+for destination, source, kind in a.binaries:
+    if destination == _node_name or destination.startswith((
+        "openagent_modules/resources/", "openagent_device_tools/sidecars/",
+    )):
+        _preserved_assets.append((destination, source, "DATA"))
+    else:
+        _processed_binaries.append((destination, source, kind))
+a.binaries = _processed_binaries
+a.datas += _preserved_assets
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 

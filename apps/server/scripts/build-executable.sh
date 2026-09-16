@@ -1,96 +1,52 @@
 #!/usr/bin/env bash
-# Build the OpenAgent standalone executable.
-#
-# Usage:
-#   ./scripts/build-executable.sh
-#
-# Prerequisites:
-#   - Python 3.11+
-#   - Node.js 18+ (for built-in Node MCPs)
-#   - pip install pyinstaller
-#
-# Output:
-#   dist/openagent/          (onedir bundle)
-#   dist/openagent-<os>-<arch>.tar.gz  (or .zip on Windows)
-#   dist/openagent-<os>-<arch>.sha256  (checksum)
-
+# Build from the already installed product wheels and prebuilt native bundle.
+# Provision the isolated build environment from the release's hash-locked
+# wheelhouse first; this command never installs or downloads dependencies.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "=== OpenAgent Executable Builder ==="
-echo ""
+python - <<'CHECK'
+from importlib.metadata import version
+from pathlib import Path
+import os
+import PyInstaller
+from openagent_modules import module_assets
+for distribution in (
+    "openagent-framework", "openagent-core", "openagent-storage-sqlite",
+    "openagent-modules", "openagent-identity", "openagent-dashboards",
+    "openagent-product-config", "openagent-client-transport", "openagent-mcp",
+    "openagent-host-tools", "openagent-device-tools",
+):
+    if version(distribution) != "1.0.0b1":
+        raise SystemExit(f"Unexpected installed version for {distribution}")
+module_assets("vault")
+bundle = os.environ.get("OPENAGENT_HOST_TOOLS_BUNDLE", "")
+if not bundle or not Path(bundle).is_dir():
+    raise SystemExit("OPENAGENT_HOST_TOOLS_BUNDLE must name the verified prebuilt device bundle")
+CHECK
 
-# ── Step 1: Install Python dependencies ──
-echo "→ Installing Python dependencies..."
-pip install -e ".[all]" --quiet
-pip install pyinstaller --quiet
-
-# ── Step 2a: Build Rust computer-control MCP ──
-echo "→ Building Rust computer-control MCP..."
-bash "$SCRIPT_DIR/build-computer-control.sh"
-
-# ── Step 2b: Build Node.js MCPs ──
-echo "→ Building built-in Node MCPs..."
-
-NODE_MCPS=(web-search messaging vault)
-for mcp in "${NODE_MCPS[@]}"; do
-    mcp_dir="src/mcp/servers/$mcp"
-    if [ ! -d "$mcp_dir" ]; then
-        echo "  ⚠ Skipping $mcp (directory not found)"
-        continue
-    fi
-
-    if [ ! -d "$mcp_dir/node_modules" ]; then
-        echo "  Installing $mcp..."
-        (cd "$mcp_dir" && npm install --silent 2>/dev/null)
-    fi
-
-    # Build if package.json has a build script and dist/ doesn't exist
-    if [ ! -d "$mcp_dir/dist" ] && grep -q '"build"' "$mcp_dir/package.json" 2>/dev/null; then
-        echo "  Building $mcp..."
-        (cd "$mcp_dir" && npm run build --silent 2>/dev/null)
-    fi
-
-    echo "  ✓ $mcp"
-done
-
-# ── Step 3: Run PyInstaller ──
-echo ""
-echo "→ Running PyInstaller..."
-pyinstaller openagent.spec --clean --noconfirm
-
-# ── Step 4: Package ──
-echo ""
-echo "→ Packaging..."
-
-# Detect platform and architecture
-OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-ARCH="$(uname -m)"
-
-case "$OS" in
-    darwin) OS_NAME="macos" ;;
-    linux)  OS_NAME="linux" ;;
-    *)      OS_NAME="$OS" ;;
-esac
-
-case "$ARCH" in
-    x86_64)  ARCH_NAME="x64" ;;
-    aarch64|arm64) ARCH_NAME="arm64" ;;
-    *)       ARCH_NAME="$ARCH" ;;
-esac
-
-VERSION=$(python -c "import openagent_server; print(openagent_server.__version__)")
-ARCHIVE_NAME="openagent-${VERSION}-${OS_NAME}-${ARCH_NAME}"
-
-cd dist
-tar czf "${ARCHIVE_NAME}.tar.gz" src/
-shasum -a 256 "${ARCHIVE_NAME}.tar.gz" > "${ARCHIVE_NAME}.tar.gz.sha256"
-cd ..
-
-echo ""
-echo "✓ Build complete!"
-echo "  Archive: dist/${ARCHIVE_NAME}.tar.gz"
-echo "  Checksum: dist/${ARCHIVE_NAME}.tar.gz.sha256"
+python -m PyInstaller openagent.spec --clean --noconfirm
+python - <<'PACKAGE'
+from importlib.metadata import version
+from pathlib import Path
+import hashlib
+import platform
+import tarfile
+os_name = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
+arch = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine(), platform.machine())
+output = Path("dist")
+name = f"openagent-{version('openagent-framework')}-{os_name}-{arch}.tar.gz"
+# macOS uses the stable .app wrapper for microphone usage declarations.
+product = output / ("openagent.app" if (output / "openagent.app").exists() else "openagent")
+if not product.exists():
+    raise SystemExit("PyInstaller did not produce the expected product artifact")
+archive = output / name
+with tarfile.open(archive, "w:gz") as stream:
+    stream.add(product, arcname=product.name)
+digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+archive.with_suffix(archive.suffix + ".sha256").write_text(f"{digest}  {archive.name}\n")
+print(f"Built {archive}; signing and updater qualification remain separate release gates.")
+PACKAGE

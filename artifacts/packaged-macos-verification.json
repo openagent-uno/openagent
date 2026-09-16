@@ -1,0 +1,25 @@
+{
+  "qualification": "signed-notarized-packaged-ui",
+  "platform": "darwin-arm64",
+  "app_id": "ai.openagent.desktop",
+  "team_id": "B4KWCQFY8V",
+  "version": "1.0.0-beta.1",
+  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/desktop-signed-beta1/openagent-app-1.0.0-beta.1-macos-arm64.zip",
+  "archive_sha256": "44aaf89dfba118371422dbd784406afae89a20c8b1f9f54e1777a98070382a83",
+  "app_asar_sha256": "c99480237eab1ac0bc4d4c67572e5fd58a1a9457e0ee1a67a53f483142adc0ce",
+  "code_signing": "verified-existing-developer-id",
+  "notarization": "accepted-stapled",
+  "gatekeeper": "accepted",
+  "publication": false,
+  "interactive_e2e": {
+    "transport": "PAKE certificate + native Iroh",
+    "model": "deterministic-local-http",
+    "device_effects": [
+      "filesystem.write_file",
+      "filesystem.read_text_file"
+    ],
+    "reload": "canonical run identity; one user and assistant; no repeated effect",
+    "profile": "temporary",
+    "keychain": "Chromium mock keychain in test only"
+  }
+}
