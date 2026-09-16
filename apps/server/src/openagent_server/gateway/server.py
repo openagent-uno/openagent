@@ -195,6 +195,7 @@ class Gateway:
             str, tuple[str | None, tuple[tuple[str, bool | int | str], ...]]
         ] = {}
         self._chat_client_auth_epochs: dict[str, int] = {}
+        self._chat_client_requests: dict[str, Any] = {}
         self.capabilities = CapabilityRegistry(background_jobs=getattr(agent, "background_jobs", None))
         self._capability_reaper_task: asyncio.Task | None = None
         self._event_loop: asyncio.AbstractEventLoop | None = None
@@ -447,7 +448,10 @@ class Gateway:
         action: str,
         id: str | None = None,
     ) -> None:
-        """Emit a ``resource_event`` to all connected clients."""
+        """Emit a resource update to its authorized connected recipients."""
+        if resource == "vault":
+            await vault.broadcast_change(self, action, id)
+            return
         payload: dict[str, Any] = {
             "type": P.RESOURCE_EVENT,
             "resource": resource,
@@ -1297,6 +1301,7 @@ class Gateway:
         self._chat_client_instances.clear()
         self._chat_client_render_contexts.clear()
         self._chat_client_auth_epochs.clear()
+        self._chat_client_requests.clear()
         if getattr(self, "runtime_service", None) is not None:
             await self.runtime_service.close()
             self.runtime_service = None
@@ -2199,6 +2204,7 @@ class Gateway:
         ui_access = AccessContext.from_request(request)
         connection_id = uuid.uuid4().hex
         self.clients[connection_id] = ws
+        self._chat_client_requests[connection_id] = request
         self._chat_client_devices[connection_id] = client_id
         self._chat_client_instances[connection_id] = None
         self._chat_client_render_contexts[connection_id] = (None, ())
@@ -2424,6 +2430,7 @@ class Gateway:
                 self._chat_client_instances.pop(connection_id, None)
                 self._chat_client_render_contexts.pop(connection_id, None)
                 self._chat_client_auth_epochs.pop(connection_id, None)
+                self._chat_client_requests.pop(connection_id, None)
                 elog("gateway.client_disconnect", client_id=client_id)
                 # Stream sessions are server-owned: closing the app only
                 # detaches the transport. Any active turn keeps running and
