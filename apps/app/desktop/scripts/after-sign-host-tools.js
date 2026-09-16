@@ -15,6 +15,7 @@ module.exports = async function afterSignHostTools(context) {
   if (context.electronPlatformName !== 'darwin') return;
   const product = context.packager.appInfo.productFilename;
   const app = path.join(context.appOutDir, `${product}.app`);
+  verifyUpdaterMetadata(app);
   const root = path.join(app, 'Contents', 'Resources', 'host-tools');
   const consumerManifestPath = path.join(root, 'manifest.json');
   if (!fs.existsSync(consumerManifestPath)) {
@@ -51,6 +52,18 @@ module.exports = async function afterSignHostTools(context) {
     verifySignature(helperApp, 'com.openagent.computer-control', outer.team, true);
   }
 };
+
+function verifyUpdaterMetadata(app) {
+  const manifest = path.join(app, 'Contents', 'Resources', 'app-update.yml');
+  if (!fs.existsSync(manifest)) {
+    throw new Error('Release app is missing app-update.yml; preserve the publish configuration and use --publish never for local builds');
+  }
+  const contents = fs.readFileSync(manifest, 'utf8');
+  if (!/^provider:\s*\S+/m.test(contents) || !/^updaterCacheDirName:\s*openagent-desktop-updater\s*$/m.test(contents)) {
+    throw new Error('Release updater metadata must preserve the configured feed and existing cache identity');
+  }
+}
+module.exports.verifyUpdaterMetadata = verifyUpdaterMetadata;
 
 function verifyBundle(root, manifest) {
   if (
