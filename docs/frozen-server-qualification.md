@@ -81,10 +81,19 @@ hashes and the complete 140-distribution dependency lock. Signing/notarization
 receipts describe package qualification separately from a real installation;
 no generated installer has been applied to the user's system.
 
-The final server App was notarized and stapled; Gatekeeper accepts it. The
-signed archive and exact signature metadata are recorded in
-`artifacts/frozen-server-distribution.json`. The installer payload was generated,
-but `productsign` requires the user's login-keychain password for the existing
-Installer key. Until that macOS dialog is completed, the `.pkg` is not a signed,
-notarized release artifact. No credentials were exported or requested in chat,
-and no key-access policy was changed.
+The final server App was notarized and stapled; Gatekeeper accepts it.
+`artifacts/frozen-server-distribution.json` records its signed archive and
+signature metadata. A packaging defect was corrected by passing the actual
+Info.plist dictionary to BUNDLE, applying version `1.0.0b1`, background behavior
+and usage descriptions. All 6880 embedded runtime entries match the already
+smoke-tested executable exactly; the separate parity receipt and final signature
+digests preserve this distinction. The prior distribution receipt is retained
+under `artifacts/intermediate`.
+
+The user completed the macOS keychain dialog directly. The final installer is
+signed with the existing Installer identity, but its notarization submission
+`f0f5878e-bdf7-44d4-b4b4-eea67ad4a427` remains pending at the last check. It is not
+yet a qualified notarized installer. The already started signing process may
+finish notarization and stapling; check its log and refresh the package digest
+before distributing it. No credentials were exported or entered in chat, no
+key-access policy was changed by the agent, and no installer was applied.

@@ -1,13 +1,13 @@
 {
   "platform": "macos-arm64",
   "version": "1.0.0b1",
-  "app": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent.app",
-  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent-1.0.0b1-macos-arm64.tar.gz",
-  "archive_sha256": "3917ebd31bd2baeb7ebbc868c33468b7a089c63cbe8290e283a310482e863316",
-  "binary_sha256": "84168a7a0a6e9db390198a3c6c7eefd647a6be92c99b2fb1aab4a5593d9108ea",
+  "app": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-metadata/openagent.app",
+  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-metadata/openagent-1.0.0b1-macos-arm64.tar.gz",
+  "archive_sha256": "5f7386ea92f05955559208fab2f46192881a800cd90c807f5440e4f9cc1012b5",
+  "binary_sha256": "233456d753490991f761a66e9a532d4642bc9e461f4c037e6cbc9a7b5b2d4d97",
   "identifier": "com.openagent.server",
   "team_id": "B4KWCQFY8V",
-  "notary_submission_id": "3facace9-16bc-4c94-9707-e9e4b3c45e12",
+  "notary_submission_id": "95edeb21-4cae-4664-a215-ab10e81b6c95",
   "notarization": "accepted and stapled",
   "gatekeeper": "accepted",
   "core_snapshot": "core-integration-12",
@@ -15,10 +15,16 @@
   "publication": false,
   "installation": "not installed",
   "installer": {
-    "status": "awaiting macOS login keychain authorization",
+    "status": "signed; notarization pending",
+    "notary_submission_id": "f0f5878e-bdf7-44d4-b4b4-eea67ad4a427",
     "identity": "Developer ID Installer: Giorgio Gerelli (B4KWCQFY8V)",
-    "unsigned_package": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/tmp/openagent-1.0.0b1-macos-arm64-unsigned.pkg",
-    "installation": "not performed",
-    "requires_user_secret": "enter only in macOS keychain dialog; never chat"
+    "installation": "not performed"
+  },
+  "metadata": {
+    "CFBundleVersion": "1.0.0b1",
+    "CFBundleShortVersionString": "1.0.0b1",
+    "CFBundleIdentifier": "com.openagent.server",
+    "LSBackgroundOnly": true,
+    "usage_descriptions": "preserved from product template"
   }
 }

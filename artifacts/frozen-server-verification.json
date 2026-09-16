@@ -51,5 +51,13 @@
     "voice_models_downloaded": false,
     "shutdown_exit_code": 0,
     "extraction_cleaned": true
+  },
+  "distribution_binary": {
+    "path": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-metadata/openagent.app/Contents/MacOS/openagent",
+    "sha256": "233456d753490991f761a66e9a532d4642bc9e461f4c037e6cbc9a7b5b2d4d97",
+    "runtime_archive_sha256": "0bae716d87d2a246c62c01b6927e2c7f1c28cab5f8652f6578cef750c0494e14",
+    "entries": 6880,
+    "qualification": "all embedded runtime entries identical to the tested binary; bundle metadata corrected then re-signed",
+    "parity_receipt": "/Users/alessandrogerelli/OpenAgent/.migration/openagent-v1/artifacts/frozen-core12/metadata-payload-parity.json"
   }
 }

@@ -1,0 +1,24 @@
+{
+  "platform": "macos-arm64",
+  "version": "1.0.0b1",
+  "app": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent.app",
+  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent-1.0.0b1-macos-arm64.tar.gz",
+  "archive_sha256": "3917ebd31bd2baeb7ebbc868c33468b7a089c63cbe8290e283a310482e863316",
+  "binary_sha256": "84168a7a0a6e9db390198a3c6c7eefd647a6be92c99b2fb1aab4a5593d9108ea",
+  "identifier": "com.openagent.server",
+  "team_id": "B4KWCQFY8V",
+  "notary_submission_id": "3facace9-16bc-4c94-9707-e9e4b3c45e12",
+  "notarization": "accepted and stapled",
+  "gatekeeper": "accepted",
+  "core_snapshot": "core-integration-12",
+  "product_snapshot": "product-integration-13",
+  "publication": false,
+  "installation": "not installed",
+  "installer": {
+    "status": "awaiting macOS login keychain authorization",
+    "identity": "Developer ID Installer: Giorgio Gerelli (B4KWCQFY8V)",
+    "unsigned_package": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/tmp/openagent-1.0.0b1-macos-arm64-unsigned.pkg",
+    "installation": "not performed",
+    "requires_user_secret": "enter only in macOS keychain dialog; never chat"
+  }
+}
