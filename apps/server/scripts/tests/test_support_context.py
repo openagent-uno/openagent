@@ -23,7 +23,7 @@ async def t_policy_budget(_ctx: TestContext):
         async def generate(self, **kwargs):
             raise AssertionError("model must not see a truncated policy")
     with patch.dict(os.environ, {"OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES": "1"}):
-        reply = await c._compose_local(SimpleNamespace(model=Model(), _mcp=doubles.pool()), {}, state, "test")
+        reply = await c._compose_local(SimpleNamespace(model=Model(), capability_pool=doubles.pool()), {}, state, "test")
     assert reply == "" and state.outcome == "policy_context_overflow_human"
     assert state.facts["human_handoff_confirmed"]
     assert "replio_threads_respond" not in doubles.names
@@ -133,7 +133,7 @@ async def _run_case(brief, message, *, full=None, billing=None, label="general")
                                  "OPENAGENT_ESOUND_SUPPORT_CONTROLLER_DRAFTS": "0"}), \
          patch.object(c.support_semantics, "classify_intent", _none), \
          patch.object(c.support_semantics, "signal_present", _none):
-        result = await c.run(agent=SimpleNamespace(_mcp=pool, model=Model()),
+        result = await c.run(agent=SimpleNamespace(capability_pool=pool, model=Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"thread_id": "fixture", "product": "lyra", "message": {"body_text": message}},
             session_id="fixture", delivery_id="fixture")

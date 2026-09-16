@@ -48,7 +48,7 @@ async def all_routes(_):
             s=state();s.outcome=outcome;s.intent=intent;s.decision=decision
             brief=c._fallback_reply(s);reply='Thanks for explaining. '+brief
             model=VoiceModel([reply]);d=_Doubles()
-            actual=await c._compose_local(SimpleNamespace(model=model,_mcp=d.pool()),{},s,'unit')
+            actual=await c._compose_local(SimpleNamespace(model=model,capability_pool=d.pool()),{},s,'unit')
             assert actual==reply and s.facts['reply_source']=='model:human_voice_verified'
             assert s.facts['human_voice_sha256']==hashlib.sha256(reply.encode()).hexdigest()
             packet=json.loads(model.calls[0]['messages'][0]['content'])
@@ -60,7 +60,7 @@ async def repair(_):
     with patch.dict(os.environ,{v.ENV:'1'}):
         s=state();reply="I'm sorry playlists are failing. Could you share the app version so we can investigate?"
         model=VoiceModel(['Send the app version.',reply],[{**OK,'humane':False,'findings':['Ask politely and explain why.']},OK])
-        out=await c._compose_local(SimpleNamespace(model=model,_mcp=_Doubles().pool()),{},s,'unit')
+        out=await c._compose_local(SimpleNamespace(model=model,capability_pool=_Doubles().pool()),{},s,'unit')
         assert out==reply and s.facts['human_voice_attempts']==2
         assert 'Ask politely' in json.loads(model.calls[2]['messages'][0]['content'])['reviewer_findings']
 
@@ -69,7 +69,7 @@ async def repair(_):
 async def failed(_):
     with patch.dict(os.environ,{v.ENV:'1',c._WRITES_ENV:'1'}):
         s=state();d=_Doubles();model=VoiceModel([RuntimeError('provider unavailable')])
-        out=await c._compose_local(SimpleNamespace(model=model,_mcp=d.pool()),{},s,'unit')
+        out=await c._compose_local(SimpleNamespace(model=model,capability_pool=d.pool()),{},s,'unit')
         await c._apply_lifecycle(d.pool(),s,out)
         assert out=='' and 'replio_threads_respond' not in d.names
         assert 'replio_threads_mark_for_human' in d.names
@@ -80,7 +80,7 @@ async def failed(_):
 async def fabricated(_):
     with patch.dict(os.environ,{v.ENV:'1'}):
         s=state();model=VoiceModel(['We refunded 999 euros.']*3);d=_Doubles()
-        out=await c._compose_local(SimpleNamespace(model=model,_mcp=d.pool()),{},s,'unit')
+        out=await c._compose_local(SimpleNamespace(model=model,capability_pool=d.pool()),{},s,'unit')
         assert out=='' and len(model.calls)==3 and 'replio_threads_respond' not in d.names
 
 
@@ -96,7 +96,7 @@ async def delivery_seal(_):
 async def final_guard(_):
     with patch.dict(os.environ,{v.ENV:'1'}):
         s=state();reply='Thanks for reporting this. Could you share the app version?'
-        m=VoiceModel([reply]);out=await c._validate_final_reply(SimpleNamespace(model=m,_mcp=_Doubles().pool()),{},s,"I'm a human support agent.",'unit')
+        m=VoiceModel([reply]);out=await c._validate_final_reply(SimpleNamespace(model=m,capability_pool=_Doubles().pool()),{},s,"I'm a human support agent.",'unit')
         assert out==reply and s.facts['reply_source']=='model:human_voice_verified'
 
 
@@ -116,7 +116,7 @@ async def verdicts(_):
 async def delivery(_):
     with patch.dict(os.environ,{v.ENV:'1',c._WRITES_ENV:'1'}):
         s=state();d=_Doubles();reply='Thanks for reporting this. Could you share the app version?'
-        out=await c._compose_local(SimpleNamespace(model=VoiceModel([reply]),_mcp=d.pool()),{},s,'unit')
+        out=await c._compose_local(SimpleNamespace(model=VoiceModel([reply]),capability_pool=d.pool()),{},s,'unit')
         await c._apply_lifecycle(d.pool(),s,out)
         assert d.args_for('replio_threads_respond')[0]['body_text']==reply
         assert c._reply_cap('playstore_reviews')==350
@@ -130,7 +130,7 @@ async def short_review(_):
         s=state();s.channel='playstore_reviews';d=_Doubles()
         reply='Sorry playlists are failing. Could you share the app version so we can investigate?'
         model=VoiceModel(['x'*420,'x'*354,reply])
-        out=await c._compose_local(SimpleNamespace(model=model,_mcp=d.pool()),{},s,'unit')
+        out=await c._compose_local(SimpleNamespace(model=model,capability_pool=d.pool()),{},s,'unit')
         assert out==reply and s.facts['human_voice_attempts']==3
         packet=json.loads(model.calls[2]['messages'][0]['content'])
         assert '354 characters' in packet['reviewer_findings']
@@ -170,7 +170,7 @@ async def voice_budget(_):
             raise AssertionError('deadline should expire first')
     with patch.dict(os.environ,{v.ENV:'1'}):
         s=state();s.voice_deadline=asyncio.get_running_loop().time()+.005
-        deadline=s.voice_deadline;d=_Doubles();agent=SimpleNamespace(model=SlowModel(),_mcp=d.pool())
+        deadline=s.voice_deadline;d=_Doubles();agent=SimpleNamespace(model=SlowModel(),capability_pool=d.pool())
         assert await c._compose_local(agent,{},s,'unit')==''
         assert await c._compose_local(agent,{},s,'unit-retry')==''
         assert s.voice_deadline==deadline and 'replio_threads_respond' not in d.names

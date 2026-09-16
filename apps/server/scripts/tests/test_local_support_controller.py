@@ -102,6 +102,8 @@ class _Toolkit:
 class _Pool:
     def __init__(self, toolkits: dict[str, _Toolkit]) -> None:
         self._toolkit_by_name = toolkits
+        from ._support_runtime import bind_pool
+        bind_pool(self)
 
     def toolkit_by_name(self, name: str) -> Any:
         return self._toolkit_by_name.get(name)
@@ -188,7 +190,7 @@ async def t_controller_gate(_ctx: TestContext) -> None:
 async def t_controller_outranks_lean_profile(ctx: TestContext) -> None:
     """The controller owns support even when the composer is cloud-family."""
     from openagent_support import local_support_controller as controller
-    from openagent_core.core.event_dispatcher import _dispatch_prompt
+    from openagent_support.extensions import support_extensions
     from openagent_core.memory.db import MemoryDB
 
     class _Agent:
@@ -210,19 +212,19 @@ async def t_controller_outranks_lean_profile(ctx: TestContext) -> None:
     controller.run = fake_controller_run
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER"] = "execute"
     try:
-        result = await _dispatch_prompt(
-            agent=_Agent(), db=db,
+        result = await support_extensions().event_handler(
+            agent=_Agent(),
             event={
                 "id": "ev-replio", "name": "Replio support",
                 "slug": "replio-thread", "model": "local:claude-haiku-4-5",
                 "prompt_template": "support",
             },
             payload={"thread_id": "thread-test"},
-            delivery_id="delivery-test", source="webhook",
+            delivery_id="delivery-test", session_id="support-session",
         )
-        assert result["status"] == "success", result
+        assert result is not None, result
         assert called == ["local:claude-haiku-4-5"], called
-        assert '"controller":"test"' in result["output"], result
+        assert '"controller":"test"' in result.text, result
     finally:
         controller.run = original_run
         if previous is None:
@@ -266,7 +268,7 @@ async def t_active_premium(_ctx: TestContext) -> None:
         }),
     })
     model = _Model()
-    agent = SimpleNamespace(_mcp=pool, model=model)
+    agent = SimpleNamespace(capability_pool=pool, model=model)
     result = await run(
         agent=agent,
         event={"slug": "replio-thread", "model": ""},
@@ -317,7 +319,7 @@ async def t_missing_identity(_ctx: TestContext) -> None:
     })
     model = _Model()
     result = await run(
-        agent=SimpleNamespace(_mcp=pool, model=model),
+        agent=SimpleNamespace(capability_pool=pool, model=model),
         event={"slug": "replio-thread", "model": ""},
         payload={
             "payload": {
@@ -370,7 +372,7 @@ async def t_ads_policy_routes(_ctx: TestContext) -> None:
 
     async def one(product: str, text: str) -> dict[str, Any]:
         result = await run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "ads-" + product,
@@ -459,7 +461,7 @@ async def t_ads_lane_yields_to_the_account(_ctx: TestContext) -> None:
     # somebody who is paying. `signal_present` answers None for "absent",
     # "undecided" AND "embedder unavailable", so the account has to settle it.
     result = await run(
-        agent=SimpleNamespace(_mcp=pool, model=_Model()),
+        agent=SimpleNamespace(capability_pool=pool, model=_Model()),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "ads-paying",
@@ -555,7 +557,7 @@ async def t_web_refund_executes(_ctx: TestContext) -> None:
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES"] = "1"
     try:
         result = await run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "refund-web",
@@ -618,7 +620,7 @@ async def t_reply_keeps_waiting_for_team(_ctx: TestContext) -> None:
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES"] = "1"
     try:
         result = await run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "queued-thread",
@@ -699,7 +701,7 @@ async def t_already_answered(_ctx: TestContext) -> None:
     pool = _Pool({"replio": _Toolkit({"replio_threads_get": threads_get})})
     model = _Model()
     result = await run(
-        agent=SimpleNamespace(_mcp=pool, model=model),
+        agent=SimpleNamespace(capability_pool=pool, model=model),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "thread-3",
@@ -731,7 +733,7 @@ async def t_general_local_composer(_ctx: TestContext) -> None:
     })
     model = _Model()
     result = await run(
-        agent=SimpleNamespace(_mcp=pool, model=model),
+        agent=SimpleNamespace(capability_pool=pool, model=model),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "thread-general",
@@ -755,7 +757,7 @@ async def t_general_local_composer(_ctx: TestContext) -> None:
     assert "app version" not in output["reply"].lower(), output
 
     known_result = await run(
-        agent=SimpleNamespace(_mcp=pool, model=model),
+        agent=SimpleNamespace(capability_pool=pool, model=model),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "thread-general-known",
@@ -797,7 +799,7 @@ async def t_general_local_composer(_ctx: TestContext) -> None:
         "vault": _Toolkit({"vault_read_note": vault_read_note}),
     })
     followup = await run(
-        agent=SimpleNamespace(_mcp=history_pool, model=model),
+        agent=SimpleNamespace(capability_pool=history_pool, model=model),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "thread-general-followup",
@@ -1086,7 +1088,7 @@ async def _drive(
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES"] = "1" if writes else "0"
     try:
         result = await run(
-            agent=SimpleNamespace(_mcp=doubles.pool(), model=_Model()),
+            agent=SimpleNamespace(capability_pool=doubles.pool(), model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": inner},
             session_id=f"unit:{thread_id}",
@@ -1790,7 +1792,7 @@ async def t_passive_fabrication_guard(_ctx: TestContext) -> None:
     assert _amount_is_verified("The amount of $4.99 will be credited.", state) is False
 
 
-@test("local_support_controller", "an MCP server name resolves case- and separator-insensitively")
+@test("local_support_controller", "durable MCP destinations use their exact registered names")
 async def t_server_name_resolution(_ctx: TestContext) -> None:
     from openagent_core.mcp.pool import MCPPool, _normalized_mcp_name
 
@@ -1800,11 +1802,11 @@ async def t_server_name_resolution(_ctx: TestContext) -> None:
     pool = MCPPool.__new__(MCPPool)
     marker = object()
     pool._toolkit_by_name = {"billingbear": marker, "computer_control": object()}
-    # The exact name still wins, and a miss no longer costs a whole model
-    # round-trip to recover from.
+    # Durable destinations are exact: case or separators cannot select a
+    # different source after discovery in the uniform v1 catalog.
     assert pool.toolkit_by_name("billingbear") is marker
-    assert pool.toolkit_by_name("BillingBear") is marker
-    assert pool.toolkit_by_name("Billing-Bear") is marker
+    assert pool.toolkit_by_name("BillingBear") is None
+    assert pool.toolkit_by_name("Billing-Bear") is None
     assert pool.toolkit_by_name("nope") is None
 
 
@@ -2096,7 +2098,7 @@ async def t_stateless_composition(_ctx: TestContext) -> None:
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES"] = "1"
     try:
         await run(
-            agent=SimpleNamespace(_mcp=doubles.pool(), model=_Probe()),
+            agent=SimpleNamespace(capability_pool=doubles.pool(), model=_Probe()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "t-stateless",
@@ -2140,7 +2142,7 @@ async def t_draft_mode(_ctx: TestContext) -> None:
         # Drafting still counts as writing: the receipts are real.
         assert lsc.writes_enabled() is True
         result = await lsc.run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "t-draft",
@@ -2214,7 +2216,7 @@ async def t_draft_rung_is_narrow(_ctx: TestContext) -> None:
         # A deletion request on a fresh thread is phase 1, which on a full
         # write rung would tag the thread for real.
         result = await lsc.run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "t-rung",
@@ -2338,7 +2340,7 @@ async def t_paddle_email_lookup(_ctx: TestContext) -> None:
                         parameters={"type": "object", "properties": {}})
 
     output = json.loads((await run(
-        agent=SimpleNamespace(_mcp=pool, model=_Model()),
+        agent=SimpleNamespace(capability_pool=pool, model=_Model()),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "t-paddle",
@@ -2412,7 +2414,7 @@ async def t_iap_premium_guidance(_ctx: TestContext) -> None:
     # Store recovery is deterministic; a web-style model answer must never be
     # consulted for an in-app purchase.
     output = json.loads((await run(
-        agent=SimpleNamespace(_mcp=pool, model=_Model()),
+        agent=SimpleNamespace(capability_pool=pool, model=_Model()),
         event={"slug": "replio-thread", "model": ""},
         payload={"payload": {
             "thread_id": "t-apple",
@@ -2540,11 +2542,13 @@ async def t_legal_silence(_ctx: TestContext) -> None:
         {"messaging_send_telegram": send_telegram}
     )
 
+    from ._support_runtime import bind_pool
+    bind_pool(pool)
     previous = os.environ.get(lsc._WRITES_ENV)
     os.environ[lsc._WRITES_ENV] = "1"
     try:
         output = json.loads((await lsc.run(
-            agent=SimpleNamespace(_mcp=pool, model=_Model()),
+            agent=SimpleNamespace(capability_pool=pool, model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {
                 "thread_id": "t-legal",
@@ -2901,7 +2905,7 @@ async def t_terminal_outcomes_are_closed(_ctx: TestContext) -> None:
         ):
             doubles = _Doubles()
             output = json.loads((await lsc.run(
-                agent=SimpleNamespace(_mcp=doubles.pool(), model=_Model()),
+                agent=SimpleNamespace(capability_pool=doubles.pool(), model=_Model()),
                 event={"slug": "replio-thread", "model": ""},
                 payload={"payload": {"thread_id": "t-term",
                                      "message": {"body_text": message}}},
@@ -3000,7 +3004,7 @@ async def t_corrections_are_procedural(_ctx: TestContext) -> None:
 async def t_correction_for(_ctx: TestContext) -> None:
     """Fixed sentences on purpose: a correction reaches every later reply, so
     no model-written text is allowed into one."""
-    from openagent_core.core.local_quality_scorer import (
+    from openagent_support.local_quality_scorer import (
         correction_for, verdict_for, weighted_score,
     )
 
@@ -3209,7 +3213,7 @@ async def t_handoff_precedes_reply(_ctx: TestContext) -> None:
     try:
         doubles = _Doubles()
         output = json.loads((await lsc.run(
-            agent=SimpleNamespace(_mcp=doubles.pool(), model=_Model()),
+            agent=SimpleNamespace(capability_pool=doubles.pool(), model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {"thread_id": "t-partner", "message": {
                 "body_text": "I opened a card chargeback for this payment.",
@@ -3268,7 +3272,7 @@ async def t_repeat_is_escalated(_ctx: TestContext) -> None:
              "body_text": "Habe ich gemacht und keine Verbesserung."},
         ]})
         output = json.loads((await lsc.run(
-            agent=SimpleNamespace(_mcp=doubles.pool(), model=_Model()),
+            agent=SimpleNamespace(capability_pool=doubles.pool(), model=_Model()),
             event={"slug": "replio-thread", "model": ""},
             payload={"payload": {"thread_id": "t-loop", "message": {
                 "body_text": "I do have premium and i pay for it, still ads. "

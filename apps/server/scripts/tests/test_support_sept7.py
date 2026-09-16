@@ -89,7 +89,7 @@ async def repeated_attachment(_):
 
 @test('support_sept7', 'long success envelope retains actual blocked delivery and owner failure as valid JSON')
 async def retained(_):
-    from openagent_core.core.event_dispatcher import _retained_output
+    from openagent_support.support_delivery_receipts import retain_event_output as _retained_output
     data={'controller':'esound-local-v1','thread_id':'synthetic','intent':'bug','outcome':'bug_needs_evidence',
           'reply':'Friendly but incomplete answer.','actions':[{'kind':'customer_reply','success':False,
           'receipt':{'sent':False,'blocked':True,'category':'ignores_question','reason':'x'*12000}}],
@@ -109,7 +109,7 @@ async def ignored_request(_):
     final='I understand why you want playback to pause during the ad and resume afterward. I have not changed that behaviour on your device. Could you share your app version so we can investigate the overlap?'
     m=VoiceModel([first,final],[{**OK,'answers_customer':False,'findings':['Answer the requested pause and resume behaviour first.']},OK])
     with patch.dict(os.environ,{v.ENV:'1'}):
-        result=await c._compose_human_reply(SimpleNamespace(model=m,_mcp=_Doubles().pool()),{},s,'test')
+        result=await c._compose_human_reply(SimpleNamespace(model=m,capability_pool=_Doubles().pool()),{},s,'test')
     assert result==final and s.facts['human_voice_attempts']==2
     packet=json.loads(m.calls[0]['messages'][0]['content'])
     assert packet['task_instructions']==s.instructions

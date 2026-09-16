@@ -1,0 +1,1625 @@
+{
+  "package_version": "1.0.0b1",
+  "package_file": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/package-check/lib/python3.12/site-packages/openagent_support/__init__.py",
+  "wheel_source": {
+    "url": "file:///Users/alessandrogerelli/OpenAgent/.migration/openagent-v1/artifacts/product-integration-12/openagent_support_integration-1.0.0b1-py3-none-any.whl",
+    "archive_info": {}
+  },
+  "source_baseline": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
+  "tests": 230,
+  "passed": 194,
+  "known_baseline_failures": 36,
+  "new_failures": 0,
+  "results": [
+    {
+      "category": "local_support_controller",
+      "name": "support model calls share one bounded lane",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "real corpus preserves and filters product labels",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "offline beats generic bug routing",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "controller is opt-in and scoped to Replio event",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "explicit Replio controller is not bypassed by a cloud-family composer",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "active Premium uses BillingBear and deterministic policy wording",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "missing Premium identity asks without BillingBear or human",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an ads complaint gets free routes instead of a billing interrogation",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a subscriber is never told how to earn Premium free",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an eligible web refund is executed, not asked about",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "answering a queued thread does not empty the human queue",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "diagnostic proof is PII-free and dry runs never authorize a claim",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "last outbound activates idempotency before vault/model",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "ambiguous general reply cannot invent a product explanation",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "c35f9c1a3680c174a8cb67d056b61a1024c7de754d63c029fb3ee2678584604b"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a report detailed across three messages is not evidence-poor",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the account email survives past the message that carried it",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an operational reply carries Replio freshness and pins a Reddit comment",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "31457c8d2067e7ec016dbc144b84b6b4ff853c0eec3d46711d844db01265bb54"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a Replio reconciliation event recovers the latest inbound from the brief",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "e9f7398e2d1b4d62ea4a15422caac2e9692b512218fe42799848a3ac734b6ef5"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a guarded fixed reply is not resent unchanged",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a reconciled store review keeps its declared reviewer language",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "resolved confirmation closes the thread without replying",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unreadable attachment asks for text and never describes the image",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "readable receipt attachment is still not billing proof",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "feature request is grounded, never tasked or escalated",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "1d97469c0aabe36ae55967361da4c65278211323a0d91324077ca016273f131c"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a deletion is executed, but only on the full three-part gate",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "only eSound's own tenant reaches the deletion tool",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a GDPR erasure request is served, not escalated",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "7fe7e61d88e569319c38dfda2caea69be78f902e50f1bb5b8fc33b0f880e38bf"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "password reset is a blocked capability, not an invented action",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "chargeback and business requests are human, never billing writes",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "expired messenger window never sends and never escalates",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "bug routing picks the owning component, not the reporting app",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a new bug task is created, linked, and link-verified",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a Premium web form with a repeated freeze follows the bug lane",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an actionable partial bug is tracked before asking for metadata",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a truncated YouTube playlist asks for the source link, not generic metadata",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an unverifiable Replio link never becomes a tracked claim",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "evidenced but unroutable bug asks for logs, not for the version again",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "intent and language survive Italian, Spanish and French",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an Italian thread is answered in Italian",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an invented refund in the passive voice is rejected",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "durable MCP destinations use their exact registered names",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a rephrased receipt may change words, never claims",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "live-thread shapes: acknowledgements, machine mail, non-English bugs",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "language: writing system decides, unknown never becomes English",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "September real messages retain Indonesian and Dutch",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "offline policy cannot be freely rewritten as a Premium upsell",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unknown-language fallback still attempts to mirror the customer",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a greeting does not trigger a diagnostic questionnaire",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a language label cannot excuse English prose",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "540b89b180e91811e7a54c3c2ef8ecd8af3f8fc9ff4281966111374a57fb7773"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "form values are read, labels are not evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an image the runtime cannot see is never 'read'",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a phrase split by an email line break still routes",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a five-star review is never answered with a question",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "Portuguese failure reports route as bugs, praise does not",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the composer persists nothing (no session row, no history)",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "draft mode writes for real but reaches no customer",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "eeba449388fe97da974d8113e20defd9e63b3bdee6f083df065d05435ffbc755"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a store review is composed inside the channel's cap",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the draft rung arms no other write",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the subject rescues a fragment, but never overturns the message",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an eSound email resolves through Paddle, not the customer lookup",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the web form's 32-hex id is never used as an appUserId",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the recovery step follows the store that took the money",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an in-app purchase is never told to sign in with an email",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "6bbb523558a4a708a263dd82cbf2bb794f6853e2cc16b23d044669d5100a13fe"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "no phrasing of 'the refund is done' survives without a receipt",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a refund asked because the app is broken is fixed first",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the refund threshold reads the catalogue, not a bare number",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a legal or investment message is answered with silence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a Play review is answered in the reviewer's language",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "hostility is never filed as praise",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a cancellation needs three things, not the word yes",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an expired entitlement is not premium",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an appUserId is 24 hex, and the form's id is not one",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "severity follows the symptom, not the template",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a search hit is judged before it becomes 'known issue'",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the classifier covers what real threads actually say",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an unstamped thread is not read as already answered",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a bare email is an answer to us, not a new request",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the fallback classifier can only pick a label",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an old review is answered, a not-found one is closed",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a terminal verdict is closed, not just tagged",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the tenant decides product facts, never the policy",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a tenant with no billing project fails closed",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a correction is read back, but never a product claim",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "quality_scorer",
+      "name": "a weak dimension earns a fixed procedural correction",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_semantics",
+      "name": "a label is accepted only when it is clearly ahead",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_semantics",
+      "name": "an unreachable embedder is silent, once",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_semantics",
+      "name": "the same answer twice is recognised across languages",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an inferred money label is served but never spent",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the queue is written before the reply promises it",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "259ef7c786532cd76e6cbe28cf8e634889649450bf12dbaff6b0514a9d336fc6"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an answer already given is escalated, not repeated",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "be01252a0d153d5e6eefa745bb8ce62ed837da55eafe28990ad04cd22d5a26a5"
+    },
+    {
+      "category": "support_semantics",
+      "name": "a signal must beat its near misses, not a threshold",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a live store subscription beside a web one is named",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_semantics",
+      "name": "a written-down near miss beats the label it sits next to",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an empty form body is not classified from its trailer",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a fault the customer hits every time earns a capture",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a vague complaint still earns no capture",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an MCP content envelope is still a list of items",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a tag the lane adds is a tag it can remove",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the evidence comment names a tool ClickUp actually has",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the done event says how the turn was routed",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "vault_git",
+      "name": "a vault that is only committed still dies with its volume",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "installed ClickUp schema reads every page before dedup",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "ClickUp errors and repeated pages never mean no duplicate",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "task creation adapts to the installed snake-case schema",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "tracker outage is team work, not another customer questionnaire",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "ClickUp MCP envelopes retain tasks, pagination and errors",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unfiltered ClickUp lists do not suppress new grounded bugs",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "billing transport envelopes preserve explicit account evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "forwarded receipt is checked against billing before replying",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "1646a52ffd646bcb6f059f277adc02d682d598709c2e5271decec15d2b94d9a1"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unreadable billing queues a human instead of an activation request",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "receipt parsing preserves the actual refund request",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "reconciled receipt-only mail keeps its document boundary",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "reconciliation uses the latest confirmation after a receipt",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "billing enrichment never replaces evidence with a mismatched account",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "playback follow-up keeps metadata without inheriting resolved library symptom",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "same playback title cannot merge an explicitly different product",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "live bug receipts produce customer wording without internal ids",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "library recovery cannot guarantee that nothing was lost",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "Lyra task links use its own provider even with an eSound override",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "task product ownership outranks references to related reports",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "resolved latest message does not reopen an old bug questionnaire",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "iOS availability has a guidance route even without a reader override",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "iOS topic words cannot suppress a newly reported playback bug",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "a media webhook uses the explanation that arrived before its brief",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "unmarked support quote cannot turn thanks into another bug report",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "lifecycle uses the guarded close and reasoned human queue APIs",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "blocked canned ads opener is removed without changing product facts",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "referral reads require one resolved identity and matching product receipts",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "typographic quote normalization keeps meaning strict",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "MCP text envelopes survive JSON decoding without erasing failure",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "reported facts must quote customer text, not prior support claims",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "latest customer evidence survives the context budget",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "transport, blocked, draft, simulated and sent outcomes stay distinct",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "an uncertain send stays open and is not blindly retried",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "reader corrects a topic collision without authorizing account mutations",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "missing or failing reader preserves bounded behavior",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "a spliced citation has one repair attempt without relaxing evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "startup crash never requests an impossible in-app capture",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "a quote-backed answer prevents a repeated model question",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "a selected custom evidence field cannot acquire invented UI options",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "native evidence is scoped, versioned and cannot turn a cohort into an individual diagnosis",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "delivery diagnostics preserve only bounded operational labels",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "explicit bot opt-out persists across later attachments without sending",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "literal repeats are refused when the semantic service is unavailable",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "reader distinguishes privacy channel and praise with latest evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "private support channel answer stays here without asserting account ownership",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "unambiguous history email is a lookup lead not verified sender authority",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "human request negatives do not stop ordinary bot questions",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_turn",
+      "name": "next-step guidance is not a request for reproduction steps",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "live-sized policy stays complete; overflow queues review without a partial-policy reply",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "billing text envelopes preserve active state and outer errors",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "short Italian prose is detected instead of forced English",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "prefetched billing is identity-bound and status-only",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "operator policy is separate from customer text and reaches composition",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "1259fdf28ddd70946c21c3403b9ddd79401fef59af0d23d5aa934b0dcb0d009f"
+    },
+    {
+      "category": "support_context",
+      "name": "free Premium question is policy while paid claims stay billing",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "brief restores older form fields before asking again",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "unavailable full history cannot become a repeated question",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "prefetched active premium avoids failing redundant lookup",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "failed billing is unknown and cannot authorize a refund",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_context",
+      "name": "version answer resumes bug even if classifier would say praise",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "device metadata never decides the capture category",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "stems match at a word boundary, not mid-word",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "specific routes win over the ones that contain them",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "the phrasings customers actually use reach playback",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "a playback capture does not send the customer to reproduce on demand",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "accented Spanish and Portuguese reach their category",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "an explicit billing word outranks the word account",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "a partial capture is not reported as no capture",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "the partial-capture reply claims nothing the turn cannot back",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "the capture is armed before the reproduction, not after",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "the web form's own questions never name the broken component",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "account recovery and conditional refunds preserve the main request",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "account promise cannot escape by being in the future",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "an untranslatable reply is held without sending English",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "translation cannot invent an account operation",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "notices and held cases never enter a customer reply",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "business enquiries are assigned without a support questionnaire",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "reader can correct a money topic without authorizing a mutation",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "a quoted correction holds unavailable UI instructions for a real review",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "completed Apple notices are recognized before semantic acknowledgement",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "the grader sees action evidence and the reviewer's declared language",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept6",
+      "name": "a model's perfect scores cannot authorize a profile promise",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "a pending payment cannot become refund consent",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "received order survives a follow-up and support cannot invent the goal",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "the requested playlist link remains useful after a task is linked",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "f31523ec640f8dc8a6806c0871d48480df28c585d3d1d3b2c2b12c856f3a3663"
+    },
+    {
+      "category": "support_progress",
+      "name": "honest bot answer does not trigger a human request",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "Spanish Android Auto question is not translated to Portuguese",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "courtesy is not resolution and a rejected close becomes visible held work",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "MCP JSON envelopes preserve returned account rows",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "a documented alternative can resolve guidance without a handoff",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "missing diagnostics do not ask the customer to repeat without investigation",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "diagnostic source logs survive a successful excerpt attachment",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "a valid quote cannot authorize an unrelated answer",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "pure thanks cannot be reclassified from an older bug",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "new evidence from a known reporter is not discarded as duplicate",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "a go-ahead continues the account request without authorizing a mutation",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "an unrelated reported field cannot override the reader's new topic",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "free Premium questions use verified ads policy instead of invented billing rules",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "translated knowledge queries are lookup hints and retain evidence guards",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "an ingestion receipt does not answer or close an open request",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "queued text advances only to the inbound certified by the read contract",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "a short diagnostic answer reaches the reader with its ordered question",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "fallback questions acknowledge the report and ask only for missing evidence",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "a supplied version is acknowledged without interpolating customer instructions",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "account identity requests retain the stated action and never execute it",
+      "status": "fail",
+      "known_baseline_failure": true,
+      "message_sha256": "73d5db283a65f56463081c85c49cd63d19c91da8cbc3015240a636745db34d42"
+    },
+    {
+      "category": "support_progress",
+      "name": "ad feedback retains the reason and every free route after the review cap",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_progress",
+      "name": "quoted ad malfunctions survive an opinion label without inventing evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "every guarded outcome uses the writer and preserves conversation context",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "a factual or cold reply is repaired instead of replaced by a canned guard answer",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "provider failure holds work without sending or closing the inquiry",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "invented amounts never reach the reviewer or customer",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "text changed after review cannot be delivered as a fallback",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "a guard finding re-enters the writer instead of returning its canned sentence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "incomplete or string-valued review verdicts fail closed",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "reviewed prose reaches the delivery tool unchanged and respects real channel caps",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "short reviews get a bounded extra edit without truncating approved meaning",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "guidance receives retrieved references instead of the generic fallback question",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_voice",
+      "name": "one deadline bounds the whole writing cycle including subsequent guard retries",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "MCP document and attachment envelopes preserve evidence, never errors",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "reclaimed escalation obtains and verifies ownership before retry, once per turn",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "human voice keeps retrieved sources without a second draft becoming operational evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "unverified support task cannot authorize a handoff or blind create retry",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "repeated unreadable attachments do not trigger another transcription demand",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "long success envelope retains actual blocked delivery and owner failure as valid JSON",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_sept7",
+      "name": "direct behaviour request survives into writer and rejects an otherwise friendly omission",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_attachments",
+      "name": "image receipts deduplicate and enforce byte/count/error limits",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_attachments",
+      "name": "native image bytes reach the selected vision model without tool authority",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_attachments",
+      "name": "unavailable vision override never claims image inspection succeeded",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_attachments",
+      "name": "a receipt with known identity does not request identity or purchase proof again",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_attachments",
+      "name": "historical media overflow does not erase readable current evidence",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

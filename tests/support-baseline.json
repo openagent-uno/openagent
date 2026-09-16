@@ -1,0 +1,188 @@
+{
+  "source_commit": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
+  "source_version": "0.21.8",
+  "tests": 230,
+  "passed": 194,
+  "failures": [
+    {
+      "category": "local_support_controller",
+      "name": "active Premium uses BillingBear and deterministic policy wording",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "missing Premium identity asks without BillingBear or human",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an ads complaint gets free routes instead of a billing interrogation",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "ambiguous general reply cannot invent a product explanation",
+      "message_sha256": "c35f9c1a3680c174a8cb67d056b61a1024c7de754d63c029fb3ee2678584604b"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an operational reply carries Replio freshness and pins a Reddit comment",
+      "message_sha256": "31457c8d2067e7ec016dbc144b84b6b4ff853c0eec3d46711d844db01265bb54"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a Replio reconciliation event recovers the latest inbound from the brief",
+      "message_sha256": "e9f7398e2d1b4d62ea4a15422caac2e9692b512218fe42799848a3ac734b6ef5"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a guarded fixed reply is not resent unchanged",
+      "message_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unreadable attachment asks for text and never describes the image",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "feature request is grounded, never tasked or escalated",
+      "message_sha256": "1d97469c0aabe36ae55967361da4c65278211323a0d91324077ca016273f131c"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a deletion is executed, but only on the full three-part gate",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a GDPR erasure request is served, not escalated",
+      "message_sha256": "7fe7e61d88e569319c38dfda2caea69be78f902e50f1bb5b8fc33b0f880e38bf"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a new bug task is created, linked, and link-verified",
+      "message_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an actionable partial bug is tracked before asking for metadata",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a truncated YouTube playlist asks for the source link, not generic metadata",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "evidenced but unroutable bug asks for logs, not for the version again",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an Italian thread is answered in Italian",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "offline policy cannot be freely rewritten as a Premium upsell",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "unknown-language fallback still attempts to mirror the customer",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a language label cannot excuse English prose",
+      "message_sha256": "540b89b180e91811e7a54c3c2ef8ecd8af3f8fc9ff4281966111374a57fb7773"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "draft mode writes for real but reaches no customer",
+      "message_sha256": "eeba449388fe97da974d8113e20defd9e63b3bdee6f083df065d05435ffbc755"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "a store review is composed inside the channel's cap",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an in-app purchase is never told to sign in with an email",
+      "message_sha256": "6bbb523558a4a708a263dd82cbf2bb794f6853e2cc16b23d044669d5100a13fe"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "the queue is written before the reply promises it",
+      "message_sha256": "259ef7c786532cd76e6cbe28cf8e634889649450bf12dbaff6b0514a9d336fc6"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "an answer already given is escalated, not repeated",
+      "message_sha256": "be01252a0d153d5e6eefa745bb8ce62ed837da55eafe28990ad04cd22d5a26a5"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "forwarded receipt is checked against billing before replying",
+      "message_sha256": "1646a52ffd646bcb6f059f277adc02d682d598709c2e5271decec15d2b94d9a1"
+    },
+    {
+      "category": "support_turn",
+      "name": "blocked canned ads opener is removed without changing product facts",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "an uncertain send stays open and is not blindly retried",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "a quote-backed answer prevents a repeated model question",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "a selected custom evidence field cannot acquire invented UI options",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_turn",
+      "name": "private support channel answer stays here without asserting account ownership",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_context",
+      "name": "operator policy is separate from customer text and reaches composition",
+      "message_sha256": "1259fdf28ddd70946c21c3403b9ddd79401fef59af0d23d5aa934b0dcb0d009f"
+    },
+    {
+      "category": "support_progress",
+      "name": "the requested playlist link remains useful after a task is linked",
+      "message_sha256": "f31523ec640f8dc8a6806c0871d48480df28c585d3d1d3b2c2b12c856f3a3663"
+    },
+    {
+      "category": "support_progress",
+      "name": "honest bot answer does not trigger a human request",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "a documented alternative can resolve guidance without a handoff",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "fallback questions acknowledge the report and ask only for missing evidence",
+      "message_sha256": "57d095433eddb0c448b79216ee884872e46cacf53777f09b0f0b9d58b97b7f34"
+    },
+    {
+      "category": "support_progress",
+      "name": "account identity requests retain the stated action and never execute it",
+      "message_sha256": "73d5db283a65f56463081c85c49cd63d19c91da8cbc3015240a636745db34d42"
+    }
+  ]
+}

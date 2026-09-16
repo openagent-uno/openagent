@@ -31,7 +31,7 @@ async def failed_translation(_ctx):
     d=_Doubles()
     s=c.SupportState("test", "Bitte helfen Sie mir", outcome="account_change_identity_required",intent="account_change", facts={"language":"de"})
     with patch.dict(os.environ, {c._WRITES_ENV:"1"}):
-        reply=await c._fallback_in_language(SimpleNamespace(_mcp=d.pool(),model=Unavailable()),{},s,"test","test")
+        reply=await c._fallback_in_language(SimpleNamespace(capability_pool=d.pool(),model=Unavailable()),{},s,"test","test")
     assert reply == ""
     assert "replio_threads_respond" not in d.names
     assert "replio_threads_mark_for_human" in d.names
@@ -42,7 +42,7 @@ async def malicious_translation(_ctx):
         async def generate(self, **kw):return SimpleNamespace(content=json.dumps({"reply":"Voy a cambiar el correo de tu perfil."}))
     d=_Doubles();s=c.SupportState("test","Quiero cambiar mi correo",intent="account_change",outcome="account_change_identity_required",facts={"language":"es"})
     with patch.dict(os.environ,{c._WRITES_ENV:"1"}):
-        reply=await c._fallback_in_language(SimpleNamespace(_mcp=d.pool(),model=Wrong()),{},s,"test","authority")
+        reply=await c._fallback_in_language(SimpleNamespace(capability_pool=d.pool(),model=Wrong()),{},s,"test","authority")
     assert reply == "" and "replio_threads_respond" not in d.names
 
 @test("support_sept6", "notices and held cases never enter a customer reply")
@@ -54,14 +54,14 @@ async def notices(_ctx):
     ]:
         d=_Doubles(thread=thread)
         with patch.dict(os.environ,{c._WRITES_ENV:"1"}):
-            out=json.loads((await c.run(agent=SimpleNamespace(_mcp=d.pool(),model=_Model()),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"test","message":{"body_text":message}}},session_id="test",delivery_id="test")).text)
+            out=json.loads((await c.run(agent=SimpleNamespace(capability_pool=d.pool(),model=_Model()),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"test","message":{"body_text":message}}},session_id="test",delivery_id="test")).text)
         assert out["reply"] == "" and "replio_threads_respond" not in d.names
 
 @test("support_sept6", "business enquiries are assigned without a support questionnaire")
 async def business(_ctx):
     d=_Doubles()
     with patch.dict(os.environ,{c._WRITES_ENV:"1"}):
-        out=json.loads((await c.run(agent=SimpleNamespace(_mcp=d.pool(),model=_Model()),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"test","message":{"body_text":"We propose a business partnership with your company."}}},session_id="test",delivery_id="test")).text)
+        out=json.loads((await c.run(agent=SimpleNamespace(capability_pool=d.pool(),model=_Model()),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"test","message":{"body_text":"We propose a business partnership with your company."}}},session_id="test",delivery_id="test")).text)
     assert "replio_threads_mark_for_human" in d.names
     assert out["reply"] == "" and "replio_threads_respond" not in d.names
 
@@ -98,7 +98,7 @@ async def apple_notice(_ctx):
 
 @test("support_sept6", "the grader sees action evidence and the reviewer's declared language")
 async def grader_evidence(_ctx):
-    from openagent_core.core import local_quality_scorer as scorer
+    from openagent_support import local_quality_scorer as scorer
     class Model:
         packet=None
         async def generate(self, **kw):
@@ -113,7 +113,7 @@ async def grader_evidence(_ctx):
 
 @test("support_sept6", "a model's perfect scores cannot authorize a profile promise")
 async def grader_profile_promise(_ctx):
-    from openagent_core.core import local_quality_scorer as scorer
+    from openagent_support import local_quality_scorer as scorer
     class Model:
         async def generate(self, **kw):
             return SimpleNamespace(content=json.dumps({key:1 for key in scorer._DIMENSIONS}))

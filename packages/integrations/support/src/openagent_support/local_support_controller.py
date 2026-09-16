@@ -4823,7 +4823,7 @@ def _drops_claim(reply: str, base: str) -> bool:
 async def _hold_untranslated(agent: Any, state: SupportState) -> str:
     state.facts["reply_source"] = "none:translation_unavailable"
     state.human_reason = "A reply in the customer's language could not be verified. Review the response before sending."
-    state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "_mcp", None), state)
+    state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "capability_pool", None), state)
     return ""
 
 
@@ -5103,7 +5103,7 @@ async def _compose_human_reply(agent: Any, event: dict[str, Any], state: Support
         reset_tool_allowlist(token)
     state.facts["reply_source"] = "none:human_voice_review_required"
     state.human_reason = "A helpful, factually faithful reply could not be verified after bounded writing attempts. Review the conversation; no canned fallback was sent."
-    state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "_mcp", None), state)
+    state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "capability_pool", None), state)
     return ""
 
 
@@ -5120,7 +5120,7 @@ async def _compose_local(
         state.human_reason = "Operator policy exceeds the support context budget. Consolidate the policy and review the case; no partial-policy reply was generated."
         state.facts["reply_source"] = "none:policy_context_overflow"
         if not state.facts.get("human_handoff_confirmed"):
-            state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "_mcp", None), state)
+            state.facts["human_handoff_confirmed"] = await _queue_for_human(getattr(agent, "capability_pool", None), state)
         return ""
     if support_voice.enabled():
         return await _compose_human_reply(agent, event, state, session_id)
@@ -6832,7 +6832,7 @@ async def run(
     delivery_id: str,
 ) -> ControllerResult:
     """Run one support delivery through the deterministic controller."""
-    pool = getattr(agent, "_mcp", None)
+    pool = getattr(agent, "capability_pool", None)
     if pool is None:
         raise RuntimeError("support controller: agent has no MCP pool")
     thread_id = _extract_thread_id(payload)
