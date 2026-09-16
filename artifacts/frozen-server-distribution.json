@@ -15,8 +15,11 @@
   "publication": false,
   "installation": "not installed",
   "installer": {
-    "status": "signed; notarization pending",
+    "path": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-metadata/openagent-1.0.0b1-macos-arm64.pkg",
+    "sha256": "8f0ed3f2c3a8e8b2d46036020428d97075d5ce23ecb7476ab98e2e1dff40f153",
+    "status": "signed, notarized and stapled",
     "notary_submission_id": "f0f5878e-bdf7-44d4-b4b4-eea67ad4a427",
+    "stapler_validation": "accepted",
     "identity": "Developer ID Installer: Giorgio Gerelli (B4KWCQFY8V)",
     "installation": "not performed"
   },

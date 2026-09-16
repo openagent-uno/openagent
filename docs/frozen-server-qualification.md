@@ -91,9 +91,9 @@ digests preserve this distinction. The prior distribution receipt is retained
 under `artifacts/intermediate`.
 
 The user completed the macOS keychain dialog directly. The final installer is
-signed with the existing Installer identity, but its notarization submission
-`f0f5878e-bdf7-44d4-b4b4-eea67ad4a427` remains pending at the last check. It is not
-yet a qualified notarized installer. The already started signing process may
-finish notarization and stapling; check its log and refresh the package digest
-before distributing it. No credentials were exported or entered in chat, no
-key-access policy was changed by the agent, and no installer was applied.
+signed with the existing Installer identity. Apple accepted notarization
+submission `f0f5878e-bdf7-44d4-b4b4-eea67ad4a427`; the ticket was stapled and
+`stapler validate` succeeds. The resulting PKG SHA-256 is
+`8f0ed3f2c3a8e8b2d46036020428d97075d5ce23ecb7476ab98e2e1dff40f153`.
+No credentials were exported or entered in chat, no key-access policy was
+changed by the agent, and no installer was applied.
