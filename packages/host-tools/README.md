@@ -1,3 +1,23 @@
+# Standalone host-tools composition
+
+This package preserves the published `openagent-host-tools` command, Python API,
+identity/configuration locations, durable consent and broker protocol. It composes
+`openagent-capability-host` with the independent filesystem/editor/shell/device
+packages. Their implementations and native source files have one owner in
+`openagent-tools`; the generic host is in `openagent-core`.
+
+Individual MCP commands are owned by the corresponding tool package. The legacy
+`openagent_host_tools.mcp_server` module remains a forwarding dispatcher. Product
+packaging obtains native sources through `openagent_device_tools.sidecar_source`
+and keeps the existing signing identifiers. Sidecar integrity verification uses
+the explicit product bundle version, independent of the device package version.
+
+Validated during extraction: existing suite 87 passed, 2 skipped; clean wheel
+installation outside repositories 35 passed, 1 Windows-only skip. These checks do
+not qualify signed installers, updater transitions or real OS interaction.
+
+The usage reference below documents the preserved product behavior.
+
 # OpenAgent Host Tools
 
 `openagent-host-tools` is the local capability host shared by OpenAgent's

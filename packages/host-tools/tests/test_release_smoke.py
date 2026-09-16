@@ -115,7 +115,8 @@ def test_macos_launchservices_stdio_uses_real_fifo_paths():
 
 
 def test_macos_capture_preflights_screen_recording_and_fails_closed():
-    source = (ROOT / "sidecars" / "computer-control" / "src" / "capture.rs").read_text(
+    from openagent_device_tools import sidecar_source
+    source = (sidecar_source("computer-control") / "src" / "capture.rs").read_text(
         encoding="utf-8"
     )
     assert "CGPreflightScreenCaptureAccess" in source

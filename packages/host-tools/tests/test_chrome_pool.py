@@ -1,4 +1,5 @@
 from __future__ import annotations
+from openagent_device_tools import sidecar_source
 
 import http.server
 import json
@@ -134,7 +135,7 @@ def test_browser_reuse_requires_exact_profile_ownership_marker(tmp_path: Path):
         (unrelated / "DevToolsActivePort").write_text(f"{port}\n/devtools/browser/someone-else\n")
         (wrong_port / "DevToolsActivePort").write_text(f"{port + 1}\n{endpoint_path}\n")
         browser_js = (
-            Path(__file__).parents[1] / "sidecars" / "agent-in-chrome" / "host" / "browser.js"
+            sidecar_source("agent-in-chrome") / "host" / "browser.js"
         )
         script = r"""
 import { pathToFileURL } from "node:url";
@@ -187,9 +188,7 @@ def test_reused_dedicated_browser_is_closed_by_the_restarted_sidecar():
     if node is None:
         pytest.skip("node is required to exercise the Agent in Chrome sidecar")
     browser_js = (
-        Path(__file__).parents[1]
-        / "sidecars"
-        / "agent-in-chrome"
+        sidecar_source("agent-in-chrome")
         / "host"
         / "browser.js"
     )
@@ -228,7 +227,7 @@ def test_browser_runtime_has_no_mutable_snapshot_download_path():
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is required to inspect the browser runtime")
-    browser_js = Path(__file__).parents[1] / "sidecars" / "agent-in-chrome" / "host" / "browser.js"
+    browser_js = sidecar_source("agent-in-chrome") / "host" / "browser.js"
     source = browser_js.read_text()
     forbidden = (
         "LAST_CHANGE",
@@ -273,7 +272,7 @@ def test_crx3_verification_accepts_valid_signature_and_rejects_tampering():
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is required to exercise CRX3 signature verification")
-    browser_js = Path(__file__).parents[1] / "sidecars" / "agent-in-chrome" / "host" / "browser.js"
+    browser_js = sidecar_source("agent-in-chrome") / "host" / "browser.js"
     script = r"""
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
@@ -389,7 +388,7 @@ def _extract_extension_zip(archive: Path, destination: Path) -> dict:
     node = shutil.which("node")
     if node is None:
         pytest.skip("node is required to exercise extension ZIP extraction")
-    browser_js = Path(__file__).parents[1] / "sidecars" / "agent-in-chrome" / "host" / "browser.js"
+    browser_js = sidecar_source("agent-in-chrome") / "host" / "browser.js"
     script = r"""
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -428,7 +427,7 @@ def _write_extension_zip(path: Path, entries: dict[str, bytes]) -> None:
 def test_extension_zip_extraction_is_self_contained_and_rejects_zip_slip(
     tmp_path: Path,
 ):
-    browser_js = Path(__file__).parents[1] / "sidecars" / "agent-in-chrome" / "host" / "browser.js"
+    browser_js = sidecar_source("agent-in-chrome") / "host" / "browser.js"
     source = browser_js.read_text(encoding="utf-8")
     assert "spawnSync" not in source
     assert 'from "node:zlib"' in source

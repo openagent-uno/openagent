@@ -1,7 +1,4 @@
-from __future__ import annotations
-
-import contextvars
-
-current_principal: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "openagent_host_tools_principal", default=None
-)
+"""Compatibility import; implementation owned by openagent_tool_protocol.context."""
+import importlib
+import sys
+sys.modules[__name__] = importlib.import_module("openagent_tool_protocol.context")

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from openagent_host_tools import CapabilityBridge, CapabilityHost, HostError, HostPaths
-from openagent_host_tools import mcp_stdio as mcp_stdio_module
+from openagent_capability_host import mcp_stdio as mcp_stdio_module
 from openagent_host_tools.config import PluginSpec
 from openagent_host_tools.context import current_principal
 from openagent_host_tools.mcp_stdio import MCPStdioServer, PerPrincipalMCPPool

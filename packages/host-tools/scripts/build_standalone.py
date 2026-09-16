@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 from project_metadata import PROJECT_VERSION
+from openagent_device_tools import sidecar_source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,7 +62,7 @@ def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
 
     suffix = ".exe" if key.startswith("win32-") else ""
     computer_name = f"openagent-computer-control{suffix}"
-    computer_root = ROOT / "sidecars" / "computer-control"
+    computer_root = sidecar_source("computer-control")
     candidates = [
         computer_root / "bin" / key / computer_name,
         computer_root / "target" / "release" / computer_name,
@@ -103,7 +104,7 @@ def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
     elif required:
         raise SystemExit(f"computer-control binary missing for {key}; checked {candidates}")
 
-    chrome_source = ROOT / "sidecars" / "agent-in-chrome"
+    chrome_source = sidecar_source("agent-in-chrome")
     chrome_target = bundle / "agent-in-chrome"
     if chrome_source.is_dir():
         shutil.copytree(
