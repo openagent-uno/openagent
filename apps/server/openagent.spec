@@ -18,10 +18,11 @@ directory (``$TMPDIR/_MEI_xxxxx``), removed when the process exits.
 
 import os
 import platform
+import plistlib
 import sys
 from pathlib import Path
 from importlib.resources import files
-from importlib.metadata import distributions
+from importlib.metadata import distributions, version
 from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
@@ -389,10 +390,15 @@ exe = EXE(
 # into the same ``Contents/MacOS/`` alongside ``openagent`` after this
 # spec runs, so the final pkg payload has both binaries in one bundle.
 if sys.platform == "darwin":
+    with open(Path(SPECPATH) / "buildResources/openagent-Info.plist", "rb") as stream:
+        app_info = plistlib.load(stream)
+    release_version = version("openagent-framework")
+    app_info.update(CFBundleShortVersionString=release_version, CFBundleVersion=release_version)
     app = BUNDLE(
         exe,
         name="openagent.app",
         icon=None,
         bundle_identifier="com.openagent.server",
-        info_plist="buildResources/openagent-Info.plist",
+        version=release_version,
+        info_plist=app_info,
     )

@@ -128,6 +128,24 @@ if [ "$WANT_PKG" = true ]; then
     PKG_OUTPUT="${BINARY_DIR}/${PKG_BASE}-${RELEASE_VERSION}-macos-${PKG_ARCH}.pkg"
 fi
 
+# Refuse to seal a bundle whose effective metadata differs from the installed
+# product. BUNDLE accepts a dictionary, not a plist filename.
+if [ "$IS_APP_BUNDLE" = true ]; then
+    python - "$BINARY" <<'VERIFY_METADATA'
+import plistlib, sys
+from pathlib import Path
+from importlib.metadata import version
+with (Path(sys.argv[1]) / "Contents/Info.plist").open("rb") as stream:
+    metadata = plistlib.load(stream)
+expected = version("openagent-framework")
+for key in ("CFBundleVersion", "CFBundleShortVersionString"):
+    if metadata.get(key) != expected:
+        raise SystemExit(f"Invalid {key}; expected {expected}")
+if metadata.get("CFBundleIdentifier") != "com.openagent.server" or not metadata.get("LSBackgroundOnly"):
+    raise SystemExit("Server identity/background metadata is missing")
+VERIFY_METADATA
+fi
+
 # Local qualification reuses existing identities without exporting private keys,
 # creating a keychain or changing its search list. CI keeps certificate import.
 KEYCHAIN_PATH=""

@@ -26,8 +26,8 @@
 
   Wrapping openagent in an .app bundle with this Info.plist moves TCC to
   a bundle-based entry (``client_type=0``) keyed by ``CFBundleIdentifier``.
-  The identifier is stable across releases (locked by ``codesign
-  --identifier`` + matching Info.plist), so a grant granted once persists
+  The identifier is stable across releases (locked by the codesign
+  identifier option + matching Info.plist), so a grant granted once persists
   across every future update that keeps the same Team ID and bundle id.
 
   LSBackgroundOnly keeps openagent invisible to the user — no Dock icon,
