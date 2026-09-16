@@ -1,0 +1,192 @@
+name: Build signed host-tools release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact openagent-host-tools commit or signed tag to build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  signed-bundle:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            platform: darwin-x64
+          - runner: macos-15
+            platform: darwin-arm64
+          - runner: ubuntu-24.04
+            platform: linux-x64
+          - runner: ubuntu-24.04-arm
+            platform: linux-arm64
+          - runner: windows-2022
+            platform: win32-x64
+          - runner: windows-11-arm
+            platform: win32-arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Check out the exact public host-tools source
+        uses: actions/checkout@v4
+        with:
+          repository: openagent-uno/openagent-host-tools
+          ref: ${{ inputs.source_ref }}
+          path: host-tools
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Provision pinned OpenSSL for Windows ARM64
+        if: matrix.platform == 'win32-arm64'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vcpkgRoot = Join-Path $env:RUNNER_TEMP 'openagent-vcpkg'
+          git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git $vcpkgRoot
+          git -C $vcpkgRoot checkout 114d9fe62faf35856b45cf55cb93b57028a45d63
+          & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
+          & (Join-Path $vcpkgRoot 'vcpkg.exe') install openssl:arm64-windows-static-md
+          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "OPENSSL_DIR=$(Join-Path $vcpkgRoot 'installed\arm64-windows-static-md')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "OPENSSL_STATIC=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxdo-dev libx11-dev libxtst-dev libxi-dev libxrandr-dev \
+            libwayland-dev libxkbcommon-dev libpipewire-0.3-dev libdbus-1-dev \
+            libegl1-mesa-dev libgl1-mesa-dev libgbm-dev pkg-config \
+            xvfb xauth x11-utils x11-xserver-utils
+      - name: Verify immutable source identity
+        working-directory: host-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "${{ inputs.source_ref }}" || {
+            echo "source_ref must be a full immutable commit: expected ${{ inputs.source_ref }}, got $actual" >&2
+            exit 1
+          }
+      - name: Install and test twice
+        working-directory: host-tools
+        shell: bash
+        run: |
+          python -m pip install -e ".[dev]" pyinstaller
+          pytest -q
+          pytest -q
+      - name: Build self-contained bundle
+        working-directory: host-tools
+        run: python scripts/build_standalone.py --require-sidecars --expect-platform ${{ matrix.platform }}
+      - name: Sign and notarize every executable before hashing
+        if: runner.os == 'macOS'
+        working-directory: host-tools
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          scripts/sign_macos_bundle.sh "dist/${{ matrix.platform }}"
+          python scripts/build_standalone.py --manifest-only --expect-platform ${{ matrix.platform }}
+      - name: Verify catalogs and signed frozen runtime with runner TCC grants
+        if: runner.os == 'macOS'
+        working-directory: host-tools
+        run: |
+          python scripts/snapshot_sidecar_manifests.py "dist/${{ matrix.platform }}" --check
+          python scripts/smoke_bundle.py "dist/${{ matrix.platform }}" --computer-control expect-granted
+      - name: Verify catalogs, computer-control, and Chrome under Xvfb
+        if: matrix.platform == 'linux-x64'
+        working-directory: host-tools
+        shell: bash
+        run: |
+          python scripts/snapshot_sidecar_manifests.py "dist/${{ matrix.platform }}" --check
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            scripts/smoke_linux_xvfb.sh "dist/${{ matrix.platform }}"
+      - name: Verify catalogs and computer-control under Xvfb on Linux ARM64
+        if: matrix.platform == 'linux-arm64'
+        working-directory: host-tools
+        shell: bash
+        run: |
+          # Ubuntu's hosted ARM64 image has no Chromium-family ARM binary.
+          # Catalog probing still starts and validates the real Agent-in-Chrome
+          # sidecar; navigation remains a real release gate on Linux x64,
+          # Windows and macOS. Keep computer-control live on ARM64 as well.
+          python scripts/snapshot_sidecar_manifests.py "dist/${{ matrix.platform }}" --check
+          xvfb-run -a -s '-screen 0 1280x1024x24' \
+            python scripts/smoke_bundle.py "dist/${{ matrix.platform }}" \
+              --core-only --computer-control expect-granted
+      - name: Verify catalogs, computer-control, and Chrome on Windows desktop
+        if: runner.os == 'Windows'
+        working-directory: host-tools
+        run: |
+          python scripts/snapshot_sidecar_manifests.py "dist/${{ matrix.platform }}" --check
+          python scripts/smoke_bundle.py "dist/${{ matrix.platform }}" --computer-control expect-granted
+      - name: Package after signing and notarization
+        working-directory: host-tools
+        run: python scripts/package_bundle.py "dist/${{ matrix.platform }}"
+      - name: Verify final macOS archive after extraction
+        if: runner.os == 'macOS'
+        working-directory: host-tools
+        shell: bash
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: scripts/verify_macos_archive.sh "dist/openagent-host-tools-${{ matrix.platform }}.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-host-tools-${{ matrix.platform }}
+          path: |
+            host-tools/dist/openagent-host-tools-${{ matrix.platform }}.tar.gz
+            host-tools/dist/openagent-host-tools-${{ matrix.platform }}.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  wheel:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the exact public host-tools source
+        uses: actions/checkout@v4
+        with:
+          repository: openagent-uno/openagent-host-tools
+          ref: ${{ inputs.source_ref }}
+          path: host-tools
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build and clean-install the universal wheel
+        working-directory: host-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ inputs.source_ref }}"
+          python -m pip install build
+          python -m build --wheel
+          version="$(python -c 'import runpy; print(runpy.run_path("src/openagent_host_tools/_version.py")["__version__"])')"
+          python -m venv "$RUNNER_TEMP/wheel-smoke"
+          "$RUNNER_TEMP/wheel-smoke/bin/pip" install --no-cache-dir dist/*.whl
+          "$RUNNER_TEMP/wheel-smoke/bin/python" -c \
+            "import openagent_host_tools as h; assert h.__version__ == '$version'"
+          "$RUNNER_TEMP/wheel-smoke/bin/openagent-host-tools" --help >/dev/null
+          cd dist
+          sha256sum *.whl > openagent-host-tools-wheel.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-tools-wheel
+          path: |
+            host-tools/dist/*.whl
+            host-tools/dist/openagent-host-tools-wheel.sha256
+          if-no-files-found: error
+          retention-days: 14

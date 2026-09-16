@@ -1,0 +1,291 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.repository }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify-tag:
+    name: verify tag and source versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Require an exact SemVer tag from main matching both packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main --no-tags
+          source_commit=$(git rev-parse "$GITHUB_SHA^{commit}")
+          [[ "$source_commit" == "$(git rev-parse HEAD)" ]]
+          git merge-base --is-ancestor "$source_commit" origin/main
+          desktop_version=$(node -p "require('./desktop/package.json').version")
+          universal_version=$(node -p "require('./universal/package.json').version")
+          [[ "$desktop_version" == "$universal_version" ]]
+          [[ "$GITHUB_REF_NAME" == "v$desktop_version" ]]
+          [[ "$desktop_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]
+
+  test:
+    name: lint, types, and unit tests
+    needs: verify-tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install universal dependencies
+        working-directory: universal
+        run: npm ci
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Run app test gate
+        run: bash test.sh
+
+  desktop:
+    needs: [verify-tag, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            package_script: build:mac
+            arch_flag: --arm64
+            platform_key: darwin-arm64
+          - os: macos-15-intel
+            package_script: build:mac
+            arch_flag: --x64
+            platform_key: darwin-x64
+          - os: windows-2025
+            package_script: build:win
+            arch_flag: --x64
+            platform_key: win32-x64
+          - os: windows-11-arm
+            package_script: build:win
+            arch_flag: --arm64
+            platform_key: win32-arm64
+          - os: ubuntu-24.04
+            package_script: build:linux
+            arch_flag: --x64
+            platform_key: linux-x64
+          - os: ubuntu-24.04-arm
+            package_script: build:linux
+            arch_flag: --arm64
+            platform_key: linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools xvfb
+      - name: Install universal deps
+        working-directory: universal
+        run: npm ci
+      - name: Build web app
+        working-directory: universal
+        run: npx expo export --platform web
+      - name: Install desktop deps
+        working-directory: desktop
+        run: npm ci
+      # Consume one immutable, version-pinned host-tools artifact. The
+      # packaging entrypoint independently verifies its complete manifest.
+      - name: Acquire pinned host-tools release bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform_key }} .release-deps/host-tools-dist
+      - name: Copy web build and fix paths
+        run: |
+          rm -rf desktop/web-build
+          cp -r universal/dist desktop/web-build
+          sed -i.bak 's|href="/|href="./|g; s|src="/|src="./|g' desktop/web-build/index.html
+          rm -f desktop/web-build/index.html.bak
+        shell: bash
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS'
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for required in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!required}" ]; then
+              echo "Required macOS release secret is missing: ${required}"
+              exit 1
+            fi
+          done
+      - name: Build Electron app
+        working-directory: desktop
+        run: npm run ${{ matrix.package_script }} -- ${{ matrix.arch_flag }} --publish never --config.publish.channel "${{ contains(github.ref_name, '-beta.') && 'beta' || 'latest' }}"
+        env:
+          OPENAGENT_REQUIRE_HOST_TOOLS: '1'
+          OPENAGENT_HOST_TOOLS_PLATFORM_KEY: ${{ matrix.platform_key }}
+          OPENAGENT_HOST_TOOLS_DIST: ${{ github.workspace }}/.release-deps/host-tools-dist
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ runner.os == 'macOS' && secrets.CSC_LINK || '' }}
+          CSC_KEY_PASSWORD: ${{ runner.os == 'macOS' && secrets.CSC_KEY_PASSWORD || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+      - name: Smoke-test packaged artifacts and update metadata
+        working-directory: desktop
+        run: node scripts/test-packaged-artifacts.mjs "${{ matrix.platform_key }}"
+        env:
+          REQUIRE_SIGNED: ${{ runner.os == 'macOS' && 'true' || 'false' }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform_key }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/latest.yml
+            desktop/release/latest-mac.yml
+            desktop/release/latest-linux.yml
+            desktop/release/latest-linux-arm64.yml
+            desktop/release/beta.yml
+            desktop/release/beta-mac.yml
+            desktop/release/beta-linux.yml
+            desktop/release/beta-linux-arm64.yml
+            desktop/release/*.blockmap
+            desktop/release/*.sha256
+            desktop/release/release-manifest-*.json
+
+  macos-intel-smoke:
+    name: launch packaged macOS Intel installers
+    needs: desktop
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install verifier dependencies
+        working-directory: desktop
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: desktop-darwin-x64
+          path: artifacts
+      - name: Verify and launch x64 ZIP and DMG payloads
+        run: node desktop/scripts/smoke-macos-installers.mjs artifacts x64
+
+  release:
+    needs: [desktop, macos-intel-smoke]
+    if: always() && needs.desktop.result == 'success' && needs.macos-intel-smoke.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install release verifier dependencies
+        working-directory: desktop
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: desktop-*
+          path: artifacts
+      - name: Merge per-architecture updater metadata without overwrites
+        run: node desktop/scripts/merge-update-metadata.js artifacts artifacts/release-metadata
+      - name: Verify exact merged release asset set
+        run: node desktop/scripts/verify-release-set.mjs artifacts
+      - name: Refuse to replace an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          existing_tags=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq '.[].tag_name')
+          if grep -Fqx -- "$GITHUB_REF_NAME" <<<"$existing_tags"; then
+            echo "Release ${GITHUB_REF_NAME} already exists; publish a new beta tag instead."
+            exit 1
+          fi
+      - name: Attest exact release assets
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: |
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/release-metadata/*.yml
+            artifacts/**/*.blockmap
+            artifacts/**/*.sha256
+            artifacts/**/release-manifest-*.json
+      - name: Upload an unpublished draft release
+        id: draft
+        uses: softprops/action-gh-release@v2.6.2
+        with:
+          draft: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/release-metadata/*.yml
+            artifacts/**/*.blockmap
+            artifacts/**/*.sha256
+            artifacts/**/release-manifest-*.json
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          overwrite_files: false
+          prerelease: ${{ contains(github.ref_name, '-beta.') }}
+          make_latest: ${{ contains(github.ref_name, '-beta.') && 'false' || 'true' }}
+      - name: Verify uploaded bytes, then publish atomically
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          is_beta=false
+          make_latest=true
+          if [[ "$version" == *-beta.* ]]; then
+            is_beta=true
+            make_latest=false
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release-draft.json
+          node desktop/scripts/verify-release-set.mjs artifacts \
+            --release-json release-draft.json \
+            --expect-draft true \
+            --expect-prerelease "$is_beta"
+          node - "$is_beta" "$make_latest" > publish.json <<'NODE'
+          const fs = require('node:fs');
+          fs.writeFileSync(1, JSON.stringify({
+            draft: false,
+            prerelease: process.argv[2] === 'true',
+            make_latest: process.argv[3],
+          }));
+          NODE
+          gh api --method PATCH \
+            "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            --input publish.json > release-published.json
+          node desktop/scripts/verify-release-set.mjs artifacts \
+            --release-json release-published.json \
+            --expect-draft false \
+            --expect-prerelease "$is_beta"

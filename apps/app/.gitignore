@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+release/
+web-build/
+.expo/
+test-results/
+playwright-report/
+
+# Android / iOS
+android/
+ios/
+
+# Electron
+*.asar
+
+# Env
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,187 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            universal/package-lock.json
+      - name: Install Desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Run Electron main/network/capability tests
+        working-directory: desktop
+        run: npm test
+      - name: Run shared collaboration contracts
+        run: |
+          npm --prefix universal ci
+          node --experimental-strip-types --test common/__tests__/collaboration*.test.mjs
+
+  packaged-release-smoke:
+    name: Packaged release smoke (${{ matrix.platform_key }})
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            package_script: build:win
+            arch_flag: --x64
+            platform_key: win32-x64
+          - os: windows-11-arm
+            package_script: build:win
+            arch_flag: --arm64
+            platform_key: win32-arm64
+          - os: ubuntu-24.04
+            package_script: build:linux
+            arch_flag: --x64
+            platform_key: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            universal/package-lock.json
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm libarchive-tools xvfb
+      - name: Install application dependencies
+        run: |
+          npm --prefix universal ci
+          npm --prefix desktop ci
+      - name: Build web application
+        working-directory: universal
+        run: npx expo export --platform web
+      - name: Acquire pinned host-tools release bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform_key }} .release-deps/host-tools-dist
+      - name: Stage web application
+        shell: bash
+        run: |
+          rm -rf desktop/web-build
+          cp -r universal/dist desktop/web-build
+          sed -i.bak 's|href="/|href="./|g; s|src="/|src="./|g' desktop/web-build/index.html
+          rm -f desktop/web-build/index.html.bak
+      - name: Build unsigned release package
+        working-directory: desktop
+        shell: bash
+        run: |
+          channel=$(node -p "require('./package.json').version.includes('-beta.') ? 'beta' : 'latest'")
+          npm run ${{ matrix.package_script }} -- ${{ matrix.arch_flag }} --publish never --config.publish.channel "$channel"
+        env:
+          OPENAGENT_REQUIRE_HOST_TOOLS: '1'
+          OPENAGENT_HOST_TOOLS_PLATFORM_KEY: ${{ matrix.platform_key }}
+          OPENAGENT_HOST_TOOLS_DIST: ${{ github.workspace }}/.release-deps/host-tools-dist
+          GH_TOKEN: ${{ github.token }}
+      - name: Verify, install, and launch packaged artifacts
+        working-directory: desktop
+        run: node scripts/test-packaged-artifacts.mjs "${{ matrix.platform_key }}"
+        env:
+          REQUIRE_SIGNED: 'false'
+
+  desktop-local-tools-e2e:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            universal/package-lock.json
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install application dependencies
+        run: |
+          npm --prefix universal ci
+          npm --prefix desktop ci
+      - name: Acquire the immutable host-tools release used by Desktop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node desktop/scripts/fetch-host-tools-release.js darwin-arm64 .e2e-deps/host-tools-dist
+      - name: Run the real Electron/host-tools release E2E twice
+        working-directory: desktop
+        env:
+          OPENAGENT_E2E_HOST_TOOLS_BIN: ${{ github.workspace }}/.e2e-deps/host-tools-dist/darwin-arm64/openagent-host-tools
+          OPENAGENT_E2E_PYTHON: python
+        run: npm run test:e2e:twice
+
+  desktop-real-iroh-e2e:
+    name: Desktop real Iroh E2E
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout exact OpenAgent server
+        uses: actions/checkout@v4
+        with:
+          repository: openagent-uno/openagent-server
+          ref: 613461938d848ea3aa62ab7886cb87a13470b5f9
+          path: .e2e-deps/openagent-server
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            universal/package-lock.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install application dependencies
+        run: |
+          npm --prefix universal ci
+          npm --prefix desktop ci
+
+      - name: Install pinned server environment
+        working-directory: .e2e-deps/openagent-server
+        run: |
+          uv venv --python 3.12
+          uv pip install -e .
+
+      - name: Require the same host-tools release on server and Desktop
+        run: cmp desktop/host-tools.lock.json .e2e-deps/openagent-server/host-tools.lock.json
+
+      - name: Acquire immutable Desktop host-tools bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node desktop/scripts/fetch-host-tools-release.js darwin-arm64 .e2e-deps/host-tools-dist
+
+      - name: Run Electron, coordinator, Gateway and real-Iroh E2E twice
+        env:
+          OPENAGENT_E2E_HOST_TOOLS_BIN: ${{ github.workspace }}/.e2e-deps/host-tools-dist/darwin-arm64/openagent-host-tools
+          OPENAGENT_REAL_DESKTOP_SERVER_ROOT: ${{ github.workspace }}/.e2e-deps/openagent-server
+          OPENAGENT_REAL_DESKTOP_PYTHON: ${{ github.workspace }}/.e2e-deps/openagent-server/.venv/bin/python
+        run: ./test.sh e2e-real-iroh

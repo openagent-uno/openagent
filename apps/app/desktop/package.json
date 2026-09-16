@@ -1,0 +1,151 @@
+{
+  "name": "openagent-desktop",
+  "description": "Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.",
+  "version": "0.18.2",
+  "private": true,
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "productName": "OpenAgent",
+  "homepage": "https://openagent.uno/",
+  "author": {
+    "name": "OpenAgent",
+    "email": "geroale2000@gmail.com",
+    "url": "https://openagent.uno/"
+  },
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "tsc && node ./scripts/bundle-main.js && electron .",
+    "build": "node ./scripts/package-desktop.js",
+    "build:mac": "node ./scripts/package-desktop.js --mac",
+    "build:win": "node ./scripts/package-desktop.js --win",
+    "build:linux": "node ./scripts/package-desktop.js --linux",
+    "start": "tsc && node ./scripts/bundle-main.js && electron .",
+    "build:test": "tsc && node ./scripts/bundle-main.js",
+    "build:e2e": "npm --prefix ../universal run build:web && npm run build:test",
+    "test": "npm run test:iroh-runtime && npm run build:test && node --test src/capabilities/__tests__/*.test.mjs src/network/__tests__/*.test.mjs scripts/__tests__/*.test.mjs",
+    "test:iroh-runtime": "node ./scripts/smoke-iroh-electron.js",
+    "test:capabilities": "npm run build:test && node --test src/capabilities/__tests__/*.test.mjs",
+    "test:e2e": "npm run build:e2e && playwright test --config=playwright.config.mjs",
+    "test:e2e:twice": "npm run build:e2e && playwright test --config=playwright.config.mjs --repeat-each=2 --workers=1"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.1.0",
+    "@number0/iroh": "^0.35.0",
+    "@windwalker-io/srp": "^1.0.1",
+    "cbor2": "^2.3.0",
+    "electron-store": "^8.0.0",
+    "electron-updater": "^6.8.9",
+    "rfc4648": "^1.5.4",
+    "smol-toml": "^1.6.1",
+    "tar": "^7.4.3",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@electron/asar": "^4.3.0",
+    "@playwright/test": "^1.62.1",
+    "@types/ws": "^8.18.1",
+    "electron": "^43.4.1",
+    "electron-builder": "26.15.7",
+    "esbuild": "^0.28.2",
+    "js-yaml": "^4.3.1",
+    "typescript": "^5.6.0"
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "@noble/hashes": "1.8.0"
+    }
+  },
+  "build": {
+    "appId": "ai.openagent.desktop",
+    "productName": "OpenAgent",
+    "detectUpdateChannel": true,
+    "protocols": [
+      {
+        "name": "OpenAgent",
+        "schemes": [
+          "openagent"
+        ]
+      }
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "buildResources"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "web-build",
+        "to": "web-build"
+      },
+      {
+        "from": "resources/host-tools",
+        "to": "host-tools"
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "openagent-uno",
+      "repo": "openagent-app"
+    },
+    "afterSign": "scripts/after-sign-host-tools.js",
+    "mac": {
+      "artifactName": "openagent-app-${version}-macos-${arch}.${ext}",
+      "forceCodeSigning": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "buildResources/entitlements.mac.plist",
+      "entitlementsInherit": "buildResources/entitlements.mac.inherit.plist",
+      "notarize": true,
+      "signIgnore": [
+        "host-tools/darwin-(arm64|x64)/openagent-host-tools$",
+        "host-tools/darwin-(arm64|x64)/node$",
+        "host-tools/darwin-(arm64|x64)/openagent-computer-control\\.app(/.*)?$"
+      ],
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
+      },
+      "target": [
+        {
+          "target": "dmg"
+        },
+        {
+          "target": "zip"
+        }
+      ],
+      "category": "public.app-category.developer-tools",
+      "icon": "buildResources/icon.icns",
+      "darkModeSupport": true
+    },
+    "win": {
+      "artifactName": "openagent-app-${version}-windows-${arch}.${ext}",
+      "icon": "buildResources/icon.ico",
+      "target": [
+        {
+          "target": "nsis"
+        }
+      ]
+    },
+    "linux": {
+      "artifactName": "openagent-app-${version}-linux-${arch}.${ext}",
+      "icon": "buildResources/icon.png",
+      "target": [
+        {
+          "target": "AppImage"
+        },
+        {
+          "target": "deb"
+        }
+      ],
+      "category": "Development"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true
+    }
+  }
+}
