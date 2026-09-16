@@ -28,7 +28,7 @@ from pathlib import Path
 
 # Silence noisy third-party loggers; test output is already explicit.
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
-for noisy in ("openagent", "src.mcp", "src.models", "openai", "httpx",
+for noisy in ("openagent", "openagent_core.mcp", "openagent_core.models", "openai", "httpx",
               "httpcore", "asyncio", "aiosqlite", "hpack", "urllib3",
               "websockets", "openagent.mcp.client", "openagent.mcp.pool"):
     logging.getLogger(noisy).setLevel(logging.ERROR)
@@ -382,7 +382,7 @@ _TEST_MODULES: tuple[str, ...] = (
     # helper deletion, defer-all MCP wiring, system prompt placeholders,
     # curator wiring, signal handler hardening, and the tqdm/multiprocessing
     # semaphore leak. The end-to-end subprocess test spawns ``python -m
-    # src.cli --help`` to verify no resource_tracker warning at process exit.
+    # openagent_server.cli --help`` to verify no resource_tracker warning at process exit.
     "test_regression_v014",
     # E2E unified flow — locks down four cross-cutting properties: (1)
     # multi-member parallel delegation through _arun_runtime_stream, (2)

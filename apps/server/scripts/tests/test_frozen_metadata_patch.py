@@ -4,7 +4,7 @@ Production runtime ``Team`` runs were dying with::
 
     ERROR Error in Team run: No package metadata was found for pydantic
 
-because ``src.mcp._runtime.function._wrap_callable`` calls
+because ``openagent_core.mcp._runtime.function._wrap_callable`` calls
 ``importlib.metadata.version("pydantic")`` on every Team run and the
 bundled ``pydantic-*.dist-info`` directory under ``sys._MEIPASS``
 sometimes disappears between launch and that call (sibling-swap, self-
@@ -57,7 +57,7 @@ def _reset_patch_state() -> None:
     """Clear the idempotency sentinel + restore the original ``version``
     function on ``importlib.metadata``. Safe to call even if the patch
     never ran."""
-    from src import _frozen
+    from openagent_server import _frozen
 
     _frozen._METADATA_PATCHED = False
 
@@ -73,7 +73,7 @@ def _restore_env(name: str, value: str | None) -> None:
 async def t_version_falls_back_for_pydantic(ctx: TestContext) -> None:
     import pydantic
 
-    from src._frozen import patch_importlib_metadata_for_frozen
+    from openagent_server._frozen import patch_importlib_metadata_for_frozen
 
     prior = _force_frozen(True)
     orig_version = importlib.metadata.version
@@ -108,7 +108,7 @@ async def t_version_falls_back_for_pydantic(ctx: TestContext) -> None:
 
 @test("frozen_metadata_patch", "non-allowlisted names still raise PackageNotFoundError")
 async def t_non_allowlisted_still_raises(ctx: TestContext) -> None:
-    from src._frozen import patch_importlib_metadata_for_frozen
+    from openagent_server._frozen import patch_importlib_metadata_for_frozen
 
     prior = _force_frozen(True)
     orig_version = importlib.metadata.version
@@ -138,7 +138,7 @@ async def t_non_allowlisted_still_raises(ctx: TestContext) -> None:
 
 @test("frozen_metadata_patch", "patch is idempotent (calling twice does not double-wrap)")
 async def t_idempotent(ctx: TestContext) -> None:
-    from src._frozen import patch_importlib_metadata_for_frozen
+    from openagent_server._frozen import patch_importlib_metadata_for_frozen
 
     prior = _force_frozen(True)
     orig_version = importlib.metadata.version
@@ -160,7 +160,7 @@ async def t_idempotent(ctx: TestContext) -> None:
 
 @test("frozen_metadata_patch", "patch is a no-op when not running frozen")
 async def t_noop_when_not_frozen(ctx: TestContext) -> None:
-    from src._frozen import patch_importlib_metadata_for_frozen
+    from openagent_server._frozen import patch_importlib_metadata_for_frozen
 
     prior = _force_frozen(False)
     orig_version = importlib.metadata.version
@@ -179,8 +179,8 @@ async def t_noop_when_not_frozen(ctx: TestContext) -> None:
 
 @test("frozen_ssl_patch", "SSL_CERT_FILE points at stable certifi copy outside _MEI")
 async def t_ssl_cert_copied_outside_mei(ctx: TestContext) -> None:
-    from src import _frozen
-    from src.core import paths
+    from openagent_server import _frozen
+    from openagent_core.core import paths
 
     source_dir = ctx.test_dir / "_MEIsource" / "certifi"
     source_dir.mkdir(parents=True, exist_ok=True)
@@ -219,7 +219,7 @@ async def t_ssl_cert_copied_outside_mei(ctx: TestContext) -> None:
 
 @test("frozen_ssl_patch", "missing inherited SSL_CERT_FILE falls back to cached cert")
 async def t_missing_ssl_cert_file_uses_cached_copy(ctx: TestContext) -> None:
-    from src import _frozen
+    from openagent_server import _frozen
 
     cache_dir = ctx.test_dir / "stable-cache"
     cache_dir.mkdir(parents=True, exist_ok=True)

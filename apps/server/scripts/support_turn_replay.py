@@ -19,9 +19,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from src.core import local_support_controller as controller
-from src.core.dry_run import dry_run_scope
-from src.core.support_turn import requested_fields
+from openagent_support import local_support_controller as controller
+from openagent_core.core.dry_run import dry_run_scope
+from openagent_support.support_turn import requested_fields
 from scripts.tests.test_local_support_controller import _Doubles
 
 

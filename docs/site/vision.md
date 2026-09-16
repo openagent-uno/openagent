@@ -1,6 +1,6 @@
 # OpenAgent
 
-*An agnostic AI agent system that runs as a self-hosted server, communicates with users and other agents over a peer-to-peer network, and treats every input — text, audio, video, files, images — as a single unified stream.*
+*An embeddable agent runtime and a complete standalone product, independent of model, host identity, capability deployment and user interface, with one unified stream for text, audio, video, files and images.*
 
 ---
 
@@ -14,7 +14,9 @@ Both human developers and the agent itself are expected to read this document an
 
 OpenAgent is an agnostic AI agent system. It is agnostic of model, provider, framework, channel, and host: any reasoning engine can drive it, any platform can speak to it, any machine can run it.
 
-OpenAgent is server-shaped. A single long-running process owns the agent's memory, sessions, scheduled work, capabilities, and identity. Clients — the desktop app, the CLI, third-party integrations — are thin attachment points that connect to this server and surface it on a screen, in a terminal, or inside another platform.
+OpenAgent Core is an importable library with explicit construction, startup and shutdown. It owns reasoning, durable sessions and runs, framework rules and configured reusable modules. It does not require a server, standalone users, a network transport or tools installed on a computer. Hosts provide authenticated abstract principals, authorization, storage, model credentials and capability sources. Two runtime instances can live independently in the same process.
+
+The standalone OpenAgent product assembles the library into an app, CLI, server and MCP bridge. GlassPalace and other products assemble the same public library into their own runtime and build their own distributions. A product may expose the optional gateway or invoke the SDK directly; both paths use the same authorization and run services. Kubernetes pods, sandbox isolation, volumes and machine lifecycle belong to the host product.
 
 Every user runs their own OpenAgent. Each agent has its own identity, its own memory vault, its own configured set of models and capabilities, and its own history. Agents discover one another and communicate directly, peer-to-peer, without any central authority mediating between them.
 
@@ -22,7 +24,7 @@ Every user runs their own OpenAgent. Each agent has its own identity, its own me
 
 All input flows through one unified stream abstraction. Text typed in a chat, audio captured from a microphone, frames from a webcam, files dropped into a conversation, images pasted from a clipboard — every form of input travels the same way and is interpreted by the same pipeline.
 
-Users can send fast bursts of input without losing coherence. A rapid sequence of short messages, optionally interleaved with file attachments, is coalesced into a single turn so the agent reasons over the user's complete intent rather than fragmenting its response. Ordering is preserved; nothing is dropped.
+Users can send fast bursts of input without losing coherence. A rapid sequence of short messages, optionally interleaved with file attachments, is coalesced into a single turn so the agent reasons over the user's complete intent rather than fragmenting its response. Ordering is preserved; nothing is dropped. Coalescing requires the same authenticated author and capability context. Another person's message creates a separately authorized turn and does not inherit the previous author's credentials.
 
 Voice and video are streams in the same sense. A live microphone or webcam feed produces a continuous bidirectional stream, supporting real-time conversation with the agent — comparable to a video call. The agent can speak while the user is still listening and stop mid-sentence when the user begins to speak again; interrupt and barge-in are first-class behaviors, not afterthoughts.
 
@@ -54,7 +56,7 @@ A child session is a real session, linked to the parent it was spawned from. It 
 
 Because a sub-agent is a full session, it is first-class everywhere sessions are. It appears in the session list tagged with its origin, it is navigable — the parent transcript shows each delegation as a card that opens the child session — and it can be continued: a user can drop into a sub-agent's session and send it a follow-up message. The same is true at any depth; a sub-agent that delegates further spawns child sessions of its own, and the lineage is explicit. Sub-agents may run in parallel when the work is independent and in sequence when one step feeds the next, scaling to hundreds of concurrent child sessions; the router decides the shape and synthesizes their results.
 
-Delegation is still cheap — a child session is a spawn, not a setup, and inherits the parent's capabilities wholesale — but it is no longer ephemeral. Decomposition leaves a durable, inspectable trail rather than vanishing into a single turn.
+Delegation is still cheap — a child session is a spawn, not a setup, and inherits only the parent turn's authorized capabilities — but it is no longer ephemeral. Decomposition leaves a durable, inspectable trail rather than vanishing into a single turn.
 
 Sub-agents are preferred over workflows for one-off decomposition. When a task naturally splits into "this part is best for model A, this part for model B," the router decomposes and delegates instead of scripting a multi-step chain. Workflows are for repeatable structure; sub-agents are for intelligent decomposition of a single turn.
 
@@ -74,9 +76,11 @@ Before acting on any non-trivial question, the agent consults the vault. After a
 
 The agent's capabilities beyond reasoning — file editing, shell execution, web search, browser control, calendar access, anything that touches the world — are delivered through MCPs (Model Context Protocol servers).
 
-A small set of MCPs is built in and always available. These include shell and bash execution, web search, file editing, browser/agent-in-Chrome control, and a handful of internal management surfaces (vault, scheduler, workflow manager, MCP manager, model manager, tool search). The built-in set is the floor of what an OpenAgent can do.
+Capabilities are registered explicitly by enabled modules, the host product or an authenticated originating client. Domain tools for the vault, history, scheduler, workflow, models and delegation live next to those Core modules. Independent filesystem, editor, shell, web search, computer-control and browser tools live in OpenAgent Tools. Dashboard capabilities belong to OpenAgent App. No computer or dashboard tool is installed by importing Core.
 
-Users can register custom MCPs at any time, by command, URL, or marketplace pick. The agent re-discovers tools on the next turn and uses them as soon as they appear; no restart is required. Removing an MCP cleanly removes its tools.
+One catalog exposes opaque tool references. A tool has the same contract whether a function, MCP process or connected app executes it. Exact targets and current authorizations are bound by the registry; arguments cannot select another identity or computer, and an unavailable executor is never silently replaced. Product-managed sources and user-editable sources have separate trusted ownership. A host may expose a fixed catalog with no dynamic installation.
+
+When their host enables dynamic installation, users can register custom MCPs at any time, by command, URL, or marketplace pick. The agent re-discovers tools on the next turn and uses them as soon as they appear; no restart is required. Removing an MCP cleanly removes its tools.
 
 A marketplace exposes vetted MCPs for easy discovery and installation. The marketplace is part of the OpenAgent experience, not an external add-on. Adding capabilities to an OpenAgent never requires modifying its source code.
 
@@ -84,7 +88,7 @@ MCPs are loaded into model context lazily. Tool schemas are deferred by default 
 
 ## 7. Scheduled Tasks
 
-Any prompt can be scheduled. A scheduled task is a full agent run on a cron expression, with the same capabilities as a live chat turn — the same memory vault, the same MCPs, the same sub-agent delegation, the same access to files and images.
+Any prompt can be scheduled. A scheduled task is a full agent run on a cron expression, with the same applicable framework, enabled durable modules and sub-agent semantics as a live chat turn. Each firing revalidates its durable delegation. Temporary client/device capabilities are never persisted into a scheduled task.
 
 Tasks are first-class objects. They can be created by the user from any channel, by the agent on its own initiative when it notices recurring work, or by other agents through federation. They are stored durably and survive restarts. A task can also be fired on demand — by the user from any client, or by the agent through its own tools — running immediately and out of band from its cron schedule, without disturbing the schedule or requiring the task to be enabled; an on-demand firing is recorded in the same run history as a scheduled one. A firing that is already in flight, however it was triggered, can be stopped the same way: the run is hard-stopped and recorded, while the schedule itself is left intact.
 
@@ -128,11 +132,11 @@ A single gateway exposes the agent to the outside world. WebSocket connections c
 
 First-party clients and third-party clients use the same gateway with the same authentication. There is no privileged internal API parallel to a reduced external API; the contract is the same for everyone.
 
-The gateway is the only public surface of the agent. Everything else — the model dispatcher, the MCP pool, the scheduler, the workflow executor, the vault, the logs — is internal and never spoken to directly. This keeps the security boundary, the schema, and the permission model in one place.
+The gateway and SDK expose the same public services. Every path, including replay, observation, workflow tool invocation and result publication, crosses the same authorization boundary. Products integrate through these contracts without patching private implementation modules.
 
 ## 11. Network, Identity, and Federation
 
-Users and agents authenticate over the Iroh peer-to-peer network. There is no central server, no public IP requirement, no port forwarding, no DNS dependency. A self-hosted OpenAgent on a laptop behind NAT is reachable from anywhere with an Iroh ticket.
+In the standalone product, users and agents authenticate over the Iroh peer-to-peer network. Core uses abstract identity references containing authority, tenant, subject and kind; another host may use its own authentication and identity directory. There is no central server, no public IP requirement, no port forwarding, no DNS dependency. A self-hosted OpenAgent on a laptop behind NAT is reachable from anywhere with an Iroh ticket.
 
 Users are members of an agent's network. Membership is cryptographic: a device holds a certificate signed by the agent acting as coordinator, and the certificate proves the device's identity at the transport layer before any application-level traffic flows. A user can have multiple devices on the same network; the identity is stable across them.
 
@@ -144,7 +148,7 @@ An agent may act as a coordinator for its own network, issuing certificates to i
 
 The agent runs a scheduled "dream" task that maintains its memory vault. Dreaming consolidates duplicate notes into single canonical ones, strengthens wiki-links between related notes, prunes stale or contradictory entries, and writes a dream-log that records what was reorganized and why.
 
-Dream mode is toggleable but not removable. A user may choose when it runs and how aggressively it operates, but cannot disable it permanently. An agent without dreaming degrades over time as its memory accumulates noise, redundancy, and broken cross-references; dreaming is the system's antidote to that decay.
+Dream mode belongs to the reusable vault module. The standalone and GlassPalace presets enable that module and preserve the existing maintenance defaults. A host chooses applicable modules and permissions; read-only vault access never creates an impossible write requirement. An agent without dreaming degrades over time as its memory accumulates noise, redundancy, and broken cross-references; dreaming is the system's antidote to that decay.
 
 Dream mode runs while the agent is otherwise idle — nightly by default, at a time the user can adjust. It does not compete with user-facing work, and any in-flight tasks take priority.
 
@@ -164,6 +168,8 @@ The log is local by default. Aggregation, remote forwarding, and retention polic
 
 ## 15. Built-in System Prompt
 
+A versioned framework system prompt is injected into every actual agent run. Enabled modules contribute mandatory applicable instructions; the host adds system prompt and persona, followed by trusted execution context and currently available capabilities. Product prompts cannot replace the framework. MCP descriptions remain tool documentation, without automatically gaining framework authority.
+
 A framework system prompt is injected into every conversation. It describes OpenAgent to the agent itself: the vault, the MCPs, the sub-agent model, the scheduler, the workflow engine, the network, the logs — every lever the agent can pull.
 
 This prompt is non-removable. A user-defined persona prompt — declared in the agent's YAML configuration — is layered on top of it, shaping the agent's voice and character; the framework prompt underneath establishes the agent's awareness of its own system. The user defines who the agent is; the framework defines what the agent has.
@@ -172,11 +178,11 @@ The same two-layer prompt — framework underneath, user persona on top — is l
 
 An OpenAgent agent knows what it is and what it can do. When asked a question, it does not guess at its own capabilities. When given a task, it does not improvise around its tools — it knows them, reaches for them deliberately, and surfaces them to the user when relevant.
 
-The agent is expected to be proactive. It surfaces patterns it notices — recurring work that could be scheduled, manual loops that could be workflows, gaps in the vault that should be filled — and proposes automations rather than waiting to be asked. This proactivity is part of what the framework prompt establishes.
+In the standalone default persona, the agent is expected to be proactive. It surfaces patterns it notices — recurring work that could be scheduled, manual loops that could be workflows, gaps in the vault that should be filled — and proposes automations rather than waiting to be asked. This proactivity and the project-manager role are configurable product defaults; framework tool and vault discipline remains mandatory where applicable.
 
 ## 16. Sessions and Continuity
 
-Every conversation is a session. Sessions are stored durably with full fidelity: every message in both directions, every file sent or received, every MCP tool call, every sub-agent delegation, every model output, every reasoning step that was made visible. Every message carries its author — which human (by network identity, so a session shared between several people attributes each message correctly) or, for a seed prompt the agent gave itself, the agent. A session is not an anonymous "user vs. assistant" stream; it records who said what.
+Every conversation is a session. Sessions are stored durably with full fidelity: every message in both directions, every file sent or received, every MCP tool call, every sub-agent delegation, every model output, every reasoning step that was made visible. Every message carries its immutable author — which human (by host-verified abstract identity, so a session shared between several people attributes each message correctly) or, for a seed prompt the agent gave itself, the agent. A session is not an anonymous "user vs. assistant" stream; it records who said what.
 
 Sessions can be resumed at any time from any channel. Resuming restores not just the text history but the attachments and the tool history that produced it; an agent picking up a week-old conversation has the same view of it as the user does.
 

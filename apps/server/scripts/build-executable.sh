@@ -82,7 +82,7 @@ case "$ARCH" in
     *)       ARCH_NAME="$ARCH" ;;
 esac
 
-VERSION=$(python -c "import src; print(src.__version__)")
+VERSION=$(python -c "import openagent_server; print(openagent_server.__version__)")
 ARCHIVE_NAME="openagent-${VERSION}-${OS_NAME}-${ARCH_NAME}"
 
 cd dist

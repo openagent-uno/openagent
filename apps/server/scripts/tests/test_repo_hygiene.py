@@ -24,7 +24,7 @@ Three tests, each catching a different layer the original bug crossed:
    broken-import bugs even in modules that no unit test currently
    exercises (the most general case of a61b943: a truncated file
    whose missing class is referenced only at production runtime, like
-   ``WorkflowExecutor`` being imported from ``src.core.scheduler``).
+   ``WorkflowExecutor`` being imported from ``openagent_core.core.scheduler``).
 
 These are not behavioural tests — they're structural guards. They
 should be cheap to run and very rare to flake. Keep their failure
@@ -173,17 +173,17 @@ _SMOKE_IMPORT_SKIP: frozenset[str] = frozenset({
     # CLI entry point — uses argparse at module-import time in some
     # PyInstaller invocations and is not meant to be imported as a
     # library. Coverage already comes from the live CLI tests.
-    "src.cli",
+    "openagent_server.cli",
     # Frozen-build runtime helper; some branches assume sys.frozen.
-    "src._frozen",
+    "openagent_server._frozen",
     # agent-federation adapters/backend import external packages that
     # ship with the separate ``openagent-mcp`` repo (``openagent_mcp``,
     # ``oa_agent_client``), NOT declared as server dependencies. They
     # resolve only when that sibling package is installed at runtime; in
     # a clean venv / CI they raise ModuleNotFoundError, which is expected
     # and harmless (the federation MCP simply isn't available there).
-    "src.mcp.servers.agent_federation.adapters",
-    "src.mcp.servers.agent_federation.backend",
+    "openagent_core.mcp.servers.agent_federation.adapters",
+    "openagent_core.mcp.servers.agent_federation.backend",
     # ACP adapter — imports the optional ``agent-client-protocol`` SDK
     # (the ``[acp]`` extra) at module top because ``OpenAgentACPAgent``
     # subclasses ``acp.Agent``. Absent the extra (base install / CI) these
@@ -191,8 +191,8 @@ _SMOKE_IMPORT_SKIP: frozenset[str] = frozenset({
     # reachable via ``openagent acp``, which lazily imports the SDK and
     # errors cleanly if it's missing. Same rationale as the federation
     # adapters above. (When the extra IS installed, test_acp exercises them.)
-    "src.acp.agent",
-    "src.acp.events",
+    "openagent_server.acp.agent",
+    "openagent_server.acp.events",
 })
 
 
@@ -215,26 +215,26 @@ _REGISTRATION_EXCEPTIONS: frozenset[str] = frozenset({
 })
 
 
-@test("repo_hygiene", "no stale 'from src.X' imports anywhere in src/ (incl. lazy)")
+@test("repo_hygiene", "no stale 'from openagent_core.X' imports anywhere in src/ (incl. lazy)")
 async def t_no_stale_src_imports(_ctx: TestContext) -> None:
-    """AST-walk every ``src/`` file and verify every ``from src.X`` /
-    ``import src.X`` statement points at a module that actually exists,
+    """AST-walk every ``src/`` file and verify every ``from openagent_core.X`` /
+    ``import openagent_server.X`` statement points at a module that actually exists,
     INCLUDING lazy imports nested inside functions, classes, or
     try/except blocks.
 
     The plain smoke-import test (below) only catches stale module-level
-    imports — a stale ``from src.models.smart_router import SmartRouter``
+    imports — a stale ``from openagent_core.models.smart_router import SmartRouter``
     hidden inside a handler function fires only when the HTTP endpoint
     is called. This test catches it before deployment.
     """
     import ast
     import pkgutil
-    import src as _src_pkg
+    import openagent_server as _src_pkg
 
     valid_modules: set[str] = {"src"}
     for _finder, name, _ispkg in pkgutil.walk_packages(
         path=_src_pkg.__path__,  # type: ignore[attr-defined]
-        prefix="src.",
+        prefix="openagent_core.",
     ):
         valid_modules.add(name)
 
@@ -250,11 +250,11 @@ async def t_no_stale_src_imports(_ctx: TestContext) -> None:
             continue
         for node in ast.walk(tree):
             mods: list[tuple[str, int]] = []
-            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("src."):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("openagent_core."):
                 mods.append((node.module, node.lineno))
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.startswith("src."):
+                    if alias.name.startswith("openagent_core."):
                         mods.append((alias.name, node.lineno))
             for mod_name, lineno in mods:
                 if mod_name not in valid_modules:
@@ -262,7 +262,7 @@ async def t_no_stale_src_imports(_ctx: TestContext) -> None:
                     failures.append((str(rel), lineno, mod_name))
 
     assert not failures, (
-        "Stale src.* imports — targets don't exist as modules. Lazy "
+        "Stale openagent_core.* imports — targets don't exist as modules. Lazy "
         "imports inside function bodies aren't caught by the smoke-"
         "import test because the function never runs at import time:\n  "
         + "\n  ".join(f"{file}:{line} → {mod}" for file, line, mod in failures)
@@ -276,12 +276,12 @@ async def t_every_src_module_imports(_ctx: TestContext) -> None:
     intra-package imports even in code paths no other test exercises.
 
     This is the *most general* version of the WorkflowExecutor
-    regression guard: if scheduler.py does ``from src.workflow.executor
+    regression guard: if scheduler.py does ``from openagent_core.workflow.executor
     import WorkflowExecutor`` and that name is gone, importing
-    ``src.core.scheduler`` raises ImportError — and we catch it here
+    ``openagent_core.core.scheduler`` raises ImportError — and we catch it here
     without needing a behavioural test for scheduler itself.
     """
-    import src as _src_pkg
+    import openagent_server as _src_pkg
 
     failures: list[tuple[str, str]] = []
     skipped: list[str] = []
@@ -289,10 +289,10 @@ async def t_every_src_module_imports(_ctx: TestContext) -> None:
     src_root = Path(_src_pkg.__file__).parent  # type: ignore[arg-type]
     # ``pkgutil.walk_packages`` follows __init__.py correctly and
     # gives dotted module names directly, no manual translation
-    # from file paths to ``src.foo.bar`` strings.
+    # from file paths to ``openagent_core.foo.bar`` strings.
     for finder, name, ispkg in pkgutil.walk_packages(
         path=_src_pkg.__path__,  # type: ignore[attr-defined]
-        prefix="src.",
+        prefix="openagent_core.",
     ):
         if name in _SMOKE_IMPORT_SKIP:
             skipped.append(name)

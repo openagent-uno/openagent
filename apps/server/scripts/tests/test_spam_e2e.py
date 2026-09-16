@@ -97,7 +97,7 @@ class _SlowAgent:
 
 
 def _make_session(agent: Any, **kwargs: Any):
-    from src.stream.session import StreamSession
+    from openagent_core.stream.session import StreamSession
     return StreamSession(agent, client_id="c", session_id="s", **kwargs)
 
 
@@ -121,7 +121,7 @@ async def t_burst_20_one_merged_turn(_ctx: TestContext) -> None:
     nothing dropped. Twenty messages back-to-back inside the coalesce
     window must reach the agent as ONE merged turn whose body contains
     every message text in arrival order."""
-    from src.stream.events import TextFinal, now_ms
+    from openagent_core.stream.events import TextFinal, now_ms
 
     agent = _SlowAgent(per_turn_sleep_s=0.05)
     sess = _make_session(agent, coalesce_window_ms=150)
@@ -186,7 +186,7 @@ async def t_burst_completes_in_coalesce_time_not_serial(_ctx: TestContext) -> No
     the bound is ~1 turn (0.3s) + 1 coalesce window (0.15s) ≈ 0.5s.
     Pin the upper bound at 1.5s — fails loudly on serial regressions
     without flaking on event-loop jitter."""
-    from src.stream.events import TextFinal, now_ms
+    from openagent_core.stream.events import TextFinal, now_ms
 
     per_turn = 0.3
     coalesce_ms = 150
@@ -234,7 +234,7 @@ async def t_burst_during_in_flight_turn(_ctx: TestContext) -> None:
     + cancel chain must not deadlock and every message must reach the
     agent (in the first turn, a salvaged retry, or a follow-up turn).
     """
-    from src.stream.events import TextFinal, now_ms
+    from openagent_core.stream.events import TextFinal, now_ms
 
     agent = _SlowAgent(per_turn_sleep_s=0.5)
     sess = _make_session(agent, coalesce_window_ms=100)

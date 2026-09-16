@@ -124,19 +124,19 @@ async def run(root: Path) -> None:
         _start_deterministic_model_endpoint,
         _wait_for_direct_addresses,
     )
-    from src.core import child_session as child_session_hooks
-    from src.core.agent import Agent
-    from src.gateway.server import Gateway
-    from src.memory.db import MemoryDB
-    from src.mcp.pool import MCPPool
-    from src.mcp.servers.agent_federation import handlers as federation_handlers
-    from src.models.native_provider import NativeProvider
-    from src.network.coordinator.store import CoordinatorStore
-    from src.network.identity import load_or_create_identity
-    from src.network.state import NetworkState
-    from src.network.ticket import InviteTicket
-    from src.stream import child_stream as child_stream_hooks
-    from src.stream import resource_events as resource_event_hooks
+    from openagent_core.core import child_session as child_session_hooks
+    from openagent_core.core.agent import Agent
+    from openagent_server.gateway.server import Gateway
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.mcp.pool import MCPPool
+    from openagent_core.mcp.servers.agent_federation import handlers as federation_handlers
+    from openagent_core.models.native_provider import NativeProvider
+    from openagent_identity.coordinator.store import CoordinatorStore
+    from openagent_identity.identity import load_or_create_identity
+    from openagent_identity.state import NetworkState
+    from openagent_identity.ticket import InviteTicket
+    from openagent_core.stream import child_stream as child_stream_hooks
+    from openagent_core.stream import resource_events as resource_event_hooks
 
     root = root.resolve()
     root.mkdir(parents=True, exist_ok=True)

@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 from scripts.tests._framework import test
 from scripts.tests.test_support_voice import state, VoiceModel, OK
 from scripts.tests.test_local_support_controller import _Doubles, _Toolkit, _Pool
-from src.core import local_support_controller as c, support_voice as v
-from src.core import support_guidance as g, support_delivery_receipts as receipts
+from openagent_support import local_support_controller as c, support_voice as v
+from openagent_support import support_guidance as g, support_delivery_receipts as receipts
 
 
 @test('support_sept7', 'MCP document and attachment envelopes preserve evidence, never errors')
@@ -89,7 +89,7 @@ async def repeated_attachment(_):
 
 @test('support_sept7', 'long success envelope retains actual blocked delivery and owner failure as valid JSON')
 async def retained(_):
-    from src.core.event_dispatcher import _retained_output
+    from openagent_core.core.event_dispatcher import _retained_output
     data={'controller':'esound-local-v1','thread_id':'synthetic','intent':'bug','outcome':'bug_needs_evidence',
           'reply':'Friendly but incomplete answer.','actions':[{'kind':'customer_reply','success':False,
           'receipt':{'sent':False,'blocked':True,'category':'ignores_question','reason':'x'*12000}}],

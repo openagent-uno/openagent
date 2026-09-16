@@ -24,6 +24,7 @@ import os
 import platform
 import sys
 from pathlib import Path
+from importlib.resources import files
 from PyInstaller.utils.hooks import (
     collect_all,
     collect_data_files,
@@ -129,7 +130,11 @@ hiddenimports = [
     # in-tree runtime including the inlined LLM provider drivers under
     # src.models.providers.* which native_provider.py loads dynamically
     # via importlib.import_module. No external agno collect is needed.
-    *collect_submodules("src"),
+    *collect_submodules("openagent_core"),
+    *collect_submodules("openagent_server"),
+    *collect_submodules("openagent_identity"),
+    *collect_submodules("openagent_dashboards"),
+    *collect_submodules("openagent_product_config"),
     # openagent-mcp: the in-process agent-federation builtin
     # (src/mcp/servers/agent_federation) imports the standalone openagent-mcp
     # package — oa_agent_client (Iroh agent-ALPN wire core) + openagent_mcp
@@ -201,27 +206,13 @@ binaries += _numpy_all[1]
 # Bundle the entire mcp/servers/ directory (built-in MCP servers).
 # Each Node MCP needs its dist/ and node_modules/ directories.
 
-mcps_dir = Path("src/mcp/servers")
+mcps_dir = Path(str(files("openagent_core").joinpath("mcp/servers")))
 
-# The vendored vault MCP (src/mcp/servers/vault) must be built before it is
-# bundled. ``scripts/build-executable.sh`` and CI's "Build Node MCPs" step
-# build the other Node MCPs, but CI's workflow list can't always be updated
-# (workflow-scope push restrictions), so build the vault MCP here too —
-# idempotent, best-effort. If it fails, the MCP self-bootstraps at first
-# launch (see builtins.py::resolve_builtin_entry), so the build never breaks.
-import subprocess as _sp
+# Node module artifacts must already belong to the installed, verified module
+# packages. Packaging must not mutate an installed dependency or download code.
 _vault_dir = mcps_dir / "vault"
-if _vault_dir.exists():
-    try:
-        if not (_vault_dir / "node_modules").exists():
-            print("openagent.spec: npm install (vault MCP)...")
-            _sp.run("npm install", cwd=str(_vault_dir), shell=True, check=True)
-        if not (_vault_dir / "dist").exists():
-            print("openagent.spec: npm run build (vault MCP)...")
-            _sp.run("npm run build", cwd=str(_vault_dir), shell=True, check=True)
-    except Exception as _e:  # noqa: BLE001 — runtime self-bootstrap is the fallback
-        print(f"openagent.spec: WARNING — vault MCP prebuild failed ({_e}); "
-              "it will self-build at first launch")
+if _vault_dir.exists() and not (_vault_dir / "dist").is_dir():
+    raise RuntimeError("The installed vault module has no built runtime artifacts")
 
 # agent-in-chrome (the CDP browser MCP) needs its Node deps (ws, MCP SDK, zod)
 # bundled. CI's release.yml "Build Node MCPs" loop doesn't cover its host/ dir,
@@ -245,18 +236,14 @@ if _host_bundle and not (_aic_dir / "node_modules").exists():
     raise RuntimeError(
         "The pinned host-tools bundle has no Agent in Chrome runtime dependencies"
     )
-if not _host_bundle and not (_aic_dir / "node_modules").exists():
-    try:
-        print("openagent.spec: npm install (agent-in-chrome/host)...")
-        _sp.run("npm install", cwd=str(_aic_dir), shell=True, check=True)
-    except Exception as _e:  # noqa: BLE001 — runtime self-bootstrap is the fallback
-        print(f"openagent.spec: WARNING — agent-in-chrome npm install failed ({_e})")
+if not (_aic_dir / "node_modules").exists():
+    raise RuntimeError("The installed browser tools have no bundled runtime dependencies")
 
 datas = []
 datas += _numpy_all[0]  # numpy data files (from collect_all)
 # Normative additive operational-storage/search schemas.  The runtime loads
 # these through importlib.resources, so one-file builds must carry them too.
-datas += collect_data_files("src.memory.operational", includes=["sql/*.sql"])
+datas += collect_data_files("openagent_core.memory.operational", includes=["sql/*.sql"])
 if mcps_dir.exists():
     # Bundle every MCP EXCEPT computer-control. The Rust binary for
     # computer-control must ship as a *sidecar* next to the openagent
@@ -280,7 +267,7 @@ if mcps_dir.exists():
     for child in mcps_dir.iterdir():
         if child.name in {"computer-control", "agent-in-chrome"}:
             continue
-        datas.append((str(child), f"src/mcp/servers/{child.name}"))
+        datas.append((str(child), f"openagent_core/mcp/servers/{child.name}"))
 
 # computer-control and Agent-in-Chrome are owned by the exact pinned
 # openagent-host-tools package.  Keep the browser source/dependencies available
@@ -316,8 +303,8 @@ datas += copy_metadata("email_validator")
 # ── Analysis ──
 
 a = Analysis(
-    ["src/cli.py"],
-    pathex=["."],
+    ["src/openagent_server/cli.py"],
+    pathex=["src"],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,

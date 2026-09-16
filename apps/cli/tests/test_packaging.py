@@ -25,33 +25,26 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_vendored_transport_lock_matches_committed_sources():
-    lock = json.loads((TRANSPORT / "transport-source.json").read_text())
-    assert lock["schema"] == 1
-    assert len(lock["source_commit"]) == 40
-    for relative, expected in lock["generated_files"].items():
-        path = TRANSPORT / relative
-        assert path.is_file(), relative
-        assert _sha256(path) == expected, relative
+def test_transport_and_identity_have_one_shared_implementation():
+    from openagent_identity.identity import Identity
+    from openagent_cli.network.identity import Identity as legacy_identity
+    from openagent_client_transport.network.identity import Identity as transport_identity
+    from openagent_core.stream.events import Event
+    from openagent_client_transport.stream.events import Event as transport_event
+    assert legacy_identity is Identity
+    assert transport_identity is Identity
+    assert transport_event is Event
 
 
-def test_vendored_transport_matches_sibling_server_when_available():
-    server = ROOT.parent / "openagent-server"
-    if not server.is_dir():
-        return
-    lock = json.loads((TRANSPORT / "transport-source.json").read_text())
-    for relative, expected in lock["source_files"].items():
-        path = server / relative
-        assert path.is_file(), relative
-        assert _sha256(path) == expected, (
-            f"{relative} drifted; rerun scripts/vendor-client-transport.py "
-            "after reviewing the client/server wire change"
-        )
+def test_cli_declares_exact_public_transport_dependency():
+    dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
+    assert "openagent-client-transport==1.0.0b1" in dependencies
+    assert not (ROOT / "scripts/vendor-client-transport.py").exists()
 
 
 def test_cli_owns_no_top_level_src_distribution_package():
     pyproject = (ROOT / "pyproject.toml").read_text()
-    assert 'include = ["openagent_cli*", "openagent_client_transport*"]' in pyproject
+    assert 'include = ["openagent_cli*"]' in pyproject
     assert not (ROOT / "src" / "__init__.py").exists()
     assert not (ROOT / "src" / "main.py").exists()
     assert not (ROOT / "src" / "client.py").exists()
@@ -401,8 +394,8 @@ def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     }
     wheel = lock["python_wheel"]
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert wheel["asset"] in pyproject
-    assert f"#sha256={wheel['sha256']}" in pyproject
+    assert '"openagent-host-tools==1.0.0b1"' in pyproject
+    assert "openagent-host-tools @" not in pyproject
     assert "[tool.uv.sources]" not in pyproject
     assert "../openagent-host-tools" not in pyproject
     for workflow_name in ("test.yml", "release.yml"):

@@ -25,7 +25,6 @@ mkdir -p "$packaging_tmp/source"
 cp "$packaging_root/pyproject.toml" "$packaging_root/cli.spec" "$packaging_tmp/source/"
 mkdir -p "$packaging_tmp/source/src" "$packaging_tmp/source/scripts"
 cp -R "$packaging_root/src/openagent_cli" "$packaging_tmp/source/src/"
-cp -R "$packaging_root/src/openagent_client_transport" "$packaging_tmp/source/src/"
 cp "$packaging_root/scripts/cli_entry.py" "$packaging_tmp/source/scripts/"
 
 cd "$packaging_tmp/source"
@@ -44,9 +43,7 @@ for packaging_required in \
   openagent_cli/main.py \
   openagent_cli/client.py \
   openagent_cli/remote_api.py \
-  openagent_cli/network/client/session.py \
-  openagent_client_transport/transport-source.json \
-  openagent_client_transport/network/client/session.py; do
+  openagent_cli/network/client/session.py; do
   grep -Fxq "$packaging_required" "$packaging_contents"
 done
 if grep -Eq '^(__init__|main|client|remote_api)\.py$' "$packaging_contents"; then
@@ -55,7 +52,7 @@ if grep -Eq '^(__init__|main|client|remote_api)\.py$' "$packaging_contents"; the
 fi
 
 uv venv --python "$packaging_python" "$packaging_tmp/venv"
-uv pip install --python "$packaging_tmp/venv/bin/python" "$packaging_wheel"
+uv pip install --python "$packaging_tmp/venv/bin/python" ${OPENAGENT_WHEELHOUSE:+--find-links "$OPENAGENT_WHEELHOUSE"} "$packaging_wheel"
 uv pip check --python "$packaging_tmp/venv/bin/python"
 
 mkdir -p "$packaging_tmp/run"

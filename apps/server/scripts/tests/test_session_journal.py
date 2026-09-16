@@ -20,7 +20,7 @@ from ._framework import TestContext, test
 
 
 async def _fresh_db(ctx: TestContext):
-    from src.memory.db import MemoryDB
+    from openagent_core.memory.db import MemoryDB
 
     path = ctx.db_path.with_name(f"journal-{uuid.uuid4().hex[:8]}.db")
     db = MemoryDB(str(path))
@@ -108,10 +108,10 @@ async def t_purge_takes_the_journal(ctx: TestContext) -> None:
 
 @test("session_journal", "il turno dice COME e' finito, non solo che e' finito")
 async def t_turn_end_carries_a_reason(ctx: TestContext) -> None:
-    from src.stream.events import (
+    from openagent_core.stream.events import (
         TURN_END_CANCELLED, TURN_END_COMPLETED, TURN_END_ERROR, TurnComplete,
     )
-    from src.stream.wire import event_to_wire, wire_to_event
+    from openagent_core.stream.wire import event_to_wire, wire_to_event
 
     frame = event_to_wire(TurnComplete(
         session_id="s", seq=1, ts_ms=1, reason=TURN_END_ERROR, error="boom",
@@ -181,7 +181,7 @@ async def t_endpoint_diagnostics(ctx: TestContext) -> None:
     # plausibile a cui manca un fatto e' peggio di un rifiuto onesto.
     import json
 
-    from src.gateway.api import sessions as api
+    from openagent_server.gateway.api import sessions as api
 
     class _FakeDB:
         JOURNAL_KNOWN_TYPES = frozenset({"user/message", "turn/end", "tool/status"})
@@ -275,7 +275,7 @@ async def t_config_redaction(ctx: TestContext) -> None:
     import pathlib
 
     src = pathlib.Path(__file__).resolve().parents[2] / "src" / "cli.py"
-    text = src.read_text()
+    text = openagent_core.read_text()
     assert "could_be_secret" in text, "la regola per forma non c'e' piu'"
     assert 'value.isdigit()' in text, "un valore numerico deve restare visibile"
     # E il segreto vero non deve mai finire stampato per intero.

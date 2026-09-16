@@ -22,7 +22,7 @@ async def t_support_model_calls_are_serialized(_ctx: TestContext) -> None:
     import asyncio
     from types import SimpleNamespace
 
-    from src.core import local_support_controller as controller
+    from openagent_support import local_support_controller as controller
 
     class SlowModel:
         def __init__(self):
@@ -113,9 +113,9 @@ class _Model:
         self.saw_strict_local = False
 
     async def generate(self, **_kwargs: Any) -> Any:
-        from src.core import support_turn
-        from src.core.execution_profile import strict_local_only_active
-        from src.core.tool_scope import current_tool_allowlist
+        from openagent_support import support_turn
+        from openagent_core.core.execution_profile import strict_local_only_active
+        from openagent_core.core.tool_scope import current_tool_allowlist
 
         self.saw_empty_tools = current_tool_allowlist() == frozenset()
         self.saw_strict_local = strict_local_only_active()
@@ -132,7 +132,7 @@ class _Model:
 
 @test("local_support_controller", "offline beats generic bug routing")
 async def t_offline_route(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         _extract_app_user_id,
         _intent,
         _version_at_least,
@@ -162,7 +162,7 @@ async def t_offline_route(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "controller is opt-in and scoped to Replio event")
 async def t_controller_gate(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import enabled
+    from openagent_support.local_support_controller import enabled
 
     old = os.environ.get("OPENAGENT_ESOUND_SUPPORT_CONTROLLER")
     try:
@@ -187,9 +187,9 @@ async def t_controller_gate(_ctx: TestContext) -> None:
 )
 async def t_controller_outranks_lean_profile(ctx: TestContext) -> None:
     """The controller owns support even when the composer is cloud-family."""
-    from src.core import local_support_controller as controller
-    from src.core.event_dispatcher import _dispatch_prompt
-    from src.memory.db import MemoryDB
+    from openagent_support import local_support_controller as controller
+    from openagent_core.core.event_dispatcher import _dispatch_prompt
+    from openagent_core.memory.db import MemoryDB
 
     class _Agent:
         name = "support-test"
@@ -234,7 +234,7 @@ async def t_controller_outranks_lean_profile(ctx: TestContext) -> None:
 
 @test("local_support_controller", "active Premium uses BillingBear and deterministic policy wording")
 async def t_active_premium(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -299,7 +299,7 @@ async def t_active_premium(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "missing Premium identity asks without BillingBear or human")
 async def t_missing_identity(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -338,7 +338,7 @@ async def t_missing_identity(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an ads complaint gets free routes instead of a billing interrogation")
 async def t_ads_policy_routes(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _is_ads_policy_complaint, run
+    from openagent_support.local_support_controller import _is_ads_policy_complaint, run
 
     assert not _is_ads_policy_complaint(
         "appUserId test-active: I am Premium but ads are still showing"
@@ -418,7 +418,7 @@ async def t_ads_policy_routes(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a subscriber is never told how to earn Premium free")
 async def t_ads_lane_yields_to_the_account(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -481,7 +481,7 @@ async def t_ads_lane_yields_to_the_account(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an eligible web refund is executed, not asked about")
 async def t_web_refund_executes(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -581,7 +581,7 @@ async def t_web_refund_executes(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "answering a queued thread does not empty the human queue")
 async def t_reply_keeps_waiting_for_team(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -641,7 +641,7 @@ async def t_reply_keeps_waiting_for_team(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "diagnostic proof is PII-free and dry runs never authorize a claim")
 async def t_diagnostic_proof_envelope(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         SupportState,
         _diagnostic_log_excerpt,
         _reply_verified_actions,
@@ -681,7 +681,7 @@ async def t_diagnostic_proof_envelope(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "last outbound activates idempotency before vault/model")
 async def t_already_answered(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     calls: list[str] = []
 
@@ -717,7 +717,7 @@ async def t_already_answered(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "ambiguous general reply cannot invent a product explanation")
 async def t_general_local_composer(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     async def threads_get(thread_id: str) -> dict[str, Any]:
         return {"ok": True, "id": thread_id}
@@ -826,7 +826,7 @@ async def t_bug_evidence_reads_the_whole_thread(_ctx: TestContext) -> None:
     follow-up look like a report with no version and no device, so the task was
     never filed and the customer was asked again for what he had already sent.
     """
-    from src.core import local_support_controller as controller
+    from openagent_support import local_support_controller as controller
 
     first = (
         "Su Android Auto non parte niente.\n---\n"
@@ -879,7 +879,7 @@ async def t_account_email_read_from_the_thread(_ctx: TestContext) -> None:
     order number or receipt — while the by-email lookup already answers the
     store, the renewal and the expiry.
     """
-    from src.core import local_support_controller as controller
+    from openagent_support import local_support_controller as controller
 
     first = (
         "Vorrei disdire l'abbonamento\n---\n"
@@ -1075,7 +1075,7 @@ async def _drive(
     writes: bool = True,
 ) -> dict[str, Any]:
     """Run one delivery through the controller and return its JSON output."""
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     inner: dict[str, Any] = {
         "thread_id": thread_id,
@@ -1236,7 +1236,7 @@ async def t_resolved_confirmation(_ctx: TestContext) -> None:
         "status": "closed",
     }
     # "thanks, but it still fails" is not a resolution.
-    from src.core.local_support_controller import _resolved_confirmation
+    from openagent_support.local_support_controller import _resolved_confirmation
 
     assert _resolved_confirmation("Thanks, but it still crashes") is False
 
@@ -1517,7 +1517,7 @@ async def t_messenger_window(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "bug routing picks the owning component, not the reporting app")
 async def t_bug_symptom_route(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _CLICKUP_LISTS, _bug_symptom_route
+    from openagent_support.local_support_controller import _CLICKUP_LISTS, _bug_symptom_route
 
     title, list_id, tag = _bug_symptom_route(
         "every time I open theme settings on iOS 19 the app crashes"
@@ -1633,7 +1633,7 @@ async def t_youtube_playlist_limit_requests_reproducer(_ctx: TestContext) -> Non
     ask for the playlist URL, which is the fixture needed to reproduce a
     provider continuation failure.
     """
-    from src.core import local_support_controller as controller
+    from openagent_support import local_support_controller as controller
 
     message = (
         "Hi, this app seemed like a pretty good alternative to YT Music, but "
@@ -1720,7 +1720,7 @@ async def t_bug_fails_closed(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "intent and language survive Italian, Spanish and French")
 async def t_multilingual_routing(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent, _language_hint
+    from openagent_support.local_support_controller import _intent, _language_hint
 
     # Substring matching used to misroute these: "change" contains "hang" and
     # "downloads" contains "ads".
@@ -1766,8 +1766,8 @@ async def t_italian_reply(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an invented refund in the passive voice is rejected")
 async def t_passive_fabrication_guard(_ctx: TestContext) -> None:
-    from src.core import reply_guard
-    from src.core.local_support_controller import _amount_is_verified, SupportState
+    from openagent_core.core import reply_guard
+    from openagent_support.local_support_controller import _amount_is_verified, SupportState
 
     # The active-voice pattern never saw this shape, and it is exactly the one
     # the local model produced for a Google Play refund that never happened.
@@ -1792,7 +1792,7 @@ async def t_passive_fabrication_guard(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an MCP server name resolves case- and separator-insensitively")
 async def t_server_name_resolution(_ctx: TestContext) -> None:
-    from src.mcp.pool import MCPPool, _normalized_mcp_name
+    from openagent_core.mcp.pool import MCPPool, _normalized_mcp_name
 
     assert _normalized_mcp_name("BillingBear") == _normalized_mcp_name("billingbear")
     assert _normalized_mcp_name("computer-control") == _normalized_mcp_name("computer_control")
@@ -1810,7 +1810,7 @@ async def t_server_name_resolution(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a rephrased receipt may change words, never claims")
 async def t_rephrase_containment(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _introduces_claim, SupportState
+    from openagent_support.local_support_controller import _introduces_claim, SupportState
 
     state = SupportState(thread_id="t", customer_message="refund")
     base = "The dry run simulated opening task 86-new-esound; no real change was made."
@@ -1838,7 +1838,7 @@ async def t_rephrase_containment(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "live-thread shapes: acknowledgements, machine mail, non-English bugs")
 async def t_real_thread_shapes(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         _intent, _is_machine_mail, _language_hint,
     )
 
@@ -1878,7 +1878,7 @@ async def t_real_thread_shapes(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "language: writing system decides, unknown never becomes English")
 async def t_language_all_scripts(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _language_hint
+    from openagent_support.local_support_controller import _language_hint
 
     # Real threads carried every one of these and each was answered in English.
     for text, code in (
@@ -1901,14 +1901,14 @@ async def t_language_all_scripts(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "September real messages retain Indonesian and Dutch")
 async def t_september_language_regressions(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _language_hint
+    from openagent_support.local_support_controller import _language_hint
     assert _language_hint("Terlalu lama loading dan beberapa tampilan hilang") == "id"
     assert _language_hint("Hoe kan ik mijn premium abonnement opzeggen?") == "nl"
 
 
 @test("local_support_controller", "offline policy cannot be freely rewritten as a Premium upsell")
 async def t_offline_policy_is_constrained(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     class Model:
         async def generate(self, **kwargs):
@@ -1934,7 +1934,7 @@ async def t_offline_policy_is_constrained(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "unknown-language fallback still attempts to mirror the customer")
 async def t_unknown_language_fallback_translates(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     class Model:
         async def generate(self, **kwargs):
             packet = json.loads(kwargs["messages"][0]["content"])
@@ -1949,7 +1949,7 @@ async def t_unknown_language_fallback_translates(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a greeting does not trigger a diagnostic questionnaire")
 async def t_greeting_is_not_a_bug(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     state = lsc.SupportState(thread_id="fixture", customer_message="Hola")
     state.outcome = "general_needs_detail"
     reply = lsc._fallback_reply(state)
@@ -1961,7 +1961,7 @@ async def t_greeting_is_not_a_bug(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a language label cannot excuse English prose")
 async def t_language_label_is_not_evidence(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     calls = []
     class Model:
         async def generate(self, **kwargs):
@@ -1980,7 +1980,7 @@ async def t_language_label_is_not_evidence(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "form values are read, labels are not evidence")
 async def t_form_fields_are_values(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _bug_evidence_missing, _form_fields
+    from openagent_support.local_support_controller import _bug_evidence_missing, _form_fields
 
     filled = (
         "The app closes when I open playlists\n\n---\n"
@@ -2018,7 +2018,7 @@ async def t_attachment_vision_honesty(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a phrase split by an email line break still routes")
 async def t_hard_wrapped_phrases(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent
+    from openagent_support.local_support_controller import _intent
 
     # Real body: "I would like to delete my\naccount." Matching a literal
     # space read that as a feature request ("I would like ...") and the
@@ -2035,7 +2035,7 @@ async def t_hard_wrapped_phrases(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a five-star review is never answered with a question")
 async def t_praise_is_not_a_ticket(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent
+    from openagent_support.local_support_controller import _intent
 
     for text in (
         "The app is great, I can even play along with the song, it's so much fun!!"
@@ -2051,7 +2051,7 @@ async def t_praise_is_not_a_ticket(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "Portuguese failure reports route as bugs, praise does not")
 async def t_portuguese_coverage(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent
+    from openagent_support.local_support_controller import _intent
 
     # All four arrived on real threads and all four landed in the generic
     # bucket, so a Brazilian customer with a crash got "tell me more".
@@ -2069,7 +2069,7 @@ async def t_portuguese_coverage(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the composer persists nothing (no session row, no history)")
 async def t_stateless_composition(_ctx: TestContext) -> None:
-    from src.core.execution_profile import (
+    from openagent_core.core.execution_profile import (
         stateless_completion_active, stateless_completion_scope,
     )
 
@@ -2090,7 +2090,7 @@ async def t_stateless_composition(_ctx: TestContext) -> None:
             return await super().generate(**kwargs)
 
     doubles = _Doubles()
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     previous = os.environ.get("OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES")
     os.environ["OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES"] = "1"
@@ -2115,7 +2115,7 @@ async def t_stateless_composition(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "draft mode writes for real but reaches no customer")
 async def t_draft_mode(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     doubles = _Doubles()
 
@@ -2165,7 +2165,7 @@ async def t_draft_mode(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a store review is composed inside the channel's cap")
 async def t_channel_reply_cap(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _fit_reply, _reply_cap
+    from openagent_support.local_support_controller import _fit_reply, _reply_cap
 
     # Replio hard-trims past these, and a trim lands mid-sentence.
     # Reviews remain short; private guidance keeps room for the next action.
@@ -2194,7 +2194,7 @@ async def t_channel_reply_cap(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the draft rung arms no other write")
 async def t_draft_rung_is_narrow(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     doubles = _Doubles(thread={"author_email": "owner@example.com"})
 
@@ -2242,7 +2242,7 @@ async def t_draft_rung_is_narrow(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the subject rescues a fragment, but never overturns the message")
 async def t_subject_as_signal(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent
+    from openagent_support.local_support_controller import _intent
 
     fragment = "Dans l appli on ne sait pas voir son adresse mail dom@example.com"
     # Alone the fragment says nothing; with the thread's subject it is a
@@ -2294,7 +2294,7 @@ async def t_subject_as_signal(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an eSound email resolves through Paddle, not the customer lookup")
 async def t_paddle_email_lookup(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         _BILLINGBEAR_PROJECT_ID, _customer_lookup_state, _paddle_verdict, run,
     )
 
@@ -2361,7 +2361,7 @@ async def t_paddle_email_lookup(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the web form's 32-hex id is never used as an appUserId")
 async def t_account_user_id_is_not_appuserid(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _extract_app_user_id
+    from openagent_support.local_support_controller import _extract_app_user_id
 
     # The form posts a 32-hex obfuscated id; BillingBear keys on a 24-hex
     # Mongo ObjectId. Using the former guarantees a 404, and a 404 read as
@@ -2376,7 +2376,7 @@ async def t_account_user_id_is_not_appuserid(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the recovery step follows the store that took the money")
 async def t_store_family_guidance(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _store_family
+    from openagent_support.local_support_controller import _store_family
 
     for store in ("apple", "app_store", "ios", "google", "google_play",
                   "playstore", "play_store"):
@@ -2392,7 +2392,7 @@ async def t_store_family_guidance(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an in-app purchase is never told to sign in with an email")
 async def t_iap_premium_guidance(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import run
+    from openagent_support.local_support_controller import run
 
     async def customer(appUserId: str) -> dict[str, Any]:
         return {
@@ -2433,7 +2433,7 @@ async def t_iap_premium_guidance(_ctx: TestContext) -> None:
 @test("local_support_controller", "no phrasing of 'the refund is done' survives without a receipt")
 async def t_no_unbacked_refund_claim(_ctx: TestContext) -> None:
     """Adversarial: every way a model has actually claimed a refund."""
-    from src.core import reply_guard
+    from openagent_core.core import reply_guard
 
     claims = [
         "I have refunded your subscription.",
@@ -2474,7 +2474,7 @@ async def t_no_unbacked_refund_claim(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a refund asked because the app is broken is fixed first")
 async def t_refund_malfunction_rule(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _intent, _refund_for_malfunction
+    from openagent_support.local_support_controller import _intent, _refund_for_malfunction
 
     # Policy rule 5: resolve before refunding - but never DROP the refund.
     for text in (
@@ -2492,7 +2492,7 @@ async def t_refund_malfunction_rule(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the refund threshold reads the catalogue, not a bare number")
 async def t_amount_anomaly_is_currency_aware(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _amount_is_anomalous, _store_family
+    from openagent_support.local_support_controller import _amount_is_anomalous, _store_family
 
     # Real catalogue from BillingBear: Premium is 14.99/yr and 1.99/mo. A bare
     # ">30" was dead code (nothing costs that) AND currency-blind: 79.99 BRL
@@ -2514,7 +2514,7 @@ async def t_amount_anomaly_is_currency_aware(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a legal or investment message is answered with silence")
 async def t_legal_silence(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     for text in (
         "I own the rights to this song, remove my content",
@@ -2579,7 +2579,7 @@ async def t_reviewer_language_wins(_ctx: TestContext) -> None:
     Portuguese while the text handed to us is English, so detecting the text
     answered every one of those reviewers in a language they had not used.
     """
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     body = (
         "The app is good, but it takes a long time to load.\n\n"
@@ -2593,7 +2593,7 @@ async def t_reviewer_language_wins(_ctx: TestContext) -> None:
 @test("local_support_controller", "hostility is never filed as praise")
 async def t_hostility_is_not_praise(_ctx: TestContext) -> None:
     """Silence is the worst possible reply to an angry customer."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     for insult in ("a mega piece of garbage", "esta app es una basura",
                    "app di merda", "this is the worst app", "useless",
@@ -2606,7 +2606,7 @@ async def t_hostility_is_not_praise(_ctx: TestContext) -> None:
 @test("local_support_controller", "a cancellation needs three things, not the word yes")
 async def t_cancellation_gate(_ctx: TestContext) -> None:
     """"Can you confirm?" used to cancel a paying customer's subscription."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     assert lsc._is_confirmed("confermo") is True
     assert lsc._is_confirmed("yes") is True
@@ -2632,7 +2632,7 @@ async def t_cancellation_gate(_ctx: TestContext) -> None:
 @test("local_support_controller", "an expired entitlement is not premium")
 async def t_entitlement_expiry(_ctx: TestContext) -> None:
     """The entitlement is the gate; the profile field can run ahead of it."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     assert lsc._entitlement_active({"expiresAt": "2099-01-01T00:00:00Z"}) is True
     assert lsc._entitlement_active({"expiresAt": "2020-01-01T00:00:00Z"}) is False
@@ -2652,7 +2652,7 @@ async def t_entitlement_expiry(_ctx: TestContext) -> None:
 @test("local_support_controller", "an appUserId is 24 hex, and the form's id is not one")
 async def t_app_user_id_shape(_ctx: TestContext) -> None:
     """The 32-hex account_user_id looks up a customer that does not exist."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     assert lsc._APP_USER_ID.match("5f8349b40a31dbebd7063a5d") is not None
     # The web form's account_user_id: 32 hex, a different identifier entirely.
@@ -2662,7 +2662,7 @@ async def t_app_user_id_shape(_ctx: TestContext) -> None:
 @test("local_support_controller", "severity follows the symptom, not the template")
 async def t_bug_severity(_ctx: TestContext) -> None:
     """Stamping 'urgent' on every task is the same as stamping none."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     assert lsc._bug_severity("crash", False) == "urgent"
     assert lsc._bug_severity("missing audio", False) == "high"
@@ -2679,7 +2679,7 @@ async def t_bug_severity(_ctx: TestContext) -> None:
 @test("local_support_controller", "a search hit is judged before it becomes 'known issue'")
 async def t_dedup_is_judged(_ctx: TestContext) -> None:
     """Saying a problem is known when it is not is worse than a duplicate."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     right = {"name": "Fix missing audio in the player", "listId": "L1"}
     wrong = {"name": "Fix crash in the library", "listId": "L1"}
@@ -2725,7 +2725,7 @@ async def t_dedup_is_judged(_ctx: TestContext) -> None:
 @test("local_support_controller", "the classifier covers what real threads actually say")
 async def t_classifier_real_shapes(_ctx: TestContext) -> None:
     """Every line here is a real message from the 1430-thread Replio corpus."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     cases = (
         # The app will not open or play: the largest cluster that used to sit
@@ -2779,7 +2779,7 @@ async def t_classifier_real_shapes(_ctx: TestContext) -> None:
 @test("local_support_controller", "an unstamped thread is not read as already answered")
 async def t_already_answered_ordering(_ctx: TestContext) -> None:
     """Sorting on the tuple compared 'inbound' vs 'outbound' as text."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     unstamped = {"messages": [
         {"direction": "outbound", "body_text": "what is your account email?"},
@@ -2802,7 +2802,7 @@ async def t_already_answered_ordering(_ctx: TestContext) -> None:
 @test("local_support_controller", "a bare email is an answer to us, not a new request")
 async def t_identifier_only_reply(_ctx: TestContext) -> None:
     """Greeting someone who just sent what we asked for reads as mechanical."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     for fragment in ("lina.perret12@gmail.com", "Re: (no subject) 123456",
                      "  a1b2c3d4e5f6a7b8c9d0  "):
@@ -2820,7 +2820,7 @@ async def t_identifier_only_reply(_ctx: TestContext) -> None:
 @test("local_support_controller", "the fallback classifier can only pick a label")
 async def t_model_classifier_is_constrained(_ctx: TestContext) -> None:
     """It has no tools, and anything off-list is discarded as 'general'."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     class _Reply:
         def __init__(self, content: str) -> None:
@@ -2865,7 +2865,7 @@ async def t_model_classifier_is_constrained(_ctx: TestContext) -> None:
 @test("local_support_controller", "an old review is answered, a not-found one is closed")
 async def t_review_send_is_attempted(_ctx: TestContext) -> None:
     """Age is not a reason for silence: only the store's refusal is."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     assert lsc._is_review_channel("playstore_reviews") is True
     assert lsc._is_review_channel("email") is False
@@ -2889,7 +2889,7 @@ async def t_review_send_is_attempted(_ctx: TestContext) -> None:
 @test("local_support_controller", "a terminal verdict is closed, not just tagged")
 async def t_terminal_outcomes_are_closed(_ctx: TestContext) -> None:
     """Leaving these open is what refires one thread ~25 times."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     previous = os.environ.get(lsc._WRITES_ENV)
     os.environ[lsc._WRITES_ENV] = "1"
@@ -2922,7 +2922,7 @@ async def t_terminal_outcomes_are_closed(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "the tenant decides product facts, never the policy")
 async def t_tenant_resolution(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         _CLICKUP_LISTS, _TENANTS, _bug_symptom_route, _is_other_brand, _tenant_for,
     )
 
@@ -2955,7 +2955,7 @@ async def t_tenant_resolution(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a tenant with no billing project fails closed")
 async def t_tenant_without_billing_project(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _TENANTS, _billing_lookup
+    from openagent_support.local_support_controller import _TENANTS, _billing_lookup
 
     # Every configured tenant must carry its own project: querying another
     # brand's would report a different product's customer.
@@ -2978,7 +2978,7 @@ async def t_tenant_without_billing_project(_ctx: TestContext) -> None:
 async def t_corrections_are_procedural(_ctx: TestContext) -> None:
     """The loop was open at the far end: corrections were written for weeks
     and no code path ever loaded one."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     for procedural in (
         "Answer this customer in the language they wrote in.",
@@ -3000,7 +3000,7 @@ async def t_corrections_are_procedural(_ctx: TestContext) -> None:
 async def t_correction_for(_ctx: TestContext) -> None:
     """Fixed sentences on purpose: a correction reaches every later reply, so
     no model-written text is allowed into one."""
-    from src.core.local_quality_scorer import (
+    from openagent_core.core.local_quality_scorer import (
         correction_for, verdict_for, weighted_score,
     )
 
@@ -3045,7 +3045,7 @@ class _FakeEmbedder:
         self.fail = False
 
     def _labels(self) -> list[str]:
-        from src.core import support_semantics as sem
+        from openagent_support import support_semantics as sem
 
         return (
             sorted(sem.INTENT_EXEMPLARS)
@@ -3058,7 +3058,7 @@ class _FakeEmbedder:
         self.calls += 1
         if self.fail:
             raise RuntimeError("embedding endpoint down")
-        from src.core import support_semantics as sem
+        from openagent_support import support_semantics as sem
 
         labels = self._labels()
         out = []
@@ -3093,7 +3093,7 @@ class _FakeEmbedder:
 
 
 def _install_fake_embedder(mapping=None) -> _FakeEmbedder:
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     sem.reset_for_tests()
     fake = _FakeEmbedder(mapping)
@@ -3104,7 +3104,7 @@ def _install_fake_embedder(mapping=None) -> _FakeEmbedder:
 
 @test("support_semantics", "a label is accepted only when it is clearly ahead")
 async def t_semantic_intent_thresholds(_ctx: TestContext) -> None:
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     try:
         _install_fake_embedder()
@@ -3130,7 +3130,7 @@ async def t_semantic_intent_thresholds(_ctx: TestContext) -> None:
 
 @test("support_semantics", "an unreachable embedder is silent, once")
 async def t_semantic_degrades_closed(_ctx: TestContext) -> None:
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     try:
         fake = _install_fake_embedder()
@@ -3148,7 +3148,7 @@ async def t_semantic_degrades_closed(_ctx: TestContext) -> None:
 
 @test("support_semantics", "the same answer twice is recognised across languages")
 async def t_semantic_repeat_detection(_ctx: TestContext) -> None:
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     german = "Premium ist aktiv. Melden Sie sich mit der Kauf-E-Mail an."
     english = "Premium is active. Sign in with the purchase email."
@@ -3173,8 +3173,8 @@ async def t_inferred_money_label_is_served(_ctx: TestContext) -> None:
     Semantics now reach the route; the payment provider still is not called on
     an inference.
     """
-    from src.core import local_support_controller as lsc
-    from src.core import support_semantics as sem
+    from openagent_support import local_support_controller as lsc
+    from openagent_support import support_semantics as sem
 
     state = lsc.SupportState(
         thread_id="t", channel="email_imap", customer_message="",
@@ -3202,7 +3202,7 @@ async def t_inferred_money_label_is_served(_ctx: TestContext) -> None:
 async def t_handoff_precedes_reply(_ctx: TestContext) -> None:
     """Replio's F9 guard reads waiting_for_team at SEND time, and an outbound
     message clears it. So the order is: queue, reply, re-queue."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     previous = os.environ.get(lsc._WRITES_ENV)
     os.environ[lsc._WRITES_ENV] = "1"
@@ -3242,8 +3242,8 @@ async def t_repeat_is_escalated(_ctx: TestContext) -> None:
     """The German/English Premium loop of 28-Aug-2026: the same instruction
     three times, the third after the customer wrote that it had arrived twice
     already and changed nothing."""
-    from src.core import local_support_controller as lsc
-    from src.core import support_semantics as sem
+    from openagent_support import local_support_controller as lsc
+    from openagent_support import support_semantics as sem
 
     previous = os.environ.get(lsc._WRITES_ENV)
     os.environ[lsc._WRITES_ENV] = "1"
@@ -3297,7 +3297,7 @@ async def t_signal_is_two_class(_ctx: TestContext) -> None:
     the paid-entitlement signal on a FREE user sends them into a billing
     lookup and asks them for a receipt, which is exactly what the ads-policy
     branch exists to avoid."""
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     try:
         _install_fake_embedder()
@@ -3327,7 +3327,7 @@ async def t_other_store_subscription(_ctx: TestContext) -> None:
     reports nothing - it needs the SAME product on both providers - so without
     this the customer is asked for more details about a charge we can already
     see and explain."""
-    from src.core.local_support_controller import _other_store_active_subscription
+    from openagent_support.local_support_controller import _other_store_active_subscription
 
     paddle_yearly = {
         "provider": "Paddle", "productId": "pro_01hqrb13tttrfgcfyy9eqykmpm",
@@ -3366,7 +3366,7 @@ async def t_intent_negative_exemplars(_ctx: TestContext) -> None:
     ios_availability, and rewriting every exemplar to name Apple explicitly
     pushed it to 0.726 — the embedder matches "I cannot find your app in a
     store", not the store's name. The neighbour has to be lost to."""
-    from src.core import support_semantics as sem
+    from openagent_support import support_semantics as sem
 
     try:
         _install_fake_embedder()
@@ -3394,7 +3394,7 @@ async def t_thin_body_is_not_classified(_ctx: TestContext) -> None:
     bodies reading "Aditya", "Music" and "Help me" all landed on `offline` at
     0.55-0.58, because the trailer looks like an app problem to an embedder.
     Those people have not said anything yet; asking is the right answer."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     trailer = (
         "\n---\naccount_email: n/a\naccount_user_id: n/a\napp_version: 5.2.0\n"
@@ -3416,7 +3416,7 @@ async def t_reproducible_bug_enables_diagnostics(_ctx: TestContext) -> None:
     A real Lyra thread (26-ago-2026) said "every time" three messages running
     and never got a capture, so support answered it blind for three days.
     """
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         _TENANTS,
         SupportState,
         _maybe_enable_bug_diagnostics,
@@ -3509,7 +3509,7 @@ async def t_reproducible_bug_enables_diagnostics(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "a vague complaint still earns no capture")
 async def t_vague_bug_skips_diagnostics(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import (
+    from openagent_support.local_support_controller import (
         SupportState,
         _maybe_enable_bug_diagnostics,
     )
@@ -3530,7 +3530,7 @@ async def t_vague_bug_skips_diagnostics(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "an MCP content envelope is still a list of items")
 async def t_result_items_unwraps_mcp_envelope(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _result_items
+    from openagent_support.local_support_controller import _result_items
 
     assert _result_items(["a", "b"]) == ["a", "b"]
     assert _result_items({"categories": ["a"]}) == ["a"]
@@ -3547,7 +3547,7 @@ async def t_tags_remove_uses_singular_tag(_ctx: TestContext) -> None:
     Adapting only the add left the diagnostics lane able to switch a capture
     on and never switch its thread tag back off.
     """
-    from src.core.local_support_controller import _adapt_args
+    from openagent_support.local_support_controller import _adapt_args
 
     singular = _Toolkit({"replio_threads_tags_add": lambda **_: None})
     singular.functions["replio_threads_tags_add"].parameters = {
@@ -3589,7 +3589,7 @@ async def t_clickup_comment_tool_is_resolvable(_ctx: TestContext) -> None:
     `clickup_create_comment`, `clickup_get_comments`, `clickup_update_comment`,
     and the arguments were right all along.
     """
-    from src.core.local_support_controller import _pick_tool
+    from openagent_support.local_support_controller import _pick_tool
 
     live = _Toolkit({
         "clickup_create_comment": lambda **_: None,
@@ -3621,7 +3621,7 @@ async def t_routing_evidence(_ctx: TestContext) -> None:
     Measured after a day of live traffic: the exemplar bank had been built 31
     times, and there was no way to answer "did meaning change a route, and into
     what" - the run report carries `intent_source` but is not kept."""
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
 
     plain = lsc.SupportState(thread_id="t", customer_message="", channel="email")
     assert lsc._routing_evidence(plain) == {
@@ -3662,7 +3662,7 @@ async def t_vault_push(_ctx: TestContext) -> None:
     import tempfile
     from pathlib import Path
 
-    from src.memory.vault.gitrepo import VaultGit, _redact_url, resolve_git_bin
+    from openagent_core.memory.vault.gitrepo import VaultGit, _redact_url, resolve_git_bin
 
     # A token in a URL must never reach a log line, whichever way it arrives.
     assert _redact_url("https://user:tok@git.example/x.git") == (
@@ -3712,7 +3712,7 @@ async def t_vault_push(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "installed ClickUp schema reads every page before dedup")
 async def t_clickup_installed_schema_pagination(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     calls = []
     async def get_tasks(list_id, include_closed, page):
         calls.append((list_id, include_closed, page))
@@ -3728,7 +3728,7 @@ async def t_clickup_installed_schema_pagination(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "ClickUp errors and repeated pages never mean no duplicate")
 async def t_clickup_incomplete_is_not_empty(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     for response in ({"error": "unavailable"}, {"tasks": [], "isError": True}, {"tasks": [{"id": "same"}], "last_page": False}):
         async def get_tasks(**kwargs):
             return response
@@ -3738,7 +3738,7 @@ async def t_clickup_incomplete_is_not_empty(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "task creation adapts to the installed snake-case schema")
 async def t_clickup_create_schema(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     toolkit = _Toolkit({"clickup_create_task": lambda **kwargs: None})
     toolkit.functions["clickup_create_task"].parameters = {"properties": {"list_id": {}, "name": {}}}
     pool = _Pool({"clickup": toolkit})
@@ -3747,7 +3747,7 @@ async def t_clickup_create_schema(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "tracker outage is team work, not another customer questionnaire")
 async def t_clickup_outage_handoff(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     pool = _Doubles().pool()
     pool._toolkit_by_name["clickup"] = _Toolkit({})
     state = lsc.SupportState(thread_id="fixture", customer_message="The app crashes on launch on Samsung S21 Android 15 app 1.4.11", tenant=lsc._TENANTS["lyra"])
@@ -3760,7 +3760,7 @@ async def t_clickup_outage_handoff(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "ClickUp MCP envelopes retain tasks, pagination and errors")
 async def t_clickup_real_envelopes(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     body = {"tasks": [{"id": "one"}], "last_page": True}
     wrapped = {"content": [{"type": "text", "text": json.dumps(body)}], "isError": False}
     assert lsc._clickup_payload(wrapped) == body
@@ -3778,7 +3778,7 @@ async def t_clickup_real_envelopes(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "unfiltered ClickUp lists do not suppress new grounded bugs")
 async def t_clickup_unfiltered_new_bug(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     doubles = _Doubles()
     pool = doubles.pool()
     toolkit = pool._toolkit_by_name["clickup"]
@@ -3803,8 +3803,8 @@ async def t_clickup_unfiltered_new_bug(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "billing transport envelopes preserve explicit account evidence")
 async def t_billing_transport_evidence(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _customer_lookup_state
-    from src.core.support_billing import billing_payload
+    from openagent_support.local_support_controller import _customer_lookup_state
+    from openagent_support.support_billing import billing_payload
     for active in (True, False):
         body = {"appUserId": "customer-test", "isPremium": active, "premiumSource": "Google"}
         envelope = {"content": [{"type": "text", "text": "HTTP 200 OK\n" + json.dumps(body)}]}
@@ -3860,8 +3860,8 @@ async def t_unreadable_billing_is_not_inactive(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "receipt parsing preserves the actual refund request")
 async def t_receipt_preserves_request(_ctx: TestContext) -> None:
-    from src.core.support_email import receipt_request
-    from src.core.local_support_controller import _intent, _customer_text, _recent_exchange
+    from openagent_support.support_email import receipt_request
+    from openagent_support.local_support_controller import _intent, _customer_text, _recent_exchange
     authored, receipt = receipt_request("Voglio un rimborso.\n" + _RECEIPT_FIXTURE)
     assert receipt and _intent(authored, "email_imap") == "refund", authored
     thread = {"messages": [{"direction": "inbound", "body_text": _RECEIPT_FIXTURE}]}
@@ -3892,7 +3892,7 @@ async def t_receipt_reconciliation_does_not_replay_old_receipt(_ctx: TestContext
 
 @test("local_support_controller", "billing enrichment never replaces evidence with a mismatched account")
 async def t_billing_enrichment_conflict(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _billing_lookup, _customer_lookup_state
+    from openagent_support.local_support_controller import _billing_lookup, _customer_lookup_state
     async def by_email(**kwargs):
         return {"content": [{"type": "text", "text": 'HTTP 200 OK\n{"appUserId":"test-id","isPremium":true}'}]}
     for full in ({"appUserId": "other-id", "isPremium": True},
@@ -3907,7 +3907,7 @@ async def t_billing_enrichment_conflict(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "playback follow-up keeps metadata without inheriting resolved library symptom")
 async def t_playback_followup_after_library_recovery(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     initial = "Gli album sono spariti dalla libreria.\napp_version: 1.4.11\ndevice: Redmi test\nos: Android 16\nplatform: android"
     latest = "Un altro problema: dopo due o tre brani la riproduzione si fermasse e devo premere play manualmente."
     state = lsc.SupportState(thread_id="fixture", customer_message=latest,
@@ -3923,7 +3923,7 @@ async def t_playback_followup_after_library_recovery(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "same playback title cannot merge an explicitly different product")
 async def t_dedup_product_scope(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     wrong = {"id": "other", "name": "Fix playback stopping in playback",
              "description": "Customer reports playback stopping on eSound.",
              "comments": [{"text": "Lyra report was mistakenly linked"}]}
@@ -3941,7 +3941,7 @@ async def t_dedup_product_scope(_ctx: TestContext) -> None:
 @test("local_support_controller", "live bug receipts produce customer wording without internal ids")
 async def t_live_bug_reply_without_tracker_id(_ctx: TestContext) -> None:
     from unittest.mock import patch
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     for language in ("it", "en"):
         for outcome in ("bug_created", "bug_deduplicated"):
             state = lsc.SupportState(thread_id="fixture", customer_message="Playback stops", outcome=outcome)
@@ -3955,7 +3955,7 @@ async def t_live_bug_reply_without_tracker_id(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "library recovery cannot guarantee that nothing was lost")
 async def t_library_loss_guarantees(_ctx: TestContext) -> None:
-    from src.core.local_support_controller import _unverified_recovery_advice
+    from openagent_support.local_support_controller import _unverified_recovery_advice
     for text in ("Non hai perso nulla.", "Non avete perso niente.", "You haven't lost anything.", "Nothing was lost.", "No has perdido nada."):
         assert _unverified_recovery_advice(text), text
     assert not _unverified_recovery_advice("Non posso ancora confermare la causa. Controlliamo la libreria.")
@@ -3964,7 +3964,7 @@ async def t_library_loss_guarantees(_ctx: TestContext) -> None:
 @test("local_support_controller", "Lyra task links use its own provider even with an eSound override")
 async def t_task_provider_tenant(_ctx: TestContext) -> None:
     from unittest.mock import patch
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     with patch.dict(os.environ, {"OPENAGENT_ESOUND_CLICKUP_PROVIDER_ID": "esound-only"}):
         assert lsc._task_provider_id(lsc._TENANTS["esound"]) == "esound-only"
         assert lsc._task_provider_id(lsc._TENANTS["lyra"]) == lsc._CLICKUP_PROVIDER_IDS["lyra"]
@@ -3974,7 +3974,7 @@ async def t_task_provider_tenant(_ctx: TestContext) -> None:
 
 @test("local_support_controller", "task product ownership outranks references to related reports")
 async def t_task_scope_incidental_reference(_ctx: TestContext) -> None:
-    from src.core import local_support_controller as lsc
+    from openagent_support import local_support_controller as lsc
     task = {"name": "Playback stops", "description": "Lyra issue; previous eSound link was wrong.",
             "tags": [{"name": "lyra"}]}
     assert lsc._task_is_other_product(task, lsc._TENANTS["esound"])

@@ -7,8 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from scripts.support_turn_replay import StdioModel
 from scripts.tests.test_local_support_controller import _Doubles
-from src.core import local_support_controller as c
-from src.core.dry_run import dry_run_scope
+from openagent_support import local_support_controller as c
+from openagent_core.core.dry_run import dry_run_scope
 
 CASES=[
  {'id':'esound-find-version-ios','product':'esound','turns':[

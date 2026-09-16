@@ -22,7 +22,7 @@ async def t_tool_search_denylist(ctx: TestContext) -> None:
     The policy must cover discovery, schema inspection, the normal prefixed
     runtime key, and the bare leaf alias accepted by tool-search.
     """
-    from src.mcp.servers.tool_search.adapters import (
+    from openagent_core.mcp.servers.tool_search.adapters import (
         _call_tool_impl,
         _describe_tool_impl,
         _list_servers_impl,
@@ -170,8 +170,8 @@ async def t_cli_dispatcher_covers_python_builtins(ctx: TestContext) -> None:
     on the VPS for three days. This check keeps the two lists in sync.
     """
     import inspect
-    from src import cli
-    from src.mcp.builtins import BUILTIN_MCP_SPECS
+    from openagent_server import cli
+    from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS
 
     src = inspect.getsource(cli.mcp_server_cmd.callback)
     missing = [
@@ -254,7 +254,7 @@ async def t_pool_tool_budget(ctx: TestContext) -> None:
     ``tool-search``, which is the model's only way back to the
     trimmed ones).
     """
-    from src.mcp.pool import MCPPool
+    from openagent_core.mcp.pool import MCPPool
 
     # ``include_defaults=False`` keeps the test hermetic: the pool
     # contains exactly the five MCPs listed below. Otherwise ``vault``,

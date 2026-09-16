@@ -115,7 +115,7 @@ if [ "$WANT_PKG" = true ]; then
     # ``import openagent.app`` tries to resolve a non-existent
     # ``openagent.app`` submodule and the build fails.
     PKG_BASE="${BINARY_NAME%.app}"
-    RELEASE_VERSION="$(python -c "from src import __version__; print(__version__)")"
+    RELEASE_VERSION="$(python -c "from openagent_server import __version__; print(__version__)")"
     # pkgbuild receives the PEP 440-normalized distribution version; the
     # external filename keeps the exact SemVer release/tag spelling.
     PKG_VERSION="$(python -c "from importlib.metadata import version; print(version('openagent-framework'))")"

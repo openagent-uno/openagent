@@ -54,10 +54,10 @@ def verify_history() -> None:
 
 def artifact_owner(filename: str, components: dict) -> str:
     # Most-specific match prevents openagent-cli from being assigned to server.
-    matches = [(len(value["artifact_prefix"]), name) for name, value in components.items()
-               if value.get("artifact_prefix") and
-               (filename.startswith(value["artifact_prefix"] + "-") or
-                filename.startswith(value["artifact_prefix"].replace("-", "_") + "-"))]
+    matches = [(len(prefix), name) for name, value in components.items()
+               for prefix in {value.get("artifact_prefix", ""), value.get("distribution", "")}
+               if prefix and (filename.startswith(prefix + "-") or
+                              filename.startswith(prefix.replace("-", "_") + "-"))]
     if not matches:
         raise ValueError(f"No component owns artifact {filename}")
     matches.sort(reverse=True)

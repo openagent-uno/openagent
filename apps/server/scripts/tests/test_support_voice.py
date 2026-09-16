@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 from scripts.tests._framework import test
 from scripts.tests.test_local_support_controller import _Doubles
-from src.core import local_support_controller as c, support_voice as v
+from openagent_support import local_support_controller as c, support_voice as v
 
 OK={k:True for k in ('facts_supported','required_content_preserved','answers_customer','humane','language_correct')}
 
@@ -15,8 +15,8 @@ class VoiceModel:
     def __init__(self, replies, verdicts=None):
         self.replies=iter(replies);self.verdicts=iter(verdicts or [OK]*4);self.calls=[]
     async def generate(self, **kw):
-        from src.core.tool_scope import current_tool_allowlist
-        from src.core.execution_profile import strict_local_only_active
+        from openagent_core.core.tool_scope import current_tool_allowlist
+        from openagent_core.core.execution_profile import strict_local_only_active
         assert current_tool_allowlist()==frozenset() and strict_local_only_active()
         self.calls.append(kw)
         if kw['system']==v.REVIEW_SYSTEM:
@@ -150,7 +150,7 @@ async def guidance_context(_):
     assert not v.guidance_supported({'product_steps_present':True,'source_quotes':['invented source']},packet)
     assert not v.guidance_supported({'product_steps_present':True,'source_quotes':[]},packet)
     assert v.guidance_supported({'product_steps_present':True,'source_quotes':['Verified product guidance belongs here.']},packet)
-    from src.core.support_turn import requested_fields
+    from openagent_support.support_turn import requested_fields
     assert requested_fields('Could you share your device model and operating system version?')=={'device','os'}
     assert not requested_fields("Could you send a recording? That helps me see what is going wrong on your device.")
     assert requested_fields('What app version are you using')=={'app_version'}

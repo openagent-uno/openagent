@@ -85,7 +85,7 @@ def _cleanup_sqlite_files(path: Path) -> None:
 async def _isolated_db(ctx: TestContext, label: str):
     """Use a private DB so scheduler request-queue tests do not claim rows
     left by earlier categories in the full suite."""
-    from src.memory.db import MemoryDB
+    from openagent_core.memory.db import MemoryDB
 
     tmp_db = ctx.db_path.with_name(
         f"workflow-parallel-{label}-{uuid.uuid4().hex[:8]}.db"
@@ -101,7 +101,7 @@ async def _isolated_db(ctx: TestContext, label: str):
 
 @test("workflow_parallel", "two distinct workflows run concurrently in one tick")
 async def t_distinct_workflows_run_in_parallel(ctx: TestContext) -> None:
-    from src.core.scheduler import Scheduler
+    from openagent_core.core.scheduler import Scheduler
 
     async with _isolated_db(ctx, "distinct") as db:
         scheduler = Scheduler(db=db, agent=_StubAgent())  # type: ignore[arg-type]
@@ -152,7 +152,7 @@ async def t_same_workflow_unlimited_default(ctx: TestContext) -> None:
     per-workflow ``asyncio.Lock``. Two 0.5 s runs of one cap-less
     workflow should finish in ≈0.5 s, not ≈1.0 s.
     """
-    from src.core.scheduler import Scheduler
+    from openagent_core.core.scheduler import Scheduler
 
     async with _isolated_db(ctx, "unlimited") as db:
         scheduler = Scheduler(db=db, agent=_StubAgent())  # type: ignore[arg-type]
@@ -191,7 +191,7 @@ async def t_same_workflow_cap_one_serializes(ctx: TestContext) -> None:
     concurrent runs of one workflow execute one at a time. Two 0.5 s
     runs should finish in ≈1.0 s, not ≈0.5 s.
     """
-    from src.core.scheduler import Scheduler
+    from openagent_core.core.scheduler import Scheduler
 
     async with _isolated_db(ctx, "cap1") as db:
         scheduler = Scheduler(db=db, agent=_StubAgent())  # type: ignore[arg-type]
@@ -233,7 +233,7 @@ async def t_same_workflow_cap_n_admits_n(ctx: TestContext) -> None:
     No cap: ≈0.5 s. cap=1: ≈1.5 s. cap=2 sits in the middle, so a
     band [0.9 s, 1.3 s] discriminates correctly.
     """
-    from src.core.scheduler import Scheduler
+    from openagent_core.core.scheduler import Scheduler
 
     async with _isolated_db(ctx, "cap2") as db:
         scheduler = Scheduler(db=db, agent=_StubAgent())  # type: ignore[arg-type]
@@ -276,7 +276,7 @@ async def t_cap_resize_takes_effect(ctx: TestContext) -> None:
     edit to ``None`` (unlimited) and assert two more runs finish in
     parallel (~0.5 s).
     """
-    from src.core.scheduler import Scheduler
+    from openagent_core.core.scheduler import Scheduler
 
     async with _isolated_db(ctx, "resize") as db:
         scheduler = Scheduler(db=db, agent=_StubAgent())  # type: ignore[arg-type]
@@ -328,7 +328,7 @@ async def t_handle_run_no_shared_task_attr(ctx: TestContext) -> None:
     src = Path(__file__).resolve().parent.parent.parent / (
         "src/gateway/api/workflow_tasks.py"
     )
-    text = src.read_text()
+    text = openagent_core.read_text()
     # Catch assignment specifically — the old broken identifier may
     # legitimately appear in comments explaining the fix.
     bad_assign = re.search(r"scheduler\._run_workflow_task\s*=", text)

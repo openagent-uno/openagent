@@ -12,7 +12,7 @@ from ._framework import TestContext, test
 
 @test("local_e2e", "local E2E mode requires a marked temporary fixture")
 async def test_local_e2e_guard(ctx: TestContext) -> None:
-    from src.cli import _enable_local_e2e
+    from openagent_server.cli import _enable_local_e2e
 
     previous = os.environ.get("OPENAGENT_IROH_DISCOVERY")
     try:
@@ -74,10 +74,10 @@ async def test_local_e2e_view_seed_warms_message_and_tool_search(
     _ctx: TestContext,
 ) -> None:
     from scripts.seed_local_e2e_views import _access, seed
-    from src.memory.db import MemoryDB
-    from src.memory.operational.search import operational_search_status
-    from src.memory.operational.service import OperationalSearchService
-    from src.network.coordinator.store import CoordinatorStore
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.search import operational_search_status
+    from openagent_core.memory.operational.service import OperationalSearchService
+    from openagent_identity.coordinator.store import CoordinatorStore
 
     with TemporaryDirectory(prefix="openagent-view-seed-search-") as directory:
         root = Path(directory)
@@ -170,7 +170,7 @@ async def test_local_e2e_view_seed_warms_message_and_tool_search(
 
 @test("local_e2e", "local E2E agent opens only its database")
 async def test_local_e2e_agent_boot_is_hermetic(ctx: TestContext) -> None:
-    from src.core.agent import Agent
+    from openagent_core.core.agent import Agent
 
     class SpyDB:
         connected = False
@@ -198,7 +198,7 @@ async def test_local_e2e_agent_boot_is_hermetic(ctx: TestContext) -> None:
 
 @test("local_e2e", "local E2E server omits every background writer")
 async def test_local_e2e_server_boot_is_hermetic(ctx: TestContext) -> None:
-    from src.core.server import AgentServer
+    from openagent_server.server import AgentServer
 
     class FakeAgent:
         name = "fixture"
@@ -225,13 +225,13 @@ async def test_local_e2e_server_boot_is_hermetic(ctx: TestContext) -> None:
 async def test_local_e2e_serve_ticket_has_address_hints(ctx: TestContext) -> None:
     import inspect
 
-    from src import cli as cli_module
-    from src.cli import _repack_serve_invites_after_start
-    from src.memory.db import MemoryDB
-    from src.network.cli_commands import auto_init_if_standalone, mint_first_user_invite
-    from src.network.coordinator.store import CoordinatorStore
-    from src.network.coordinator_addr_cache import write_cache
-    from src.network.ticket import InviteTicket
+    from openagent_server import cli as cli_module
+    from openagent_server.cli import _repack_serve_invites_after_start
+    from openagent_core.memory.db import MemoryDB
+    from openagent_identity.cli_commands import auto_init_if_standalone, mint_first_user_invite
+    from openagent_identity.coordinator.store import CoordinatorStore
+    from openagent_identity.coordinator_addr_cache import write_cache
+    from openagent_identity.ticket import InviteTicket
 
     # Pin the actual CLI orchestration, not only the packer: entering the
     # AgentServer context publishes coordinator_addr.json, and no oa1 envelope

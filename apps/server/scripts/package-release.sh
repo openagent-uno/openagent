@@ -65,7 +65,7 @@ fi
 # tags, updater lookup, checksums, and filenames use the external SemVer form,
 # so read the deliberately lightweight source constant instead. This runs in
 # the repo root, before ``cd dist``, and cannot be shadowed by PyInstaller.
-VERSION="$("$PYTHON_BIN" -c "from src import __version__; print(__version__)")"
+VERSION="$("$PYTHON_BIN" -c "from openagent_server import __version__; print(__version__)")"
 
 # Unified SHA-256 helper — macOS has ``shasum``, Linux/Git Bash have
 # ``sha256sum``. ``shasum -a 256`` on macOS and ``sha256sum`` on Linux

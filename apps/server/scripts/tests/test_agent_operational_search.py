@@ -19,7 +19,7 @@ def _entrypoint(toolkit):
 
 @test("agent_operational_search", "tool has no identity args and missing context fails closed")
 async def t_identity_is_not_model_selectable(_ctx: TestContext) -> None:
-    from src.mcp.servers.memory_search.adapters import build_runtime_toolkit
+    from openagent_core.mcp.servers.memory_search.adapters import build_runtime_toolkit
 
     tool = _entrypoint(build_runtime_toolkit(SimpleNamespace(_db=None)))
     parameters = inspect.signature(tool).parameters
@@ -40,14 +40,14 @@ async def t_identity_is_not_model_selectable(_ctx: TestContext) -> None:
 
 @test("agent_operational_search", "authenticated tool matches API corpus without secret leakage")
 async def t_authorized_redacted_five_scope_parity(_ctx: TestContext) -> None:
-    from src.core.on_behalf_context import (
+    from openagent_core.core.on_behalf_context import (
         OnBehalfIdentity,
         install_on_behalf_identity,
         reset_on_behalf_identity,
     )
-    from src.gateway.api import operational
-    from src.mcp.servers.memory_search.adapters import build_runtime_toolkit
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.mcp.servers.memory_search.adapters import build_runtime_toolkit
+    from openagent_core.memory.db import MemoryDB
     from scripts.tests.test_operational_api import (
         _Request,
         _payload,
@@ -205,8 +205,8 @@ async def t_authorized_redacted_five_scope_parity(_ctx: TestContext) -> None:
     "bounded candidate window never publishes an unusable continuation offset",
 )
 async def t_bounded_window_has_no_dead_cursor(_ctx: TestContext) -> None:
-    from src.memory.operational import service
-    from src.memory.operational.access import AccessContext
+    from openagent_core.memory.operational import service
+    from openagent_core.memory.operational.access import AccessContext
 
     candidate = {
         "document_kind": "session_metadata",
@@ -293,11 +293,11 @@ async def t_bounded_window_has_no_dead_cursor(_ctx: TestContext) -> None:
 
 @test("agent_operational_search", "stream binds and resets verified on-behalf identity")
 async def t_stream_context_lifetime(_ctx: TestContext) -> None:
-    from src.core.on_behalf_context import (
+    from openagent_core.core.on_behalf_context import (
         OnBehalfIdentity,
         current_on_behalf_identity,
     )
-    from src.stream.session import StreamSession, StreamTurnRunner
+    from openagent_core.stream.session import StreamSession, StreamTurnRunner
 
     identity = OnBehalfIdentity("network", "user", "alice", "device")
     observed = []

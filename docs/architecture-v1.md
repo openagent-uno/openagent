@@ -57,7 +57,13 @@ is insufficient.
 ## Current status
 
 The repository-history import and workspace/release tooling are implemented.
-The source components are retained while extraction is in progress. The v1
+Server composition, identity, dashboards, support and product prompts have
+been relocated into product packages; engine source has been removed from
+this repository. The host-tools compatibility package delegates to the
+independent tool packages. CLI identity and transport implementations now
+share product packages instead of generated copies. Product wheels build.
+Standalone runtime/gateway admission and native release qualification remain
+in progress; package builds do not establish end-to-end readiness. The v1
 runtime, product and client integration gates must pass before this document
 can state that the migration is complete. No production repository, release
 asset, installed application or persistent agent directory has been changed

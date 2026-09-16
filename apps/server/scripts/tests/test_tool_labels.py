@@ -50,16 +50,16 @@ _NON_MCP_OPS: frozenset[str] = frozenset({
 
 def _real_vault_ops() -> set[str]:
     """Every bare op the two vault servers actually register."""
-    from src.channels.tool_labels import _memory_op
-    from src.mcp.builtins import BUILTIN_MCP_SPECS, BUILTIN_MCPS_DIR
+    from openagent_server.channels.tool_labels import _memory_op
+    from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, BUILTIN_MCPS_DIR
 
     ops: set[str] = set()
 
     # vault — vendored Node server; parse its ListTools handler rather than
     # requiring a built dist/ at test time.
     src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS["vault"]["dir"] / "src/createServer.ts"
-    assert src.exists(), f"vault server source missing at {src}"
-    for t in _TS_TOOL_NAME.findall(src.read_text()):
+    assert openagent_core.exists(), f"vault server source missing at {src}"
+    for t in _TS_TOOL_NAME.findall(openagent_core.read_text()):
         ops.add(_memory_op(f"vault_{t}"))
 
     # vault-gate — in-process toolkit; ask the factory what it registered.
@@ -79,7 +79,7 @@ def _real_vault_ops() -> set[str]:
 
 @test("tool_labels", "every labelled memory op is a real registered tool")
 async def t_no_phantom_labels(ctx: TestContext) -> None:
-    from src.channels.tool_labels import _MEMORY_VERBS
+    from openagent_server.channels.tool_labels import _MEMORY_VERBS
 
     real = _real_vault_ops()
     phantom = sorted(
@@ -101,7 +101,7 @@ async def t_no_unlabelled_tools(ctx: TestContext) -> None:
     Discord / Slack / WhatsApp message. `list_directory` was in this state
     while `list_notes` — which does not exist — held the label meant for it.
     """
-    from src.channels.tool_labels import _MEMORY_VERBS
+    from openagent_server.channels.tool_labels import _MEMORY_VERBS
 
     unlabelled = sorted(_real_vault_ops() - set(_MEMORY_VERBS))
     assert not unlabelled, (
@@ -118,8 +118,8 @@ async def t_list_directory_resolves(ctx: TestContext) -> None:
     _memory_op strips the server prefix, so both the prefixed key and the
     dispatcher-unwrapped bare name must land on the same verb.
     """
-    from src.channels.base import ToolStatusEvent
-    from src.channels.tool_labels import _memory_op, is_memory_tool, status_line
+    from openagent_core.media import ToolStatusEvent
+    from openagent_server.channels.tool_labels import _memory_op, is_memory_tool, status_line
 
     assert _memory_op("vault_list_directory") == "list_directory"
     assert _memory_op("list_directory") == "list_directory"

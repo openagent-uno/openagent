@@ -351,7 +351,7 @@ async def t_desktop_harness_uses_canonical_db(ctx: TestContext) -> None:
     assert seed_calls[0].args[1].id == "model_base_url"
 
     from scripts.desktop_real_iroh_harness import _seed_deterministic_model
-    from src.memory.db import MemoryDB
+    from openagent_core.memory.db import MemoryDB
 
     catalog_path = ctx.db_path.with_name(
         f"desktop-harness-catalog-{uuid.uuid4().hex[:8]}.db"
@@ -388,21 +388,21 @@ async def t_real_iroh_client_tool_turn(ctx: TestContext) -> None:
     )
     from openagent_host_tools.local_broker import LocalBrokerServer
 
-    from src.core.agent import Agent
-    from src.core import child_session as child_session_hooks
-    from src.gateway.server import Gateway
-    from src.memory.db import MemoryDB
-    from src.mcp.servers.agent_federation import handlers as federation_handlers
-    from src.network.client.login import register
-    from src.network.client.session import LoopbackProxy, NetworkBinding, SessionDialer
-    from src.network.coordinator.store import CoordinatorStore
-    from src.network.identity import Identity, load_or_create_identity
-    from src.network.iroh_node import IrohNode
-    from src.network.state import NetworkState
-    from src.mcp.pool import MCPPool
-    from src.models.native_provider import NativeProvider
-    from src.stream import child_stream as child_stream_hooks
-    from src.stream import resource_events as resource_event_hooks
+    from openagent_core.core.agent import Agent
+    from openagent_core.core import child_session as child_session_hooks
+    from openagent_server.gateway.server import Gateway
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.mcp.servers.agent_federation import handlers as federation_handlers
+    from openagent_identity.client.login import register
+    from openagent_identity.client.session import LoopbackProxy, NetworkBinding, SessionDialer
+    from openagent_identity.coordinator.store import CoordinatorStore
+    from openagent_identity.identity import Identity, load_or_create_identity
+    from openagent_identity.iroh_node import IrohNode
+    from openagent_identity.state import NetworkState
+    from openagent_core.mcp.pool import MCPPool
+    from openagent_core.models.native_provider import NativeProvider
+    from openagent_core.stream import child_stream as child_stream_hooks
+    from openagent_core.stream import resource_events as resource_event_hooks
 
     root = ctx.db_path.with_name(f"real-iroh-{uuid.uuid4().hex[:8]}")
     root.mkdir(parents=True, exist_ok=True)

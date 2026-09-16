@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.core._runner.utils.functions import get_function_call
-from src.mcp._runtime.function import Function
+from openagent_core.core._runner.utils.functions import get_function_call
+from openagent_core.mcp._runtime.function import Function
 
 from scripts.tests._framework import test
 

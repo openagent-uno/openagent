@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 from scripts.support_turn_replay import StdioModel
-from src.core import local_quality_scorer as scorer
+from openagent_core.core import local_quality_scorer as scorer
 
 CASES = (
     ('profile-promise-es', 'Quiero cambiar el correo de mi cuenta.',

@@ -212,7 +212,7 @@ def test_server_committed_lock_and_python_dependency_are_immutable():
 
 
 def test_server_native_target_matches_every_release_platform():
-    import src.mcp.builtins as builtins
+    import openagent_server.mcp.builtins as builtins
 
     original_system = builtins.platform.system
     original_machine = builtins.platform.machine
@@ -381,7 +381,7 @@ def test_iroh_source_acquisition_rejects_checksum_mismatch_and_traversal(
 def test_release_packager_uses_build_python_arch_and_rejects_runner_mismatch(
     tmp_path: Path,
 ):
-    from src import __version__
+    from openagent_server import __version__
 
     fake_bin = tmp_path / "fake-bin"
     fake_bin.mkdir()
@@ -484,7 +484,7 @@ async def _registered_release_contract(_ctx: TestContext) -> None:
 
 @register_test("host-tools", "all six release targets resolve native sidecars")
 async def _registered_native_targets(_ctx: TestContext) -> None:
-    import src.mcp.builtins as builtins
+    import openagent_server.mcp.builtins as builtins
 
     original_system = builtins.platform.system
     original_machine = builtins.platform.machine

@@ -4,7 +4,7 @@
 set -euo pipefail
 
 DIST="${1:-dist}"
-VERSION="$(python -c 'from src import __version__; print(__version__)')"
+VERSION="$(python -c 'from openagent_server import __version__; print(__version__)')"
 TMP_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/openagent-release-smoke.XXXXXX")"
 trap 'rm -r -- "$TMP_ROOT"' EXIT
 

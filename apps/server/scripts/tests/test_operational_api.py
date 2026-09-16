@@ -44,7 +44,7 @@ def _payload(response) -> dict:
 
 @test("operational_api", "explicit channel filter supports gateway-only canaries")
 async def t_gateway_only_channel_filter(_ctx: TestContext) -> None:
-    from src.core.server import _selected_bridge_names
+    from openagent_server.server import _selected_bridge_names
 
     config = {
         "channels": {
@@ -60,7 +60,7 @@ async def t_gateway_only_channel_filter(_ctx: TestContext) -> None:
 
 @test("operational_api", "user and agent principals with the same handle never alias")
 async def t_principal_type_isolation(_ctx: TestContext) -> None:
-    from src.memory.operational.access import AccessContext, row_is_visible_without_grant
+    from openagent_core.memory.operational.access import AccessContext, row_is_visible_without_grant
 
     gateway = SimpleNamespace()
     user = AccessContext.from_request(
@@ -99,8 +99,8 @@ async def t_principal_type_isolation(_ctx: TestContext) -> None:
 
 @test("operational_api", "reused tool call ids keep message and detail deep-links run-local")
 async def t_run_local_tool_deep_links(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-tool-links-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -370,7 +370,7 @@ async def _seed_complete_fixture(db) -> tuple[str, object]:
         "INSERT INTO workflow_tasks(id,name,description,graph_json,created_at,updated_at) VALUES(?,?,?,?,?,?)",
         ("private-workflow", "Private garden", "secretgarden", '{"version":1,"nodes":[],"edges":[]}', now, now),
     )
-    from src.memory.operational.automation import claim_resource, project_automation
+    from openagent_core.memory.operational.automation import claim_resource, project_automation
 
     tenant_row = await (await c.execute("SELECT tenant_id FROM sessions_v2 LIMIT 1")).fetchone()
     tenant = str(tenant_row[0])
@@ -383,8 +383,8 @@ async def _seed_complete_fixture(db) -> tuple[str, object]:
     # Custom Views join the same global corpus through a dedicated canonical
     # ACL/revision check; dynamic data, scripts, and source configs remain out
     # of FTS. Seed one private static definition to pin that tenth target.
-    from src.custom_views.repository import CustomViewRepository
-    from src.memory.operational.access import AccessContext
+    from openagent_dashboards.repository import CustomViewRepository
+    from openagent_core.memory.operational.access import AccessContext
 
     await CustomViewRepository(db).create(
         AccessContext(
@@ -418,9 +418,9 @@ async def _seed_complete_fixture(db) -> tuple[str, object]:
     "related runs recover bounded historical launch targets with independent ACLs",
 )
 async def t_session_related_runs_historical_fallback(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.automation import claim_resource, project_automation
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.automation import claim_resource, project_automation
 
     with TemporaryDirectory(prefix="openagent-related-runs-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -723,8 +723,8 @@ async def t_session_related_runs_historical_fallback(_ctx: TestContext) -> None:
     "session subtree is cycle-safe, paginated, and feeds descendant runs",
 )
 async def t_session_descendants_and_nested_related_runs(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-session-tree-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -1017,9 +1017,9 @@ async def t_session_descendants_and_nested_related_runs(_ctx: TestContext) -> No
 
 @test("operational_api", "fresh capability warms index and all ten targets are searchable")
 async def t_capability_and_all_targets(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.search import operational_search_path
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.search import operational_search_path
 
     with TemporaryDirectory(prefix="openagent-operational-api-") as directory:
         path = Path(directory) / "openagent.db"
@@ -1058,8 +1058,8 @@ async def t_capability_and_all_targets(_ctx: TestContext) -> None:
                 "scheduled_definition", "scheduled_run", "event_definition", "event_delivery",
                 "ui_view",
             }, targets
-            from src.memory.operational.access import AccessContext
-            from src.memory.operational.service import search_rows_visible
+            from openagent_core.memory.operational.access import AccessContext
+            from openagent_core.memory.operational.service import search_rows_visible
 
             search_snapshot = next(
                 iter(gateway._operational_cursor_state.search.values())
@@ -1336,7 +1336,7 @@ async def t_capability_and_all_targets(_ctx: TestContext) -> None:
                 assert b"NEVER_INDEX_" not in contents, candidate.name
                 assert b"NEVERINDEX" not in contents, candidate.name
                 assert candidate.stat().st_mode & 0o777 == 0o600, candidate.name
-            from src.memory.operational.search import _open_index
+            from openagent_core.memory.operational.search import _open_index
 
             pragma_conn = _open_index(search_path)
             try:
@@ -1398,9 +1398,9 @@ async def t_capability_and_all_targets(_ctx: TestContext) -> None:
 
 @test("operational_api", "a ready index from another canonical database is rebuilt")
 async def t_foreign_ready_index_is_rebuilt(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.search import operational_search_path, sync_operational_search
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.search import operational_search_path, sync_operational_search
 
     with TemporaryDirectory(prefix="openagent-operational-replacement-") as directory:
         path = Path(directory) / "openagent.db"
@@ -1490,8 +1490,8 @@ async def t_foreign_ready_index_is_rebuilt(_ctx: TestContext) -> None:
 
 @test("operational_api", "history/messages/search enforce ACL and stable snapshots")
 async def t_acl_history_messages_and_snapshot(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-contract-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -1643,8 +1643,8 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
     cursor continuation rather than inherited from the derived snapshot.
     """
 
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-batch-auth-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -1713,8 +1713,8 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
             assert [item["root"]["id"] for item in granted["items"]] == [
                 "batch-auth-000"
             ]
-            from src.memory.operational.access import AccessContext
-            from src.memory.operational.service import (
+            from openagent_core.memory.operational.access import AccessContext
+            from openagent_core.memory.operational.service import (
                 granted_search_resources,
                 search_rows_visible,
             )
@@ -1873,10 +1873,10 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
 
 @test("operational_api", "deleted session immediately revokes tool search and detail")
 async def t_deleted_session_revokes_tool(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.access import AccessContext
-    from src.memory.operational.repository import project_legacy_session_async
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.access import AccessContext
+    from openagent_core.memory.operational.repository import project_legacy_session_async
 
     with TemporaryDirectory(prefix="openagent-operational-tool-revoke-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -1938,9 +1938,9 @@ async def t_deleted_session_revokes_tool(_ctx: TestContext) -> None:
 
 @test("operational_api", "history candidate limit is applied after canonical ACL prefilter")
 async def t_history_limit_after_acl(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.access import AccessContext
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.access import AccessContext
 
     with TemporaryDirectory(prefix="openagent-operational-history-acl-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -1985,8 +1985,8 @@ async def t_history_limit_after_acl(_ctx: TestContext) -> None:
 
 @test("operational_api", "future source timestamps cannot poison session tombstones")
 async def t_future_timestamp_tombstone(_ctx: TestContext) -> None:
-    from src.memory.db import MemoryDB
-    from src.memory.operational.repository import projection_coverage_async
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.repository import projection_coverage_async
 
     with TemporaryDirectory(prefix="openagent-operational-future-delete-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2030,8 +2030,8 @@ async def t_future_timestamp_tombstone(_ctx: TestContext) -> None:
 
 @test("operational_api", "capability warm-up drains more than one outbox batch")
 async def t_capability_multi_batch_warmup(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-warmup-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2071,9 +2071,9 @@ async def t_capability_multi_batch_warmup(_ctx: TestContext) -> None:
 
 @test("operational_api", "persistent worker indexes writes after ready without a search request")
 async def t_persistent_search_consumer(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.search import operational_search_status
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.search import operational_search_status
 
     with TemporaryDirectory(prefix="openagent-operational-consumer-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2146,9 +2146,9 @@ async def t_persistent_search_consumer(_ctx: TestContext) -> None:
 
 @test("operational_api", "consumed outbox keeps only the replayable latest resource rows")
 async def t_search_outbox_compaction(_ctx: TestContext) -> None:
-    from src.memory.db import MemoryDB
-    from src.memory.operational.repository import project_legacy_session_async
-    from src.memory.operational.search import sync_operational_search
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.repository import project_legacy_session_async
+    from openagent_core.memory.operational.search import sync_operational_search
 
     with TemporaryDirectory(prefix="openagent-operational-outbox-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2250,8 +2250,8 @@ async def t_search_outbox_compaction(_ctx: TestContext) -> None:
 
 @test("operational_api", "extractor version changes purge and replay the derived index")
 async def t_search_version_boundary_rebuild(_ctx: TestContext) -> None:
-    from src.memory.db import MemoryDB
-    from src.memory.operational.search import (
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.search import (
         _open_index,
         operational_search_path,
         operational_search_status,
@@ -2311,8 +2311,8 @@ async def t_search_version_boundary_rebuild(_ctx: TestContext) -> None:
 
 @test("operational_api", "large session backfill is background-only and hot history is read-only")
 async def t_large_backfill_and_hot_history(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-scale-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2390,8 +2390,8 @@ async def t_large_backfill_and_hot_history(_ctx: TestContext) -> None:
 @test("operational_api", "malformed search filters return sanitized 400 responses")
 async def t_search_validation_is_strict(_ctx: TestContext) -> None:
     import logging
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-validation-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2417,7 +2417,7 @@ async def t_search_validation_is_strict(_ctx: TestContext) -> None:
             captured: list[logging.LogRecord] = []
             handler = logging.Handler()
             handler.emit = captured.append  # type: ignore[assignment]
-            logger = logging.getLogger("src.gateway.api.operational")
+            logger = logging.getLogger("openagent_server.gateway.api.operational")
             logger.addHandler(handler)
             try:
                 for body in invalid:
@@ -2451,8 +2451,8 @@ async def t_live_canary_fixture_cleanup(_ctx: TestContext) -> None:
         _seed_operational_canary,
         _wait_operational_canary_cleanup,
     )
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-live-canary-") as directory:
         path = Path(directory) / "openagent.db"
@@ -2508,8 +2508,8 @@ async def t_live_canary_fixture_cleanup(_ctx: TestContext) -> None:
 
 @test("operational_api", "search snapshot quotas evict the oldest principal cursor")
 async def t_search_snapshot_quota(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-quota-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2549,7 +2549,7 @@ async def t_search_snapshot_quota(_ctx: TestContext) -> None:
 
 @test("operational_api", "root-grouped matches count against snapshot row quota")
 async def t_grouped_snapshot_match_quota(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
+    from openagent_server.gateway.api import operational
 
     state = operational._CursorState()
     old_limit = operational._MAX_SNAPSHOT_ROWS_GLOBAL
@@ -2584,8 +2584,8 @@ async def t_grouped_snapshot_match_quota(_ctx: TestContext) -> None:
 
 @test("operational_api", "detail resolvers keep legacy epochs and canonical deep-link ids")
 async def t_detail_resolver_contract(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-detail-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
@@ -2643,9 +2643,9 @@ async def t_detail_resolver_contract(_ctx: TestContext) -> None:
     "detail resolver deep-links require independent target visibility",
 )
 async def t_detail_resolver_deep_link_acl(_ctx: TestContext) -> None:
-    from src.gateway.api import operational
-    from src.memory.db import MemoryDB
-    from src.memory.operational.automation import claim_resource, project_automation
+    from openagent_server.gateway.api import operational
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.automation import claim_resource, project_automation
 
     with TemporaryDirectory(prefix="openagent-operational-detail-links-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))

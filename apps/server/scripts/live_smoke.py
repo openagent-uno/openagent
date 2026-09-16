@@ -51,7 +51,7 @@ async def _gateway_ws_handshake(
     """
     import aiohttp
 
-    proxy = __import__("src.network.client.session", fromlist=["LoopbackProxy"]).LoopbackProxy(
+    proxy = __import__("openagent_identity.client.session", fromlist=["LoopbackProxy"]).LoopbackProxy(
         dialer=dialer, target_node_id=target_node_id,
     )
     host, port = await proxy.start()
@@ -83,14 +83,14 @@ async def _do_register(
     operational_db: str | None = None,
     agent_handle: str | None = None,
 ) -> int:
-    from src.network.auth.device_cert import verify_cert
-    from src.network.client.login import LoginError, login, register
-    from src.network.client.session import NetworkBinding, SessionDialer
-    from src.network.identity import Identity
-    from src.network.iroh_node import IrohNode
-    from src.network.client.login import list_agents as coord_list_agents
-    from src.network.peers import coordinator_node_id_to_pubkey_bytes
-    from src.network.ticket import InviteTicket
+    from openagent_identity.auth.device_cert import verify_cert
+    from openagent_identity.client.login import LoginError, login, register
+    from openagent_identity.client.session import NetworkBinding, SessionDialer
+    from openagent_identity.identity import Identity
+    from openagent_identity.iroh_node import IrohNode
+    from openagent_identity.client.login import list_agents as coord_list_agents
+    from openagent_identity.peers import coordinator_node_id_to_pubkey_bytes
+    from openagent_identity.ticket import InviteTicket
 
     ut = InviteTicket.decode(ticket_str)
     if ut.role != "user":
@@ -241,7 +241,7 @@ async def _exercise_network_api(dialer, target_node_id: str) -> None:
     `invite` commands do, end-to-end over Iroh+HTTP."""
     import aiohttp
 
-    from src.network.client.session import LoopbackProxy
+    from openagent_identity.client.session import LoopbackProxy
 
     proxy = LoopbackProxy(dialer=dialer, target_node_id=target_node_id)
     host, port = await proxy.start()
@@ -545,7 +545,7 @@ async def _wait_operational_canary_cleanup(
     import aiosqlite
     import sqlite3
 
-    from src.memory.operational.search import operational_search_path
+    from openagent_core.memory.operational.search import operational_search_path
 
     ids = fixture["ids"]
     assert isinstance(ids, dict)
@@ -656,7 +656,7 @@ async def _exercise_operational_api(
     handle: str,
 ) -> None:
     import aiohttp
-    from src.network.client.session import LoopbackProxy
+    from openagent_identity.client.session import LoopbackProxy
 
     fixture = await _seed_operational_canary(
         db_path, network_id=network_id, handle=handle,
@@ -818,12 +818,12 @@ async def _exercise_operational_api(
 
 
 async def _do_pair(ticket_str: str, handle: str, password: str) -> int:
-    from src.network.auth.device_cert import verify_cert
-    from src.network.client.login import LoginError, login
-    from src.network.identity import Identity
-    from src.network.iroh_node import IrohNode
-    from src.network.peers import coordinator_node_id_to_pubkey_bytes
-    from src.network.ticket import InviteTicket
+    from openagent_identity.auth.device_cert import verify_cert
+    from openagent_identity.client.login import LoginError, login
+    from openagent_identity.identity import Identity
+    from openagent_identity.iroh_node import IrohNode
+    from openagent_identity.peers import coordinator_node_id_to_pubkey_bytes
+    from openagent_identity.ticket import InviteTicket
 
     dt = InviteTicket.decode(ticket_str)
     if dt.role != "device":

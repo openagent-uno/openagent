@@ -30,7 +30,7 @@ from ._framework import TestContext, test
 
 @test("skills_semantic_leg", "il builder accetta e inoltra la radice delle skill")
 async def t_builder_forwards_skills_root(ctx: TestContext) -> None:
-    from src.memory import semantic_index_builder as builder
+    from openagent_core.memory import semantic_index_builder as builder
 
     assert "skills_root" in inspect.signature(builder.start).parameters
     assert "skills_root" in inspect.signature(builder._loop).parameters
@@ -44,7 +44,7 @@ async def t_builder_forwards_skills_root(ctx: TestContext) -> None:
             visti["skills_root"] = skills_root
             visti["vault_root"] = vault_root
 
-    import src.memory.semantic_index as si
+    import openagent_server.memory.semantic_index as si
 
     orig_idx, orig_emb = si.SemanticIndex, si.resolve_embedder
     si.SemanticIndex = _FakeIndex
@@ -60,7 +60,7 @@ async def t_builder_forwards_skills_root(ctx: TestContext) -> None:
 
 @test("skills_semantic_leg", "senza radice la gamba delle skill resta spenta")
 async def t_no_root_no_leg(ctx: TestContext) -> None:
-    from src.memory.semantic_index import SemanticIndex
+    from openagent_core.memory.semantic_index import SemanticIndex
 
     # Il comportamento precedente resta identico per chi non passa nulla: un
     # deployment senza skill non deve pagare una tabella in piu' ne' un giro
@@ -85,7 +85,7 @@ async def t_no_root_no_leg(ctx: TestContext) -> None:
 async def t_root_enables_leg(ctx: TestContext) -> None:
     from pathlib import Path
 
-    from src.memory.semantic_index import SemanticIndex
+    from openagent_core.memory.semantic_index import SemanticIndex
 
     idx = SemanticIndex.__new__(SemanticIndex)
     idx.skills_root = Path("/agent/skills-oa")
@@ -106,7 +106,7 @@ async def t_server_resolves_and_passes(ctx: TestContext) -> None:
     import pathlib
 
     src = pathlib.Path(__file__).resolve().parents[2] / "src" / "core" / "server.py"
-    text = src.read_text()
+    text = openagent_core.read_text()
     i = text.find("_sem_index_start(")
     assert i > 0, "il builder non viene piu' avviato da qui"
     blocco = text[max(0, i - 900):i + 200]
@@ -122,6 +122,6 @@ async def t_server_resolves_and_passes(ctx: TestContext) -> None:
 
 
 def _stat():
-    from src.memory.semantic_index import SyncStats
+    from openagent_core.memory.semantic_index import SyncStats
 
     return SyncStats()
