@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from scripts.support_turn_replay import StdioModel
+from scripts.tests._support_runtime import fixture_runtime
 from scripts.tests.test_local_support_controller import _Doubles, _Toolkit
 from openagent_support import local_support_controller as c
 from openagent_core.core.dry_run import dry_run_scope
@@ -89,6 +90,7 @@ class CaseWorld(_Doubles):
         return pool
 
 
+@fixture_runtime
 async def replay(args):
     spec=importlib.util.spec_from_file_location("replio_close_guard",Path(args.replio_source)/"backend/close_guard.py")
     guard=importlib.util.module_from_spec(spec);spec.loader.exec_module(guard)
@@ -102,7 +104,7 @@ async def replay(args):
             world=CaseWorld(case,guard);model=StdioModel(command);failures=[]
             async def turn():
                 with dry_run_scope(True):
-                    return json.loads((await c.run(agent=SimpleNamespace(_mcp=world.pool(),model=model),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"synthetic-case","product":case.get("product","esound"),"channel_kind":"email_imap","message":{"body_text":case["turns"][-1][1]}}},session_id="resolution-replay",delivery_id="synthetic")).text)
+                    return json.loads((await c.run(agent=SimpleNamespace(capability_pool=world.pool(),model=model),event={"slug":"replio-thread"},payload={"payload":{"thread_id":"synthetic-case","product":case.get("product","esound"),"channel_kind":"email_imap","message":{"body_text":case["turns"][-1][1]}}},session_id="resolution-replay",delivery_id="synthetic")).text)
             try:
                 out=await turn();reply=out["reply"]
                 if case.get("outcome") and out["outcome"]!=case["outcome"]:failures.append("outcome: "+out["outcome"])

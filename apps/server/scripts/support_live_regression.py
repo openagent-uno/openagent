@@ -6,6 +6,7 @@ import argparse,asyncio,json,os,subprocess,time
 from pathlib import Path
 from types import SimpleNamespace
 from scripts.support_turn_replay import StdioModel
+from scripts.tests._support_runtime import fixture_runtime
 from scripts.tests.test_local_support_controller import _Doubles
 from openagent_support import local_support_controller as c
 from openagent_core.core.dry_run import dry_run_scope
@@ -22,6 +23,7 @@ CASES=[
  {'id':'esound-unreadable-repeat','product':'esound','turns':[('inbound','Non riesco a installare eSound su iPhone.'),('outbound','Puoi incollare qui il testo del messaggio?'),('inbound','[1 attachment(s): text]')], 'attachment':{'content':[{'type':'text','text':json.dumps({'text':'Anteprima link: https://esound.app/altstore'})}]}, 'forbidden':['incollare qui il testo','incolla il testo','trascrivi','riscrivi','qual è il problema'], 'required':['altstore','safari|account apple|regione|paese|requisit|compatibil|idone']},
  {'id':'esound-reclaimed-hold','product':'esound','turns':[('inbound','I would like to change the email associated with my account.')], 'reclaimed':True, 'block':True, 'required':[]},
 ]
+@fixture_runtime
 async def run(args):
  os.environ.update(OPENAGENT_FORCE_DRY_RUN='1',OPENAGENT_SUPPORT_HUMAN_VOICE='1',OPENAGENT_ESOUND_SUPPORT_CONTROLLER_WRITES='1',OPENAGENT_SUPPORT_TURN_READER='1',OPENAGENT_SUPPORT_SEMANTIC_ROUTING='0',OPENAGENT_SUPPORT_VOICE_MODEL=args.voice_model,OPENAGENT_SUPPORT_VISION_MODEL=args.voice_model)
  rows=[];command=json.loads(Path(args.model_command_file).read_text());docs_command=json.loads(Path(args.docs_command_file).read_text())
@@ -68,7 +70,7 @@ async def run(args):
    model=StdioModel(command);started=time.monotonic();errors=[];output={}
    try:
     with dry_run_scope(True):
-     result=await asyncio.wait_for(c.run(agent=SimpleNamespace(_mcp=pool,model=model),event={'slug':'replio-thread'},payload={'payload':{'thread_id':'sim-'+case['id'],'product':case['product'],'channel_kind':'email_imap','message':{'body_text':case['turns'][-1][1]}}},session_id='regression:'+case['id'],delivery_id='sim'),240)
+     result=await asyncio.wait_for(c.run(agent=SimpleNamespace(capability_pool=pool,model=model),event={'slug':'replio-thread'},payload={'payload':{'thread_id':'sim-'+case['id'],'product':case['product'],'channel_kind':'email_imap','message':{'body_text':case['turns'][-1][1]}}},session_id='regression:'+case['id'],delivery_id='sim'),240)
     output=json.loads(result.text)
     import re
     reply=output.get('reply','')

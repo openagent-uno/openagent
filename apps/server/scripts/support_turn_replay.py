@@ -22,6 +22,7 @@ from typing import Any
 from openagent_support import local_support_controller as controller
 from openagent_core.core.dry_run import dry_run_scope
 from openagent_support.support_turn import requested_fields
+from scripts.tests._support_runtime import fixture_runtime
 from scripts.tests.test_local_support_controller import _Doubles
 
 
@@ -311,6 +312,7 @@ def score(case: Case, output: dict[str, Any], doubles: _Doubles) -> list[str]:
     return failures
 
 
+@fixture_runtime
 async def replay(command: list[str], selected: list[Case], repeat: int) -> dict[str, Any]:
     os.environ.update({"OPENAGENT_FORCE_DRY_RUN": "1",
                        "OPENAGENT_SUPPORT_HUMAN_VOICE": "1",
@@ -341,7 +343,7 @@ async def replay(command: list[str], selected: list[Case], repeat: int) -> dict[
             try:
                 with dry_run_scope(True):
                     result = await controller.run(
-                        agent=SimpleNamespace(_mcp=doubles.pool(), model=model),
+                        agent=SimpleNamespace(capability_pool=doubles.pool(), model=model),
                         event={"slug": "replio-thread"},
                         payload={"payload": {"thread_id": "sim-" + case.id, "product": case.product,
                             "channel_kind": case.channel, "message": {"body_text": case.incoming_message or case.turns[-1][1],
