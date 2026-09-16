@@ -1,0 +1,67 @@
+schema: 1
+train_id: unified-history-beta.1
+component: server
+candidate: v0.20.0-beta.3
+source_sha: cc66f96cb22ee80349a004edb9cfee056e7e9ee7
+intent:
+  path: release/unified-history-beta-3-intent.yaml
+  sha256: 7696e67ec88d1975c494f5a99e645cb00ca9dda31d586d9951d5e772223a675d
+  mutated: false
+status: published_prerelease_dogfood_blocked
+recorded_at: 2026-08-26
+
+github_release:
+  release_run: 32976311521
+  release_id: 377189126
+  draft: false
+  prerelease: true
+  make_latest: false
+  publication_result: pass
+  linux_asset: openagent-0.20.0-beta.3-linux-x64.tar.gz
+  linux_sha256: 0c03cb93beda0e1f538d1d5af24c034d1c4108196ce15410e8fa5820da68775a
+
+friday_dogfood:
+  environment_alias: Friday
+  hosting_alias: Bluehost
+  installation_method: exact_published_linux_asset
+  installed_version: 0.20.0-beta.3
+  storage_phase: shadow
+  legacy_sessions_observed: 585
+  normalized_sessions_observed: 583
+  projection_gaps: 2
+  history_ready: false
+  global_search_advertised: false
+  stop_condition: incomplete_shadow_projection
+  failure:
+    class: cross_run_tool_call_id_uniqueness_collision
+    constraint_scope: root_kind_root_id_tool_call_id
+    observed_scope: same_root_distinct_session_runs
+    same_run_collision_observed: false
+    canonical_data_mutated_for_diagnosis: false
+
+rollback:
+  result: pass
+  restored_server_version: 0.19.26
+  beta_channel_drop_in_active: false
+  additive_v2_schema_retained: true
+  database_snapshot_restored: false
+  canonical_integrity_after_rollback: pass
+  legacy_write_canary:
+    inserted_after_rollback: true
+    journal_state: pending
+    payload_recorded_in_evidence: false
+    required_next_action: reconcile_then_remove_exact_canary
+
+promotion:
+  candidate_eligible: false
+  tag_and_assets_immutable: true
+  tag_or_asset_reuse_allowed: false
+  next_candidate_required: true
+  requested_successor_label: beta4
+  first_successor_source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
+  first_successor_outcome: pretag_candidate_rejected
+  first_successor_evidence: release/unified-history-beta-4-ci-failure.yaml
+  successor_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+  successor_state: pretag_verified
+  successor_intent: release/unified-history-beta-4-intent.yaml
+  successor_intent_sha256: 338ea5f00f88fde99c10e7f2452c7204e3429b209ed12c5e78ae9de677beac7a

@@ -1,0 +1,137 @@
+schema: 1
+train_id: unified-history-beta.1
+component: server
+candidate_label: beta4
+source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
+repair_source_sha: ebcfedc3779421f874a1e0d079bb06b002fa79f9
+base_tag: v0.19.27
+base_sha: ea6acc52e2cb4b07e733075bc6469a6479e11cd1
+status: pretag_candidate_rejected
+recorded_at: 2026-08-26
+
+version:
+  release_version: 0.20.0-beta.4
+  package_version: 0.20.0b4
+  tag_created: false
+  tag_burned: false
+  github_release_created: false
+
+local_gates:
+  full_suite:
+    result: pass
+    passed: 1653
+    failed: 0
+    skipped: 46
+    duration_seconds: 164.0
+    log_sha256: 2c996ff5243b7caae43ee02bb6709aff3d3741837ba129f2ff2ceb37a15d7b89
+  targeted_operational_storage_and_api:
+    result: pass
+    passed: 32
+    failed: 0
+  targeted_updater:
+    result: pass
+    passed: 29
+    failed: 0
+  beta4_selfcheck: pass
+
+branch_ci:
+  tests:
+    run: 32981309012
+    result: fail
+    passed: 1647
+    failed: 1
+    skipped: 51
+    failure_class: search_cache_readiness_race
+  supply_chain:
+    run: 32981309094
+    result: pass
+
+contracts:
+  operational_storage_v2_sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
+  operational_tool_call_context_v1_sha256: 14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46
+
+friday_rehearsal:
+  database_copy_method: sqlite_backup_api
+  execution_source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
+  source_database_sha256_before: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+  source_database_sha256_after: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+  source_unchanged: true
+  before:
+    legacy_sessions: 586
+    normalized_sessions: 583
+    failed_sessions: 2
+    pending_legacy_changes: 1
+  after:
+    legacy_sessions: 586
+    normalized_sessions: 586
+    failed_sessions: 0
+    pending_legacy_changes: 0
+    projection_complete: true
+    search_state: ready
+    search_pending: 0
+    exact_legacy_canary_hit: true
+    collision_groups_preserved: 8
+    collision_invocations_preserved: 16
+    quick_check: pass
+    foreign_key_check: pass
+  live_installation_after_rehearsal:
+    server_version: 0.19.26
+    legacy_sessions: 586
+    normalized_sessions: 583
+    failed_sessions: 2
+    pending_legacy_changes: 1
+    mutated_by_rehearsal: false
+
+decision:
+  release_eligible: false
+  source_sha_reusable: false
+  beta4_tag_still_available: true
+  successor_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+  successor_intent: release/unified-history-beta-4-intent.yaml
+  successor_intent_sha256: 338ea5f00f88fde99c10e7f2452c7204e3429b209ed12c5e78ae9de677beac7a
+
+replacement_candidate:
+  source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+  readiness_fix_sha: ec859dfe943f2da2af3a9554a1909160ad94687c
+  deterministic_regression_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+  status: pretag_verified
+  local_full_suite:
+    result: pass
+    passed: 1653
+    failed: 0
+    skipped: 46
+    duration_seconds: 213.6
+    log_sha256: 731e3f59c9cebe9893b1faa5471e5cf62d2239a25ec26f984dedf87f9e26c2f1
+  branch_tests:
+    run: 32982520288
+    job: 98222391421
+    result: pass
+  branch_supply_chain:
+    run: 32982520375
+    job: 98222392469
+    result: pass
+  friday_rehearsal:
+    execution_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
+    source_database_sha256_before: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+    source_database_sha256_after: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
+    source_unchanged: true
+    legacy_sessions: 586
+    normalized_sessions: 586
+    projection_complete: true
+    failed_sessions: 0
+    pending_legacy_changes: 0
+    anti_join_missing_sessions: 0
+    quick_check: pass
+    foreign_key_check_violations: 0
+    search_state: ready
+    search_caught_up: true
+    search_pending: 0
+    exact_legacy_canary_hit: true
+    collision_groups_preserved: 8
+    collision_invocations_preserved: 16
+    base_ledger:
+      sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
+      status: complete
+    repair_ledger:
+      sha256: 14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46
+      status: complete

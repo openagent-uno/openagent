@@ -1,0 +1,134 @@
+# OpenAgent example configuration.
+#
+# LLM providers (API keys, base URLs), the per-provider model catalog,
+# MCP servers, scheduled tasks, workflows, and events all live in
+# SQLite, not in this file. Manage them via:
+#
+#   - the ``mcp-manager``, ``model-manager``, ``scheduler``,
+#     ``workflow-manager``, and ``events-manager`` built-in MCPs
+#     (the agent itself can call their tools to add/remove/toggle
+#     entries);
+#   - the REST API — ``/api/providers/*``, ``/api/mcps/*``,
+#     ``/api/models/*``, ``/api/scheduled-tasks/*``, ``/api/workflows/*``,
+#     and ``/api/events/*``;
+#   - the desktop app's Settings screens and the CLI's ``/mcps`` /
+#     ``/models`` / ``/tasks`` / ``openagent provider`` commands.
+#
+# This yaml is the source of truth for ``name``, ``system_prompt``,
+# ``channels``, ``memory`` paths, ``dream_mode``, and ``auto_update``.
+#
+# Any value in the form ${VAR_NAME} is substituted from environment
+# variables at load time.
+
+name: my-agent
+
+# Keep this short. Identity + pointer to the memory vault is enough —
+# OpenAgent prepends a framework-level system prompt that already covers
+# how to use the vault (vault MCP tools, wikilinks, frontmatter), the
+# scheduler / workflow / events manager MCPs, MCP-vs-shell preference,
+# acting autonomously, and concise output style. Put
+# project-specific details (package names, app IDs, host names, procedures)
+# INSIDE the memory vault as .md notes — the agent will find them with
+# `search_notes`.
+system_prompt: |
+  You are My Agent, the persistent AI assistant for My Project.
+
+  Your memory vault is at ~/.openagent/memories/. All project identity,
+  credentials, infrastructure, procedures and contacts are documented
+  there as notes. Search the vault first before answering any factual
+  question about the project.
+
+  Git author: My Agent <myagent@example.com> (no Co-Authored-By line).
+
+# Linux only: extra raw systemd [Service] directives for the generated user
+# unit. Omit this block entirely if you want no explicit memory/task caps.
+# service:
+#   systemd:
+#     MemoryHigh: 2500M
+#     MemoryMax: 3500M
+#     MemorySwapMax: 1G
+
+memory:
+  db_path: ~/.openagent/openagent.db
+  vault_path: ~/.openagent/memories
+
+  # Semantic recall (optional). Unset embedding_model = OFF, retrieval is FTS
+  # only (see guide/memory.md#semantic-recall). Two interchangeable backends:
+  #
+  #   (a) self-hosted ollama on a real machine ($0, private) — e.g. a Mac over
+  #       Tailscale. Do NOT run this as a CPU sidecar on a saturated node.
+  embedding_model: local:nomic-embed-text
+  embedding_base_url: http://<tailscale-ip>:11434/v1
+  #   (b) hosted API (reliable, ~$0.02 one-time for a 2k-note vault):
+  # embedding_model: openai:text-embedding-3-small
+  # embedding_base_url: https://api.openai.com/v1
+  # embedding_api_key: ${OPENAI_API_KEY}
+  auto_recall:
+    enabled: true
+    min_score: 0.6      # cosine floor (default 0.75); a weak match is no match
+    warm_budget: 16     # on-turn top-up budget (default 24)
+
+# LLM providers, models, MCP servers, scheduled tasks, workflows, and
+# events live in SQLite. Manage them via the ``model-manager`` /
+# ``mcp-manager`` / ``scheduler`` / ``workflow-manager`` /
+# ``events-manager`` built-in MCPs, the matching REST endpoints, the
+# ``openagent provider`` CLI, or the Settings screens in the desktop
+# app.
+
+channels:
+  # Telegram bot — the most common deployment. Voice transcription via
+  # faster-whisper (local, free) or OpenAI Whisper API (cloud fallback).
+  telegram:
+    token: ${TELEGRAM_BOT_TOKEN}
+    allowed_users:
+      - "YOUR_TELEGRAM_USER_ID"
+      - "ANOTHER_TELEGRAM_USER_ID"
+
+  # Discord bot — same commands as Telegram (/new /stop /status /queue
+  # /help /usage), plus native slash commands and an inline stop button.
+  # allowed_users is MANDATORY — the channel refuses to start without it.
+  # discord:
+  #   token: ${DISCORD_BOT_TOKEN}
+  #   allowed_users:
+  #     - "YOUR_DISCORD_USER_ID"
+  #   allowed_guilds: []             # [] = any server
+  #   listen_channels: []            # [] = mention required
+  #   dm_only: false                 # true = DMs only
+
+  # WebSocket — for the OpenAgent desktop/web app. JSON over WS with
+  # shared-token auth. Connect via SSH tunnel or expose directly.
+  websocket:
+    port: 8765
+    token: ${OPENAGENT_WS_TOKEN}
+    # allowed_origins:
+    #   - "http://localhost:3000"
+    #   - "file://"
+
+  # WhatsApp via Green API (no message editing, no inline buttons).
+  # whatsapp:
+  #   green_api_id: ${GREEN_API_ID}
+  #   green_api_token: ${GREEN_API_TOKEN}
+  #   allowed_users:
+  #     - "391234567890"
+
+
+# Nightly maintenance: consolidates duplicate memory files, cross-links
+# notes with wikilinks, runs a system health check, writes a dream log.
+dream_mode:
+  enabled: true
+  time: "3:00"
+
+# Weekly self-review: the agent audits its own work as a project manager
+# would — reviews pending automations, detects recurring work to schedule,
+# prunes stale vault notes, logs a receipt under manager-reviews/.
+# Enabled by default on Monday 9am local time.
+manager_review:
+  enabled: true
+  cron: "0 9 * * MON"
+
+# Auto-update: pip upgrade from PyPI on schedule. mode=auto exits with
+# code 75 so the OS service restarts with the new version.
+auto_update:
+  enabled: true
+  mode: auto
+  check_interval: "17 */6 * * *"

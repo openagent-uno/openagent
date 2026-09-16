@@ -1,0 +1,154 @@
+schema: 1
+train_id: unified-history-beta.1
+channel: beta
+status: pretag_verified
+created_at: 2026-08-26T12:29:16Z
+
+authorization:
+  reference: user request in the current OpenAgent implementation task
+  recorded_at: 2026-08-26
+  scope: beta_prerelease_only
+  stable: false
+
+components:
+  server:
+    repository: openagent-uno/openagent-server
+    branch: beta/unified-history-ui
+    source_sha: 1711e515315f0a7f8ceb14a74cbfdeb1f24cba61
+    base_tag: v0.19.26
+    base_sha: dcf39f77c7e25738a15517817a5ebed97a9d5490
+    tag: v0.20.0-beta.1
+    release_version: 0.20.0-beta.1
+    package_version: 0.20.0b1
+    api_revision: 2
+    capabilities:
+      history: 2
+      global_search: 1
+      session_messages: 1
+      detail_resolvers: 1
+      definition_field_anchors: false
+    storage:
+      operational_schema_version: 2
+      default_phase: shadow
+      legacy_storage_retained: true
+      search_index_rebuildable: true
+    expected_artifacts:
+      - openagent-0.20.0-beta.1-linux-x64.tar.gz
+      - openagent-0.20.0-beta.1-linux-x64.tar.gz.sha256
+      - openagent-0.20.0-beta.1-macos-arm64.pkg
+      - openagent-0.20.0-beta.1-macos-arm64.pkg.sha256
+      - openagent-0.20.0-beta.1-windows-x64.zip
+      - openagent-0.20.0-beta.1-windows-x64.zip.sha256
+
+  app:
+    repository: openagent-uno/openagent-app
+    branch: beta/unified-history-ui
+    source_sha: d85f0eb8c23d3f93942402dd42d900107de4f638
+    base_tag: v0.16.0
+    base_sha: cc6a45b6a31aa61087839c950596db0c18bc70c7
+    tag: v0.17.0-beta.1
+    release_version: 0.17.0-beta.1
+    package_version: 0.17.0-beta.1
+    required_capabilities:
+      history: 2
+      global_search: 1
+    expected_artifacts:
+      - openagent-app-0.17.0-beta.1-macos-arm64.dmg
+      - openagent-app-0.17.0-beta.1-macos-arm64.dmg.sha256
+      - openagent-app-0.17.0-beta.1-macos-arm64.zip
+      - openagent-app-0.17.0-beta.1-macos-arm64.zip.sha256
+      - openagent-app-0.17.0-beta.1-macos-x64.dmg
+      - openagent-app-0.17.0-beta.1-macos-x64.dmg.sha256
+      - openagent-app-0.17.0-beta.1-macos-x64.zip
+      - openagent-app-0.17.0-beta.1-macos-x64.zip.sha256
+      - openagent-app-0.17.0-beta.1-windows-x64.exe
+      - openagent-app-0.17.0-beta.1-windows-x64.exe.sha256
+      - openagent-app-0.17.0-beta.1-linux-amd64.deb
+      - openagent-app-0.17.0-beta.1-linux-amd64.deb.sha256
+      - openagent-app-0.17.0-beta.1-linux-x86_64.AppImage
+      - openagent-app-0.17.0-beta.1-linux-x86_64.AppImage.sha256
+      - beta-mac.yml
+      - beta.yml
+      - beta-linux.yml
+      - release-manifest-macos.json
+      - release-manifest-windows.json
+      - release-manifest-linux.json
+
+  cli:
+    repository: openagent-uno/openagent-cli
+    branch: beta/unified-history-ui
+    source_sha: 9efb0db2c3c41aa6af136d4fc7f649041f87f853
+    base_tag: v0.15.1
+    base_sha: 58b236ab2cd6f8662036351ace9c2ee972bb2d17
+    tag: v0.16.0-beta.1
+    release_version: 0.16.0-beta.1
+    package_version: 0.16.0b1
+    expected_artifacts:
+      - openagent-cli-0.16.0-beta.1-linux-x64.tar.gz
+      - openagent-cli-0.16.0-beta.1-linux-x64.tar.gz.sha256
+      - openagent-cli-0.16.0-beta.1-macos-arm64.pkg
+      - openagent-cli-0.16.0-beta.1-macos-arm64.pkg.sha256
+      - openagent-cli-0.16.0-beta.1-windows-x64.zip
+      - openagent-cli-0.16.0-beta.1-windows-x64.zip.sha256
+
+compatibility:
+  install_order: [server, app, cli]
+  old_clients_supported: true
+  new_clients_fallback_to_old_server: true
+  legacy_storage_retained: true
+  friday_seed: manual_exact_digest
+
+pretag_gates:
+  server:
+    local_full_suite:
+      result: pass
+      passed: 1640
+      failed: 0
+      skipped: 46
+      log_sha256: 655f27c2b90d60d0c3b69e2662e064b0fa92d0e319012aeb217c4c927d6d0944
+    focused_operational_updater:
+      result: pass
+      passed: 53
+      failed: 0
+    branch_test_run: 32968470503
+    branch_supply_chain_run: 32968470510
+  app:
+    branch_test_run: 32965788605
+    local_package_smoke: pass
+    dependency_audit_vulnerabilities: 0
+  cli:
+    branch_test_run: 32964706488
+    local_tests_passed: 34
+    local_package_smoke: pass
+
+contracts:
+  operational_storage_v2_sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
+  operational_search_v1_sha256: 6d9b406980e287089e9b5595dfbf3362817f00b6d48e6c9b19f776bd302bfd4d
+  legacy_session_bridge_sha256: 7c45f580af4abba61ef3a7cc690f9e7b02479cff1d3c32c041cee2bc7039f0ee
+  legacy_automation_bridge_sha256: bbb5253f728bf46d4078838de11ec7b162a67450c1588d52323eaeeff4ca21fe
+
+stable_latest_baseline:
+  server:
+    release_id: 377092764
+    tag: v0.19.26
+    linux_sha256: 78e267eb06e400571bdb7bf297a45c02d8b0fc55c0eb23c204d99a4ab1fce357
+    macos_sha256: 524227f26358ae352b248860d4ef8379af263c85d586d0eff29c6c642e76fc56
+    windows_sha256: a0a00f04d576ec29f8e75ce8760a0e004881d58b36597843e06d6015331c6b17
+  app:
+    release_id: 376012263
+    tag: v0.16.0
+    latest_yml_sha256: 0c32af8539f833775a88c54a465f1a9860f25c0028c3c08ae805273a34d206ad
+    latest_mac_yml_sha256: b0520c4f6c45d49d1a9c7975e4ee7e9cf09dc9edfdc95e98fb5514075a752a58
+    latest_linux_yml_sha256: a17c8515629978614bc0e4cbbe790187bed645ec7f59e0283f554798b5f32033
+  cli:
+    release_id: 353353856
+    tag: v0.15.1
+
+friday_preflight:
+  host: friday.mooby.tech
+  installed_server_version: 0.19.16
+  verified_backup: /srv/friday/backups/beta-unified-history-20260826T122809Z
+  quick_check: pass
+  foreign_key_check: pass
+  restore_rehearsal: pass
+  rollback_binary_sha256: 199af3dd79a112fb2259a1692b7a7b3a7c67e7019ccba517ea3e9079e6fe4a4b

@@ -1,0 +1,248 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from "vue";
+
+type ReleaseAsset = {
+  name: string;
+  browser_download_url: string;
+  size: number;
+};
+
+type Release = {
+  tag_name: string;
+  html_url: string;
+  published_at: string;
+  body: string;
+  draft: boolean;
+  prerelease: boolean;
+  assets: ReleaseAsset[];
+};
+
+type ReleaseMatch = {
+  release: Release;
+  assets: ReleaseAsset[];
+};
+
+type Target = "server" | "cli" | "desktop";
+
+const props = defineProps<{ target?: Target }>();
+
+const REPOS: Record<Target, string> = {
+  server: "openagent-uno/openagent-server",
+  cli: "openagent-uno/openagent-cli",
+  desktop: "openagent-uno/openagent-app",
+};
+
+const repoPath = computed(() => (props.target ? REPOS[props.target] : REPOS.server));
+const releasesUrl = computed(
+  () => `https://api.github.com/repos/${repoPath.value}/releases?per_page=30`,
+);
+const allReleasesUrl = computed(
+  () => `https://github.com/${repoPath.value}/releases`,
+);
+
+const loading = ref(true);
+const error = ref("");
+const releases = ref<Release[]>([]);
+
+function isServerExecutableAsset(name: string) {
+  return /^openagent-\d+\.\d+\.\d+-(macos|linux|windows)-(arm64|x64)\.(tar\.gz|zip|pkg)$/i.test(
+    name,
+  );
+}
+
+function isCliExecutableAsset(name: string) {
+  return /^openagent-cli-\d+\.\d+\.\d+-(macos|linux|windows)-(arm64|x64)\.(tar\.gz|zip|pkg)$/i.test(
+    name,
+  );
+}
+
+function isMacDesktopAsset(name: string) {
+  return /\.dmg$/i.test(name) && !/blockmap/i.test(name);
+}
+
+function isWindowsDesktopAsset(name: string) {
+  return /\.(exe|msi)$/i.test(name) && !/blockmap/i.test(name);
+}
+
+function isLinuxDesktopAsset(name: string) {
+  return /\.(AppImage|deb|rpm)$/i.test(name) && !/blockmap/i.test(name);
+}
+
+function formatSize(size: number) {
+  if (size >= 1024 * 1024 * 1024) {
+    return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  }
+  if (size >= 1024 * 1024) {
+    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(size / 1024))} KB`;
+}
+
+function archLabel(name: string): string {
+  const isMac = /\b(macos|mac|darwin)\b/i.test(name);
+  if (/arm64/i.test(name)) {
+    return isMac ? " (Apple Silicon)" : " (ARM64)";
+  }
+  if (/x64|amd64/i.test(name) && !/arm/i.test(name)) {
+    return isMac ? " (Intel)" : " (64-bit)";
+  }
+  if (/universal/i.test(name)) return " (Universal)";
+  return "";
+}
+
+function executablePlatformLabel(name: string): string {
+  if (/macos/i.test(name)) return "macOS";
+  if (/linux/i.test(name)) return "Linux";
+  if (/windows/i.test(name)) return "Windows";
+  return "";
+}
+
+function assetLabel(name: string) {
+  const arch = archLabel(name);
+  if ((isServerExecutableAsset(name) || isCliExecutableAsset(name)) && /\.pkg$/i.test(name)) {
+    return `macOS installer${arch}`;
+  }
+  if (isServerExecutableAsset(name) || isCliExecutableAsset(name)) {
+    const plat = executablePlatformLabel(name);
+    return `${plat}${arch}`;
+  }
+  if (/\.dmg$/i.test(name)) return `macOS${arch}`;
+  if (/\.exe$/i.test(name)) return `Windows${arch}`;
+  if (/\.msi$/i.test(name)) return `Windows MSI${arch}`;
+  if (/\.AppImage$/i.test(name)) return `Linux AppImage${arch}`;
+  if (/\.deb$/i.test(name)) return `Linux .deb${arch}`;
+  if (/\.rpm$/i.test(name)) return `Linux .rpm${arch}`;
+  return name;
+}
+
+function assetPriority(name: string) {
+  if (/macos.*\.pkg$/i.test(name)) return -1;
+  if (/\.dmg$/i.test(name)) return 0;
+  if (/\.exe$/i.test(name)) return 0;
+  if (/\.AppImage$/i.test(name)) return 0;
+  if (/\.tar\.gz$/i.test(name)) return 1;
+  if (/\.zip$/i.test(name)) return 1;
+  if (/\.msi$/i.test(name)) return 2;
+  if (/\.deb$/i.test(name)) return 2;
+  if (/\.rpm$/i.test(name)) return 3;
+  return 9;
+}
+
+function findLatestMatch(
+  matcher: (asset: ReleaseAsset) => boolean,
+): ReleaseMatch | null {
+  for (const release of stableReleases.value) {
+    const assets = release.assets
+      .filter(matcher)
+      .sort((left, right) => assetPriority(left.name) - assetPriority(right.name));
+    if (assets.length) {
+      return { release, assets };
+    }
+  }
+  return null;
+}
+
+const stableReleases = computed(() =>
+  releases.value.filter((release) => !release.draft && !release.prerelease),
+);
+
+const serverDownload = computed(() =>
+  findLatestMatch((asset) => isServerExecutableAsset(asset.name)),
+);
+
+const cliDownload = computed(() =>
+  findLatestMatch((asset) => isCliExecutableAsset(asset.name)),
+);
+
+const desktopAssets = computed<ReleaseMatch | null>(() => {
+  const platforms = [
+    findLatestMatch((asset) => isMacDesktopAsset(asset.name)),
+    findLatestMatch((asset) => isWindowsDesktopAsset(asset.name)),
+    findLatestMatch((asset) => isLinuxDesktopAsset(asset.name)),
+  ].filter((match): match is ReleaseMatch => match !== null);
+  if (!platforms.length) return null;
+  const newest = platforms.reduce((acc, m) =>
+    new Date(m.release.published_at) > new Date(acc.release.published_at) ? m : acc,
+  );
+  const assets = platforms
+    .flatMap((m) => m.assets)
+    .sort((a, b) => assetPriority(a.name) - assetPriority(b.name));
+  return { release: newest.release, assets };
+});
+
+onMounted(async () => {
+  try {
+    const response = await fetch(releasesUrl.value, {
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API returned ${response.status}`);
+    }
+
+    releases.value = (await response.json()) as Release[];
+  } catch (err) {
+    error.value =
+      err instanceof Error ? err.message : "Unable to load release metadata.";
+  } finally {
+    loading.value = false;
+  }
+});
+
+const activeMatch = computed<ReleaseMatch | null>(() => {
+  if (props.target === "server") return serverDownload.value;
+  if (props.target === "cli") return cliDownload.value;
+  if (props.target === "desktop") return desktopAssets.value;
+  return null;
+});
+</script>
+
+<template>
+  <div class="downloads-inline">
+    <div v-if="loading" class="downloads-inline-state">
+      <span class="oa-loading-dot"></span>
+      Loading latest release…
+    </div>
+
+    <div v-else-if="error" class="downloads-inline-state">
+      Release lookup failed.
+      <a :href="allReleasesUrl">Browse all releases</a>
+    </div>
+
+    <template v-else-if="activeMatch">
+      <a
+        v-for="asset in activeMatch.assets"
+        :key="asset.browser_download_url"
+        class="download-chip"
+        :href="asset.browser_download_url"
+      >
+        <span class="download-chip-label">{{ assetLabel(asset.name) }}</span>
+        <span class="download-chip-size">{{ formatSize(asset.size) }}</span>
+      </a>
+    </template>
+
+    <div v-else class="downloads-inline-state">
+      No recent build. <a :href="allReleasesUrl">Browse all releases</a>.
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.oa-loading-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  margin-right: 8px;
+  animation: oa-pulse 1.4s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes oa-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+</style>
