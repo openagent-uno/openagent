@@ -11,7 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from openagent_core.core.logging import elog
-from .vault import _sanitize  # reuse datetime sanitizer
+
+
+def _sanitize(value):
+    """Serialize YAML date values without depending on a vault HTTP handler."""
+    if isinstance(value, dict):
+        return {key: _sanitize(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_sanitize(item) for item in value]
+    return value.isoformat() if hasattr(value, "isoformat") else value
 
 
 def _resolve_config_path(request) -> Path:

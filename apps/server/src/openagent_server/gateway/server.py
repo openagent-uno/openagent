@@ -1783,77 +1783,71 @@ class Gateway:
         return request.get("device_cert") is not None
 
     async def _handle_stt_transcribe(self, request):
-        """POST /api/stt/transcribe — transcribe an audio upload.
-
-        Accepts multipart form ``file`` and returns ``{text}``. Used by
-        bridges (Telegram, Discord, WhatsApp) so they all share the
-        same DB-configured STT route — no per-bridge Whisper install.
-
-        Resolution order matches :func:`channels.voice.transcribe`:
-        DB-configured LiteLLM row → local faster-whisper → OpenAI
-        Whisper API (env-driven) → ``404`` if every backend fails.
-        """
+        """Transcribe a bounded upload using the current configured audio route."""
         from aiohttp import web
-        from openagent_core.voice.voice import transcribe, is_audio_file
+        from openagent_core.audio import is_audio_file
+        from openagent_server.audio_service import for_request
+        from pathlib import Path
         import tempfile
 
-        # Auth handled by middleware; cert is on request["device_cert"].
-        reader = await request.multipart()
-        field = await reader.next()
-        if not field:
-            return web.json_response({"error": "no file"}, status=400)
-        filename = field.filename or "upload"
-        if not is_audio_file(filename):
-            return web.json_response({"error": "not an audio file"}, status=400)
-        tmp = tempfile.mkdtemp(prefix="oa_stt_")
-        path = f"{tmp}/{filename}"
-        with open(path, "wb") as f:
-            while True:
-                chunk = await field.read_chunk()
-                if not chunk:
-                    break
-                f.write(chunk)
-        db = getattr(self.agent, "db", None)
-        lang = (request.query.get("lang") or "").strip().lower() or None
+        voice, admin, context = await for_request(request)
         try:
-            text = await transcribe(path, db=db, language=lang)
-        except Exception as e:  # noqa: BLE001
-            return web.json_response({"error": str(e)}, status=500)
+            reader = await request.multipart()
+            field = await reader.next()
+        except (ValueError, AssertionError):
+            return web.json_response({"error": "invalid audio upload"}, status=400)
+        if field is None or not is_audio_file(field.filename):
+            return web.json_response({"error": "audio file is required"}, status=400)
+        language = (request.query.get("lang") or "").strip().lower() or None
+        with tempfile.TemporaryDirectory(prefix="oa_stt_") as directory:
+            # An uploaded filename never chooses a filesystem destination.
+            path = Path(directory) / ("upload" + Path(field.filename).suffix.lower())
+            size = 0
+            with path.open("wb") as output:
+                while chunk := await field.read_chunk():
+                    size += len(chunk)
+                    if size > 32 << 20:
+                        raise web.HTTPRequestEntityTooLarge(max_size=32 << 20, actual_size=size)
+                    output.write(chunk)
+            try:
+                text = await voice.transcribe(path, language=language)
+                await admin.authorize(context, "model.read")
+            except PermissionError:
+                raise web.HTTPForbidden(text="Audio authorization changed") from None
+            except (RuntimeError, ValueError, TimeoutError):
+                return web.json_response({"error": "audio provider unavailable"}, status=502)
         if not text:
             return web.json_response({"error": "no STT backend produced text"}, status=404)
         return web.json_response({"text": text})
 
     async def _handle_tts_synthesize(self, request):
-        """POST /api/tts/synthesize — synthesise text to audio bytes for bridges.
-
-        Body: ``{"text": "..."}`` → audio bytes (MIME varies by vendor,
-        usually ``audio/mpeg``); ``404`` if no TTS provider configured,
-        ``400`` on missing text. Bridges (Telegram, Discord, WhatsApp)
-        call this so the ElevenLabs/OpenAI/Azure key only lives in the
-        SQLite providers table next to the gateway, never in each
-        bridge process.
-        """
+        """Synthesize through the public service and return its actual media type."""
         from aiohttp import web
-        from openagent_core.voice.tts import resolve_tts_provider, synthesize_full
+        from openagent_server.audio_service import for_request
 
-        # Auth handled by middleware; cert is on request["device_cert"].
+        voice, admin, context = await for_request(request)
         try:
             body = await request.json()
-        except Exception:
-            return web.json_response({"error": "invalid JSON body"}, status=400)
-        text = (body.get("text") or "").strip()
-        if not text:
-            return web.json_response({"error": "text is required"}, status=400)
-
-        db = getattr(self.agent, "db", None)
-        cfg = await resolve_tts_provider(db)
-        if cfg is None:
-            return web.json_response({"error": "no TTS provider configured"}, status=404)
-
-        audio = await synthesize_full(text, cfg)
-        if not audio:
-            return web.json_response({"error": "synthesis failed"}, status=502)
-        return web.Response(body=audio, content_type="audio/mpeg")
+            if not isinstance(body, dict) or set(body) - {"text", "language"}:
+                raise ValueError()
+            text = body.get("text")
+            if not isinstance(text, str) or not text.strip() or len(text) > 131072:
+                raise ValueError()
+            language = body.get("language")
+            if language is not None and not isinstance(language, str):
+                raise ValueError()
+        except (TypeError, ValueError):
+            return web.json_response({"error": "valid text is required"}, status=400)
+        try:
+            audio = await voice.synthesize(text, language=language)
+            await admin.authorize(context, "model.read")
+        except PermissionError:
+            raise web.HTTPForbidden(text="Audio authorization changed") from None
+        except (RuntimeError, ValueError, TimeoutError):
+            return web.json_response({"error": "audio provider unavailable"}, status=502)
+        if audio is None:
+            return web.json_response({"error": "no TTS backend produced audio"}, status=404)
+        return web.Response(body=audio.data, content_type=audio.media_type)
 
     # ── File serving (agent → client) ──
 

@@ -10,6 +10,14 @@ import tempfile
 import threading
 import time
 from pathlib import Path
+import sys
+
+# The frozen audio subprocess must not load server configuration, identities,
+# listeners or bootstrap resources before reading its private request pipe.
+if len(sys.argv) == 2 and sys.argv[1] == "_audio-worker":
+    from openagent_core.audio_worker import main as _audio_worker_main
+    _audio_worker_main()
+    raise SystemExit(0)
 
 # Suppress noisy ``tokenizers`` parallelism warning AND prevent
 # multiprocessing initialisation in tqdm — both are triggered by
