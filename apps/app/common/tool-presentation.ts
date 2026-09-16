@@ -56,6 +56,7 @@ function safeArgs(value: SafeJsonValue | undefined): Record<string, unknown> {
 }
 
 type PresentationInput = {
+  execution_host?: ToolInfo['execution_host'];
   id?: string | null;
   tool_call_id?: string | null;
   tool_server?: string | null;
@@ -108,6 +109,7 @@ function toolInfoFromInput(input: PresentationInput, invocationId?: string): Too
 
   return {
     tool_name: toolName,
+    execution_host: input.execution_host,
     effective_tool_name: input.effective_tool_name || undefined,
     effective_tool_server: input.effective_tool_server || undefined,
     tool_call_id: input.tool_call_id || undefined,

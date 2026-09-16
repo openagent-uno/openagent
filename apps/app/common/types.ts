@@ -18,6 +18,7 @@ export type { AttachmentRef } from './attachments';
 // ── WebSocket Protocol ──
 
 export type ClientMessage =
+  | { type: 'app_capability_register'; product: 'openagent-app'; dashboard_tools: 1 }
   // Legacy AUTH frame: ignored by the gateway (auth is enforced at the
   // Iroh transport layer via the device cert), but we keep sending one
   // for back-compat with code that waits for AUTH_OK as a "ready"
@@ -94,6 +95,7 @@ export type ClientMessage =
         inline_ui: boolean;
         sidebar_ui: boolean;
         custom_ui_version: number;
+        dashboard_tools?: 1;
       };
     }
   | { type: 'session_close'; session_id: string }
@@ -178,6 +180,8 @@ export type ResourceKind = 'mcp' | 'scheduled_task' | 'workflow' | 'vault' | 'co
 export type ResourceAction = 'created' | 'updated' | 'deleted' | 'changed';
 
 export type ServerMessage =
+  | { type: 'app_capability_registered'; connection_id: string; dashboard_tools: 1 }
+  | { type: 'app_capability_error'; message: string }
   | {
       type: 'auth_ok';
       agent_name: string;

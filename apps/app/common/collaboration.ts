@@ -1,6 +1,7 @@
 /** Additive collaboration/1 contract. Snapshots replace, never append deltas. */
 import type { AttachmentRef } from './attachments';
 import type { MessagePart } from './ui-views';
+import type { ToolInfo } from './types';
 export type SharedTarget = { kind: 'session' | 'workflow' | 'scheduled_task' | 'event'; id: string };
 export type SharedPerson = { userId: string; name: string; target: SharedTarget };
 export type SharedAuthor = { kind: 'human' | 'agent'; userId?: string; handle?: string; display?: string };
@@ -8,6 +9,7 @@ export type SharedTurn = {
   id: string; runId: string | null; providerRunId?: string; active: boolean; startedAt: number;
   finishedAt?: number; status?: string; reasoning?: boolean; error?: string; truncated?: boolean;
   messages: { id: string; role: 'user' | 'assistant'; text: string; timestamp: number; author?: SharedAuthor; model?: string; attachments?: AttachmentRef[]; parts?: MessagePart[] }[];
+  tools?: { id: string; toolInfo: ToolInfo; timestamp: number }[];
 };
 export type SharedSnapshot = { session_id: string; revision: number; turns: SharedTurn[] };
 export type SharedTurnResult = { session_id: string; request_id: string; response: string; model?: string; errored?: boolean; interrupted?: boolean };
@@ -25,6 +27,9 @@ export function validSharedSnapshot(value: unknown): value is SharedSnapshot {
     && Array.isArray(state.turns) && state.turns.length <= 8 && state.turns.every(turn =>
       !!turn && typeof turn.id === 'string' && turn.id.length <= 128 && typeof turn.active === 'boolean'
       && Number.isFinite(turn.startedAt) && Array.isArray(turn.messages) && turn.messages.length <= 2
+      && (turn.tools === undefined || (Array.isArray(turn.tools) && turn.tools.length <= 128 && turn.tools.every(tool =>
+        typeof tool.id === 'string' && tool.id.length <= 256 && Number.isFinite(tool.timestamp)
+        && !!tool.toolInfo && typeof tool.toolInfo.tool_name === 'string' && tool.toolInfo.tool_call_id === tool.id)))
       && turn.messages.every(message => !!message && typeof message.id === 'string'
         && ['user', 'assistant'].includes(message.role) && typeof message.text === 'string'
         && message.text.length <= 262144 && Number.isFinite(message.timestamp)

@@ -281,6 +281,7 @@ class NativeRuntimeService:
         context = prepared.context
         cursor = 0
         completed_frame = False
+        tool_statuses = {}
         try:
             while True:
                 for event in await self.runtime.events(identifier, cursor, context):
@@ -292,7 +293,51 @@ class NativeRuntimeService:
                         )
                         yield payload
                     elif event.kind == "run.status" and on_status is not None:
-                        await on_status(str(event.payload.get("text") or ""))
+                        text = str(event.payload.get("text") or "")
+                        import json
+
+                        try:
+                            status = json.loads(text)
+                        except (ValueError, TypeError):
+                            status = None
+                        # The public catalog emits the actual invocation with
+                        # a durable call ID and a verified destination.
+                        if (
+                            not isinstance(status, dict)
+                            or status.get("tool_name") != "tool_search_call_tool"
+                        ):
+                            await on_status(text)
+                    elif (
+                        event.kind in {"tool.invoking", "tool.completed"}
+                        and on_status is not None
+                    ):
+                        import json
+
+                        call_id = event.payload["call_id"]
+                        if (
+                            event.kind == "tool.invoking"
+                            or call_id not in tool_statuses
+                        ):
+                            binding = event.payload["binding"]
+                            tool_statuses[call_id] = {
+                                "tool_call_id": call_id,
+                                "tool_name": binding["name"],
+                                "tool_server": binding["source_id"],
+                                "tool_args": event.payload["arguments"],
+                                "execution_host": binding.get("execution_host"),
+                                "result": None,
+                            }
+                        if event.kind == "tool.completed":
+                            status = tool_statuses.get(call_id)
+                            if status is None:
+                                continue
+                            status["result"] = json.dumps(
+                                event.payload.get("result", event.payload.get("error"))
+                            )
+                            status["tool_call_error"] = (
+                                event.payload.get("status") != "success"
+                            )
+                        await on_status(json.dumps(tool_statuses[call_id]))
                 record = await self.runtime.get_run(identifier, context)
                 if record.terminal:
                     if record.status != "success":

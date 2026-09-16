@@ -166,7 +166,15 @@ export interface ServerExecutionHost {
   device_label: string;
 }
 
-export type ToolExecutionHost = ClientExecutionHost | ServerExecutionHost;
+export interface CapabilityExecutionHost {
+  kind: 'capability' | 'unknown';
+  device_label: string;
+  source_id?: string;
+  instance_id?: string;
+  generation?: number;
+}
+
+export type ToolExecutionHost = ClientExecutionHost | ServerExecutionHost | CapabilityExecutionHost;
 
 export type DesktopCapabilityPhase =
   | 'disabled'

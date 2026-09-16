@@ -56,5 +56,3 @@ def ensure_agent_dir(path: Path) -> Path:
     (path / "skills").mkdir(exist_ok=True)
 
     return path
-
-

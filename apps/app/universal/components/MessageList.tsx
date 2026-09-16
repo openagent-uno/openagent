@@ -721,7 +721,7 @@ const ToolCard = memo(function ToolCard({
   const executionHost = info.execution_host;
   const executionHostLabel = executionHost?.kind === 'client'
     ? `This computer${executionHost.device_label ? ` · ${executionHost.device_label}` : ''}`
-    : executionHost?.kind === 'server' ? executionHost.device_label || 'OpenAgent server' : null;
+    : executionHost?.device_label || null;
   const hasArgs = !!(info.tool_args && Object.keys(info.tool_args).length > 0);
   const hasResult = !isError && info.result != null && info.result !== '';
   const canExpand = toolCardHasExpandableDetails(info);
@@ -813,7 +813,9 @@ const ToolCard = memo(function ToolCard({
                 <Text style={styles.toolCodeText}>
                   {executionHost.kind === 'client'
                     ? `${executionHost.device_label} · client ${executionHost.client_instance_id}`
-                    : executionHost.device_label}
+                    : executionHost.kind === 'capability' && executionHost.instance_id
+                      ? `${executionHost.device_label} · instance ${executionHost.instance_id}`
+                      : executionHost.device_label}
                 </Text>
               </View>
             </>

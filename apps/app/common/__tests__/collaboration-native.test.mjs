@@ -51,3 +51,19 @@ test('replay replaces stable turns, keeps identical inputs and reconciles canoni
   assert.equal(merged.filter(m => m.providerRunId === 'run:chat:a').length, 1);
   assert.equal(merged.find(m => m.id === 'shared:b:input').author.handle, 'bob');
 });
+
+test('catalog tool cards preserve exact destination and reconcile with durable run history', () => {
+  const toolInfo = { tool_name: 'read_text_file', tool_call_id: 'call-1', result: 'done',
+    execution_host: { kind: 'capability', device_label: 'Alice laptop', source_id: 'app/verified/filesystem', instance_id: 'device-instance' } };
+  const snapshot = { session_id: 'chat', revision: 1, turns: [{ id: 'turn', runId: 'request',
+    providerRunId: 'run:chat:request', active: true, startedAt: 1,
+    messages: [{ id: 'input', role: 'user', text: 'Read', timestamp: 1 }],
+    tools: [{ id: 'call-1', toolInfo, timestamp: 2 }] }] };
+  const live = mergeSharedTranscript([], snapshot);
+  assert.equal(live.length, 2);
+  assert.deepEqual(live[1].toolInfo.execution_host, toolInfo.execution_host);
+  snapshot.turns[0].active = false;
+  const canonical = [{ id: 'canonical-tool', role: 'tool', text: '', timestamp: 2000,
+    providerRunId: 'run:chat:request', toolInfo }];
+  assert.deepEqual(mergeSharedTranscript([...live, ...canonical], snapshot), canonical);
+});

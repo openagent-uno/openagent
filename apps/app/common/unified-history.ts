@@ -526,6 +526,7 @@ export type SessionMessagesQuery =
  * Arguments and results intentionally remain behind the authorized detail
  * resolver so opening a chat never duplicates or renders a large tool blob. */
 export interface ToolInvocationSummary {
+  execution_host?: import('./client-capabilities').ToolExecutionHost;
   id: OpaqueId;
   tool_call_id?: OpaqueId | null;
   tool_server?: string | null;
@@ -613,6 +614,7 @@ export type SafeJsonValue =
   | { [key: string]: SafeJsonValue };
 
 export interface ToolInvocationDetail {
+  execution_host?: import('./client-capabilities').ToolExecutionHost;
   id: OpaqueId;
   tool_call_id?: OpaqueId | null;
   root_kind: 'chat' | 'delegated_session' | 'workflow_run' | 'scheduled_run' | 'event_delivery';

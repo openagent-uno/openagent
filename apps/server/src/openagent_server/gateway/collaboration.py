@@ -254,13 +254,18 @@ class Collaboration:
         active = runtime.active
         if not active or active["command"]:
             return False
-        service = getattr(self.gateway,'runtime_service',None)
+        service = getattr(self.gateway, "runtime_service", None)
         if cancel_execution and service is not None:
-            prepared = service.prepared_runs.get(active['id'])
+            prepared = service.prepared_runs.get(active["id"])
             if prepared is not None:
-                context = (await service.authorizer.context_for_identity(identity,prepared.request.session_id)
-                    if identity is not None else prepared.context)
-                await service.runtime.cancel(active['id'],context)
+                context = (
+                    await service.authorizer.context_for_identity(
+                        identity, prepared.request.session_id
+                    )
+                    if identity is not None
+                    else prepared.context
+                )
+                await service.runtime.cancel(active["id"], context)
         active["interrupted"] = True
         async with runtime.session._dispatch_lock:
             await runtime.session._cancel_active_turn(reason="manual")
@@ -300,7 +305,15 @@ class Collaboration:
         )
 
     async def _run(
-        self, request, sid, text, request_id, delivery, attachments=(), instance_id=None, app_connection_id=None
+        self,
+        request,
+        sid,
+        text,
+        request_id,
+        delivery,
+        attachments=(),
+        instance_id=None,
+        app_connection_id=None,
     ):
         from openagent_core.core.on_behalf_context import (
             OnBehalfIdentity,
@@ -338,10 +351,14 @@ class Collaboration:
             await self._check(request, sid)
         app_ingress = None
         if app_connection_id is not None:
-            dashboards = getattr(getattr(self.gateway, "runtime_service", None), "dashboards", None)
+            dashboards = getattr(
+                getattr(self.gateway, "runtime_service", None), "dashboards", None
+            )
             if dashboards is None:
                 raise PermissionError("App dashboard capabilities are unavailable")
-            app_ingress = dashboards.resolve_ingress(app_connection_id, principal, request_id, client_instance_id=instance_id)
+            app_ingress = dashboards.resolve_ingress(
+                app_connection_id, principal, request_id, client_instance_id=instance_id
+            )
         from openagent_core.core.execution_origin import (
             TrustedIngressIdentity,
             TrustedTurnContext,
@@ -376,13 +393,25 @@ class Collaboration:
             await self._check(request, sid)
             self.hub.prune()
             if sid not in self.hub.sessions and len(self.hub.sessions) >= 128:
-                raise BusyError('Live replay capacity reached')
+                raise BusyError("Live replay capacity reached")
             if command is None:
                 active = runtime.active
-                target = active['id'] if delivery == 'steer' and active and not active['command'] else None
+                target = (
+                    active["id"]
+                    if delivery == "steer" and active and not active["command"]
+                    else None
+                )
                 service = self.gateway.runtime_service
-                prepared = await service.admit_message(identity=principal,message=text,session_id=sid,run_id=request_id,
-                    attachments=normalized_attachments,origin=origin,ingress=ingress,steer_run_id=target)
+                prepared = await service.admit_message(
+                    identity=principal,
+                    message=text,
+                    session_id=sid,
+                    run_id=request_id,
+                    attachments=normalized_attachments,
+                    origin=origin,
+                    ingress=ingress,
+                    steer_run_id=target,
+                )
                 prepared.cancel_on_detach = False
                 if target is not None:
                     previous = service.prepared_runs.get(target)
@@ -390,9 +419,9 @@ class Collaboration:
                         previous.cancel_on_detach = False
                     # Runtime steering owns the exact execution cancellation;
                     # only stop the previous stream observer after acceptance.
-                    stopped = await self._interrupt(runtime,cancel_execution=False)
-            elif command == 'stop':
-                stopped = await self._interrupt(runtime,identity=principal)
+                    stopped = await self._interrupt(runtime, cancel_execution=False)
+            elif command == "stop":
+                stopped = await self._interrupt(runtime, identity=principal)
         async with runtime.lock:
             access = await self._check(request, sid)
             if command and runtime.session._detached_turns:
@@ -403,10 +432,17 @@ class Collaboration:
                 if command:
                     raise BusyError("Live replay capacity reached")
                 service = self.gateway.runtime_service
-                record = await service.runtime.wait(request_id,prepared.context)
-                return {'response':record.output or '', 'errored':record.status!='success',
-                    'request_id':request_id,'session_id':sid,'runtime_status':record.status}
+                record = await service.runtime.wait(request_id, prepared.context)
+                return {
+                    "response": record.output or "",
+                    "errored": record.status != "success",
+                    "request_id": request_id,
+                    "session_id": sid,
+                    "runtime_status": record.status,
+                }
             live = self.hub.sessions[sid]["turns"][-1]
+            if command is None:
+                live["providerRunId"] = request_id
             state = {
                 "id": request_id,
                 "task": asyncio.current_task(),
@@ -421,36 +457,6 @@ class Collaboration:
             runtime.session.on_behalf_identity = principal
             if attachments:
                 live["messages"][0]["attachments"] = list(attachments)
-            memory_db = getattr(self.gateway.agent, "memory_db", None)
-            try:
-                prior_runs = (
-                    await memory_db.list_session_runs(sid, limit=1)
-                    if not command and memory_db
-                    else []
-                )
-            except Exception:
-                prior_runs = []
-            prior_run_id = prior_runs[0].get("run_id") if prior_runs else None
-            state["prior_run_id"] = prior_run_id
-
-            async def identify_run():
-                # Resolve once per run without delaying the synchronous token tee.
-                for _ in range(100):
-                    await asyncio.sleep(0.1)
-                    try:
-                        runs = await memory_db.list_session_runs(sid, limit=1)
-                        if runs and runs[0].get("run_id") != prior_run_id:
-                            live["providerRunId"] = f"run:{sid}:{runs[0]['run_id']}"
-                            self.hub.changed(self.hub.sessions[sid])
-                            return
-                    except Exception:
-                        return
-
-            projection = (
-                asyncio.create_task(identify_run())
-                if not command and memory_db
-                else None
-            )
             identity_token = install_on_behalf_identity(
                 runtime.session.on_behalf_identity
             )
@@ -550,17 +556,6 @@ class Collaboration:
                 }
             finally:
                 reset_on_behalf_identity(identity_token)
-                if projection:
-                    projection.cancel()
-                    await asyncio.gather(projection, return_exceptions=True)
-                if not command and memory_db:
-                    try:
-                        runs = await memory_db.list_session_runs(sid, limit=1)
-                        if runs and runs[0].get("run_id") != prior_run_id:
-                            live["providerRunId"] = f"run:{sid}:{runs[0]['run_id']}"
-                            self.hub.changed(self.hub.sessions[sid])
-                    except Exception:
-                        pass  # projection failures cannot retain the execution lock
                 if live["active"]:
                     self.hub.publish({"type": "turn_complete", "session_id": sid})
                 runtime.active = None
@@ -615,7 +610,10 @@ class Collaboration:
             attachments = [public_attachment_ref(a) for a in attachments]
             instance_id = body.get("client_instance_id")
             app_connection_id = body.get("app_connection_id")
-            if app_connection_id is not None and (not isinstance(app_connection_id,str) or not IDENTIFIER.fullmatch(app_connection_id)):
+            if app_connection_id is not None and (
+                not isinstance(app_connection_id, str)
+                or not IDENTIFIER.fullmatch(app_connection_id)
+            ):
                 raise ValueError()
             if instance_id is not None and (
                 not isinstance(instance_id, str)
@@ -702,7 +700,7 @@ class Collaboration:
         except BusyError as exc:
             return web.json_response({"error": str(exc)}, status=409)
         except IdempotencyConflict:
-            return web.json_response({'error':'Request identity conflict'},status=409)
+            return web.json_response({"error": "Request identity conflict"}, status=409)
         # Attachment refusals are client errors, not gateway faults. The
         # message never names the offending id or path: an opaque artifact id
         # is not a bearer token and must not become an existence oracle.

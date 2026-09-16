@@ -26,7 +26,8 @@ export class CollaborationClient {
   onResource: ((frame: { resource: string; action: string; id?: string }) => void) | null = null;
   onError: ((error: Error) => void) | null = null;
 
-  constructor(private readonly origin: string, private readonly socketFactory = (url: string) => new WebSocket(url)) {}
+  constructor(private readonly origin: string, private readonly socketFactory = (url: string) => new WebSocket(url),
+    private readonly appConnection?: () => Promise<string | undefined>) {}
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -141,8 +142,10 @@ export class CollaborationClient {
   }
 
   async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal, attachments?: Attachment[], clientInstanceId?: string): Promise<SharedTurnResult> {
+    const appConnectionId = await this.appConnection?.();
     return this.post('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
       ...(attachments?.length ? { attachments } : {}), ...(clientInstanceId ? { client_instance_id: clientInstanceId } : {}),
+      ...(appConnectionId ? { app_connection_id: appConnectionId } : {}),
     }, signal);
   }
 

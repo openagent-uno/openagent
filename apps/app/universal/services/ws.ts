@@ -49,7 +49,7 @@ export class OpenAgentWS {
       const info = await response.json();
       if (info.version !== 1) throw new Error('Unsupported shared session protocol');
       if (this.sharedClosed) return null;
-      const shared = new CollaborationClient(origin);
+      const shared = new CollaborationClient(origin, undefined, () => this.dashboardConnection());
       shared.onResource = frame => this.handlers.forEach(h => h(frame as ServerMessage));
       this.collaboration = shared;
       this.sharedDiscovered = true;
@@ -101,6 +101,37 @@ export class OpenAgentWS {
   private url: string;
   private token: string;
   private clientInstanceId: string;
+  private appConnectionId: string | undefined;
+  private appRegistration: Promise<string | undefined> = Promise.resolve(undefined);
+  private appRegistrationComplete: ((id: string | undefined) => void) | undefined;
+  private appRegistrationTimer: ReturnType<typeof setTimeout> | undefined;
+
+  private dashboardConnection(): Promise<string | undefined> { return this.appRegistration; }
+  private offerAppCapabilities(): void {
+    this.clearAppRegistration();
+    this.appRegistration = new Promise(resolve => { this.appRegistrationComplete = resolve; });
+    // Old standalone servers can continue to serve chat during transition.
+    this.appRegistrationTimer = setTimeout(() => this.clearAppRegistration(), 5000);
+    this.send({ type: 'app_capability_register', product: 'openagent-app', dashboard_tools: 1 });
+  }
+  private clearAppRegistration(): void {
+    if (this.appRegistrationTimer) clearTimeout(this.appRegistrationTimer);
+    this.appRegistrationTimer = undefined;
+    this.appConnectionId = undefined;
+    this.appRegistrationComplete?.(undefined);
+    this.appRegistrationComplete = undefined;
+    this.appRegistration = Promise.resolve(undefined);
+  }
+  private handleAppRegistration(message: ServerMessage): void {
+    if (message.type === 'app_capability_registered' && message.dashboard_tools === 1 && message.connection_id) {
+      if (this.appRegistrationTimer) clearTimeout(this.appRegistrationTimer);
+      this.appRegistrationTimer = undefined;
+      this.appConnectionId = message.connection_id;
+      this.appRegistrationComplete?.(message.connection_id);
+      this.appRegistrationComplete = undefined;
+      this.appRegistration = Promise.resolve(message.connection_id);
+    } else if (message.type === 'app_capability_error') this.clearAppRegistration();
+  }
   private handlers: Set<MessageHandler> = new Set();
   private closeHandlers: Set<CloseHandler> = new Set();
   private errorHandlers: Set<ErrorHandler> = new Set();
@@ -179,8 +210,10 @@ export class OpenAgentWS {
           this.authed = true;
           this.everAuthed = true;
           this.reconnectAttempts = 0;
+          this.offerAppCapabilities();
           this.flushPending();
         }
+        this.handleAppRegistration(msg);
         this.handlers.forEach((h) => h(msg));
       } catch {
         // ignore malformed messages
@@ -191,6 +224,7 @@ export class OpenAgentWS {
       console.log(`[WS] closed: code=${event.code} reason=${event.reason}`);
       this.openedSessions.clear();
       this.authed = false;
+      this.clearAppRegistration();
 
       // A fresh connection carrying this device certificate has already
       // taken over on the gateway.  Reconnecting this old socket would evict
@@ -278,6 +312,7 @@ export class OpenAgentWS {
       this.authed = true;
       this.everAuthed = true;
       this.reconnectAttempts = 0;
+      this.offerAppCapabilities();
       this.flushPending();
       queueMicrotask(() => {
         this.handlers.forEach((h) => h({ type: 'auth_ok' as const } as any));
@@ -291,8 +326,10 @@ export class OpenAgentWS {
           this.authed = true;
           this.everAuthed = true;
           this.reconnectAttempts = 0;
+          this.offerAppCapabilities();
           this.flushPending();
         }
+        this.handleAppRegistration(msg);
         this.handlers.forEach((h) => h(msg));
       } catch { /* ignore */ }
     };
@@ -300,6 +337,7 @@ export class OpenAgentWS {
     t.onclose = (info: { code: number; reason: string }) => {
       this.openedSessions.clear();
       this.authed = false;
+      this.clearAppRegistration();
       if (isConnectionReplacedClose(info.code, info.reason)) {
         this.shouldReconnect = false;
         this.pendingOut = [];
@@ -360,6 +398,7 @@ export class OpenAgentWS {
   }
 
   disconnect(): void {
+    this.clearAppRegistration();
     this.sharedClosed = true;
     this.collaboration?.dispose();
     this.collaboration = null;
@@ -537,6 +576,9 @@ export class OpenAgentWS {
         inline_ui: true,
         sidebar_ui: true,
         custom_ui_version: 1,
+        // App-owned capability registration, separate from local computer
+        // access consent and scoped by the server to this authenticated socket.
+        dashboard_tools: 1,
       },
     });
     this.openedSessions.add(sessionId);

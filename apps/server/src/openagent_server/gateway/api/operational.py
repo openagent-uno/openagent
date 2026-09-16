@@ -1875,6 +1875,20 @@ async def handle_session_related_runs(request: web.Request) -> web.Response:
         )
 
 
+def _execution_host_from_binding(raw):
+    """Only the trusted catalog binding can attest an execution destination."""
+    try:
+        envelope = json.loads(raw or '{}')
+        host = envelope.get('binding',{}).get('execution_host')
+    except (ValueError,TypeError,AttributeError):
+        return None
+    if not isinstance(host,dict) or host.get('kind') not in {'capability','unknown'}:
+        return None
+    if not isinstance(host.get('device_label'),str):
+        return None
+    return {key:value for key,value in host.items() if key in {'kind','device_label','source_id','instance_id','generation'}}
+
+
 def _effective_tool_identity(
     tool_name: str,
     raw_args: str | None,
@@ -2070,6 +2084,7 @@ def _message_json(
             if row["resolved_tool_server"]
             else None,
             "tool_name": str(row["resolved_tool_name"]),
+            "execution_host": _execution_host_from_binding(row['resolved_tool_envelope']) if 'resolved_tool_envelope' in row.keys() else None,
             "effective_tool_server": effective_server,
             "effective_tool_name": effective_name,
             "status": str(row["resolved_tool_status"]),
@@ -2278,6 +2293,7 @@ async def handle_session_messages(request: web.Request) -> web.Response:
             "t.tool_server AS resolved_tool_server, "
             "t.tool_name AS resolved_tool_name, "
             "t.args_json AS resolved_tool_args_json, "
+            "t.raw_envelope_json AS resolved_tool_envelope, "
             "t.result_json AS resolved_tool_result_json, "
             "t.result_text AS resolved_tool_result_text, "
             "t.workflow_run_id AS resolved_workflow_run_id, "
@@ -2470,6 +2486,7 @@ async def handle_tool_invocation(request: web.Request) -> web.Response:
                 "event_delivery_id": str(row["event_delivery_id"]) if row["event_delivery_id"] else None,
                 "tool_server": str(row["tool_server"]) if row["tool_server"] else None,
                 "tool_name": str(row["tool_name"]),
+                "execution_host": _execution_host_from_binding(row['raw_envelope_json']),
                 "status": str(row["status"]),
                 "args_safe": _safe_shape(row["args_json"]),
                 "result_safe": _safe_shape(row["result_json"]),

@@ -15,6 +15,10 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
       providerRunId: turn.providerRunId, timestamp: message.timestamp * 1000,
       streaming: turn.active && message.role === 'assistant',
     });
+    for (const tool of turn.tools || []) base.push({
+      id: `shared:${turn.id}:tool:${tool.id}`, sharedTurnId: turn.id, role: 'tool', text: '',
+      toolInfo: tool.toolInfo, providerRunId: turn.providerRunId, timestamp: tool.timestamp * 1000,
+    });
     if (turn.error) base.push({ id: `shared:${turn.id}:error`, sharedTurnId: turn.id,
       role: 'assistant', text: turn.error, timestamp: (turn.finishedAt || turn.startedAt) * 1000 });
   }

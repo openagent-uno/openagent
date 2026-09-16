@@ -1937,17 +1937,24 @@ async def t_detached_tasks_clear_origin(ctx: TestContext) -> None:
         compaction._run_background_compaction = original_compact
 
 
+def _background_execution(session, instance, generation):
+    from openagent_core.contracts import CapabilityLease, ExecutionContext, PrincipalRef
+    principal = PrincipalRef("standalone", "network-1", "alice")
+    return ExecutionContext(principal, principal, principal, session, "agent", (principal,),
+        capabilities=(CapabilityLease(f"device/{instance}/{generation}/shell", instance, str(generation)),))
+
+
 @test(
     "client_capabilities",
     "client shell events wake only the exact interactive origin",
 )
 async def t_client_shell_event_origin(ctx: TestContext) -> None:
     from openagent_server.gateway.capabilities import CapabilityRegistry, ClientCapabilityError
-    from openagent_core.mcp.servers.shell import handlers
+    from openagent_core.jobs import BackgroundJobs
 
-    handlers._reset_hub_for_tests()
-    hub = handlers.get_hub()
-    registry = CapabilityRegistry()
+    hub = BackgroundJobs()
+    registry = CapabilityRegistry(background_jobs=hub)
+    execution = _background_execution("chat:interactive", "desktop", 4)
     sent_desktop: list[dict] = []
     sent_cli: list[dict] = []
 
@@ -1977,6 +1984,7 @@ async def t_client_shell_event_origin(ctx: TestContext) -> None:
         "shell_exec",
         {"command": "build", "run_in_background": True},
         session_id="chat:interactive",
+        execution_context=execution, source_id=execution.capabilities[0].source_id,
         timeout_s=2,
     ))
     await asyncio.sleep(0)
@@ -1995,9 +2003,9 @@ async def t_client_shell_event_origin(ctx: TestContext) -> None:
     assert result["structuredContent"]["shell_id"] == "host-shell-1"
     desktop_host = ("dev", "desktop", 4)
     cli_host = ("dev", "cli", 2)
-    assert hub.has_running("chat:interactive", client_host=desktop_host)
-    assert not hub.has_running("chat:interactive", client_host=cli_host)
-    assert not hub.has_running("chat:interactive", client_host=None)
+    assert hub.has_running("chat:interactive", context_key=execution.coalescing_key)
+    assert not hub.has_running("chat:interactive", context_key="another-client")
+    assert not hub.has_running("chat:interactive", context_key="automatic")
 
     # A real reconnect unregisters the old WebSocket before the replacement
     # hello arrives. Exact same-generation correlation survives that gap and
@@ -2057,15 +2065,15 @@ async def t_client_shell_event_origin(ctx: TestContext) -> None:
     assert ack == {
         "shell_id": "host-shell-1", "accepted": True, "duplicate": False,
     }
-    assert not hub.has_running("chat:interactive", client_host=desktop_host)
-    assert hub.drain("chat:interactive") == [], "automatic turn saw client event"
-    assert hub.drain("chat:interactive", client_host=cli_host) == []
-    events = hub.drain("chat:interactive", client_host=desktop_host)
+    assert not hub.has_running("chat:interactive", context_key=execution.coalescing_key)
+    assert hub.drain("chat:interactive", context_key="automatic") == [], "automatic turn saw client event"
+    assert hub.drain("chat:interactive", context_key="another-client") == []
+    events = hub.drain("chat:interactive", context_key=execution.coalescing_key)
     assert len(events) == 1
-    assert events[0].shell_id == "host-shell-1"
-    assert events[0].bytes_stdout == 19
-    assert events[0].tool_server == "client:shell"
-    assert hub.drain("scheduler:forged", client_host=desktop_host) == []
+    assert events[0].arguments == {"shell_id": "host-shell-1"}
+    assert "stdout_bytes=19" in events[0].summary
+    assert events[0].source_id == execution.capabilities[0].source_id
+    assert hub.drain("scheduler:forged", context_key=execution.coalescing_key) == []
 
     # Durable broker replay is acknowledged without producing a second
     # autoloop reminder.
@@ -2078,7 +2086,7 @@ async def t_client_shell_event_origin(ctx: TestContext) -> None:
         },
     })
     assert duplicate["duplicate"] is True
-    assert hub.drain("chat:interactive", client_host=desktop_host) == []
+    assert hub.drain("chat:interactive", context_key=execution.coalescing_key) == []
 
 
 @test(
@@ -2087,11 +2095,10 @@ async def t_client_shell_event_origin(ctx: TestContext) -> None:
 )
 async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
     from openagent_server.gateway.capabilities import CapabilityRegistry, ClientCapabilityError
-    from openagent_core.mcp.servers.shell import handlers
+    from openagent_core.jobs import BackgroundJobs
 
-    handlers._reset_hub_for_tests()
-    hub = handlers.get_hub()
-    registry = CapabilityRegistry()
+    hub = BackgroundJobs()
+    registry = CapabilityRegistry(background_jobs=hub)
     sent: list[dict] = []
 
     async def send(_ws, payload):
@@ -2107,6 +2114,8 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
             "shell_exec",
             {"command": "build", "run_in_background": True},
             session_id="chat:reconnect",
+            execution_context=_background_execution("chat:reconnect", "desktop", generation),
+            source_id=f"device/desktop/{generation}/shell",
             timeout_s=2,
         ))
         await asyncio.sleep(0)
@@ -2130,7 +2139,7 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
     )
     await start_shell(first, generation=1, shell_id="old-shell")
     old_host = ("dev", "desktop", 1)
-    assert hub.has_running("chat:reconnect", client_host=old_host)
+    assert hub.has_running("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 1).coalescing_key)
     await registry.unregister(first)
 
     # A generation is part of execution-host identity. A restarted broker may
@@ -2141,7 +2150,7 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
         servers=_shell_catalog(),
     )
     assert "old-shell" not in second.client_shells
-    assert not hub.has_running("chat:reconnect", client_host=old_host)
+    assert not hub.has_running("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 1).coalescing_key)
     try:
         registry.receive_tool_event(second, {
             "type": "client_tool_event",
@@ -2163,11 +2172,11 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
     assert registry._detached_shells  # noqa: SLF001 - protocol invariant test
     await registry.close_device("dev")
     assert not registry._detached_shells  # noqa: SLF001
-    assert not hub.has_running("chat:reconnect", client_host=second_host)
-    revoked_events = hub.drain("chat:reconnect", client_host=second_host)
+    assert not hub.has_running("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 2).coalescing_key)
+    revoked_events = hub.drain("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 2).coalescing_key)
     assert len(revoked_events) == 1
-    assert revoked_events[0].shell_id == "revoked-shell"
-    assert revoked_events[0].signal == "CLIENT_REVOKED"
+    assert revoked_events[0].arguments == {"shell_id": "revoked-shell"}
+    assert "CLIENT_REVOKED" in revoked_events[0].summary
 
 
 @test(

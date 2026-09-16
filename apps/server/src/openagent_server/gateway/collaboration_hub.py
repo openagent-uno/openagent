@@ -154,6 +154,29 @@ class SharedAgentHub:
             # Tool status is a JSON envelope in OpenAgent; plain statuses are
             # separate from transcript messages (no fabricated tool results).
             turn["status"] = text[:16384]
+            try:
+                tool = json.loads(text)
+            except (ValueError,TypeError):
+                tool = None
+            if isinstance(tool,dict) and tool.get('tool_name') and tool.get('tool_call_id'):
+                tool = dict(tool)
+                if tool.get('result') is not None:
+                    result = tool['result'] if isinstance(tool['result'],str) else json.dumps(tool['result'])
+                    tool['result'] = result[:12000]
+                if len(json.dumps(tool.get('tool_args'))) > 12000:
+                    tool['tool_args'] = {'truncated':True}
+                tools = turn.setdefault('tools',[])
+                existing = next((item for item in tools if item['id']==tool['tool_call_id']),None)
+                if existing is not None:
+                    existing['toolInfo'] = tool
+                else:
+                    if len(tools) >= 128:
+                        tools.pop(0)
+                        turn['truncated'] = True
+                    tools.append({'id':tool['tool_call_id'],'toolInfo':tool,'timestamp':time.time()})
+                while len(json.dumps(tools)) > 131072:
+                    tools.pop(0)
+                    turn['truncated'] = True
         elif kind == "reasoning":
             turn["reasoning"] = frame.get("active") is True
         elif kind == "error":
