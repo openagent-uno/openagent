@@ -128,6 +128,26 @@ if [ "$WANT_PKG" = true ]; then
     PKG_OUTPUT="${BINARY_DIR}/${PKG_BASE}-${RELEASE_VERSION}-macos-${PKG_ARCH}.pkg"
 fi
 
+# Local qualification reuses existing identities without exporting private keys,
+# creating a keychain or changing its search list. CI keeps certificate import.
+KEYCHAIN_PATH=""
+if [ -n "${CSC_NAME:-}" ]; then
+    APP_IDENTITY="$CSC_NAME"
+    security find-identity -v -p codesigning | grep -F -- "\"$APP_IDENTITY\"" >/dev/null || {
+        echo "ERROR: requested Application identity is not available" >&2; exit 1;
+    }
+    INSTALLER_IDENTITY="${CSC_INSTALLER_NAME:-}"
+    HAVE_INSTALLER_CERT=false
+    if [ "$WANT_PKG" = true ]; then
+        if [ -z "$INSTALLER_IDENTITY" ]; then
+            echo "ERROR: CSC_INSTALLER_NAME is required for a local pkg build" >&2; exit 1
+        fi
+        security find-identity -v -p basic | grep -F -- "\"$INSTALLER_IDENTITY\"" >/dev/null || {
+            echo "ERROR: requested Installer identity is not available" >&2; exit 1;
+        }
+        HAVE_INSTALLER_CERT=true
+    fi
+else
 # ── Skip cleanly when the binary-signing secrets are missing ──────────
 
 if [ -z "${CSC_LINK:-}" ] || [ -z "${CSC_KEY_PASSWORD:-}" ]; then
@@ -225,6 +245,8 @@ if [ "$HAVE_INSTALLER_CERT" = true ]; then
     else
         echo "→ Installer identity: $INSTALLER_IDENTITY"
     fi
+fi
+
 fi
 
 # ── Sign the binary (or .app bundle) ──────────────────────────────────
@@ -437,11 +459,11 @@ pkgbuild \
     "$UNSIGNED_PKG"
 
 echo "→ Signing .pkg with $INSTALLER_IDENTITY"
-productsign \
-    --sign "$INSTALLER_IDENTITY" \
-    --keychain "$KEYCHAIN_PATH" \
-    "$UNSIGNED_PKG" \
-    "$PKG_OUTPUT"
+if [ -n "$KEYCHAIN_PATH" ]; then
+    productsign --sign "$INSTALLER_IDENTITY" --keychain "$KEYCHAIN_PATH" "$UNSIGNED_PKG" "$PKG_OUTPUT"
+else
+    productsign --sign "$INSTALLER_IDENTITY" "$UNSIGNED_PKG" "$PKG_OUTPUT"
+fi
 pkgutil --check-signature "$PKG_OUTPUT"
 
 echo "→ Notarizing .pkg"

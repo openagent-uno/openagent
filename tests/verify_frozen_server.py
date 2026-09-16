@@ -74,7 +74,7 @@ def main() -> None:
     binary = args.binary.resolve()
     args.evidence.mkdir(parents=True, exist_ok=True)
     receipt = {"binary": str(binary), "sha256": hashlib.sha256(binary.read_bytes()).hexdigest(),
-        "signing": "development-ad-hoc; not Developer ID signed or notarized", "commands": []}
+        "signing": "not assessed by this runtime test", "commands": []}
     with tempfile.TemporaryDirectory(prefix="openagent-frozen-qualification-", dir="/tmp") as temporary:
         root = Path(temporary)
         home, tmp, empty_bin, agent = (root / name for name in ("home", "tmp", "empty-bin", "agent"))
@@ -100,6 +100,12 @@ def main() -> None:
             receipt["commands"].append({"command": command, "exit_code": result.returncode,
                 "seconds": round(time.monotonic() - started, 3)})
             print(f"{label}: PASS", flush=True)
+
+        audio = subprocess.run([str(binary), "_audio-worker"], input='{"row":{},"operation":"synthesize"}',
+            cwd=root, env=environment, text=True, capture_output=True, timeout=60)
+        assert audio.returncode == 0 and json.loads(audio.stdout) == {"error":"audio_provider_unavailable"}
+        assert not list(agent.iterdir()), "Audio worker unexpectedly bootstrapped an agent"
+        receipt["audio_worker"] = {"early_entry": True, "missing_route_rejected": True}
 
         config = agent / "openagent.yaml"
         config.write_text(json.dumps({"name": "frozen-fixture", "local_e2e_fixture": True,

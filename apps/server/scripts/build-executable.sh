@@ -35,6 +35,8 @@ from pathlib import Path
 import hashlib
 import platform
 import tarfile
+import os
+import shutil
 os_name = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
 arch = {"x86_64": "x64", "aarch64": "arm64"}.get(platform.machine(), platform.machine())
 output = Path("dist")
@@ -43,6 +45,15 @@ name = f"openagent-{version('openagent-framework')}-{os_name}-{arch}.tar.gz"
 product = output / ("openagent.app" if (output / "openagent.app").exists() else "openagent")
 if not product.exists():
     raise SystemExit("PyInstaller did not produce the expected product artifact")
+# TCC-addressable native children remain outside the one-file archive.
+# Copy their producer signatures intact; release signing seals the outer App.
+if product.suffix == ".app":
+    bundle = Path(os.environ["OPENAGENT_HOST_TOOLS_BUNDLE"])
+    shutil.copy2(bundle / "node", product / "Contents/MacOS/node")
+    helpers = product / "Contents/Helpers"
+    helpers.mkdir(exist_ok=True)
+    shutil.copytree(bundle / "openagent-computer-control.app",
+        helpers / "openagent-computer-control.app", dirs_exist_ok=True)
 archive = output / name
 with tarfile.open(archive, "w:gz") as stream:
     stream.add(product, arcname=product.name)
