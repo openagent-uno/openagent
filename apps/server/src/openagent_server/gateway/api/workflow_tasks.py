@@ -44,8 +44,6 @@ from openagent_core.workflow.schedule_sync import (
 )
 from openagent_core.workflow.validate import (
     ValidationError,
-    mcp_callability_from_pool,
-    mcp_inventory_from_pool,
     validate_graph,
 )
 
@@ -89,33 +87,24 @@ def _resolve_read_db(request):
     return db, None
 
 
-def _resolve_mcp_inventory(request) -> dict[str, dict[str, Any]] | None:
-    """Return ``{mcp_name: {tool_name: parameters_schema}}`` from the
-    live pool, or ``None`` when no agent/pool is attached. ``None``
-    tells ``validate_graph`` to skip the MCP-existence check —
-    appropriate during boot, in tests, or any path where the pool
-    isn't reachable. A live pool that happens to have zero MCPs
-    returns ``{}`` and any mcp-tool block correctly fails validation.
-    """
-    gw = request.app["gateway"]
-    agent = getattr(gw, "agent", None) or getattr(gw, "_agent", None)
-    if agent is None:
-        return None
-    pool = getattr(agent, "_mcp", None)
-    return mcp_inventory_from_pool(pool)
+async def _authorized_tools(request):
+    from aiohttp import web
+    service=getattr(request.app['gateway'],'runtime_service',None)
+    if service is None:
+        raise web.HTTPServiceUnavailable(text="Capability catalog is not ready")
+    context=await service.context(request,'__automation_management__')
+    return await service.runtime.capabilities.discover(context)
 
 
-def _resolve_mcp_callability(request) -> dict[str, dict[str, bool]] | None:
-    """Companion to ``_resolve_mcp_inventory`` returning
-    ``{mcp_name: {tool_name: bool}}`` so ``validate_graph`` can reject
-    tools whose toolkit registered a non-callable (would otherwise
-    raise ``TypeError`` mid-DAG)."""
-    gw = request.app["gateway"]
-    agent = getattr(gw, "agent", None) or getattr(gw, "_agent", None)
-    if agent is None:
-        return None
-    pool = getattr(agent, "_mcp", None)
-    return mcp_callability_from_pool(pool)
+async def _resolve_mcp_inventory(request):
+    result={}
+    for tool in await _authorized_tools(request):
+        result.setdefault(tool.source_id,{})[tool.name]=dict(tool.input_schema)
+    return result
+
+
+async def _resolve_mcp_callability(request):
+    return {source:{name:True for name in tools} for source,tools in (await _resolve_mcp_inventory(request)).items()}
 
 
 def _decorate_schedule(row: dict) -> dict:
@@ -230,8 +219,8 @@ async def handle_create(request):
     try:
         validate_graph(
             graph,
-            mcp_inventory=_resolve_mcp_inventory(request),
-            mcp_callability=_resolve_mcp_callability(request),
+            mcp_inventory=await _resolve_mcp_inventory(request),
+            mcp_callability=await _resolve_mcp_callability(request),
         )
     except ValidationError as exc:
         return web.json_response({"error": f"graph validation failed: {exc}"}, status=400)
@@ -253,28 +242,16 @@ async def handle_create(request):
     else:
         cap = None
 
+    from openagent_server.automation_management import mutate_request
+    async def create(store):
+        identifier=await store.add_workflow(name=name,description=body.get("description") or None,
+            graph=graph,enabled=bool(body.get("enabled",True)),max_concurrent_runs=cap)
+        await sync_workflow_schedules(store,identifier,graph)
+        return identifier
     try:
-        workflow_id = await scheduler.db.add_workflow(
-            name=name,
-            description=body.get("description") or None,
-            graph=graph,
-            enabled=bool(body.get("enabled", True)),
-            max_concurrent_runs=cap,
-        )
-    except Exception as exc:  # integrity error on duplicate name, etc.
-        if "UNIQUE" in str(exc):
-            return web.json_response(
-                {"error": f"workflow name {name!r} is already taken"},
-                status=409,
-            )
-        return web.json_response({"error": str(exc)}, status=400)
-
-    # Sync the workflow_schedules rows from any trigger-schedule
-    # blocks in the new graph.
-    try:
-        await sync_workflow_schedules(scheduler.db, workflow_id, graph)
+        workflow_id=await mutate_request(request,"workflow",create)
     except ValueError as exc:
-        return web.json_response({"error": str(exc)}, status=400)
+        return web.json_response({"error":str(exc)},status=400)
 
     row = await scheduler.db.get_workflow(workflow_id)
     from .operational import claim_created_resource
@@ -357,8 +334,8 @@ async def handle_update(request):
         try:
             validate_graph(
                 new_graph,
-                mcp_inventory=_resolve_mcp_inventory(request),
-                mcp_callability=_resolve_mcp_callability(request),
+                mcp_inventory=await _resolve_mcp_inventory(request),
+                mcp_callability=await _resolve_mcp_callability(request),
             )
         except ValidationError as exc:
             return web.json_response(
@@ -371,22 +348,15 @@ async def handle_update(request):
             {"error": "No fields to update."}, status=400,
         )
 
+    from openagent_server.automation_management import mutate_request
+    async def update(store):
+        await store.update_workflow(existing["id"],**updates)
+        if new_graph is not None:
+            await sync_workflow_schedules(store,existing["id"],new_graph)
     try:
-        await scheduler.db.update_workflow(existing["id"], **updates)
-    except Exception as exc:
-        if "UNIQUE" in str(exc):
-            return web.json_response(
-                {"error": "workflow name is already taken"},
-                status=409,
-            )
-        return web.json_response({"error": str(exc)}, status=400)
-
-    # Sync the schedule rows against the graph if it changed.
-    if new_graph is not None:
-        try:
-            await sync_workflow_schedules(scheduler.db, existing["id"], new_graph)
-        except ValueError as exc:
-            return web.json_response({"error": str(exc)}, status=400)
+        await mutate_request(request,"workflow",update)
+    except ValueError as exc:
+        return web.json_response({"error":str(exc)},status=400)
 
     row = await scheduler.db.get_workflow(existing["id"])
     elog(
@@ -414,7 +384,8 @@ async def handle_delete(request):
             status=404,
         )
 
-    await scheduler.db.delete_workflow(existing["id"])
+    from openagent_server.automation_management import mutate_request
+    await mutate_request(request,"workflow",lambda store: store.delete_workflow(existing["id"]))
     elog("workflow.delete", id=existing["id"], name=existing.get("name", ""))
     await request.app["gateway"].broadcast_resource(
         "workflow", "deleted", existing["id"],
@@ -426,96 +397,52 @@ async def handle_delete(request):
 
 
 async def handle_run(request):
-    """Kick off a workflow execution. Body: ``{inputs, wait, timeout_s}``.
-
-    Always enqueues through ``workflow_run_requests`` so the execution
-    path matches what the AI's ``run_workflow`` MCP tool uses. When
-    ``wait`` is true (default), polls for completion and returns the
-    final run row. Otherwise returns immediately with ``run_id``.
-    """
+    """Run an exact occurrence; HTTP timeouts detach without cancelling it."""
     from aiohttp import web
-
-    scheduler, err = _resolve_scheduler(request)
-    if err is not None:
-        return err
-
+    from uuid import NAMESPACE_URL, uuid4, uuid5
+    from openagent_core.contracts import IdempotencyConflict
+    scheduler, error = _resolve_scheduler(request)
+    if error is not None:
+        return error
     existing = await _find_workflow(scheduler.db, request.match_info["id"])
     if existing is None:
-        return web.json_response(
-            {"error": f"Workflow {request.match_info['id']!r} not found"},
-            status=404,
-        )
-
+        raise web.HTTPNotFound()
+    execution=getattr(scheduler,'execution_service',None)
+    if execution is None or not await execution.definition_authorized('workflow',existing):
+        return web.json_response({'error':'automation_authorization_required'},status=403)
     try:
-        body = await request.json() if request.can_read_body else {}
-    except Exception:
-        body = {}
-    inputs = body.get("inputs") or {}
-    wait = body.get("wait", True)
-    timeout_s = int(body.get("timeout_s", 300))
-
-    # Fast path: execute directly against the scheduler's executor —
-    # avoids the ~30s scheduler tick latency for UI-triggered runs.
-    # Still routes through the same path the scheduler uses for
-    # queue-claimed requests so trace/history come out identical.
-    run_id = str(uuid.uuid4())
-    try:
-        # Spawn through the scheduler's bookkeeping set so concurrent
-        # API calls each get their own task handle (the previous design
-        # stashed the task on ``scheduler._run_workflow_task`` — a single
-        # attribute that overlapping calls trampled, leaving the earlier
-        # handler awaiting whichever task arrived last).
-        run_task = scheduler._spawn_workflow(
-            scheduler._run_workflow(
-                existing, trigger="api", inputs=inputs,
-            )
-        )
-    except AttributeError:
-        return web.json_response(
-            {"error": "Scheduler has no workflow runtime attached"},
-            status=503,
-        )
-    # Notify subscribed clients that a run kicked off; the workflows
-    # screen turns the "Run" button into a spinner on this signal.
-    await request.app["gateway"].broadcast_resource(
-        "workflow", "updated", existing["id"],
-    )
-
-    if not wait:
-        # We can't report the run_id synchronously without waiting a
-        # moment for the executor to insert the row. Short poll for
-        # the latest run on this workflow, which will be the one we
-        # just started.
-        deadline = time.monotonic() + 3
-        latest = None
-        while time.monotonic() < deadline:
-            runs = await scheduler.db.list_workflow_runs(existing["id"], limit=1)
-            if runs:
-                latest = runs[0]
-                break
-            await asyncio.sleep(0.05)
-        return web.json_response({
-            "run_id": latest["id"] if latest else None,
-            "status": "running",
-        }, status=202)
-
-    # wait=True: let the task finish, then fetch the run row.
-    try:
-        await asyncio.wait_for(run_task, timeout=timeout_s)
-    except asyncio.TimeoutError:
-        return web.json_response(
-            {"error": f"workflow did not finish within {timeout_s}s"},
-            status=504,
-        )
-    runs = await scheduler.db.list_workflow_runs(existing["id"], limit=1)
-    if not runs:
-        return web.json_response({"error": "run did not produce a row"}, status=500)
-    # Run finished — re-broadcast so the screen flips the spinner off
-    # and the "last run" badge picks up the new status.
-    await request.app["gateway"].broadcast_resource(
-        "workflow", "updated", existing["id"],
-    )
-    return web.json_response(_decorate_run(runs[0]))
+        body=await request.json() if request.can_read_body else {}
+        if not isinstance(body,dict):
+            raise ValueError('Expected an object')
+        request_key=body.get('request_id') or str(uuid4())
+        if not isinstance(request_key,str) or not request_key or len(request_key)>200:
+            raise ValueError('Invalid request_id')
+        timeout=max(0,min(float(body.get('timeout_s',300)),960)) if body.get('wait',True) else 3
+    except (ValueError,TypeError) as error:
+        raise web.HTTPBadRequest(text=str(error)) from None
+    projection_id=str(uuid5(NAMESPACE_URL,f'workflow:{existing["id"]}:{request_key}'))
+    task=scheduler._spawn_workflow(scheduler.run_workflow(existing,trigger="api",inputs=body.get("inputs") or {},request_id=request_key,run_id=projection_id))
+    done,_=await asyncio.wait({task},timeout=timeout)
+    if done:
+        try:
+            task.result()
+        except IdempotencyConflict:
+            return web.json_response({'error':'idempotency_conflict','run_id':projection_id},status=409)
+        except PermissionError:
+            return web.json_response({'error':'automation_authorization_changed','run_id':projection_id},status=403)
+        except Exception:
+            row=await scheduler.db.get_workflow_run(projection_id)
+            if row is None:
+                return web.json_response({'error':'runtime_execution_failed','run_id':projection_id},status=500)
+    else:
+        # Observe detached completion exceptions without turning request
+        # disconnection into runtime cancellation.
+        task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
+    row=await scheduler.db.get_workflow_run(projection_id)
+    await request.app['gateway'].broadcast_resource('workflow','updated',existing['id'])
+    if row is None or not done:
+        return web.json_response({'run_id':projection_id,'request_id':request_key,'status':'running'},status=202)
+    return web.json_response(_decorate_run(row))
 
 
 async def handle_stop(request):
@@ -705,20 +632,14 @@ async def handle_block_types(request):
 
 
 async def handle_mcp_tools(request):
-    """Live enumeration of every connected MCP + the tools it exposes.
-    Powers the mcp-tool block's picker in the editor. Reads the live
-    pool (not the mcps DB table) so only actually-loaded tools appear.
-    """
+    """The workflow picker uses the same authorized durable source catalog."""
     from aiohttp import web
-
-    gw = request.app["gateway"]
-    agent = getattr(gw, "agent", None) or getattr(gw, "_agent", None)
-    if agent is None:
-        return web.json_response({"mcps": []})
-    pool = getattr(agent, "_mcp", None)
-    if pool is None:
-        return web.json_response({"mcps": []})
-    return web.json_response({"mcps": pool.list_mcp_tools()})
+    grouped={}
+    for tool in await _authorized_tools(request):
+        grouped.setdefault(tool.source_id,{'name':tool.source_id,'tools':[]})['tools'].append({
+            'name':tool.name,'description':tool.description,'parameters':dict(tool.input_schema),
+            'tool_ref':tool.tool_ref})
+    return web.json_response({'mcps':list(grouped.values())})
 
 
 async def handle_cron_describe(request):

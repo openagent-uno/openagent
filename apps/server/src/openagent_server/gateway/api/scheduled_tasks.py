@@ -192,98 +192,52 @@ async def handle_runs_list(request):
 
 
 async def handle_run(request):
-    """POST /api/scheduled-tasks/{id}/run — fire a task now, out of band
-    from its cron schedule. Body: ``{wait, timeout_s}``.
-
-    Mirrors ``/api/workflows/{id}/run``: the gateway shares the scheduler's
-    process, so it fast-paths by spawning the firing directly through the
-    scheduler's bookkeeping (avoiding the ~2s request-drain tick the
-    out-of-process MCP path incurs). The firing leaves the task's schedule
-    and enabled flag untouched. When ``wait`` is true (default) it polls for
-    completion and returns the ``task_runs`` row; otherwise it returns
-    ``{run_id, status:'running'}`` once the run row exists.
-    """
+    """Run an exact occurrence; HTTP timeouts detach without cancelling it."""
     from aiohttp import web
-
-    scheduler, err = _resolve_scheduler(request)
-    if err is not None:
-        return err
-
-    task_id = request.match_info["id"]
-    existing, reject = await _reject_if_builtin(scheduler, task_id)
+    from uuid import NAMESPACE_URL, uuid4, uuid5
+    from openagent_core.contracts import IdempotencyConflict
+    scheduler, error = _resolve_scheduler(request)
+    if error is not None:
+        return error
+    existing, reject = await _reject_if_builtin(scheduler, request.match_info["id"])
     if reject is not None:
         return reject
-
+    execution=getattr(scheduler,'execution_service',None)
+    if execution is None or not await execution.definition_authorized('task',existing):
+        return web.json_response({'error':'automation_authorization_required'},status=403)
     try:
-        body = await request.json() if request.can_read_body else {}
-    except Exception:
-        body = {}
-    wait = body.get("wait", True)
-    timeout_s = int(body.get("timeout_s", 300))
-
-    # Fast path: spawn through the scheduler's tracked task set so concurrent
-    # API calls each get their own handle. ``run_task`` mints its own run_id
-    # and records the ``task_runs`` row.
-    try:
-        run_task = scheduler._spawn_workflow(
-            scheduler.run_task(existing, trigger="manual")
-        )
-    except AttributeError:
-        return web.json_response(
-            {"error": "Scheduler has no run runtime attached"}, status=503,
-        )
-
-    gw = request.app["gateway"]
-    elog("scheduled_task.run", id=task_id, name=existing.get("name", ""))
-    # Flip the tile into a running state on subscribed clients.
-    await gw.broadcast_resource("scheduled_task", "updated", task_id)
-
-    if not wait:
-        # Short-poll for the row ``run_task`` just opened so we can report
-        # its run_id without blocking on the whole firing.
-        deadline = time.monotonic() + 3
-        latest = None
-        while time.monotonic() < deadline:
-            runs = await scheduler.db.list_task_runs(task_id, limit=1)
-            if runs:
-                latest = runs[0]
-                break
-            await asyncio.sleep(0.05)
-        return web.json_response(
-            {"run_id": latest["id"] if latest else None, "status": "running"},
-            status=202,
-        )
-
-    # wait=True: run_task swallows task errors (records them on the row), so
-    # awaiting it resolves once the firing reaches a terminal state.
-    # ``asyncio.wait`` — NOT ``wait_for``, which cancels the awaited task when
-    # the deadline passes. That cancellation killed a real production firing
-    # because an HTTP client got bored: the run recorded "Stopped by user" and
-    # 22 minutes of completed work were thrown away. A manual trigger is a
-    # convenience for the caller; the firing itself belongs to the scheduler
-    # and must outlive the request that started it.
-    done, _pending = await asyncio.wait({run_task}, timeout=timeout_s)
-    if not done:
-        runs = await scheduler.db.list_task_runs(task_id, limit=1)
-        return web.json_response(
-            {
-                "status": "running",
-                "run_id": runs[0]["id"] if runs else None,
-                "detail": (
-                    f"still running after {timeout_s}s — left running, not cancelled. "
-                    f"Poll /api/scheduled-tasks/{task_id}/runs for the outcome, "
-                    f"or POST .../stop to end it deliberately."
-                ),
-            },
-            status=202,
-        )
-    runs = await scheduler.db.list_task_runs(task_id, limit=1)
-    if not runs:
-        return web.json_response({"error": "run did not produce a row"}, status=500)
-    # Run finished — re-broadcast so the tile flips the spinner off and the
-    # "last run" badge picks up the new status.
-    await gw.broadcast_resource("scheduled_task", "updated", task_id)
-    return web.json_response(_serialize_run(runs[0]))
+        body=await request.json() if request.can_read_body else {}
+        if not isinstance(body,dict):
+            raise ValueError('Expected an object')
+        request_key=body.get('request_id') or str(uuid4())
+        if not isinstance(request_key,str) or not request_key or len(request_key)>200:
+            raise ValueError('Invalid request_id')
+        timeout=max(0,min(float(body.get('timeout_s',300)),960)) if body.get('wait',True) else 3
+    except (ValueError,TypeError) as error:
+        raise web.HTTPBadRequest(text=str(error)) from None
+    projection_id=str(uuid5(NAMESPACE_URL,f'task:{existing["id"]}:{request_key}'))
+    task=scheduler._spawn_workflow(scheduler.run_task(existing,trigger="manual",request_id=request_key))
+    done,_=await asyncio.wait({task},timeout=timeout)
+    if done:
+        try:
+            task.result()
+        except IdempotencyConflict:
+            return web.json_response({'error':'idempotency_conflict','run_id':projection_id},status=409)
+        except PermissionError:
+            return web.json_response({'error':'automation_authorization_changed','run_id':projection_id},status=403)
+        except Exception:
+            row=await scheduler.db.get_task_run(projection_id)
+            if row is None:
+                return web.json_response({'error':'runtime_execution_failed','run_id':projection_id},status=500)
+    else:
+        # Observe detached completion exceptions without turning request
+        # disconnection into runtime cancellation.
+        task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
+    row=await scheduler.db.get_task_run(projection_id)
+    await request.app['gateway'].broadcast_resource('scheduled_task','updated',existing['id'])
+    if row is None or not done:
+        return web.json_response({'run_id':projection_id,'request_id':request_key,'status':'running'},status=202)
+    return web.json_response(_serialize_run(row))
 
 
 async def _await_task_runs_terminal(db, run_ids: list[str], *, timeout_s: int):
@@ -421,14 +375,16 @@ async def handle_create(request):
             status=400,
         )
 
-    task_id = await scheduler.add_task(
-        name, cron_expression, prompt, model=model, timezone=timezone,
-        execution_policy=execution_policy,
-    )
-
-    # add_task enables by default; honour an explicit enabled=false.
-    if body.get("enabled") is False:
-        await scheduler.disable_task(task_id)
+    from openagent_server.automation_management import mutate_request
+    async def create(store):
+        from openagent_core.memory.schedule import next_run_for_expression
+        next_run = next_run_for_expression(cron_expression, time.time(), timezone)
+        task_id = await store.add_task(name,cron_expression,prompt,next_run=next_run,model=model,
+                                     timezone=timezone,execution_policy=execution_policy)
+        if body.get("enabled") is False:
+            await store.update_task(task_id,enabled=False)
+        return task_id
+    task_id = await mutate_request(request,"scheduled_task",create)
 
     row = await scheduler.db.get_task(task_id)
     from .operational import claim_created_resource
@@ -525,19 +481,16 @@ async def handle_update(request):
             status=400,
         )
 
-    # Apply field updates first. Use the db directly since scheduler has
-    # no partial-update helper; we'll reconcile schedule-side state below.
-    if updates:
-        await scheduler.db.update_task(task_id, **updates)
-
-    # Reconcile scheduler-side state: enable/disable flips and cron
-    # changes both need next_run recomputed.
-    if enabled_change is True:
-        await scheduler.enable_task(task_id)  # also recomputes next_run
-    elif enabled_change is False:
-        await scheduler.disable_task(task_id)
-    elif cron_changed:
-        await scheduler.reschedule_task(task_id)
+    from openagent_server.automation_management import mutate_request
+    async def update(store):
+        if enabled_change is not None:
+            updates['enabled']=enabled_change
+        if cron_changed or enabled_change is True:
+            from openagent_core.memory.schedule import next_run_for_expression
+            updates['next_run']=next_run_for_expression(updates.get('cron_expression',existing['cron_expression']),
+                                                       time.time(),effective_tz)
+        await store.update_task(task_id,**updates)
+    await mutate_request(request,"scheduled_task",update)
 
     row = await scheduler.db.get_task(task_id)
     elog(
@@ -562,7 +515,8 @@ async def handle_delete(request):
     if reject is not None:
         return reject
 
-    await scheduler.remove_task(task_id)
+    from openagent_server.automation_management import mutate_request
+    await mutate_request(request,"scheduled_task",lambda store: store.delete_task(task_id))
     elog("scheduled_task.delete", id=task_id, name=existing.get("name", ""))
     gw = request.app["gateway"]
     await gw.broadcast_resource("scheduled_task", "deleted", task_id)

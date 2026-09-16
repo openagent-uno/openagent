@@ -20,7 +20,10 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
+
+logger=logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from aiohttp import web
@@ -33,7 +36,7 @@ from openagent_server.gateway.api._common import gateway_db as _db  # noqa: E402
 async def _authenticated_access(request, db):
     """Resolve a certificate-backed principal and canonical connection."""
     from aiohttp import web
-    from openagent_core.memory.operational.access import AccessContext
+    from openagent_identity.runtime_access import AccessContext
 
     try:
         access = AccessContext.from_request(request)
@@ -893,6 +896,21 @@ async def handle_get_events(request):
             "unpaired_tool_calls": sorted(n for n, c in open_tools.items() if c > 0),
         },
     })
+
+
+async def handle_get_metadata(request):
+    """Return the authorized session summary used by App create-on-first-send."""
+    from aiohttp import web
+    db = _db(request)
+    if db is None:
+        return web.json_response({'error':'memory DB not available'},status=500)
+    session_id = request.match_info['session_id']
+    _conn,_access,_acl,problem = await _authorized_session(request,db,session_id)
+    if problem is not None:
+        return problem
+    row = await db.get_session(session_id)
+    metadata = (row or {}).get('metadata') or {}
+    return web.json_response({'session_id':session_id,'title':metadata.get('title') or (row or {}).get('title')})
 
 
 async def handle_patch_metadata(request):

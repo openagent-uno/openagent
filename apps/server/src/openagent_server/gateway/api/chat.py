@@ -114,6 +114,10 @@ async def _record_session_owner(
         )
         if owner and title is None:
             return
+        if row is None and handle and handle.startswith("agent:") and getattr(gateway, "runtime_service", None) is not None:
+            # Runtime acceptance stamps the verified agent principal; never
+            # manufacture a human installation owner for a peer session.
+            return
         await db.upsert_session(
             session_id,
             client_id=None if owner else (handle or "").strip() or client_id,
@@ -313,28 +317,19 @@ async def handle_chat(request: web.Request) -> web.Response:
                 "still_running": True,
             }, status=409)
 
-    # A peer conversation is first-class: stamp the HUMAN owner + origin="chat"
-    # (identical affordances to any chat) + the peer handle as ``kind``.
-    # Metadata only — never touches ``user_id`` (owned by the runtime). Awaited
-    # BEFORE the turn so the runtime reads and round-trips the stamp instead of
-    # overwriting it.
-    if is_peer:
-        db = getattr(gateway.agent, "_db", None)
-        if db is not None:
-            try:
-                owner = await db.primary_owner_handle()
-                if owner:
-                    await db.upsert_session(
-                        session_id, client_id=owner,
-                        origin="chat", kind=user_handle,
-                    )
-                    if created_new:
-                        gateway.broadcast_session("created", session_id)
-            except Exception:
-                logger.warning(
-                    "chat: peer session stamp failed for %s", session_id,
-                    exc_info=True,
-                )
+    from openagent_core.core.execution_origin import TrustedIngressIdentity, TrustedTurnContext
+    request_id = body.get("request_id")
+    if request_id is not None and (not isinstance(request_id, str) or not request_id or len(request_id) > 1024):
+        return web.json_response({"error": "invalid request_id"}, status=400)
+    ingress = TrustedIngressIdentity(
+        device_id=client_id,
+        connection_id="rest:" + (request_id or str(uuid.uuid4())),
+        turn_context=TrustedTurnContext(
+            on_behalf_identity=on_behalf_identity,
+            request_id=request_id,
+            client_kind="rest",
+        ),
+    )
 
     # ── Run one turn (serialised per session) ────────────────────────────────
     async with turn_lock:
@@ -343,7 +338,7 @@ async def handle_chat(request: web.Request) -> web.Response:
         channel = BatchedChannel(session)
         try:
             reply = await asyncio.wait_for(
-                channel.run_one_shot(text, source="user_typed"),
+                channel.run_one_shot(text, source="user_typed", ingress_identity=ingress),
                 timeout=TURN_TIMEOUT,
             )
         except asyncio.TimeoutError:

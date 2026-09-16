@@ -34,7 +34,7 @@ from openagent_dashboards.repository import (
     CustomViewRateLimited,
 )
 from openagent_dashboards.service import CustomViewService, service_for_gateway
-from openagent_core.memory.operational.access import AccessContext
+from openagent_identity.runtime_access import AccessContext
 
 
 # A binary bundle can contain up to 64 MiB, and base64 expands it by 4/3.

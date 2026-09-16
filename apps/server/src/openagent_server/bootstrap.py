@@ -30,7 +30,11 @@ async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     if config.get("_local_e2e") is True:
         return
     await ensure_builtin_mcps(db, config=config)
-    pool = await MCPPool.from_db(db, db_path=db.db_path)
+    for name in ("agent-manager", "agent-federation"):
+        if await db.get_mcp(name) is None:
+            await db.upsert_mcp(name,kind="builtin",builtin_name=name,source="standalone-product")
+    pool = await MCPPool.from_db(db, db_path=db.db_path,
+                                host_spec_resolver=standalone_spec_resolver(config,environment=getattr(agent,"product_environment",{})))
     agent.set_capability_pool(pool)
     await agent.load_model_catalog()
 
@@ -71,3 +75,28 @@ async def start_stream(session: Any) -> None:
     from openagent_core.voice.stt_base import resolve_stt
     from openagent_core.voice.tts_base import resolve_tts
     await session.start(stt_factory=resolve_stt, tts_factory=resolve_tts)
+
+
+def standalone_spec_resolver(config, *, environment=None):
+    """Trusted product composition; persisted row fields cannot replace modules."""
+    from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, resolve_builtin_entry
+    product = {"agent-manager": "openagent_product_config.tools.agent_manager.adapters",
+               "agent-federation": "openagent_mcp.federation.adapters"}
+    # These old globally registered tools belong to an originating App/CLI.
+    contextual = frozenset({"ui-manager", "filesystem", "editor", "shell", "computer-control", "agent-in-chrome"})
+    def resolve(row, db_path):
+        name = row['name']
+        if name in contextual:
+            return False
+        if name in product:
+            return dict(name=name,in_process=True,adapter_module=product[name],
+                        runtime_toolkit_factory="build_runtime_toolkit")
+        if name in BUILTIN_MCP_SPECS:
+            # Environment comes from the product's explicit module config,
+            # never an arbitrary API-provided PYTHONPATH/argv override.
+            env = {**(environment or {}), "OPENAGENT_DB_PATH": str(db_path)}
+            configured = (config.get("module_environment") or {}).get(name) or {}
+            env.update({str(key):str(value) for key,value in configured.items()})
+            return resolve_builtin_entry(name, env=env)
+        return None
+    return resolve

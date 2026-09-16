@@ -229,7 +229,7 @@ def check_for_update(channel: str | None = None) -> UpdateInfo | None:
     import json
     import openagent_server
 
-    current = getattr(src, "__version__", "0.0.0")
+    current = getattr(openagent_server, "__version__", "0.0.0")
 
     effective_channel = _effective_update_channel(current, channel)
     api_url = GITHUB_RELEASES_API if effective_channel == "beta" else GITHUB_API
@@ -890,7 +890,7 @@ def perform_self_update_sync(channel: str | None = None) -> tuple[str, str]:
     info = check_for_update(channel=channel)
     if info is None:
         import openagent_server
-        v = getattr(src, "__version__", "unknown")
+        v = getattr(openagent_server, "__version__", "unknown")
         return v, v
 
     logger.info(

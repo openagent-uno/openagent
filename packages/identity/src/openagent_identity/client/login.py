@@ -335,6 +335,19 @@ async def device_is_active(
     return result.get("active") is True
 
 
+async def read_runtime_directory(*,node,coordinator_node_id,timeout=5.0):
+    """Read the authoritative recipient directory as an enrolled agent peer."""
+    result=await _rpc(node=node,coordinator_node_id=coordinator_node_id,
+                      method='runtime_directory',params={},timeout=timeout)
+    if not isinstance(result,dict) or set(result)!={'users','agents','devices'}:
+        raise ValueError('Coordinator returned an invalid runtime directory')
+    if any(not isinstance(result[key],list) for key in result):
+        raise ValueError('Coordinator returned an invalid runtime directory')
+    if any(not isinstance(handle,str) or not handle for key in ('users','agents') for handle in result[key]):
+        raise ValueError('Coordinator returned an invalid principal')
+    return result
+
+
 # ── Internals ────────────────────────────────────────────────────────
 
 

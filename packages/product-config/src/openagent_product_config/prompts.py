@@ -32,9 +32,13 @@ def configure_product_prompts(config: Mapping[str, Any]) -> dict[str, Any]:
 class ProductPromptProvider:
     """Host contribution provider with an optional trusted capability check."""
 
-    def __init__(self, dashboard_available: Callable[[Any], bool] | None = None):
+    def __init__(self, dashboard_available: Callable[[Any], bool] | None = None, *, include_defaults: bool = True):
         self._dashboard_available = dashboard_available
+        self._include_defaults = include_defaults
 
-    def prompt_blocks(self, context: Any) -> tuple[dict[str, str], ...]:
+    def prompt_blocks(self, context: Any):
+        from openagent_core.prompts import PromptBlock
         available = bool(self._dashboard_available and self._dashboard_available(context))
-        return product_prompt_blocks(dashboard_capability=available)
+        blocks = product_prompt_blocks(dashboard_capability=available)
+        selected = blocks if self._include_defaults else tuple(block for block in blocks if block["id"] == "product.dashboards")
+        return tuple(PromptBlock(**block) for block in selected)

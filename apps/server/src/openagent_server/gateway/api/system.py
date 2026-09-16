@@ -184,7 +184,7 @@ def _collect_host() -> dict[str, Any]:
 
     try:
         import openagent_server
-        oa_version = getattr(openagent, "__version__", "?")
+        oa_version = getattr(openagent_server, "__version__", "?")
     except Exception:
         oa_version = "?"
 

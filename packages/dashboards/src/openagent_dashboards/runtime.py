@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Awaitable, Callable
 
-from openagent_core.memory.operational.access import AccessContext
+from openagent_identity.runtime_access import AccessContext
 
 from .repository import (
     CustomViewInputError,

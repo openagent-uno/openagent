@@ -95,7 +95,7 @@ class OpenAgentACPAgent(acp.Agent):
             protocol_version=acp.PROTOCOL_VERSION,
             agent_info=Implementation(
                 name="openagent",
-                version=getattr(src, "__version__", "unknown"),
+                version=getattr(openagent_server, "__version__", "unknown"),
             ),
             agent_capabilities=AgentCapabilities(
                 # v1 has no image/embedded-context/fs surface.

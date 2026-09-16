@@ -265,16 +265,13 @@ async def handle_create_db(request: web.Request) -> web.Response:
     if "input_modalities" in body:
         metadata["input_modalities"] = body.get("input_modalities")
     try:
-        mid = await db.upsert_model(
-            provider_id=provider_id,
-            model=model,
-            display_name=body.get("display_name"),
-            tier_hint=body.get("tier_hint") or body.get("notes"),
-            enabled=bool(body.get("enabled", True)),
-            is_classifier=bool(body.get("is_classifier", False)),
-            metadata=metadata or None,
-            kind=kind,
-        )
+        from openagent_server.provider_management import for_request
+        admin,context=await for_request(request)
+        created=await admin.create_model(context,dict(provider_id=provider_id,model=model,
+            display_name=body.get("display_name"),tier_hint=body.get("tier_hint") or body.get("notes"),
+            enabled=bool(body.get("enabled",True)),is_classifier=bool(body.get("is_classifier",False)),
+            metadata=metadata or None,kind=kind))
+        mid=created['id']
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)
     # is_classifier is persisted by upsert_model directly; multiple
@@ -300,7 +297,6 @@ async def handle_update_db(request: web.Request) -> web.Response:
     # Multi-classifier semantics: each row's flag is independent. Body
     # can omit the field (preserve existing value) or pass a bool to
     # toggle it on this row only — never touches other rows.
-    desired_classifier = body.get("is_classifier")
     raw_metadata = body.get("metadata", existing.get("metadata") or {})
     if raw_metadata is not None and not isinstance(raw_metadata, dict):
         return _web.json_response({"error": "metadata must be an object"}, status=400)
@@ -308,20 +304,12 @@ async def handle_update_db(request: web.Request) -> web.Response:
     if "input_modalities" in body:
         metadata["input_modalities"] = body.get("input_modalities")
     try:
-        await db.upsert_model(
-            provider_id=existing["provider_id"],
-            model=body.get("model", existing["model"]),
-            display_name=body.get("display_name", existing.get("display_name")),
-            tier_hint=body.get("tier_hint", existing.get("tier_hint")),
-            enabled=bool(body.get("enabled", existing.get("enabled", True))),
-            is_classifier=(
-                bool(desired_classifier)
-                if desired_classifier is not None
-                else bool(existing.get("is_classifier", False))
-            ),
-            metadata=metadata or None,
-            kind=existing.get("kind", "llm"),
-        )
+        from openagent_server.provider_management import for_request
+        admin,context=await for_request(request)
+        fields={key:value for key,value in body.items() if key not in {"input_modalities","provider_id","kind"}}
+        if "metadata" in body or "input_modalities" in body:
+            fields["metadata"]=metadata
+        await admin.update_model(context,mid,fields)
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)
     enriched = await db.get_model_enriched(mid)
@@ -344,7 +332,9 @@ async def handle_delete_db(request: web.Request) -> web.Response:
     # gateway/server.py will then surface a clear "No models are enabled"
     # error on the next message, which is what the user wants when they
     # intentionally empty the catalog.
-    await db.delete_model(mid)
+    from openagent_server.provider_management import for_request
+    admin,context=await for_request(request)
+    await admin.delete_model(context,mid)
     return _web.json_response({"ok": True})
 
 
@@ -365,7 +355,9 @@ async def _toggle_model(request: web.Request, enabled: bool) -> web.Response:
         return _web.json_response({"error": "invalid model id"}, status=400)
     if await db.get_model(mid) is None:
         return _web.json_response({"error": f"model id={mid} not found"}, status=404)
-    await db.set_model_enabled(mid, enabled)
+    from openagent_server.provider_management import for_request
+    admin,context=await for_request(request)
+    await admin.update_model(context,mid,{"enabled":enabled})
     enriched = await db.get_model_enriched(mid)
     return _web.json_response(
         {"ok": True, "model": _shape_model(enriched) if enriched else {"id": mid}},

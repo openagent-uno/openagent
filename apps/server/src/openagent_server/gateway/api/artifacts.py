@@ -29,7 +29,7 @@ from openagent_core.memory.artifacts import (
     public_attachment_ref,
     safe_attachment_filename,
 )
-from openagent_core.memory.operational.access import AccessContext
+from openagent_identity.runtime_access import AccessContext
 
 from ._common import gateway_db
 

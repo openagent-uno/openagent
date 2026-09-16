@@ -11,7 +11,9 @@ import uuid
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
 
-from openagent_core.memory.operational.access import AccessContext, resource_is_visible
+from openagent_identity.runtime_access import AccessContext
+
+from openagent_core.memory.operational.access import resource_is_visible
 
 from .bundles import (
     MAX_ASSET_BYTES,

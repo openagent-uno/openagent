@@ -8,7 +8,7 @@ version = "1.0.0b1"
 description = "Standalone OpenAgent product dashboards"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openagent-core==1.0.0b1", "aiohttp>=3.9", "jsonschema>=4.20.0"]
+dependencies = ["openagent-core==1.0.0b1", "openagent-identity==1.0.0b1", "aiohttp>=3.9", "jsonschema>=4.20.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

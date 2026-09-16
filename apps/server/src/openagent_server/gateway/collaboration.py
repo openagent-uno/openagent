@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass, field
 
 from aiohttp import web
+from openagent_core.contracts import IdempotencyConflict
 
 from .collaboration_access import authorize
 from .collaboration_hub import IDENTIFIER, SharedAgentHub
@@ -249,10 +250,17 @@ class Collaboration:
             raise PermissionError("Session unavailable")
         return access
 
-    async def _interrupt(self, runtime):
+    async def _interrupt(self, runtime, *, cancel_execution=True, identity=None):
         active = runtime.active
         if not active or active["command"]:
             return False
+        service = getattr(self.gateway,'runtime_service',None)
+        if cancel_execution and service is not None:
+            prepared = service.prepared_runs.get(active['id'])
+            if prepared is not None:
+                context = (await service.authorizer.context_for_identity(identity,prepared.request.session_id)
+                    if identity is not None else prepared.context)
+                await service.runtime.cancel(active['id'],context)
         active["interrupted"] = True
         async with runtime.session._dispatch_lock:
             await runtime.session._cancel_active_turn(reason="manual")
@@ -292,7 +300,7 @@ class Collaboration:
         )
 
     async def _run(
-        self, request, sid, text, request_id, delivery, attachments=(), instance_id=None
+        self, request, sid, text, request_id, delivery, attachments=(), instance_id=None, app_connection_id=None
     ):
         from openagent_core.core.on_behalf_context import (
             OnBehalfIdentity,
@@ -301,45 +309,103 @@ class Collaboration:
         )
         from openagent_core.stream.channel import BatchedChannel
 
-        await self._check(request, sid)
+        access = await self._check(request, sid)
         runtime = await self._runtime(sid, request)
         command = (
             text.split(maxsplit=1)[0][1:].lower() if text.startswith("/") else None
         )
+        principal = OnBehalfIdentity.from_certificate(
+            request.get("device_cert"),
+            auth_kind=str(request.get("auth_kind") or ""),
+        )
+        author = {
+            "kind": "agent" if principal.principal_type == "agent" else "human",
+            "userId": access["userId"],
+            "display": access["name"],
+            "handle": principal.handle,
+        }
+        normalized_attachments = []
+        if attachments:
+            from openagent_core.memory.artifacts import normalize_inbound_attachments
+
+            normalized_attachments = await normalize_inbound_attachments(
+                self.gateway.agent.memory_db,
+                attachments,
+                session_id=sid,
+                principal=self.gateway.agent.canonical_access_context(principal),
+                allow_local_paths=False,
+            )
+            await self._check(request, sid)
+        app_ingress = None
+        if app_connection_id is not None:
+            dashboards = getattr(getattr(self.gateway, "runtime_service", None), "dashboards", None)
+            if dashboards is None:
+                raise PermissionError("App dashboard capabilities are unavailable")
+            app_ingress = dashboards.resolve_ingress(app_connection_id, principal, request_id, client_instance_id=instance_id)
+        from openagent_core.core.execution_origin import (
+            TrustedIngressIdentity,
+            TrustedTurnContext,
+        )
+
+        ingress = TrustedIngressIdentity(
+            device_id=request.get("client_id"),
+            connection_id="shared:" + request_id,
+            client_instance_id=instance_id,
+            turn_context=TrustedTurnContext(
+                on_behalf_identity=principal,
+                request_id=request_id,
+                client_kind="shared-chat",
+                client_capabilities=(
+                    ("attachments", True),
+                    ("ordered_parts", True),
+                    ("inline_ui", True),
+                    ("custom_ui_version", 1),
+                ),
+            ),
+        )
+        if app_ingress is not None:
+            ingress = app_ingress
+        registry = getattr(self.gateway, "capabilities", None)
+        origin = (
+            registry.origin_for(request.get("client_id"), instance_id)
+            if registry
+            else None
+        )
         stopped = False
         async with runtime.admission:
-            if (delivery == "steer" and command is None) or command == "stop":
-                # Reauthorize after waiting for another admission/cancellation.
-                await self._check(request, sid)
-                stopped = await self._interrupt(runtime)
+            await self._check(request, sid)
+            self.hub.prune()
+            if sid not in self.hub.sessions and len(self.hub.sessions) >= 128:
+                raise BusyError('Live replay capacity reached')
+            if command is None:
+                active = runtime.active
+                target = active['id'] if delivery == 'steer' and active and not active['command'] else None
+                service = self.gateway.runtime_service
+                prepared = await service.admit_message(identity=principal,message=text,session_id=sid,run_id=request_id,
+                    attachments=normalized_attachments,origin=origin,ingress=ingress,steer_run_id=target)
+                prepared.cancel_on_detach = False
+                if target is not None:
+                    previous = service.prepared_runs.get(target)
+                    if previous is not None:
+                        previous.cancel_on_detach = False
+                    # Runtime steering owns the exact execution cancellation;
+                    # only stop the previous stream observer after acceptance.
+                    stopped = await self._interrupt(runtime,cancel_execution=False)
+            elif command == 'stop':
+                stopped = await self._interrupt(runtime,identity=principal)
         async with runtime.lock:
             access = await self._check(request, sid)
-            if runtime.session._detached_turns:
+            if command and runtime.session._detached_turns:
                 raise BusyError("The previous provider is still stopping")
-            principal = OnBehalfIdentity.from_certificate(
-                request.get("device_cert"),
-                auth_kind=str(request.get("auth_kind") or ""),
-            )
-            author = {
-                "kind": "agent" if principal.principal_type == "agent" else "human",
-                "userId": access["userId"],
-                "display": access["name"],
-                "handle": principal.handle,
-            }
-            normalized_attachments = []
-            if attachments:
-                from openagent_core.memory.artifacts import normalize_inbound_attachments
-
-                normalized_attachments = await normalize_inbound_attachments(
-                    self.gateway.agent.memory_db,
-                    attachments,
-                    session_id=sid,
-                    principal=principal,
-                    allow_local_paths=False,
-                )
-                await self._check(request, sid)
             if not self.hub.begin(sid, text, author, request_id):
-                raise BusyError("Live replay capacity reached")
+                # The durable run may already be accepted. Capacity of a live
+                # projection cannot turn that acceptance into a retryable error.
+                if command:
+                    raise BusyError("Live replay capacity reached")
+                service = self.gateway.runtime_service
+                record = await service.runtime.wait(request_id,prepared.context)
+                return {'response':record.output or '', 'errored':record.status!='success',
+                    'request_id':request_id,'session_id':sid,'runtime_status':record.status}
             live = self.hub.sessions[sid]["turns"][-1]
             state = {
                 "id": request_id,
@@ -353,32 +419,6 @@ class Collaboration:
             # Set only inside the turn lock, before push_in. The StreamSession
             # snapshots this immutable principal into each dispatched runner.
             runtime.session.on_behalf_identity = principal
-            from openagent_core.core.execution_origin import (
-                TrustedIngressIdentity,
-                TrustedTurnContext,
-            )
-
-            ingress = TrustedIngressIdentity(
-                device_id=request.get("client_id"),
-                connection_id="shared:" + request_id,
-                client_instance_id=instance_id,
-                turn_context=TrustedTurnContext(
-                    on_behalf_identity=principal,
-                    client_kind="shared-chat",
-                    client_capabilities=(
-                        ("attachments", True),
-                        ("ordered_parts", True),
-                        ("inline_ui", True),
-                        ("custom_ui_version", 1),
-                    ),
-                ),
-            )
-            registry = getattr(self.gateway, "capabilities", None)
-            origin = (
-                registry.origin_for(request.get("client_id"), instance_id)
-                if registry
-                else None
-            )
             if attachments:
                 live["messages"][0]["attachments"] = list(attachments)
             memory_db = getattr(self.gateway.agent, "memory_db", None)
@@ -545,6 +585,7 @@ class Collaboration:
                 "delivery",
                 "attachments",
                 "client_instance_id",
+                "app_connection_id",
             }:
                 raise ValueError()
             sid, text, request_id = (
@@ -573,6 +614,9 @@ class Collaboration:
                 raise ValueError()
             attachments = [public_attachment_ref(a) for a in attachments]
             instance_id = body.get("client_instance_id")
+            app_connection_id = body.get("app_connection_id")
+            if app_connection_id is not None and (not isinstance(app_connection_id,str) or not IDENTIFIER.fullmatch(app_connection_id)):
+                raise ValueError()
             if instance_id is not None and (
                 not isinstance(instance_id, str)
                 or not IDENTIFIER.fullmatch(instance_id)
@@ -625,6 +669,7 @@ class Collaboration:
                     delivery,
                     attachments,
                     instance_id,
+                    app_connection_id,
                 ),
                 context=contextvars.Context(),
             )
@@ -656,6 +701,8 @@ class Collaboration:
             return web.json_response({"error": "Session unavailable"}, status=403)
         except BusyError as exc:
             return web.json_response({"error": str(exc)}, status=409)
+        except IdempotencyConflict:
+            return web.json_response({'error':'Request identity conflict'},status=409)
         # Attachment refusals are client errors, not gateway faults. The
         # message never names the offending id or path: an opaque artifact id
         # is not a bearer token and must not become an existence oracle.

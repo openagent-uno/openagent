@@ -36,23 +36,26 @@ from openagent_dashboards.repository import (
     CustomViewNotFound,
 )
 from openagent_dashboards.service import service_for_db
-from openagent_core.memory.operational.access import AccessContext
+from openagent_identity.runtime_access import AccessContext
 
 
 logger = logging.getLogger(__name__)
 
 
-def build_runtime_toolkit(pool: Any) -> Any:
+def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provider: Any = None) -> Any:
     """Build the ui-manager toolkit around the canonical DB and live runtime."""
 
     from openagent_core.mcp._runtime import Toolkit
 
-    db = getattr(pool, "_db", None)
-    if db is None:
-        raise RuntimeError("ui-manager requires the canonical database")
-    service = service_for_db(db, pool=pool)
+    if service is None:
+        db = getattr(pool, "_db", None)
+        if db is None:
+            raise RuntimeError("ui-manager requires the canonical database")
+        service = service_for_db(db, pool=pool)
 
     async def access_for_turn() -> AccessContext:
+        if access_provider is not None:
+            return await access_provider()
         identity = current_on_behalf_identity()
         if identity is not None:
             return AccessContext.from_on_behalf_identity(identity)
@@ -152,6 +155,7 @@ def build_runtime_toolkit(pool: Any) -> Any:
         supported. Media must use artifact:/asset: references.
         """
 
+        await access_for_turn()
         return {
             "ok": True,
             "schemaVersion": SCHEMA_VERSION,
@@ -214,6 +218,11 @@ def build_runtime_toolkit(pool: Any) -> Any:
                 raise CustomViewInputError(
                     "inline Views require the exact current session_id"
                 )
+            if surface == "inline":
+                from openagent_core.runtime import current_execution_context
+                context = current_execution_context()
+                if context is None or session_id != context.session_id:
+                    raise CustomViewInputError("inline Views must use the current authorized session")
             access = await access_for_turn()
             effective_visibility = visibility or (
                 "installation_shared"
@@ -365,6 +374,10 @@ def build_runtime_toolkit(pool: Any) -> Any:
         """
 
         try:
+            from openagent_core.runtime import current_execution_context
+            context = current_execution_context()
+            if context is None or session_id != context.session_id:
+                raise CustomViewInputError("snapshot-to-chat must use the current authorized session")
             access = await access_for_turn()
             view = await service.get(view_id, access, revision=revision)
             if view.get("surface") != "inline" or view.get("sessionId") != session_id:

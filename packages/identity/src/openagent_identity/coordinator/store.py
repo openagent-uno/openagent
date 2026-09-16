@@ -167,6 +167,18 @@ class CoordinatorStore:
         )
         await self._conn.commit()
 
+    async def runtime_directory(self) -> dict:
+        """Current authorization recipients, with no authentication material."""
+        users=await self.list_users()
+        agents=await self.list_agents()
+        cursor=await self._conn.execute(
+            "SELECT hex(d.device_pubkey) AS device_id,d.user_handle AS handle "
+            "FROM network_devices d JOIN network_users u ON u.handle=d.user_handle "
+            "WHERE d.status='active' AND u.status='active'")
+        devices=[{'device_id':row['device_id'].lower(),'handle':row['handle']} for row in await cursor.fetchall()]
+        return {'users':[row.handle for row in users if row.status=='active'],
+                'agents':[row.handle for row in agents], 'devices':devices}
+
     async def list_users(self) -> list[UserRow]:
         cur = await self._conn.execute(
             "SELECT handle, pake_record, pake_algo, status, created_at "

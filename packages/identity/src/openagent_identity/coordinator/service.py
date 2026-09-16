@@ -387,6 +387,11 @@ class CoordinatorService:
             ],
         }
 
+    async def _m_runtime_directory(self, params: dict, *, peer_node_id: str) -> dict:
+        if not await self._store.agent_is_registered(peer_node_id):
+            raise _CoordinatorRpcError('unauthorized','Runtime directory is available only to enrolled agents')
+        return await self._store.runtime_directory()
+
     async def _m_device_status(self, params: dict, *, peer_node_id: str) -> dict:
         """Return authoritative device liveness to an enrolled member gateway.
 
@@ -573,6 +578,7 @@ CoordinatorService._METHODS = {
     "login_finish": CoordinatorService._m_login_finish,
     "list_agents": CoordinatorService._m_list_agents,
     "device_status": CoordinatorService._m_device_status,
+    "runtime_directory": CoordinatorService._m_runtime_directory,
     "add_agent": CoordinatorService._m_add_agent,
     "agent_login": CoordinatorService._m_agent_login,
     "remove_agent": CoordinatorService._m_remove_agent,

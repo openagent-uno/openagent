@@ -28,11 +28,13 @@ try:
 except ImportError:
     pass
 
+from typing import Any
 import click
 from rich.console import Console
 from rich.panel import Panel
 
 from openagent_core.core import paths
+from openagent_product_config.paths import ensure_agent_dir
 from openagent_core.core.config import load_config
 from openagent_core.core.logging import setup_logging
 from openagent_core.core.serve_singleton import kill_stale_serve_processes
@@ -166,7 +168,7 @@ def _setup_agent_dir(agent_dir: str | None) -> None:
         return
     path = Path(agent_dir).expanduser().resolve()
     paths.set_agent_dir(path)
-    paths.ensure_agent_dir(path)
+    ensure_agent_dir(path)
 
 
 def _cleanup_stale_openagent_temp_artifacts(max_age_s: int = _STALE_TEMP_ARTIFACT_MAX_AGE_S) -> None:
@@ -521,7 +523,7 @@ def config_cmd(ctx, as_json: bool, show_env: bool) -> None:
 @click.argument("agent_dir")
 def init(agent_dir: str):
     """Create or normalize an agent directory."""
-    path = paths.ensure_agent_dir(Path(agent_dir).expanduser().resolve())
+    path = ensure_agent_dir(Path(agent_dir).expanduser().resolve())
     console.print(f"[green]Agent directory ready:[/green] {path}")
     console.print(f"[dim]Start with: openagent serve {path}[/dim]")
 
@@ -980,7 +982,7 @@ def migrate_cmd(dest: str):
         for item in copied:
             console.print(f"  {item}")
     else:
-        paths.ensure_agent_dir(dest_path)
+        ensure_agent_dir(dest_path)
         console.print(f"[green]Created new agent directory at {dest_path}[/green]")
 
     console.print(f"[dim]Start with: openagent serve {dest_path}[/dim]")

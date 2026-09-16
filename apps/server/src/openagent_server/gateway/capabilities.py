@@ -20,6 +20,8 @@ from typing import Any, Awaitable, Callable
 
 from openagent_core.core.execution_origin import TurnExecutionOrigin
 from openagent_core.core.logging import elog
+from openagent_core.contracts import ExecutionContext
+from openagent_core.jobs import BackgroundJobs, JobEvent
 
 
 CAPABILITY_PROTOCOL = "client-capabilities/1"
@@ -325,6 +327,8 @@ class _PendingCall:
     dispatch_started: bool = False
     determinate_response_received: bool = False
     background_requested: bool = False
+    context_key: str | None = None
+    source_id: str | None = None
     artifacts: dict[str, "_ArtifactBuffer"] = field(default_factory=dict)
 
     @property
@@ -344,6 +348,8 @@ class _ClientShellBinding:
     internal_shell_id: str
     session_id: str
     client_host: tuple[str, str, int]
+    context_key: str
+    source_id: str
     completed: bool = False
 
 
@@ -408,7 +414,8 @@ class CapabilityConnection:
 class CapabilityRegistry:
     """Live client hosts plus exact-target dispatch and result correlation."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, background_jobs: BackgroundJobs | None = None) -> None:
+        self.background_jobs = background_jobs
         self._connections: dict[tuple[str, str], CapabilityConnection] = {}
         # Highest generation ever accepted for an exact instance during this
         # Gateway lifetime. Disconnecting a newer socket must not let an old
@@ -867,6 +874,8 @@ class CapabilityRegistry:
         *,
         session_id: str | None = None,
         timeout_s: float = DEFAULT_CALL_TIMEOUT_S,
+        execution_context: ExecutionContext | None = None,
+        source_id: str | None = None,
     ) -> Any:
         conn, _server = self._require_server(origin, server_name)
         # Description lookup is also the exact-name/no-fuzzy dispatch gate.
@@ -875,6 +884,22 @@ class CapabilityRegistry:
             args = {}
         if not isinstance(args, dict):
             raise ClientCapabilityError("INVALID_ARGUMENTS", "args must be an object")
+        background_requested = (
+            server_name == "shell" and tool_name == "shell_exec"
+            and args.get("run_in_background") is True
+        )
+        # These values arrive from the authorized catalog adapter, never from
+        # a host result/event or the model's tool arguments. Capture them before
+        # dispatch: completion callbacks no longer have an active run context.
+        context_key = execution_context.coalescing_key if execution_context is not None else None
+        if background_requested and (
+            self.background_jobs is None or execution_context is None
+            or execution_context.session_id != session_id or execution_context.deferred
+            or not source_id or not any(lease.source_id == source_id for lease in execution_context.capabilities)
+        ):
+            raise ClientCapabilityError(
+                "MISSING_EXECUTION_CONTEXT", "background jobs require their authorized capability context",
+            )
         classification = _classification_for_arguments(tool_manifest, args)
         timeout_s = max(0.1, min(float(timeout_s), MAX_CALL_TIMEOUT_S))
         call_id = uuid.uuid4().hex
@@ -982,11 +1007,9 @@ class CapabilityRegistry:
                 tool_name=tool_name,
                 session_id=session_id,
                 classification=classification,
-                background_requested=(
-                    server_name == "shell"
-                    and tool_name == "shell_exec"
-                    and args.get("run_in_background") is True
-                ),
+                background_requested=background_requested,
+                context_key=context_key,
+                source_id=source_id,
             )
             pending = conn.pending[call_id]
             retry_transport = False
@@ -1393,29 +1416,8 @@ class CapabilityRegistry:
         if not math.isfinite(event_at):
             event_at = time.time()
 
-        from openagent_core.mcp.servers.shell.events import ShellEvent
-        from openagent_core.mcp.servers.shell.handlers import get_hub
-
-        hub = get_hub()
-        hub.mark_completed(
-            binding.internal_shell_id,
-            exit_code=exit_code,
-            signal=signal,
-        )
-        hub.post_event(
-            binding.session_id,
-            ShellEvent(
-                shell_id=shell_id,
-                kind=kind,
-                exit_code=exit_code,
-                signal=signal,
-                bytes_stdout=stdout_bytes,
-                bytes_stderr=stderr_bytes,
-                at=event_at,
-                tool_server="client:shell",
-            ),
-            client_host=binding.client_host,
-        )
+        self._complete_shell(binding, kind=kind, exit_code=exit_code, signal=signal,
+                             stdout_bytes=stdout_bytes, stderr_bytes=stderr_bytes, at=event_at)
         binding.completed = True
         conn.last_seen_at = time.time()
         elog(
@@ -1475,8 +1477,6 @@ class CapabilityRegistry:
                 "client capability host reused a background shell id",
             )
 
-        from openagent_core.mcp.servers.shell.handlers import get_hub
-
         client_host = (
             conn.device_id, conn.client_instance_id, conn.generation,
         )
@@ -1484,22 +1484,16 @@ class CapabilityRegistry:
             "\x00".join((*client_host[:2], str(client_host[2]), shell_id)).encode("utf-8"),
         ).hexdigest()
         internal_shell_id = f"client_{digest[:32]}"
-        hub = get_hub()
-        if hub.get(internal_shell_id) is not None:
-            raise ClientCapabilityError(
-                "CLIENT_SHELL_ID_COLLISION", "client shell correlation already exists",
-            )
-        hub.register(
-            shell_id=internal_shell_id,
-            session_id=pending.session_id,
-            command="<client-local background shell>",
-            client_host=client_host,
-        )
+        if self.background_jobs is None or not pending.context_key or not pending.source_id:
+            raise ClientCapabilityError("MISSING_EXECUTION_CONTEXT", "background job context was lost")
+        self.background_jobs.register(internal_shell_id, pending.session_id, pending.context_key)
         conn.client_shells[shell_id] = _ClientShellBinding(
             client_shell_id=shell_id,
             internal_shell_id=internal_shell_id,
             session_id=pending.session_id,
             client_host=client_host,
+            context_key=pending.context_key,
+            source_id=pending.source_id,
         )
 
     def _detach_shells_locked(
@@ -1590,8 +1584,8 @@ class CapabilityRegistry:
         for item in detached:
             self._orphan_shell_bindings(item.bindings.values(), signal=signal)
 
-    @staticmethod
     def _orphan_shell_bindings(
+        self,
         bindings: Any,
         *,
         signal: str,
@@ -1601,44 +1595,36 @@ class CapabilityRegistry:
         bindings = list(bindings)
         if not bindings:
             return
-        from openagent_core.mcp.servers.shell.events import ShellEvent
-        from openagent_core.mcp.servers.shell.handlers import get_hub
-
-        hub = get_hub()
         now = time.time()
         for binding in bindings:
             if binding.completed:
                 continue
-            hub.mark_completed(
-                binding.internal_shell_id,
-                exit_code=None,
-                signal=signal,
-            )
-            hub.post_event(
-                binding.session_id,
-                ShellEvent(
-                    shell_id=binding.client_shell_id,
-                    kind="killed",
-                    exit_code=None,
-                    signal=signal,
-                    bytes_stdout=0,
-                    bytes_stderr=0,
-                    at=now,
-                    tool_server="client:shell",
-                ),
-                client_host=binding.client_host,
-            )
+            self._complete_shell(binding, kind="killed", exit_code=None, signal=signal,
+                                 stdout_bytes=0, stderr_bytes=0, at=now)
             binding.completed = True
 
-    @staticmethod
+    def _complete_shell(self, binding: _ClientShellBinding, *, kind: str,
+                        exit_code: int | None, signal: str | None,
+                        stdout_bytes: int, stderr_bytes: int, at: float) -> None:
+        if self.background_jobs is None:
+            return
+        self.background_jobs.complete(binding.session_id, binding.context_key, JobEvent(
+            job_id=binding.internal_shell_id, kind=kind, source_id=binding.source_id,
+            tool_name="shell_output", arguments={"shell_id": binding.client_shell_id},
+            summary=(f"Shell {binding.client_shell_id} {kind}; exit_code={exit_code}, "
+                     f"signal={signal}, stdout_bytes={stdout_bytes}, stderr_bytes={stderr_bytes}"),
+            at=at,
+        ))
+
     def _orphan_client_shells(
+        self,
         conn: CapabilityConnection,
         *,
         signal: str,
     ) -> None:
         """Stop waiting on client processes after their exact host vanishes."""
 
-        CapabilityRegistry._orphan_shell_bindings(
+        self._orphan_shell_bindings(
             conn.client_shells.values(), signal=signal,
         )
 

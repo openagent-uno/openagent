@@ -170,25 +170,28 @@ async def handle_create(request):
     slug = await _unique_slug(db, name, desired=body.get("slug"))
     clear, secret_enc, hint = make_secret_material(db_path=_db_path(request))
 
-    event_id = await db.add_event(
-        name=name,
-        action_kind=action_kind,
-        slug=slug,
-        secret_enc=secret_enc,
-        secret_hint=hint,
-        event_type=event_type,
-        description=(body.get("description") or None),
-        input_schema=body.get("input_schema") or [],
-        action_ref=action_ref,
-        prompt_template=prompt_template,
-        model=(body.get("model") or "").strip() or None,
-        session_binding_enabled=bool(binding_enabled),
-        session_binding_path=binding_path,
-        execution_policy=execution_policy,
-        rate_limit_per_min=int(body.get("rate_limit_per_min", 60)),
-        max_payload_bytes=int(body.get("max_payload_bytes", 262144)),
-        enabled=bool(body.get("enabled", True)),
-    )
+    from openagent_server.automation_management import mutate_request
+    async def create(store):
+        return await store.add_event(
+            name=name,
+            action_kind=action_kind,
+            slug=slug,
+            secret_enc=secret_enc,
+            secret_hint=hint,
+            event_type=event_type,
+            description=(body.get("description") or None),
+            input_schema=body.get("input_schema") or [],
+            action_ref=action_ref,
+            prompt_template=prompt_template,
+            model=(body.get("model") or "").strip() or None,
+            session_binding_enabled=bool(binding_enabled),
+            session_binding_path=binding_path,
+            execution_policy=execution_policy,
+            rate_limit_per_min=int(body.get("rate_limit_per_min", 60)),
+            max_payload_bytes=int(body.get("max_payload_bytes", 262144)),
+            enabled=bool(body.get("enabled", True)),
+        )
+    event_id = await mutate_request(request,"event",create)
     ev = await db.get_event(event_id)
     from .operational import claim_created_resource
 
@@ -276,7 +279,8 @@ async def handle_update(request):
     if not updates:
         return web.json_response({"error": "No fields to update"}, status=400)
 
-    await db.update_event(event_id, **updates)
+    from openagent_server.automation_management import mutate_request
+    await mutate_request(request,"event",lambda store: store.update_event(event_id,**updates))
     ev = await db.get_event(event_id)
     elog("event.update", id=event_id, fields=list(updates.keys()))
     await request.app["gateway"].broadcast_resource("event", "updated", event_id)
@@ -291,7 +295,8 @@ async def handle_delete(request):
     event_id = request.match_info["id"]
     if await db.get_event(event_id) is None:
         return web.json_response({"error": "Event not found"}, status=404)
-    await db.delete_event(event_id)
+    from openagent_server.automation_management import mutate_request
+    await mutate_request(request,"event",lambda store: store.delete_event(event_id))
     elog("event.delete", id=event_id)
     await request.app["gateway"].broadcast_resource("event", "deleted", event_id)
     return web.json_response({"ok": True, "id": event_id})
@@ -306,7 +311,8 @@ async def handle_rotate_secret(request):
     if await db.get_event(event_id) is None:
         return web.json_response({"error": "Event not found"}, status=404)
     clear, secret_enc, hint = make_secret_material(db_path=_db_path(request))
-    await db.rotate_event_secret(event_id, secret_enc=secret_enc, secret_hint=hint)
+    from openagent_server.automation_management import mutate_request
+    await mutate_request(request,"event",lambda store: store.rotate_event_secret(event_id,secret_enc=secret_enc,secret_hint=hint))
     ev = await db.get_event(event_id)
     elog("event.rotate_secret", id=event_id)
     await request.app["gateway"].broadcast_resource("event", "updated", event_id)

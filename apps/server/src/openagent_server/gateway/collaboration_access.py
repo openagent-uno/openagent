@@ -8,7 +8,9 @@ The native policy checks the same canonical ACL rows as operational REST.
 
 from __future__ import annotations
 
-from openagent_core.memory.operational.access import AccessContext, resource_is_visible
+from openagent_identity.runtime_access import AccessContext
+
+from openagent_core.memory.operational.access import resource_is_visible
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
 
 

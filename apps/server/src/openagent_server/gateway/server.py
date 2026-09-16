@@ -37,6 +37,8 @@ from openagent_identity.auth.middleware import make_auth_middleware
 from openagent_identity.transport.aiohttp_iroh_site import IrohSite
 
 if TYPE_CHECKING:
+    from openagent_core.stream.session import StreamSession
+    from openagent_core.stream.channel import RealtimeChannel
     from openagent_core.core.agent import Agent
     from openagent_identity.state import NetworkState
 
@@ -193,7 +195,7 @@ class Gateway:
             str, tuple[str | None, tuple[tuple[str, bool | int | str], ...]]
         ] = {}
         self._chat_client_auth_epochs: dict[str, int] = {}
-        self.capabilities = CapabilityRegistry()
+        self.capabilities = CapabilityRegistry(background_jobs=getattr(agent, "background_jobs", None))
         self._capability_reaper_task: asyncio.Task | None = None
         self._event_loop: asyncio.AbstractEventLoop | None = None
         # Per-socket send lock: serialises EVERY write to a given WebSocket so
@@ -893,12 +895,6 @@ class Gateway:
         self._network_state.iroh_node.register_handler(_Alpn.GATEWAY, _gateway_handler)
         self._network_state.iroh_node.register_handler(_Alpn.AGENT, _agent_handler)
 
-        # Bind the running node + DB into the in-process agent-federation
-        # builtin so its ask_agent / list_agents tools can dial peers on this
-        # node (no second identity, no /api/peers relay).
-        from openagent_core.mcp.servers.agent_federation.handlers import set_agent_runtime
-        set_agent_runtime(self._network_state.iroh_node, getattr(self.agent, "_db", None))
-
     def broadcast_session(self, action: str, session_id: str) -> None:
         """Announce a session change (created/updated/deleted) to clients so
         the flat session list / a parent's delegation cards refresh live.
@@ -969,8 +965,12 @@ class Gateway:
     async def start(self) -> None:
         from aiohttp import web
         from aiohttp.web import middleware
+        from openagent_server.runtime_service import NativeRuntimeService, bind_runtime_identity
 
         self._event_loop = asyncio.get_running_loop()
+        self.runtime_service = NativeRuntimeService(self, self.agent)
+        await self.runtime_service.start()
+        self.agent = self.runtime_service.facade
 
         # Surface freshly-spawned child sessions (delegations, scheduled
         # firings, workflow nodes) to connected clients in real time, and stream
@@ -979,14 +979,18 @@ class Gateway:
             from openagent_core.core.child_session import set_child_session_listener
             from openagent_core.stream.child_stream import set_child_broadcast_sink
             from openagent_core.stream.resource_events import set_resource_event_sink
-            set_child_session_listener(self._on_child_session_created)
+            from openagent_core.runtime import runtime_scope
+            with runtime_scope(self.runtime_service.runtime):
+                set_child_session_listener(self._on_child_session_created)
             self._child_frame_q = asyncio.Queue(maxsize=4096)
             self._child_frame_pump = asyncio.create_task(self._child_frame_pump_loop())
-            set_child_broadcast_sink(self._broadcast_child_frame)
+            with runtime_scope(self.runtime_service.runtime):
+                set_child_broadcast_sink(self._broadcast_child_frame)
             # In-process producers with no gateway handle (e.g. the
             # ``run_dream_mode`` MCP tool) emit resource events through this so
             # a manual firing refreshes the "Recent" feed like a cron one.
-            set_resource_event_sink(self.broadcast_resource_sync)
+            with runtime_scope(self.runtime_service.runtime):
+                set_resource_event_sink(self.broadcast_resource_sync)
         except Exception as e:  # noqa: BLE001
             logger.debug("child-session listener registration failed: %s", e)
 
@@ -1017,6 +1021,7 @@ class Gateway:
                 cors,
                 custom_views_api.body_limit_middleware,
                 auth_middleware,
+                bind_runtime_identity,
             ],
         )
         app["gateway"] = self  # accessible in handlers via request.app["gateway"]
@@ -1248,8 +1253,10 @@ class Gateway:
         if self._child_frame_pump is not None:
             from openagent_core.stream.child_stream import set_child_broadcast_sink
             from openagent_core.stream.resource_events import set_resource_event_sink
-            set_child_broadcast_sink(None)
-            set_resource_event_sink(None)
+            from openagent_core.runtime import runtime_scope
+            with runtime_scope(self.runtime_service.runtime):
+                set_child_broadcast_sink(None)
+                set_resource_event_sink(None)
             self._child_frame_pump.cancel()
             try:
                 await self._child_frame_pump
@@ -1290,6 +1297,9 @@ class Gateway:
         self._chat_client_instances.clear()
         self._chat_client_render_contexts.clear()
         self._chat_client_auth_epochs.clear()
+        if getattr(self, "runtime_service", None) is not None:
+            await self.runtime_service.close()
+            self.runtime_service = None
         self._event_loop = None
 
     async def _system_broadcast_loop(self) -> None:
@@ -1340,6 +1350,14 @@ class Gateway:
 
     def _register_routes(self, app) -> None:
         """Register the gateway WebSocket endpoint and REST API routes."""
+        from openagent_server import runtime_service as runtime_api
+        from openagent_server.automation_management import handle_authorize, handle_authorization
+        app.router.add_get("/api/automations/{kind}/{id}/authorization", handle_authorization)
+        app.router.add_post("/api/automations/{kind}/{id}/authorization", handle_authorize)
+        app.router.add_post("/api/runtime/runs", runtime_api.handle_submit)
+        app.router.add_get("/api/runtime/runs/{run_id}", runtime_api.handle_get)
+        app.router.add_get("/api/runtime/runs/{run_id}/events", runtime_api.handle_events)
+        app.router.add_post("/api/runtime/runs/{run_id}/cancel", runtime_api.handle_cancel)
         from .collaboration import service as collaboration_service
         collaboration = collaboration_service(self)
         app.router.add_get("/api/collaboration", collaboration.handle_info)
@@ -1523,6 +1541,7 @@ class Gateway:
             # Session list, delete, and run history.
             ("GET", "/api/sessions", sessions_api.handle_list),
             ("DELETE", "/api/sessions/{session_id}", sessions_api.handle_delete),
+            ("GET", "/api/sessions/{session_id}", sessions_api.handle_get_metadata),
             ("PATCH", "/api/sessions/{session_id}", sessions_api.handle_patch_metadata),
             ("GET", "/api/sessions/{session_id}/runs", sessions_api.handle_get_runs),
             ("GET", "/api/sessions/{session_id}/events", sessions_api.handle_get_events),
@@ -1594,7 +1613,7 @@ class Gateway:
             "node_id": self._network_state.identity.public_hex,
             "network": self._network_state.network_name,
             "role": self._network_state.role,
-            "version": getattr(src, "__version__", "?"),
+            "version": getattr(openagent_server, "__version__", "?"),
         }
 
     async def _handle_agent_info(self, request):
@@ -1642,7 +1661,7 @@ class Gateway:
             normalize_inbound_attachments,
             safe_attachment_filename,
         )
-        from openagent_core.memory.operational.access import AccessContext
+        from openagent_identity.runtime_access import AccessContext
 
         staged = None
         try:
@@ -1853,7 +1872,7 @@ class Gateway:
             attachment_limit_bytes,
             safe_attachment_filename,
         )
-        from openagent_core.memory.operational.access import AccessContext
+        from openagent_identity.runtime_access import AccessContext
 
         try:
             access = AccessContext.from_request(request)
@@ -2129,6 +2148,8 @@ class Gateway:
                 )
         finally:
             if conn is not None:
+                if getattr(self, "runtime_service", None) is not None:
+                    self.runtime_service.revoke_device_origin(conn)
                 await self.capabilities.unregister(conn)
                 elog(
                     "gateway.capability_disconnect",
@@ -2172,7 +2193,7 @@ class Gateway:
         client_id: str = cert.device_pubkey_hex
         request["user_handle"] = cert.handle
         from openagent_dashboards.service import service_for_gateway
-        from openagent_core.memory.operational.access import AccessContext
+        from openagent_identity.runtime_access import AccessContext
 
         ui_service = service_for_gateway(self)
         ui_access = AccessContext.from_request(request)
@@ -2194,7 +2215,7 @@ class Gateway:
         await self._safe_ws_send_json(ws, {
             "type": P.AUTH_OK,
             "agent_name": self.agent.name,
-            "version": getattr(src, "__version__", "?"),
+            "version": getattr(openagent_server, "__version__", "?"),
             "handle": cert.handle,
             # Opaque, websocket-scoped owner token for auxiliary REST reads
             # such as GET /api/terminals. It is never accepted as identity;
@@ -2237,6 +2258,19 @@ class Gateway:
                     continue
 
                 t = data.get("type", "")
+
+                if t == "app_capability_register":
+                    try:
+                        if not await self._request_device_still_authorized(request, cert):
+                            raise PermissionError("Device authorization changed")
+                        dashboards = getattr(getattr(self, "runtime_service", None), "dashboards", None)
+                        if dashboards is None:
+                            raise PermissionError("App dashboard capabilities are unavailable")
+                        response = dashboards.register_connection(connection_id, data)
+                        await self._safe_ws_send_json(ws, response)
+                    except (PermissionError, ValueError):
+                        await self._safe_ws_send_json(ws, {"type":"app_capability_error", "message":"App capability registration was rejected"})
+                    continue
 
                 # Custom View subscriptions/actions share this authenticated
                 # socket with chat but remain a separate protocol domain. A
@@ -2383,6 +2417,8 @@ class Gateway:
             # ``_close_stream_sessions_for`` here would tear down the
             # *new* connection's live sessions and leave its UI stuck.
             if self.clients.get(connection_id) is ws:
+                if getattr(self, "runtime_service", None) is not None:
+                    self.runtime_service.revoke_connection(connection_id)
                 del self.clients[connection_id]
                 self._chat_client_devices.pop(connection_id, None)
                 self._chat_client_instances.pop(connection_id, None)
@@ -3131,6 +3167,7 @@ class Gateway:
             auth_epoch=device_auth_epoch or 0,
             turn_context=TrustedTurnContext(
                 on_behalf_identity=on_behalf_identity,
+                request_id=(frame.get("request_id") if isinstance(frame.get("request_id"), str) else None),
                 client_kind=client_kind,
                 client_capabilities=frozen_client_capabilities,
                 allow_local_attachment_paths=bool(trusted_bridge),
@@ -3208,6 +3245,8 @@ class Gateway:
             channel = RealtimeChannel(
                 session,
                 lambda payload, _ws=ws: self._safe_ws_send_json(_ws, payload),
+                encoder=event_to_wire,
+                decoder=wire_to_event,
                 on_outbound=(
                     lambda payload, _sid=sid, _owner=owner:
                         self._record_live_output(_sid, payload, owner=_owner)

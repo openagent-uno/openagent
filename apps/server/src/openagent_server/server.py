@@ -83,163 +83,8 @@ def _compose_task_hook(hook, nxt):
 DREAM_MODE_DEFAULT_TIME = "3:31"
 
 
-DREAM_MODE_PROMPT = """\
-You are running in Dream Mode — OpenAgent's nightly self-maintenance
-routine. You run while the agent is otherwise idle. Work through both
-missions below in order, then write a single dream-log at the end. Be
-thorough but non-destructive: when in doubt, skip rather than delete,
-and log the uncertainty.
+from openagent_core.memory.vault.prompts import DREAM_MODE_PROMPT
 
-## Mission 1 — Evaluate and correct the memory vault
-
-Curate the memory vault via the `vault` MCP — do NOT cat/grep the
-.md files directly.
-
-**First, run the mechanical pass: `vault_dream()`.** One call does
-sync → gate → doctor (auto-fix) → regenerate derived. It is
-deterministic, offline, and it will not touch a judgement call — so
-there is no reason to skip it and no reason to hand-do any of it. It
-returns the violations code could NOT fix, which is your actual work
-list for this mission. Everything below is about those.
-
-Do not spend the pass re-deciding what the doctor already fixed. If you
-want the detail: `vault_gate()` grades, `vault_doctor(apply=False)`
-previews. `vault_regenerate_derived()` rebuilds `llms.txt` and the
-showcase — `vault_dream()` already did it.
-
-**Then `vault_contradiction_candidates()`.** Vision §5 requires
-contradictions to be "flagged and reconciled rather than silently
-overwritten" — this is the flagging half, and reconciling is your job.
-It is candidate generation, not detection: code matched opposing wording
-about a shared subject and never read either note, so expect roughly
-half to be false positives. Read BOTH notes in full, then fix or retire
-whichever is genuinely stale. An empty result is not proof the vault
-agrees with itself — it only sees explicitly deprecated/forbidden
-wording. Never delete on this signal alone.
-
-**Then `vault_recall_stats`.** It tells you which notes were
-actually read during real runs and how those runs ended, so you spend
-this pass on the notes that carry weight instead of walking the vault
-alphabetically. Read its `caveat` and believe it: `ok_rate` is
-ASSOCIATION, NOT CAUSATION. A run that read six notes and failed credits
-all six; a low `ok_rate` is evidence about a note, never a verdict on it.
-
-Use it to decide **where to look**, then judge the note on its content:
-   - **Read often, low `ok_rate`** — look here first. Open the note and
-     ask why: is it stale, ambiguous, contradicted elsewhere, or missing
-     the caveat that would have prevented the failure? Fix what you can
-     verify. If the note reads fine, leave it and say so in the log —
-     the correlation may be the task's difficulty, not the note.
-   - **Read often, high `ok_rate`** — this note is load-bearing. Do not
-     merge it away casually, and make sure it is well cross-linked so it
-     keeps getting found.
-   - **Never read** — a candidate for the orphan/duplicate checks below,
-     NOT a reason to delete on its own. A note can be correct, niche,
-     and simply not needed yet.
-   - **Absent from the stats entirely** — the table only fills as runs
-     happen, so on a fresh deployment it is empty. That means "no
-     evidence yet", not "no value". Fall back to the checks below.
-
-Never delete a note for a bad number alone. The stats point; you read.
-
-   - Use `list_directory` and `search_notes` to survey the vault.
-   - Identify notes that cover the same topic and **merge duplicates**
-     into a single canonical note with `write_note` or `patch_note`,
-     then `delete_note` the redundant ones.
-   - Update any outdated information you can verify from the
-     environment (tool versions, paths, hosts that no longer exist,
-     etc.).
-   - Remove trivially short or empty notes (< 20 words) that add no
-     value.
-   - **Cross-link related notes with `[[wikilinks]]`**. For every note
-     you touch, search the vault for related topics and add backlinks
-     where the relationship is meaningful. If a group of notes shares a
-     theme, make sure each one links to the others. Prefer
-     `patch_note` to add links in place rather than rewriting whole
-     notes.
-   - **Reconcile contradictions**: when a newer note contradicts an
-     older one, fix or retire the stale entry rather than leaving both.
-   - Keep frontmatter `tags:` consistent so related notes share tags
-     and surface together in future searches.
-
-## Mission 2 — Analyze the last day of logs and fix what is broken
-
-Read OpenAgent's own event log for roughly the last 24 hours and find
-issues to fix. Use the `logs` MCP — never `find`/`tail` over
-`events.jsonl` by hand. It resolves the log path itself, so there is no
-OS-specific path to guess, and it summarises the *whole* window instead
-of whatever fits in a tail:
-
-   - `logs_summary(since="24h")` — start here. One call: totals, the
-     top failing events, and sample lines.
-   - `logs_query(event=..., errors_only=true, since="24h")` — drill
-     into one failing event.
-   - `logs_context(ts=...)` — read the lines around a failure. The
-     error says *what* broke; the lines before it say *why*.
-
-Note `error_like` mixes two schemas. Entries written since the severity
-fix carry a real level and are authoritative; older entries predate it,
-so their severity is guessed from the event name and can over-report
-failures that actually recovered. `logs_summary` reports the split and
-says which case this log is in — when a verdict is a guess, confirm it
-from the event's own payload before acting on it.
-
-Look for problems and act on them:
-   - **Broken scheduled tasks**: tasks that errored or produced empty
-     output. Inspect them via the `scheduler` MCP
-     (`scheduler_list_scheduled_tasks`), confirm whether the prompt is
-     still accurate, and fix, reschedule, or retire the task.
-   - **Broken workflows**: workflow runs that failed or stalled.
-     Inspect via the `workflow-manager` MCP and repair the definition,
-     or clearly report the failure if you cannot fix it.
-   - **Recurring errors**: model-call failures, MCP errors, federation
-     or channel errors that repeat. Diagnose the cause, fix what is in
-     your power (a stale path, a misconfigured task), and log what
-     still needs a human.
-
-## Mission 3 — Notice what should be automated, and say so
-
-You are expected to be proactive: surface the patterns you notice
-rather than waiting to be asked. You already have the week in front of
-you from Mission 2, so use it.
-
-   - **Recurring work**: widen to `logs_summary(since="7d")`. Did the
-     same kind of task run three or more times with only minor
-     variation? That is a scheduled task or a workflow that doesn't
-     exist yet. Propose it concretely — the exact prompt and cron, or
-     the block outline — via the `scheduler` / `workflow-manager` MCPs.
-   - **Promises that never landed**: search the vault for notes tagged
-     `pending-automation` or `followup`. For each, decide: is the
-     pattern still live? Then schedule it now. Is it dead? Then archive
-     the note. A followup note that survives untouched for months is a
-     decision nobody made.
-   - **Things you said you'd remember**: skim the recent sessions for
-     "I'll remember that", "next time", "we decided" that never became
-     a note. Write the missing notes.
-
-Propose, don't impose. Creating a scheduled task that spends money on
-the user's behalf every night is a decision they should make — write
-what you would automate and why into the dream-log, and create it only
-when the pattern is unambiguous and cheap.
-
-## Log the dream
-
-Use `write_note` to save a concise summary under
-`dream-logs/dream-log-YYYY-MM-DD.md` with frontmatter `type: dream-log`
-and `date:` set to today. Record, per mission: what you
-merged/updated/cross-linked/removed in the vault, which log issues you
-found, what you fixed, what you would automate and why, and what still
-needs the user's decision.
-
-Include the recall findings explicitly: which notes `vault_recall_stats`
-sent you to, what you concluded when you actually read them, and — this
-one matters — which ones you examined and found FINE despite a low
-`ok_rate`. Without that, the next run re-investigates the same note
-forever and the number slowly reads as guilt rather than as a pointer.
-
-Use the `vault` MCP's tools for all vault access — never shell out for
-anything under the memory vault.
-"""
 
 # Weekly by default (Sunday 04:53). Skills change far more slowly than the
 # memory vault, so the curator runs on a longer cadence than nightly dream
@@ -810,6 +655,7 @@ def _build_agent(config: dict) -> Agent:
     from openagent_product_config import configure_product_prompts
 
     config = configure_product_prompts(config)
+    environment = dict(os.environ)
     model = create_model_from_config(config)
 
     # Export channel tokens as env vars so the messaging MCP can pick them up.
@@ -818,25 +664,25 @@ def _build_agent(config: dict) -> Agent:
     # the default in that case.
     channels_config = config.get("channels") or {}
     if "telegram" in channels_config:
-        token = channels_config["telegram"].get("token") or os.environ.get("TELEGRAM_BOT_TOKEN")
+        token = channels_config["telegram"].get("token") or environment.get("TELEGRAM_BOT_TOKEN")
         if token:
-            os.environ["TELEGRAM_BOT_TOKEN"] = token
+            environment["TELEGRAM_BOT_TOKEN"] = token
     if "discord" in channels_config:
-        token = channels_config["discord"].get("token") or os.environ.get("DISCORD_BOT_TOKEN")
+        token = channels_config["discord"].get("token") or environment.get("DISCORD_BOT_TOKEN")
         if token:
-            os.environ["DISCORD_BOT_TOKEN"] = token
+            environment["DISCORD_BOT_TOKEN"] = token
     if "whatsapp" in channels_config:
         wa = channels_config["whatsapp"]
         if wa.get("green_api_id"):
-            os.environ["GREEN_API_ID"] = wa["green_api_id"]
+            environment["GREEN_API_ID"] = wa["green_api_id"]
         if wa.get("green_api_token"):
-            os.environ["GREEN_API_TOKEN"] = wa["green_api_token"]
+            environment["GREEN_API_TOKEN"] = wa["green_api_token"]
     if "slack" in channels_config:
         sl = channels_config["slack"]
         if sl.get("bot_token"):
-            os.environ["SLACK_BOT_TOKEN"] = sl["bot_token"]
+            environment["SLACK_BOT_TOKEN"] = sl["bot_token"]
         if sl.get("app_token"):
-            os.environ["SLACK_APP_TOKEN"] = sl["app_token"]
+            environment["SLACK_APP_TOKEN"] = sl["app_token"]
 
     # Safety toggles — read from ``safety.*`` and exported as env vars so the
     # blocklist can read them without plumbing the agent config object through
@@ -885,22 +731,22 @@ def _build_agent(config: dict) -> Agent:
         _tz = str(_sched_cfg["timezone"]).strip()
         # Fail at boot on a bad zone rather than at 3am on the first firing.
         validate_timezone(_tz)
-        os.environ[DEFAULT_TZ_ENV] = _tz
+        environment[DEFAULT_TZ_ENV] = _tz
 
     safety_config = config.get("safety") or {}
     _approvals_cfg = (safety_config.get("approvals") or {})
     if "enabled" in _approvals_cfg:
-        os.environ["OPENAGENT_SAFETY_APPROVALS"] = (
+        environment["OPENAGENT_SAFETY_APPROVALS"] = (
             "1" if bool(_approvals_cfg["enabled"]) else "0"
         )
     if _approvals_cfg.get("block_extra_patterns"):
         extras = _approvals_cfg["block_extra_patterns"]
         if isinstance(extras, (list, tuple)):
-            os.environ["OPENAGENT_SAFETY_BLOCK_EXTRA_PATTERNS"] = ",".join(
+            environment["OPENAGENT_SAFETY_BLOCK_EXTRA_PATTERNS"] = ",".join(
                 str(p) for p in extras
             )
         elif isinstance(extras, str):
-            os.environ["OPENAGENT_SAFETY_BLOCK_EXTRA_PATTERNS"] = extras
+            environment["OPENAGENT_SAFETY_BLOCK_EXTRA_PATTERNS"] = extras
     # ``allow_patterns`` exempts a command from the block list, and is what
     # makes the whole stanza usable rather than theoretical. ``git push
     # --force`` is blocked by default, but an autonomous agent that owns its
@@ -910,11 +756,11 @@ def _build_agent(config: dict) -> Agent:
     if _approvals_cfg.get("allow_patterns"):
         allows = _approvals_cfg["allow_patterns"]
         if isinstance(allows, (list, tuple)):
-            os.environ["OPENAGENT_SAFETY_ALLOW_PATTERNS"] = ",".join(
+            environment["OPENAGENT_SAFETY_ALLOW_PATTERNS"] = ",".join(
                 str(p) for p in allows
             )
         elif isinstance(allows, str):
-            os.environ["OPENAGENT_SAFETY_ALLOW_PATTERNS"] = allows
+            environment["OPENAGENT_SAFETY_ALLOW_PATTERNS"] = allows
 
     # ``sandbox`` — opt-in hardened exec backend for the ``shell`` tool. The
     # default is the local host backend, whose spawn path is byte-identical to
@@ -927,18 +773,18 @@ def _build_agent(config: dict) -> Agent:
     # environment anyway. ``local`` downstream is a harmless no-op.
     _sandbox_cfg = config.get("sandbox") or {}
     _sandbox_backend = str(_sandbox_cfg.get("backend") or "local").strip().lower()
-    os.environ["OPENAGENT_SANDBOX_BACKEND"] = _sandbox_backend
+    environment["OPENAGENT_SANDBOX_BACKEND"] = _sandbox_backend
     if _sandbox_backend == "docker":
         # Only serialise the docker sub-config when docker is actually selected —
         # a misconfigured opt-in must fail closed at spawn, not degrade to host.
-        os.environ["OPENAGENT_SANDBOX_DOCKER"] = json.dumps(
+        environment["OPENAGENT_SANDBOX_DOCKER"] = json.dumps(
             _sandbox_cfg.get("docker") or {}
         )
     elif _sandbox_backend == "ssh":
         # Same rule for the ssh backend: the remote host IS the sandbox, so the
         # ssh sub-config (host/user/port/key_path) is only serialised when ssh is
         # actually selected. An unreachable host fails closed in prepare().
-        os.environ["OPENAGENT_SANDBOX_SSH"] = json.dumps(
+        environment["OPENAGENT_SANDBOX_SSH"] = json.dumps(
             _sandbox_cfg.get("ssh") or {}
         )
 
@@ -954,17 +800,17 @@ def _build_agent(config: dict) -> Agent:
     from openagent_core.core.config import tool_output_settings
 
     _tool_output_cfg = tool_output_settings(config)
-    os.environ["OPENAGENT_TOOL_OFFLOAD_ENABLED"] = (
+    environment["OPENAGENT_TOOL_OFFLOAD_ENABLED"] = (
         "1" if _tool_output_cfg.offload_enabled else "0"
     )
     if _tool_output_cfg.offload_enabled:
         if _tool_output_cfg.offload_threshold is not None:
-            os.environ["OPENAGENT_TOOL_OFFLOAD_THRESHOLD"] = str(
+            environment["OPENAGENT_TOOL_OFFLOAD_THRESHOLD"] = str(
                 _tool_output_cfg.offload_threshold
             )
         if _tool_output_cfg.offload_dir:
-            os.environ["OPENAGENT_TOOL_OFFLOAD_DIR"] = _tool_output_cfg.offload_dir
-        os.environ["OPENAGENT_TOOL_OFFLOAD_KEEP"] = str(_tool_output_cfg.offload_keep)
+            environment["OPENAGENT_TOOL_OFFLOAD_DIR"] = _tool_output_cfg.offload_dir
+        environment["OPENAGENT_TOOL_OFFLOAD_KEEP"] = str(_tool_output_cfg.offload_keep)
 
     # ``mcps.install_policy`` — gates REGISTERING an MCP, which is the act that
     # hands a third party's argv this agent's whole environment. Exported as
@@ -983,7 +829,7 @@ def _build_agent(config: dict) -> Agent:
     _mcps_cfg = config.get("mcps") or {}
     _install_cfg = (_mcps_cfg.get("install_policy") or {})
     if "enabled" in _install_cfg:
-        os.environ["OPENAGENT_MCP_INSTALL_POLICY"] = (
+        environment["OPENAGENT_MCP_INSTALL_POLICY"] = (
             "1" if bool(_install_cfg["enabled"]) else "0"
         )
     # With the policy on and no ``allow_patterns``, the capability set is
@@ -995,11 +841,11 @@ def _build_agent(config: dict) -> Agent:
     if _install_cfg.get("allow_patterns"):
         _ip_allows = _install_cfg["allow_patterns"]
         if isinstance(_ip_allows, (list, tuple)):
-            os.environ["OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS"] = ",".join(
+            environment["OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS"] = ",".join(
                 str(p) for p in _ip_allows
             )
         elif isinstance(_ip_allows, str):
-            os.environ["OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS"] = _ip_allows
+            environment["OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS"] = _ip_allows
 
     # ``network.peers`` — who may dial the ``openagent/agent/1`` ALPN, and what
     # they may reach once they have. Both default OFF and both are enforced in
@@ -1013,20 +859,20 @@ def _build_agent(config: dict) -> Agent:
     _peers_cfg = ((config.get("network") or {}).get("peers") or {})
     _allowlist_cfg = (_peers_cfg.get("allowlist") or {})
     if "enabled" in _allowlist_cfg:
-        os.environ["OPENAGENT_NETWORK_PEER_ALLOWLIST_ENABLED"] = (
+        environment["OPENAGENT_NETWORK_PEER_ALLOWLIST_ENABLED"] = (
             "1" if bool(_allowlist_cfg["enabled"]) else "0"
         )
     if _allowlist_cfg.get("node_ids"):
         _nodes = _allowlist_cfg["node_ids"]
         if isinstance(_nodes, (list, tuple)):
-            os.environ["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = ",".join(
+            environment["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = ",".join(
                 str(n) for n in _nodes
             )
         elif isinstance(_nodes, str):
-            os.environ["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = _nodes
+            environment["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = _nodes
     _scope_cfg = (_peers_cfg.get("scope") or {})
     if "enabled" in _scope_cfg:
-        os.environ["OPENAGENT_NETWORK_PEER_SCOPE_ENABLED"] = (
+        environment["OPENAGENT_NETWORK_PEER_SCOPE_ENABLED"] = (
             "1" if bool(_scope_cfg["enabled"]) else "0"
         )
     # ``extra_paths`` is the escape hatch that keeps ``scope`` from being a
@@ -1035,11 +881,11 @@ def _build_agent(config: dict) -> Agent:
     if _scope_cfg.get("extra_paths"):
         _paths = _scope_cfg["extra_paths"]
         if isinstance(_paths, (list, tuple)):
-            os.environ["OPENAGENT_NETWORK_PEER_SCOPE_EXTRA_PATHS"] = ",".join(
+            environment["OPENAGENT_NETWORK_PEER_SCOPE_EXTRA_PATHS"] = ",".join(
                 str(p) for p in _paths
             )
         elif isinstance(_paths, str):
-            os.environ["OPENAGENT_NETWORK_PEER_SCOPE_EXTRA_PATHS"] = _paths
+            environment["OPENAGENT_NETWORK_PEER_SCOPE_EXTRA_PATHS"] = _paths
 
     memory_cfg = config.get("memory", {})
     # Learning toggles — mapped to env vars so the loops in ``openagent_core.learning``
@@ -1086,11 +932,11 @@ def _build_agent(config: dict) -> Agent:
     # PYTHONPATH); forwarding them to that spec is a one-line change in the
     # pool/builtins layer, owned elsewhere — see semantic_recall's docstring.
     if memory_cfg.get("embedding_model"):
-        os.environ["OPENAGENT_EMBEDDING_MODEL"] = str(memory_cfg["embedding_model"]).strip()
+        environment["OPENAGENT_EMBEDDING_MODEL"] = str(memory_cfg["embedding_model"]).strip()
     if memory_cfg.get("embedding_base_url"):
-        os.environ["OPENAGENT_EMBEDDING_BASE_URL"] = str(memory_cfg["embedding_base_url"]).strip()
+        environment["OPENAGENT_EMBEDDING_BASE_URL"] = str(memory_cfg["embedding_base_url"]).strip()
     if memory_cfg.get("embedding_api_key"):
-        os.environ["OPENAGENT_EMBEDDING_API_KEY"] = str(memory_cfg["embedding_api_key"]).strip()
+        environment["OPENAGENT_EMBEDDING_API_KEY"] = str(memory_cfg["embedding_api_key"]).strip()
     # The search-time corpus filters below do not prevent the background builder
     # from embedding excluded receipt/log trees. On support agents those files are
     # most of the vault and churn on every reply, starving the live query at the
@@ -1102,18 +948,18 @@ def _build_agent(config: dict) -> Agent:
         _si_excludes = _si_cfg.get("exclude_path_prefixes") or []
         if not isinstance(_si_excludes, (list, tuple)):
             _si_excludes = str(_si_excludes).split(",")
-        os.environ["OPENAGENT_SEMANTIC_INDEX_EXCLUDE_PATHS"] = ",".join(
+        environment["OPENAGENT_SEMANTIC_INDEX_EXCLUDE_PATHS"] = ",".join(
             str(x).strip() for x in _si_excludes if str(x).strip())
     if "sessions" in _si_cfg:
-        os.environ["OPENAGENT_SEMANTIC_INDEX_SESSIONS"] = (
+        environment["OPENAGENT_SEMANTIC_INDEX_SESSIONS"] = (
             "1" if bool(_si_cfg["sessions"]) else "0")
     _ar_cfg = (memory_cfg.get("auto_recall") or {})
     if "enabled" in _ar_cfg:
-        os.environ["OPENAGENT_AUTO_RECALL_ENABLED"] = "1" if bool(_ar_cfg["enabled"]) else "0"
+        environment["OPENAGENT_AUTO_RECALL_ENABLED"] = "1" if bool(_ar_cfg["enabled"]) else "0"
     # Hybrid FTS∪semantic recall (default ON in code). Only export when the
     # operator sets it explicitly, so the default lives in one place.
     if "hybrid" in _ar_cfg:
-        os.environ["OPENAGENT_AUTO_RECALL_HYBRID"] = "1" if bool(_ar_cfg["hybrid"]) else "0"
+        environment["OPENAGENT_AUTO_RECALL_HYBRID"] = "1" if bool(_ar_cfg["hybrid"]) else "0"
     for _k, _env in (
         ("min_score",   "OPENAGENT_AUTO_RECALL_MIN_SCORE"),
         ("top_k",       "OPENAGENT_AUTO_RECALL_TOP_K"),
@@ -1125,7 +971,7 @@ def _build_agent(config: dict) -> Agent:
     ):
         if _k in _ar_cfg:
             try:
-                os.environ[_env] = str(_ar_cfg[_k])
+                environment[_env] = str(_ar_cfg[_k])
             except (TypeError, ValueError):
                 pass
     # Which SPAN of the turn message to embed. Names a tag: only the text inside
@@ -1133,7 +979,7 @@ def _build_agent(config: dict) -> Agent:
     # can mark the customer's own sentence inside its orchestration prompt and
     # stop the boilerplate from describing the query. Unset = embed it all.
     if _ar_cfg.get("query_marker"):
-        os.environ["OPENAGENT_AUTO_RECALL_QUERY_MARKER"] = str(_ar_cfg["query_marker"]).strip()
+        environment["OPENAGENT_AUTO_RECALL_QUERY_MARKER"] = str(_ar_cfg["query_marker"]).strip()
     # Per-origin recall CORPUS scoping (default = identity: no filtering). Maps
     # ``scope`` / ``include_path_prefixes`` / ``exclude_path_prefixes`` /
     # ``reserve_prefix`` → the ``OPENAGENT_AUTO_RECALL_{SCOPE,INCLUDE_PATHS,
@@ -1156,7 +1002,7 @@ def _build_agent(config: dict) -> Agent:
             if _key in cfg:
                 _val = _csv(cfg[_key])
                 if _val:
-                    os.environ[_base + suffix] = _val
+                    environment[_base + suffix] = _val
     _export_recall_scoping(_ar_cfg)
     for _origin, _ocfg in (_ar_cfg.get("by_origin") or {}).items():
         if isinstance(_ocfg, dict) and str(_origin).strip():
@@ -1168,7 +1014,7 @@ def _build_agent(config: dict) -> Agent:
     # vars ``src/core/quality_monitor.py`` reads. OFF unless enabled (§17).
     _qm_cfg = (config.get("quality_monitor") or memory_cfg.get("quality_monitor") or {})
     if "enabled" in _qm_cfg:
-        os.environ["OPENAGENT_QUALITY_MONITOR_ENABLED"] = (
+        environment["OPENAGENT_QUALITY_MONITOR_ENABLED"] = (
             "1" if bool(_qm_cfg["enabled"]) else "0"
         )
     for _k, _env in (
@@ -1179,14 +1025,14 @@ def _build_agent(config: dict) -> Agent:
     ):
         if _k in _qm_cfg:
             try:
-                os.environ[_env] = str(_qm_cfg[_k])
+                environment[_env] = str(_qm_cfg[_k])
             except (TypeError, ValueError):
                 pass
     # ``quality_monitor.digest.*`` → the scheduled digest/alerting loop
     # (``src/core/quality_digest.py``). Defaults ON when the monitor is on.
     _qd_cfg = (_qm_cfg.get("digest") or {})
     if "enabled" in _qd_cfg:
-        os.environ["OPENAGENT_QUALITY_DIGEST_ENABLED"] = (
+        environment["OPENAGENT_QUALITY_DIGEST_ENABLED"] = (
             "1" if bool(_qd_cfg["enabled"]) else "0"
         )
     for _k, _env in (
@@ -1197,7 +1043,7 @@ def _build_agent(config: dict) -> Agent:
     ):
         if _k in _qd_cfg:
             try:
-                os.environ[_env] = str(_qd_cfg[_k])
+                environment[_env] = str(_qd_cfg[_k])
             except (TypeError, ValueError):
                 pass
     # Anti-fabrication reply guard (``src/core/reply_guard.py``). OFF by default.
@@ -1206,18 +1052,18 @@ def _build_agent(config: dict) -> Agent:
     # list. Needs the quality monitor on for tool-trace grounding visibility.
     _rg_cfg = (config.get("reply_guard") or memory_cfg.get("reply_guard") or {})
     if "enabled" in _rg_cfg:
-        os.environ["OPENAGENT_REPLY_GUARD_ENABLED"] = (
+        environment["OPENAGENT_REPLY_GUARD_ENABLED"] = (
             "1" if bool(_rg_cfg["enabled"]) else "0"
         )
     _rg_backing = _rg_cfg.get("backing_tools")
     if _rg_backing:
         try:
             if isinstance(_rg_backing, (list, tuple)):
-                os.environ["OPENAGENT_REPLY_GUARD_BACKING_TOOLS"] = ",".join(
+                environment["OPENAGENT_REPLY_GUARD_BACKING_TOOLS"] = ",".join(
                     str(x) for x in _rg_backing
                 )
             else:
-                os.environ["OPENAGENT_REPLY_GUARD_BACKING_TOOLS"] = str(_rg_backing)
+                environment["OPENAGENT_REPLY_GUARD_BACKING_TOOLS"] = str(_rg_backing)
         except (TypeError, ValueError):
             pass
     # Hard ("strict") budget scopes (``src/core/budget_guard.py``). A scope
@@ -1232,11 +1078,11 @@ def _build_agent(config: dict) -> Agent:
     if _strict:
         try:
             if isinstance(_strict, (list, tuple)):
-                os.environ["OPENAGENT_BUDGET_STRICT_SCOPES"] = ",".join(
+                environment["OPENAGENT_BUDGET_STRICT_SCOPES"] = ",".join(
                     str(x) for x in _strict
                 )
             else:
-                os.environ["OPENAGENT_BUDGET_STRICT_SCOPES"] = str(_strict)
+                environment["OPENAGENT_BUDGET_STRICT_SCOPES"] = str(_strict)
         except (TypeError, ValueError):
             pass
     # Per-run cost-anomaly alerting (``src/core/cost_anomaly.py``). Defaults ON
@@ -1246,7 +1092,7 @@ def _build_agent(config: dict) -> Agent:
     # webhook here without touching env.
     _ca_cfg = (config.get("cost_anomaly") or memory_cfg.get("cost_anomaly") or {})
     if "enabled" in _ca_cfg:
-        os.environ["OPENAGENT_COST_ANOMALY_ENABLED"] = (
+        environment["OPENAGENT_COST_ANOMALY_ENABLED"] = (
             "1" if bool(_ca_cfg["enabled"]) else "0"
         )
     for _k, _env in (
@@ -1256,22 +1102,22 @@ def _build_agent(config: dict) -> Agent:
     ):
         if _k in _ca_cfg:
             try:
-                os.environ[_env] = str(_ca_cfg[_k])
+                environment[_env] = str(_ca_cfg[_k])
             except (TypeError, ValueError):
                 pass
     _cur_cfg = (memory_cfg.get("curator") or {})
     if "enabled" in _cur_cfg:
-        os.environ["OPENAGENT_CURATOR_ENABLED"] = (
+        environment["OPENAGENT_CURATOR_ENABLED"] = (
             "1" if bool(_cur_cfg["enabled"]) else "0"
         )
     _vr_cfg = (memory_cfg.get("vault_reminder") or {})
     if "enabled" in _vr_cfg:
-        os.environ["OPENAGENT_VAULT_REMINDER_ENABLED"] = (
+        environment["OPENAGENT_VAULT_REMINDER_ENABLED"] = (
             "1" if bool(_vr_cfg["enabled"]) else "0"
         )
     if "every_n_turns" in _vr_cfg:
         try:
-            os.environ["OPENAGENT_VAULT_REMINDER_EVERY_N_TURNS"] = str(
+            environment["OPENAGENT_VAULT_REMINDER_EVERY_N_TURNS"] = str(
                 int(_vr_cfg["every_n_turns"])
             )
         except (TypeError, ValueError):
@@ -1285,7 +1131,7 @@ def _build_agent(config: dict) -> Agent:
     if memory_cfg.get("vault_path"):
         try:
             from pathlib import Path as _P
-            os.environ["OPENAGENT_VAULT_PATH"] = str(
+            environment["OPENAGENT_VAULT_PATH"] = str(
                 _P(str(memory_cfg["vault_path"])).expanduser().resolve()
             )
         except Exception:  # noqa: BLE001
@@ -1299,14 +1145,14 @@ def _build_agent(config: dict) -> Agent:
         ("validate_on_write", "OPENAGENT_VAULT_VALIDATE_ON_WRITE"),
     ):
         if _k in _vault_cfg:
-            os.environ[_env] = "1" if bool(_vault_cfg[_k]) else "0"
+            environment[_env] = "1" if bool(_vault_cfg[_k]) else "0"
     for _k, _env in (
         ("max_lines",    "OPENAGENT_VAULT_MAX_LINES"),
         ("min_outlinks", "OPENAGENT_VAULT_MIN_OUTLINKS"),
     ):
         if _k in _vault_cfg:
             try:
-                os.environ[_env] = str(int(_vault_cfg[_k]))
+                environment[_env] = str(int(_vault_cfg[_k]))
             except (TypeError, ValueError):
                 pass
     # ``memory.vault.maintenance.*`` (``enabled``, ``interval_hours``,
@@ -1348,11 +1194,11 @@ def _build_agent(config: dict) -> Agent:
     # Git-backed vault: every change is auto-committed with provenance.
     _vgit_cfg = (_vault_cfg.get("git") or {})
     if "enabled" in _vgit_cfg:
-        os.environ["OPENAGENT_VAULT_GIT_ENABLED"] = (
+        environment["OPENAGENT_VAULT_GIT_ENABLED"] = (
             "1" if bool(_vgit_cfg["enabled"]) else "0")
     if "autocommit_seconds" in _vgit_cfg:
         try:
-            os.environ["OPENAGENT_VAULT_GIT_AUTOCOMMIT_SECONDS"] = str(
+            environment["OPENAGENT_VAULT_GIT_AUTOCOMMIT_SECONDS"] = str(
                 int(_vgit_cfg["autocommit_seconds"]))
         except (TypeError, ValueError):
             pass
@@ -1360,17 +1206,17 @@ def _build_agent(config: dict) -> Agent:
     # nowhere still dies with its volume, and an agent's vault is months of
     # accumulated operational knowledge.
     if _vgit_cfg.get("remote"):
-        os.environ["OPENAGENT_VAULT_GIT_REMOTE"] = str(_vgit_cfg["remote"])
+        environment["OPENAGENT_VAULT_GIT_REMOTE"] = str(_vgit_cfg["remote"])
     if "push_seconds" in _vgit_cfg:
         try:
-            os.environ["OPENAGENT_VAULT_GIT_PUSH_SECONDS"] = str(
+            environment["OPENAGENT_VAULT_GIT_PUSH_SECONDS"] = str(
                 int(_vgit_cfg["push_seconds"]))
         except (TypeError, ValueError):
             pass
     for _k, _env in (("author_name", "OPENAGENT_VAULT_GIT_NAME"),
                      ("author_email", "OPENAGENT_VAULT_GIT_EMAIL")):
         if _vgit_cfg.get(_k):
-            os.environ[_env] = str(_vgit_cfg[_k])
+            environment[_env] = str(_vgit_cfg[_k])
 
     # Extended thinking budget. Surfaces as ``model.extended_thinking_tokens``
     # in yaml so it stays in the same logical namespace as future
@@ -1379,7 +1225,7 @@ def _build_agent(config: dict) -> Agent:
     _model_cfg = config.get("model") or {}
     if "extended_thinking_tokens" in _model_cfg:
         try:
-            os.environ["OPENAGENT_EXTENDED_THINKING_TOKENS"] = str(
+            environment["OPENAGENT_EXTENDED_THINKING_TOKENS"] = str(
                 int(_model_cfg["extended_thinking_tokens"])
             )
         except (TypeError, ValueError):
@@ -1392,22 +1238,12 @@ def _build_agent(config: dict) -> Agent:
     # raises before the worker wedges; a value >= 120 defeats the purpose.
     if "timeout_seconds" in _model_cfg:
         try:
-            os.environ["OPENAGENT_MODEL_TIMEOUT_SECONDS"] = str(
+            environment["OPENAGENT_MODEL_TIMEOUT_SECONDS"] = str(
                 float(_model_cfg["timeout_seconds"])
             )
         except (TypeError, ValueError):
             pass
 
-    # Quick commands + hooks — keep them in a process-local registry
-    # (see ``openagent_core.core.hooks``) since bridges + the agent runtime share
-    # the same process. The registry is replaced (not merged) on every
-    # ``create_agent`` so a config reload doesn't leak removed entries.
-    try:
-        from openagent_core.core.hooks import set_quick_commands, set_hooks
-        set_quick_commands(config.get("quick_commands") or {})
-        set_hooks(config.get("hooks") or {})
-    except Exception as e:  # noqa: BLE001
-        logger.warning("hooks/quick_commands registry init failed: %s", e)
     for yaml_key, env_key in (
         ("interval_hours",         "OPENAGENT_CURATOR_INTERVAL_HOURS"),
         ("skill_stale_days",       "OPENAGENT_CURATOR_SKILL_STALE_DAYS"),
@@ -1419,7 +1255,7 @@ def _build_agent(config: dict) -> Agent:
     ):
         if yaml_key in _cur_cfg:
             try:
-                os.environ[env_key] = str(int(_cur_cfg[yaml_key]))
+                environment[env_key] = str(int(_cur_cfg[yaml_key]))
             except (TypeError, ValueError):
                 pass
     # Convenience: ``memory.sessions.retention_days`` is a more
@@ -1428,7 +1264,7 @@ def _build_agent(config: dict) -> Agent:
     _sess_cfg = (memory_cfg.get("sessions") or {})
     if "retention_days" in _sess_cfg:
         try:
-            os.environ["OPENAGENT_CURATOR_SESSION_RETENTION_DAYS"] = str(
+            environment["OPENAGENT_CURATOR_SESSION_RETENTION_DAYS"] = str(
                 int(_sess_cfg["retention_days"])
             )
         except (TypeError, ValueError):
@@ -1484,7 +1320,7 @@ def _build_agent(config: dict) -> Agent:
         if local_models:
             # Also scope lean-event detection to the actual inference rows. A
             # private Claude proxy must retain the full cloud prompt.
-            os.environ["OPENAGENT_LOCAL_INFERENCE_MODELS"] = ",".join(local_models)
+            environment["OPENAGENT_LOCAL_INFERENCE_MODELS"] = ",".join(local_models)
             if fallback_config is None:
                 from openagent_core.models.providers.fallback import FallbackConfig
                 fallback_config = FallbackConfig()
@@ -1517,7 +1353,9 @@ def _build_agent(config: dict) -> Agent:
         budgets_cfg = config.get("budgets")
         _set_budget_seed(budgets_cfg if isinstance(budgets_cfg, list) else None)
 
-    return Agent(
+    from openagent_support.extensions import support_extensions
+
+    agent = Agent(
         name=config.get("name", "openagent"),
         model=model,
         system_prompt=config.get("system_prompt", "You are a helpful assistant."),
@@ -1525,7 +1363,11 @@ def _build_agent(config: dict) -> Agent:
         memory=db,
         config=config,  # channels / memory / name only — providers/models/mcps live in the DB
         fallback_config=fallback_config,
+        extensions=support_extensions(),
     )
+    from types import MappingProxyType
+    agent.product_environment = MappingProxyType(environment)
+    return agent
 
 
 def _channel_live_default() -> bool:
@@ -1810,34 +1652,6 @@ class AgentServer:
         # 1. Standalone choices and migrations precede the shared lifecycle.
         from openagent_server.bootstrap import prepare_agent, start_voice_warmups
         await prepare_agent(self.agent, self.config)
-        await self.agent.initialize()
-        self._warmup_tasks = start_voice_warmups(self.config)
-
-        # 1.1. Budget guard: seed any yaml ``budgets:`` rules and prime the
-        #      over-cap snapshot so the very first turn already routes around a
-        #      capped scope (the operator's $100 DeepSeek brake must be armed at
-        #      boot, not one turn late). Off by default: with no rules the guard
-        #      finds nothing and changes nothing. Never fatal — a budget must
-        #      never block the agent from coming up.
-        if not local_e2e:
-            try:
-                _guard = getattr(getattr(self.agent, "model", None), "budget_guard", None)
-                if _guard is not None:
-                    await _guard.warm()
-            except Exception as e:  # noqa: BLE001
-                elog("budget.warm_error", level="warning", error=str(e))
-
-        # 1.2. Warm the OpenRouter pricing cache so ``compute_cost`` is accurate
-        #      from the FIRST billed call, not the second. Without this the first
-        #      DeepSeek call of each boot logs ``$0`` (cold cache) and a cost cap
-        #      undercounts it — a per-boot blind spot in the brake. Awaited here
-        #      (never fatal) so the price is hot before any turn or scheduled fire.
-        if not local_e2e:
-            try:
-                from openagent_core.models.catalog import warm_pricing_cache
-                await warm_pricing_cache()
-            except Exception as e:  # noqa: BLE001 — pricing warm must never block boot
-                elog("catalog.pricing_warm_error", level="warning", error=str(e))
 
         # 1.5. Reap any ``workflow_runs`` still in ``running`` state —
         #      they're zombies from the prior process that we have no
@@ -1865,19 +1679,8 @@ class AgentServer:
                     reaped_tasks = await db.reap_orphan_task_runs()
                     if reaped_tasks:
                         elog("task.orphan_reaped", count=reaped_tasks)
-                    # Settling the row stops the badge spinning; it does NOT
-                    # do the work the killed firing owed. Put those tasks back
-                    # in the queue — for an hourly task the next tick would
-                    # have covered it, but a weekly one loses the week and the
-                    # only trace is a `failed` row nobody reads.
-                    if hasattr(db, "requeue_interrupted_task_runs"):
-                        requeued = await db.requeue_interrupted_task_runs()
-                        if requeued:
-                            elog(
-                                "task.interrupted_requeued",
-                                count=len(requeued),
-                                tasks=",".join(requeued[:10]),
-                            )
+                    # Uncertain previous effects are reconciled by the durable
+                    # Runtime ledger, never retried as a new occurrence here.
                 # And webhook event deliveries left mid-flight by a crash.
                 if hasattr(db, "reap_orphan_event_deliveries"):
                     reaped_ev = await db.reap_orphan_event_deliveries()
@@ -1921,12 +1724,48 @@ class AgentServer:
             if not local_e2e:
                 await self._build_bridge_session_and_bridges()
 
+        if self._gateway is None:
+            raise RuntimeError("Initialize or join an OpenAgent network before starting the standalone product")
+        from openagent_core.runtime import runtime_scope
+        with runtime_scope(self._gateway.runtime_service.runtime):
+            await self._start_product_services(local_e2e)
+
+    async def _start_product_services(self, local_e2e):
+        from openagent_server.bootstrap import start_voice_warmups
         # The gateway above is the production transport and API surface; the
         # remaining services are writers or external integrations and are
         # deliberately excluded from a disposable browsing/search fixture.
         if local_e2e:
             elog("server.local_e2e.ready", agent=self.agent.name)
             return
+
+        self._warmup_tasks = start_voice_warmups(self.config)
+        # 1.1. Budget guard: seed any yaml ``budgets:`` rules and prime the
+        #      over-cap snapshot so the very first turn already routes around a
+        #      capped scope (the operator's $100 DeepSeek brake must be armed at
+        #      boot, not one turn late). Off by default: with no rules the guard
+        #      finds nothing and changes nothing. Never fatal — a budget must
+        #      never block the agent from coming up.
+        if not local_e2e:
+            try:
+                _guard = getattr(getattr(self.agent, "model", None), "budget_guard", None)
+                if _guard is not None:
+                    await _guard.warm()
+            except Exception as e:  # noqa: BLE001
+                elog("budget.warm_error", level="warning", error=str(e))
+
+        # 1.2. Warm the OpenRouter pricing cache so ``compute_cost`` is accurate
+        #      from the FIRST billed call, not the second. Without this the first
+        #      DeepSeek call of each boot logs ``$0`` (cold cache) and a cost cap
+        #      undercounts it — a per-boot blind spot in the brake. Awaited here
+        #      (never fatal) so the price is hot before any turn or scheduled fire.
+        if not local_e2e:
+            try:
+                from openagent_core.models.catalog import warm_pricing_cache
+                await warm_pricing_cache()
+            except Exception as e:  # noqa: BLE001 — pricing warm must never block boot
+                elog("catalog.pricing_warm_error", level="warning", error=str(e))
+
 
         # 3. Scheduler (with dream mode + auto-update hooks)
         await self._start_scheduler()
@@ -2072,6 +1911,13 @@ class AgentServer:
             self._gateway._bridges = self._bridges
 
     async def stop(self, timeout: float = 15) -> None:
+        from contextlib import nullcontext
+        from openagent_core.runtime import runtime_scope
+        service = getattr(self._gateway, "runtime_service", None)
+        with runtime_scope(service.runtime) if service else nullcontext():
+            await self._stop(timeout)
+
+    async def _stop(self, timeout: float = 15) -> None:
         """Stop bridges, gateway, scheduler, agent (in reverse).
 
         Each phase gets up to *timeout* seconds.  If the agent shutdown
@@ -2124,7 +1970,7 @@ class AgentServer:
 
         # 1c. Vault autocommit loop. ``_vault_maint_task`` used to be cancelled
         # here too; that loop is gone (v0.16.1 — see ``_build_agent``).
-        for _attr in ("_vault_autocommit_task",):
+        for _attr in ("_vault_autocommit_task", "_semantic_index_task", "_quality_digest_task"):
             _vt = getattr(self, _attr, None)
             if _vt is not None:
                 _vt.cancel()
@@ -2133,6 +1979,14 @@ class AgentServer:
                 except (asyncio.TimeoutError, asyncio.CancelledError, Exception):
                     pass
                 setattr(self, _attr, None)
+        # 3. Scheduler
+        if self._scheduler is not None:
+            try:
+                await asyncio.wait_for(self._scheduler.stop(), timeout=10)
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning("Scheduler stop error: %s", e)
+            self._scheduler = None
+
         # Final sweep: commit anything still pending so a clean shutdown
         # doesn't strand uncommitted vault edits.
         try:
@@ -2160,14 +2014,6 @@ class AgentServer:
             except (asyncio.TimeoutError, Exception) as e:
                 logger.warning("NetworkState stop error: %s", e)
             self._network_state = None
-
-        # 3. Scheduler
-        if self._scheduler is not None:
-            try:
-                await asyncio.wait_for(self._scheduler.stop(), timeout=10)
-            except (asyncio.TimeoutError, Exception) as e:
-                logger.warning("Scheduler stop error: %s", e)
-            self._scheduler = None
 
         # 4. Agent (MCP subprocess cleanup can hang because the anyio-
         #    based MCP client waits for subprocesses that may ignore
@@ -2256,9 +2102,10 @@ class AgentServer:
 
         from openagent_core.core.scheduler import Scheduler
         scheduler = Scheduler(
-            self.agent._db,
-            self.agent,
+            self.agent.memory_db,
+            self._gateway.runtime_service.facade,
             broadcast=self._scheduler_broadcast,
+            execution_service=self._gateway.runtime_service.automation_execution,
         )
 
         # One-time cleanup: the retired ``manager-review`` built-in used
@@ -2443,45 +2290,12 @@ class AgentServer:
 
     @staticmethod
     def _install_task_hook(scheduler, name: str, hook) -> None:
-        """Register/replace a named ``run_task`` hook idempotently.
+        """Register a product operation inside the authorized runtime firing.
 
-        A SINGLE dispatcher is installed over ``scheduler.run_task`` once;
-        every built-in task's hook lives in a registry keyed by name. Re-
-        syncing a task (e.g. when its config section is toggled at runtime
-        via ``/api/config``) replaces its hook in place instead of stacking
-        another monkey-patch layer — the previous ``_wrap_scheduler_run_task``
-        composed a fresh closure on every call, so a few config toggles
-        grew an unbounded wrapper chain and made ``_do_auto_update`` fire
-        once per accumulated layer.
-
-        Pass ``hook=None`` to remove a previously-registered hook.
-
-        Each hook has signature ``async hook(task, next)`` and calls
-        ``await next(task)`` to defer to the rest of the chain; the
-        innermost call is the scheduler's real ``run_task`` with all
-        original positional/keyword args (e.g. ``trigger=``) forwarded.
+        Hooks keep the existing async hook(task, next) shape, but no method is
+        replaced and every hook executes after durable runtime acceptance.
         """
-        hooks = getattr(scheduler, "_oa_task_hooks", None)
-        if hooks is None:
-            hooks = {}
-            scheduler._oa_task_hooks = hooks
-            original_run = scheduler.run_task
-
-            async def _dispatch(task, *args, **kwargs):
-                async def _base(t):
-                    await original_run(t, *args, **kwargs)
-
-                chain = _base
-                for h in reversed(list(hooks.values())):
-                    chain = _compose_task_hook(h, chain)
-                await chain(task)
-
-            scheduler.run_task = _dispatch  # type: ignore[method-assign]
-
-        if hook is None:
-            hooks.pop(name, None)
-        else:
-            hooks[name] = hook
+        scheduler.execution_service.register_task_hook(name, hook)
 
     async def _sync_dream_mode(self, scheduler) -> None:
         dream_cfg = self.config.get("dream_mode", {})
@@ -2975,7 +2789,7 @@ def get_installed_version() -> str:
     from openagent_server._frozen import is_frozen
     if is_frozen():
         import openagent_server
-        return getattr(src, "__version__", "unknown")
+        return getattr(openagent_server, "__version__", "unknown")
     try:
         from importlib.metadata import version
         return version(PACKAGE_NAME)
@@ -3059,7 +2873,7 @@ def run_upgrade(channel: str | None = None) -> tuple[str, str]:
             # binary. Skip download/apply so we don't crash trying to
             # read the freshly-rewritten PyInstaller archive.
             import openagent_server
-            current = getattr(src, "__version__", "unknown")
+            current = getattr(openagent_server, "__version__", "unknown")
             new = _read_disk_binary_version() or f"{current}+sibling-swap"
             elog(
                 "update.swap_already_applied",

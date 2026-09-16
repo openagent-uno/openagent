@@ -129,15 +129,12 @@ async def handle_create(request: web.Request) -> web.Response:
             status=400,
         )
     try:
-        pid = await db.upsert_provider(
-            name=name,
-            framework=framework,
-            api_key=(body.get("api_key") or None),
-            base_url=(body.get("base_url") or None),
-            enabled=bool(body.get("enabled", True)),
-            metadata=body.get("metadata") or None,
-            kind=kind,
-        )
+        from openagent_server.provider_management import for_request
+        admin,context=await for_request(request)
+        created=await admin.create_provider(context,dict(name=name,framework=framework,
+            api_key=(body.get("api_key") or None),base_url=(body.get("base_url") or None),
+            enabled=bool(body.get("enabled",True)),metadata=body.get("metadata") or None,kind=kind))
+        pid=created['id']
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)
     elog("provider.created", provider_id=pid, name=name, framework=framework, kind=kind)
@@ -176,15 +173,10 @@ async def handle_update(request: web.Request) -> web.Response:
             status=400,
         )
     try:
-        await db.upsert_provider(
-            name=body.get("name", existing["name"]),
-            framework=existing["framework"],
-            api_key=body.get("api_key", existing.get("api_key")),
-            base_url=body.get("base_url", existing.get("base_url")),
-            enabled=bool(body.get("enabled", existing.get("enabled", True))),
-            metadata=body.get("metadata", existing.get("metadata") or None),
-            kind=existing.get("kind", "llm"),
-        )
+        from openagent_server.provider_management import for_request
+        admin,context=await for_request(request)
+        await admin.update_provider(context,pid,{key:value for key,value in body.items()
+            if key not in {"framework","kind"}})
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)
     row = await db.get_provider(pid)
@@ -208,7 +200,9 @@ async def handle_delete(request: web.Request) -> web.Response:
     # Count how many models are about to be cascade-deleted so the caller
     # can surface the side effect.
     models = await db.list_models(provider_id=pid)
-    await db.delete_provider(pid)
+    from openagent_server.provider_management import for_request
+    admin,context=await for_request(request)
+    await admin.delete_provider(context,pid)
     elog(
         "provider.deleted", provider_id=pid, name=existing["name"],
         framework=existing["framework"], models_purged=len(models),
@@ -224,7 +218,9 @@ async def _handle_toggle(request: web.Request, enabled: bool) -> web.Response:
         return _web.json_response({"error": "invalid provider id"}, status=400)
     if await db.get_provider(pid) is None:
         return _web.json_response({"error": f"Provider id={pid} not found"}, status=404)
-    await db.set_provider_enabled(pid, enabled)
+    from openagent_server.provider_management import for_request
+    admin,context=await for_request(request)
+    await admin.update_provider(context,pid,{"enabled":enabled})
     row = await db.get_provider(pid)
     return _web.json_response({"ok": True, "provider": _shape_provider(row)})
 

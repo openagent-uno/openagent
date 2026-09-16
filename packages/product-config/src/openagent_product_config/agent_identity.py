@@ -203,7 +203,8 @@ class AgentIdentityService:
             )
         if self.db is None:
             raise AgentIdentityPermissionError("agent owner identity is unavailable")
-        owner = await self.db.primary_owner_handle()
+        service=getattr(self.gateway,"runtime_service",None)
+        owner=await service.directory.owner_handle() if service is not None else None
         if not owner or actor.handle != owner:
             raise AgentIdentityPermissionError(
                 "only the primary owner can read or update the agent persona",

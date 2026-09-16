@@ -621,18 +621,12 @@ async def handle_install(request):
             status=409,
         )
 
-    await db.upsert_mcp(
-        install_name,
-        kind="custom",
-        command=kwargs["command"],
-        args=kwargs["args"],
-        url=kwargs["url"],
-        env=kwargs["env"],
-        headers=kwargs["headers"],
-        oauth=False,
-        enabled=True,
-        source=f"marketplace:registry.modelcontextprotocol.io/{name}@{resolved_version}",
-    )
+    from openagent_server.gateway.api.mcps import _call
+    await _call(request, lambda service, context: service.create(
+        context, install_name,
+        command=kwargs["command"], args=kwargs["args"], url=kwargs["url"],
+        env=kwargs["env"], headers=kwargs["headers"], oauth=False, enabled=True,
+    ), write=True)
     elog(
         "marketplace.install",
         registry_name=name,
