@@ -1,0 +1,679 @@
+"""Agent.run_stream — empty-stream safety net.
+
+Covers the contract that ``Agent.run_stream`` always produces text when
+the underlying provider has it, even if ``provider.stream()`` yielded
+zero deltas:
+
+  * Provider yields zero deltas, ``generate()`` returns text →
+    ``run_stream`` falls back, yields one ``delta`` + ``done`` carrying
+    that text. Without this voice mode (and the soon-to-be-streaming
+    web chat) silently surface "(No text response — the agent finished
+    without producing any output…)" because the orchestrator's only
+    safety net is the fallback message.
+  * Provider yields deltas → no fallback call (regression guard so we
+    don't double-spend tokens).
+  * Both ``stream()`` and ``generate()`` fail-empty → clean exit, no
+    crash, ``done`` carries empty text and a warning is logged.
+  * On fallback, ``last_response_meta()`` reflects the real
+    ``ModelResponse.model`` from ``generate()`` rather than the
+    synthetic placeholder.
+"""
+from __future__ import annotations
+
+from typing import Any, AsyncIterator, Awaitable, Callable
+
+from ._framework import TestContext, test
+
+
+# ── Helpers ─────────────────────────────────────────────────────────
+
+
+class _FakeModel:
+    """BaseModel-compatible stub with controllable stream + generate."""
+
+    history_mode = "caller"
+
+    def __init__(
+        self,
+        *,
+        deltas: list[str] | None = None,
+        generate_text: str = "",
+        generate_raises: BaseException | None = None,
+        model_name: str = "fake/test-model",
+    ):
+        # ``self.model`` is the attribute real api-based providers set
+        # and the new ``BaseModel.effective_model_id``
+        # default reads. We mirror it on ``self.model_name`` only for
+        # backwards-compatibility with older test code that referenced
+        # the legacy attribute name.
+        self.model = model_name
+        self.model_name = model_name
+        self._deltas = list(deltas or [])
+        self._generate_text = generate_text
+        self._generate_raises = generate_raises
+        self.generate_calls = 0
+        self.generate_session_ids: list[str | None] = []
+        self.stream_calls = 0
+
+    def effective_model_id(self, session_id: str | None = None) -> str | None:
+        return self.model
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        session_id: str | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+    ) -> AsyncIterator[str]:
+        self.stream_calls += 1
+        for d in self._deltas:
+            yield d
+
+    async def generate(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+        session_id: str | None = None,
+    ):
+        from src.models.base import ModelResponse
+        self.generate_calls += 1
+        self.generate_session_ids.append(session_id)
+        if self._generate_raises is not None:
+            raise self._generate_raises
+        return ModelResponse(content=self._generate_text, model=self.model_name)
+
+    async def close_session(self, session_id: str) -> None:
+        return None
+
+
+async def _drive(agent, message: str, session_id: str = "sess-A") -> list[dict]:
+    events: list[dict] = []
+    async for ev in agent.run_stream(message=message, user_id="u", session_id=session_id):
+        events.append(ev)
+    return events
+
+
+def _make_agent(model: _FakeModel):
+    """Build a DB-less Agent so initialize() short-circuits."""
+    from src.core.agent import Agent
+    return Agent(name="test-agent", model=model, system_prompt="test", memory=None)
+
+
+# ── Tests ───────────────────────────────────────────────────────────
+
+
+@test("agent_run_stream", "stream yields no deltas → falls back to generate()")
+async def t_fallback_when_stream_empty(_ctx: TestContext) -> None:
+    model = _FakeModel(deltas=[], generate_text="Hello from generate")
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-empty")
+
+    deltas = [e for e in events if e.get("kind") == "delta"]
+    done = [e for e in events if e.get("kind") == "done"]
+
+    assert model.generate_calls == 1, (
+        f"generate() was not invoked as a fallback (calls={model.generate_calls})"
+    )
+    assert model.generate_session_ids == ["sess-empty"], model.generate_session_ids
+    assert len(deltas) == 1, f"expected one delta from fallback, got {deltas}"
+    assert deltas[0]["text"] == "Hello from generate", deltas[0]
+    assert len(done) == 1 and done[0]["text"] == "Hello from generate", done
+
+
+@test("agent_run_stream", "stream yields deltas → no generate() fallback call")
+async def t_no_fallback_when_stream_yields(_ctx: TestContext) -> None:
+    model = _FakeModel(
+        deltas=["Hello", " ", "world"],
+        generate_text="SHOULD NOT BE USED",
+    )
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-deltas")
+
+    deltas = [e for e in events if e.get("kind") == "delta"]
+    done = [e for e in events if e.get("kind") == "done"]
+    full_text = "".join(d["text"] for d in deltas)
+
+    assert model.generate_calls == 0, (
+        f"generate() should not be called when deltas exist (calls={model.generate_calls})"
+    )
+    assert full_text == "Hello world", f"deltas concatenated wrong: {full_text!r}"
+    assert done and done[0]["text"] == "Hello world", done
+
+
+@test("agent_run_stream", "stream empty + generate() raises → clean done with empty text")
+async def t_fallback_generate_raises(_ctx: TestContext) -> None:
+    model = _FakeModel(
+        deltas=[],
+        generate_raises=RuntimeError("simulated provider error"),
+    )
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-fail")
+
+    deltas = [e for e in events if e.get("kind") == "delta"]
+    done = [e for e in events if e.get("kind") == "done"]
+
+    assert model.generate_calls == 1, (
+        f"generate() must be attempted before giving up (calls={model.generate_calls})"
+    )
+    assert deltas == [], f"no deltas should be emitted when generate raised: {deltas}"
+    assert done and done[0]["text"] == "", (
+        f"done event must carry empty text when fallback failed: {done}"
+    )
+
+
+class _CancellationPoisoningModel(_FakeModel):
+    """Simulate a provider whose stream path swallows CancelledError.
+
+    The async generator returns no deltas, but first it cancels the current
+    task and consumes the resulting ``CancelledError`` without calling
+    ``uncancel()``. Before the fix, the next await in
+    ``Agent._run_inner_stream`` immediately raised CancelledError and the
+    fallback ``generate()`` never ran.
+    """
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        session_id: str | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+    ) -> AsyncIterator[str]:
+        import asyncio
+
+        self.stream_calls += 1
+        task = asyncio.current_task()
+        assert task is not None
+        task.cancel()
+        try:
+            await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            pass
+        if False:
+            yield ""
+
+
+class _DeferredCancellationPoisoningModel(_FakeModel):
+    """Simulate a second stray cancel landing during fallback generate().
+
+    Some real providers leave the caller task cancellation-poisoned AND also
+    schedule a later cancel that fires on the next await after the stream loop
+    has already ended. The fallback now runs in a quarantined child task so the
+    reply can still complete through that second stray cancel.
+    """
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        session_id: str | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+    ) -> AsyncIterator[str]:
+        import asyncio
+
+        self.stream_calls += 1
+        task = asyncio.current_task()
+        assert task is not None
+        task.cancel()
+        try:
+            await asyncio.sleep(0)
+        except asyncio.CancelledError:
+            pass
+        asyncio.get_running_loop().call_soon(task.cancel)
+        if False:
+            yield ""
+
+    async def generate(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+        session_id: str | None = None,
+    ):
+        import asyncio
+
+        await asyncio.sleep(0)
+        return await super().generate(
+            messages,
+            system=system,
+            tools=tools,
+            on_status=on_status,
+            session_id=session_id,
+        )
+
+
+@test("agent_run_stream", "barge-in (cancel during a zero-delta stream) propagates — no silent generate() recovery")
+async def t_barge_in_propagates_not_recovered(_ctx: TestContext) -> None:
+    """A pending cancellation on the turn task is ALWAYS a barge-in:
+    only ``StreamSession._cancel_active_turn`` (a user interrupt / a new
+    message preempting the turn) and session teardown ever cancel it.
+
+    When the provider's stream swallows that ``CancelledError`` and
+    returns with zero deltas, ``run_stream`` must RE-RAISE it — not
+    ``uncancel()`` + run a full ``generate()`` to completion. The old
+    recovery defeated barge-in and, because the runner's caller awaits the
+    task under the session dispatch lock, blocked the whole session for the
+    duration of that recovered generate — so after a quick burst of
+    messages the agent stopped responding. Pin the corrected contract:
+    the cancellation propagates and ``generate()`` never runs.
+
+    The run is wrapped in its own task (exactly like production, where the
+    turn lives in ``StreamSession._current_turn``) so the model's
+    self-cancel poisons THAT task and not the test's task.
+    """
+    import asyncio
+
+    model = _CancellationPoisoningModel(
+        deltas=[],
+        generate_text="SHOULD NOT RUN — barge-in must win",
+    )
+    agent = _make_agent(model)
+
+    turn = asyncio.ensure_future(_drive(agent, "hi", session_id="sess-poison"))
+    raised = False
+    try:
+        await turn
+    except asyncio.CancelledError:
+        raised = True
+
+    assert raised, "barge-in CancelledError must propagate out of run_stream"
+    assert model.stream_calls == 1, model.stream_calls
+    assert model.generate_calls == 0, (
+        f"generate() must NOT run when the turn was cancelled (calls={model.generate_calls})"
+    )
+
+
+@test("agent_run_stream", "barge-in with a deferred stray cancel still propagates (no recovery)")
+async def t_barge_in_deferred_propagates(_ctx: TestContext) -> None:
+    """Same contract when the provider also schedules a second stray
+    cancel for the next tick: the barge-in still wins; no generate()."""
+    import asyncio
+
+    model = _DeferredCancellationPoisoningModel(
+        deltas=[],
+        generate_text="SHOULD NOT RUN",
+    )
+    agent = _make_agent(model)
+
+    turn = asyncio.ensure_future(_drive(agent, "hi", session_id="sess-deferred-poison"))
+    raised = False
+    try:
+        await turn
+    except asyncio.CancelledError:
+        raised = True
+
+    assert raised, "deferred barge-in cancel must propagate"
+    assert model.stream_calls == 1, model.stream_calls
+    assert model.generate_calls == 0, model.generate_calls
+
+
+@test("agent_run_stream", "fallback response populates last_response_meta()")
+async def t_fallback_meta_uses_real_response(_ctx: TestContext) -> None:
+    model = _FakeModel(
+        deltas=[],
+        generate_text="Backup content",
+        model_name="provider-x/model-y",
+    )
+    agent = _make_agent(model)
+
+    await _drive(agent, "hi", session_id="sess-meta")
+    meta = agent.last_response_meta("sess-meta")
+
+    assert meta.get("model") == "provider-x/model-y", (
+        f"meta should carry the real model name from the fallback ModelResponse: {meta}"
+    )
+
+
+class _SignatureFreeModel:
+    """BaseModel-compatible stub whose ``stream`` signature does NOT
+    accept ``session_id`` / ``on_status`` — exercises the
+    signature-introspection path in ``_run_inner_stream``.
+
+    Older provider implementations (and any third-party model wired
+    via ``wire_model_runtime``) might still expose the minimal
+    ``(messages, system, tools)`` signature; the agent must call
+    them without the streaming-specific kwargs and yield deltas
+    normally.
+    """
+
+    history_mode = "caller"
+
+    def __init__(self, deltas: list[str]) -> None:
+        self.model = "legacy/no-kwargs"
+        self.model_name = self.model
+        self._deltas = list(deltas)
+        self.stream_calls = 0
+        self.generate_calls = 0
+        self.received_kwargs: dict[str, Any] = {}
+
+    def effective_model_id(self, session_id: str | None = None) -> str | None:
+        return self.model
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+    ) -> AsyncIterator[str]:
+        self.stream_calls += 1
+        for d in self._deltas:
+            yield d
+
+    async def generate(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        **_kwargs: Any,
+    ):
+        from src.models.base import ModelResponse
+        self.generate_calls += 1
+        return ModelResponse(content="", model=self.model_name)
+
+    async def close_session(self, session_id: str) -> None:
+        return None
+
+
+class _MidStreamTypeErrorModel:
+    """``stream`` accepts the kwargs but raises TypeError MID-iteration
+    (after yielding ``yield_count`` deltas). Mirrors a hypothetical
+    SDK shape change inside a provider's ``_run_once``: the signature
+    matches but the body explodes once a real message arrives.
+
+    Before Part B's introspection fix, ``Agent._run_inner_stream``
+    wrapped the ``async for`` in ``try/except TypeError`` and silently
+    retried the call WITHOUT ``session_id`` — yielding zero deltas on
+    the retry (different subprocess) and falling back to ``generate()``,
+    which masked the real bug as "one giant delta at the end". Now
+    the TypeError must propagate.
+    """
+
+    history_mode = "caller"
+
+    def __init__(self, *, yield_count: int) -> None:
+        self.model = "fake/typeerror-mid-stream"
+        self.model_name = self.model
+        self._yield_count = yield_count
+        self.stream_calls = 0
+        self.generate_calls = 0
+
+    def effective_model_id(self, session_id: str | None = None) -> str | None:
+        return self.model
+
+    async def stream(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        session_id: str | None = None,
+        on_status: Callable[[str], Awaitable[None]] | None = None,
+    ) -> AsyncIterator[str]:
+        self.stream_calls += 1
+        for i in range(self._yield_count):
+            yield f"chunk-{i}"
+        raise TypeError("simulated mid-iteration TypeError")
+
+    async def generate(
+        self,
+        messages: list[dict[str, Any]],
+        system: str | None = None,
+        tools: list[dict[str, Any]] | None = None,
+        **_kwargs: Any,
+    ):
+        from src.models.base import ModelResponse
+        self.generate_calls += 1
+        return ModelResponse(content="GENERATE FALLBACK SHOULD NOT BE USED", model=self.model_name)
+
+    async def close_session(self, session_id: str) -> None:
+        return None
+
+
+@test("agent_run_stream", "stream signature-introspect drops kwargs the provider doesn't accept")
+async def t_stream_signature_introspect(_ctx: TestContext) -> None:
+    """Older / minimal ``stream`` signatures (no session_id, no on_status)
+    must still get called and yield deltas. Without the introspection
+    path the agent would either pass kwargs the provider rejects or
+    fall back to one-shot generate()."""
+    model = _SignatureFreeModel(deltas=["one ", "two ", "three"])
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-noargs")
+
+    deltas = [e for e in events if e.get("kind") == "delta"]
+    full_text = "".join(d["text"] for d in deltas)
+
+    assert model.stream_calls == 1, (
+        f"stream() must be invoked exactly once (calls={model.stream_calls})"
+    )
+    assert model.generate_calls == 0, (
+        "no fallback to generate() — stream returned text just fine"
+    )
+    assert full_text == "one two three", f"deltas concatenated wrong: {full_text!r}"
+
+
+@test("agent_run_stream", "mid-iteration TypeError surfaces (no silent retry/fallback)")
+async def t_mid_iteration_typeerror_surfaces(_ctx: TestContext) -> None:
+    """Mid-iteration TypeError USED to be swallowed by the over-broad
+    ``try/except TypeError`` around the ``async for``, which then
+    silently retried without ``session_id`` and fell back to one-shot
+    generate(). The introspection-based call now wraps only the
+    signature check in ``try/except``, so iteration-body TypeErrors
+    propagate to the outer ``except Exception`` in ``_run_inner_stream``
+    — the user gets the deltas yielded BEFORE the error, plus a logged
+    error, instead of one giant fallback delta."""
+    model = _MidStreamTypeErrorModel(yield_count=2)
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-typeerror")
+
+    # The two deltas that landed before the TypeError must reach the
+    # caller. The fallback to generate() must NOT be invoked (would
+    # mask the real bug). The done event still fires (the outer
+    # exception handler in run_stream resolves with whatever was
+    # accumulated).
+    deltas = [e for e in events if e.get("kind") == "delta"]
+    delta_texts = [d["text"] for d in deltas]
+
+    assert model.stream_calls == 1, (
+        f"stream() must NOT be retried after a mid-iteration error "
+        f"(calls={model.stream_calls})"
+    )
+    assert model.generate_calls == 0, (
+        "TypeErrors raised mid-iteration must NOT trigger the "
+        "generate() fallback — that's the very bug we're guarding against"
+    )
+    # We expect the partial deltas that arrived before the TypeError.
+    assert delta_texts == ["chunk-0", "chunk-1"], (
+        f"partial deltas before TypeError must reach the caller: {delta_texts}"
+    )
+
+
+@test("agent_run_stream", "streaming path stores model meta from effective_model_id")
+async def t_streaming_meta_uses_effective_model_id(_ctx: TestContext) -> None:
+    # Regression for the chat UI's missing model badge after the
+    # streaming migration: the old code did
+    # ``getattr(active_model, "model_name", None)`` which returned
+    # ``None`` for every real provider in tree, so the chat bubble
+    # never showed which model produced the reply. The fix routes
+    # through ``BaseModel.effective_model_id`` (default reads
+    # ``self.model``; ModelDispatcher overrides for per-session picks).
+    model = _FakeModel(
+        deltas=["streamed", " reply"],
+        model_name="provider-y/streaming-model",
+    )
+    agent = _make_agent(model)
+
+    await _drive(agent, "hi", session_id="sess-stream-meta")
+    meta = agent.last_response_meta("sess-stream-meta")
+
+    # No fallback should fire — deltas were yielded.
+    assert model.generate_calls == 0, model.generate_calls
+    assert meta.get("model") == "provider-y/streaming-model", (
+        f"streaming-only path must surface the active model id: {meta}"
+    )
+
+
+# ── StreamSession integration: rapid messages must not freeze ─────────
+
+
+async def _poll_until(cond, *, timeout: float = 5.0, step: float = 0.01) -> bool:
+    import asyncio
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while loop.time() < deadline:
+        if cond():
+            return True
+        await asyncio.sleep(step)
+    return False
+
+
+@test("agent_run_stream", "rapid messages don't freeze the StreamSession when a provider swallows the barge-in cancel")
+async def t_burst_no_freeze_on_swallowed_cancel(_ctx: TestContext) -> None:
+    """The reported production bug: sending messages back-to-back made the
+    agent stop responding. Root cause — a barge-in cancel that the provider
+    swallowed got 'recovered' into a full generate() that blocked the
+    session's dispatch loop (held under _dispatch_lock). With the fix the
+    barge-in propagates, the merged turn dispatches, and the agent keeps
+    answering.
+
+    Drives a REAL Agent (so the real run_stream fix is exercised) inside a
+    StreamSession with a model whose first stream blocks then swallows the
+    barge-in yielding zero deltas, and answers normally on the merged turn.
+    """
+    import asyncio
+    from src.stream.session import StreamSession
+    from src.stream.events import TextFinal, OutTextFinal, now_ms
+
+    class _SwallowModel(_FakeModel):
+        async def stream(
+            self, messages, system=None, tools=None,
+            session_id=None, on_status=None,
+        ):
+            self.stream_calls += 1
+            if self.stream_calls == 1:
+                # First turn: block before any delta, then SWALLOW the
+                # barge-in cancel (zero deltas) — the misbehaving provider.
+                try:
+                    await asyncio.sleep(30)
+                except asyncio.CancelledError:
+                    return
+                yield "unreachable"  # pragma: no cover
+            else:
+                yield "Ecco la risposta al tuo ultimo messaggio."
+
+    model = _SwallowModel(deltas=[], generate_text="FALLBACK — must not run")
+    agent = _make_agent(model)
+    sess = StreamSession(agent, client_id="c", session_id="s", coalesce_window_ms=50)
+
+    async def _null(_db):
+        return None
+
+    await sess.start(stt_factory=_null, tts_factory=_null)
+    try:
+        await sess.push_in(TextFinal(
+            session_id="s", seq=1, ts_ms=now_ms(), text="primo", source="user_typed",
+        ))
+        assert await _poll_until(lambda: model.stream_calls >= 1, timeout=3.0), (
+            "first turn never reached the model stream"
+        )
+        # Second message mid-flight → barge-in. With the bug this freezes
+        # the dispatch loop for the duration of a recovered generate().
+        await sess.push_in(TextFinal(
+            session_id="s", seq=2, ts_ms=now_ms(), text="secondo", source="user_typed",
+        ))
+
+        # A real OutTextFinal for the merged turn must arrive promptly.
+        got: str | None = None
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + 5.0
+        while loop.time() < deadline:
+            try:
+                evt = await asyncio.wait_for(sess.outbound.get(), timeout=0.2)
+            except asyncio.TimeoutError:
+                continue
+            if isinstance(evt, OutTextFinal) and evt.text:
+                got = evt.text
+                break
+
+        assert got is not None, "no response within 5s — the session froze after a burst"
+        assert "ultimo messaggio" in got.lower(), got
+        assert model.generate_calls == 0, (
+            f"the fallback generate() ran — barge-in was recovered, not honoured "
+            f"(calls={model.generate_calls})"
+        )
+        assert model.stream_calls >= 2, (
+            f"the merged turn never streamed (stream_calls={model.stream_calls})"
+        )
+    finally:
+        await sess.close()
+
+
+@test("agent_run_stream", "a failed turn is marked as an error, not delivered as an answer")
+async def t_failed_turn_is_marked_errored(_ctx: TestContext) -> None:
+    """``run_stream`` catches every failure and reports it as a ``done``
+    frame. That frame used to be shaped exactly like a successful one —
+    ``{"kind": "done", "text": ...}`` — so ``StreamSession`` republished
+    the exception text as ``OutTextDelta`` and closed the turn
+    ``completed``: the app, the CLI and every bridge recorded the failure
+    as the model's reply, and only a client that string-matched the
+    warning sign could tell. The frame must say so in data.
+
+    The diagnostic itself stays in ``text``: a self-hosted agent is
+    expected to diagnose itself from what it actually saw. ``error_public``
+    is the constant a host shows instead when provider detail must not
+    reach the person in the chat."""
+    model = _MidStreamTypeErrorModel(yield_count=1)
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-errored")
+    done = [e for e in events if e.get("kind") == "done"]
+
+    assert len(done) == 1, f"expected exactly one done frame, got {len(done)}"
+    frame = done[0]
+
+    assert frame.get("errored") is True, (
+        "a failed turn must be distinguishable from an answer without "
+        f"parsing its prose: {frame!r}"
+    )
+    assert frame.get("error_code") == "generic", (
+        f"an unrecognised failure classifies as generic: {frame.get('error_code')!r}"
+    )
+    assert "TypeError" in str(frame.get("error_detail") or ""), (
+        f"the detail must name the real exception: {frame.get('error_detail')!r}"
+    )
+    assert "TypeError" in str(frame.get("text") or ""), (
+        "the human-readable text keeps the diagnostic for self-hosted "
+        f"debugging: {frame.get('text')!r}"
+    )
+
+    public = str(frame.get("error_public") or "")
+    assert public and "TypeError" not in public, (
+        f"error_public must carry no provider diagnostic: {public!r}"
+    )
+
+
+@test("agent_run_stream", "a successful turn carries no error marker")
+async def t_successful_turn_is_not_marked_errored(_ctx: TestContext) -> None:
+    """The guard's other half: marking failures is only useful if a
+    healthy turn stays unmarked, or every consumer learns to ignore it."""
+    model = _FakeModel(deltas=["all ", "good"])
+    agent = _make_agent(model)
+
+    events = await _drive(agent, "hi", session_id="sess-ok")
+    done = [e for e in events if e.get("kind") == "done"]
+
+    assert len(done) == 1, f"expected exactly one done frame, got {len(done)}"
+    assert not done[0].get("errored"), (
+        f"a successful turn must not be flagged as an error: {done[0]!r}"
+    )
+    assert "error_code" not in done[0], (
+        f"a successful turn carries no error code: {done[0]!r}"
+    )

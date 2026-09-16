@@ -1,0 +1,539 @@
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+import { FileSystemService } from "./filesystem.js";
+import { FrontmatterHandler, parseFrontmatter } from "./frontmatter.js";
+import { PathFilter } from "./pathfilter.js";
+import { SearchService } from "./search.js";
+import { resolve } from "path";
+
+export interface CreateServerOptions {
+  name?: string;
+  version?: string;
+  pathFilter?: PathFilter;
+  frontmatterHandler?: FrontmatterHandler;
+}
+
+export function createServer(vaultPath: string, options: CreateServerOptions = {}): Server {
+  const {
+    name = "mcpvault",
+    version = "0.0.0",
+    pathFilter = new PathFilter(),
+    frontmatterHandler = new FrontmatterHandler(),
+  } = options;
+
+  const resolvedVaultPath = resolve(vaultPath);
+  const fileSystem = new FileSystemService(resolvedVaultPath, pathFilter, frontmatterHandler);
+  const searchService = new SearchService(resolvedVaultPath, pathFilter);
+
+  const server = new Server({ name, version }, {
+    capabilities: { tools: {} },
+  });
+
+  server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return {
+      tools: [
+        {
+          name: "read_note",
+          description: "Read a note from the Obsidian vault",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            },
+            required: ["path"]
+          }
+        },
+        {
+          name: "write_note",
+          description: "Write a note to the Obsidian vault",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              content: { type: "string", description: "Content of the note" },
+              frontmatter: { type: "object", description: "Frontmatter object (optional)" },
+              mode: { type: "string", enum: ["overwrite", "append", "prepend"], description: "Write mode: 'overwrite' (default), 'append', or 'prepend'", default: "overwrite" }
+            },
+            required: ["path", "content"]
+          }
+        },
+        {
+          name: "patch_note",
+          description: "Replace an exact string inside a note. Requires 'oldString' (text already present) and 'newString'. To ADD text rather than replace it, use write_note with mode 'append' or 'prepend' — an append expressed here is routed there, but calling the right tool is clearer.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              oldString: { type: "string", description: "The exact string to replace. Must match exactly including whitespace and line breaks." },
+              newString: { type: "string", description: "The new string to insert in place of oldString" },
+              replaceAll: { type: "boolean", description: "If true, replace all occurrences. If false (default), the operation will fail if multiple matches are found to prevent unintended replacements.", default: false }
+            },
+            required: ["path", "oldString", "newString"]
+          }
+        },
+        {
+          name: "list_directory",
+          description: "List files and directories in the vault (includes non-note filenames, while read/write tools remain note-only)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path relative to vault root (default: '/')", default: "/" },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            }
+          }
+        },
+        {
+          name: "delete_note",
+          description: "Delete a note from the Obsidian vault (requires confirmation). Supports permanent delete, vault trash, or system trash.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              confirmPath: { type: "string", description: "Confirmation: must exactly match the path parameter to proceed with deletion" },
+              trashMode: { type: "string", enum: ["none", "local", "system"], description: "Deletion mode: 'none' = permanent delete (default), 'local' = move to .trash inside vault, 'system' = move to OS trash", default: "none" }
+            },
+            required: ["path", "confirmPath"]
+          }
+        },
+        {
+          name: "search_notes",
+          description: "Search for notes in the vault by content or frontmatter",
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: { type: "string", description: "Search query text" },
+              limit: { type: "number", description: "Maximum number of results (default: 5, max: 20)", default: 5 },
+              searchContent: { type: "boolean", description: "Search in note content (default: true)", default: true },
+              searchFrontmatter: { type: "boolean", description: "Search in frontmatter (default: false)", default: false },
+              caseSensitive: { type: "boolean", description: "Case sensitive search (default: false)", default: false },
+              pathPrefix: { type: "string", description: "Restrict the search to a vault subtree, e.g. \"Projects/2026\" (directory prefix)" },
+              excludePaths: { type: "array", items: { type: "string" }, description: "Skip files under these subtrees, e.g. [\"Archive\", \"meta\"] (directory prefixes)" },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            },
+            required: ["query"]
+          }
+        },
+        {
+          name: "move_note",
+          description: "Move or rename a note in the vault",
+          inputSchema: {
+            type: "object",
+            properties: {
+              oldPath: { type: "string", description: "Current path of the note" },
+              newPath: { type: "string", description: "New path for the note" },
+              overwrite: { type: "boolean", description: "Allow overwriting existing file (default: false)", default: false }
+            },
+            required: ["oldPath", "newPath"]
+          }
+        },
+        {
+          name: "move_file",
+          description: "Move or rename any file in the vault (binary-safe, file-only, requires confirmation)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              oldPath: { type: "string", description: "Current path of the file" },
+              newPath: { type: "string", description: "New path for the file" },
+              confirmOldPath: { type: "string", description: "Confirmation: must exactly match oldPath" },
+              confirmNewPath: { type: "string", description: "Confirmation: must exactly match newPath" },
+              overwrite: { type: "boolean", description: "Allow overwriting existing file (default: false)", default: false }
+            },
+            required: ["oldPath", "newPath", "confirmOldPath", "confirmNewPath"]
+          }
+        },
+        {
+          name: "read_multiple_notes",
+          description: "Read multiple notes in a batch (max 10 files)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              paths: { type: "array", items: { type: "string" }, description: "Array of note paths to read", maxItems: 10 },
+              includeContent: { type: "boolean", description: "Include note content (default: true)", default: true },
+              includeFrontmatter: { type: "boolean", description: "Include frontmatter (default: true)", default: true },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            },
+            required: ["paths"]
+          }
+        },
+        {
+          name: "update_frontmatter",
+          description: "Update frontmatter of a note without changing content",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note" },
+              frontmatter: { type: "object", description: "Frontmatter object to update" },
+              merge: { type: "boolean", description: "Merge with existing frontmatter (default: true)", default: true }
+            },
+            required: ["path", "frontmatter"]
+          }
+        },
+        {
+          name: "get_notes_info",
+          description: "Get metadata for notes without reading full content",
+          inputSchema: {
+            type: "object",
+            properties: {
+              paths: { type: "array", items: { type: "string" }, description: "Array of note paths to get info for" },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            },
+            required: ["paths"]
+          }
+        },
+        {
+          name: "get_frontmatter",
+          description: "Extract frontmatter from a note without reading the content",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            },
+            required: ["path"]
+          }
+        },
+        {
+          name: "manage_tags",
+          description: "Add, remove, or list tags in a note",
+          inputSchema: {
+            type: "object",
+            properties: {
+              path: { type: "string", description: "Path to the note relative to vault root" },
+              operation: { type: "string", enum: ["add", "remove", "list"], description: "Operation to perform: 'add', 'remove', or 'list'" },
+              tags: { type: "array", items: { type: "string" }, description: "Array of tags (required for 'add' and 'remove' operations)" }
+            },
+            required: ["path", "operation"]
+          }
+        },
+        {
+          name: "get_vault_stats",
+          description: "Get vault statistics including total notes, folders, size, and recently modified files. Useful for understanding vault scope before batch operations.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              recentCount: { type: "number", description: "Number of recently modified files to return (default: 5, max: 20)", default: 5 },
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            }
+          }
+        },
+        {
+          name: "list_all_tags",
+          description: "List all tags across the vault with occurrence counts. Returns both frontmatter tags and inline #hashtags, deduplicated and sorted by frequency. Useful for discovering existing tags before creating or organizing notes.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              prettyPrint: { type: "boolean", description: "Format JSON response with indentation (default: false)", default: false }
+            }
+          }
+        }
+      ]
+    };
+  });
+
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const { name: toolName, arguments: args } = request.params;
+    const trimmedArgs = trimPaths(args);
+
+    try {
+      switch (toolName) {
+        case "read_note": {
+          const note = await fileSystem.readNote(trimmedArgs.path);
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify({ fm: note.frontmatter, content: note.content }, null, indent) }]
+          };
+        }
+
+        case "write_note": {
+          const fm = parseFrontmatter(trimmedArgs.frontmatter);
+          const quality = await fileSystem.writeNote({
+            path: trimmedArgs.path,
+            content: trimmedArgs.content,
+            ...(fm !== undefined && { frontmatter: fm }),
+            mode: trimmedArgs.mode || 'overwrite'
+          });
+          let text = `Successfully wrote note: ${trimmedArgs.path} (mode: ${trimmedArgs.mode || 'overwrite'})`;
+          // Tell the agent what the quality gate auto-fixed and what still
+          // needs its judgement, so it can improve the note next.
+          if (quality && quality.applied.length > 0) {
+            text += `\nAuto-fixed: ${quality.applied.join('; ')}.`;
+          }
+          if (quality && quality.warnings.length > 0) {
+            text += `\nStill needs you: ${quality.warnings.map((w) => w.message).join('; ')}.`;
+            // ...and HOW. Saying what is missing without saying how to supply
+            // it sends the caller guessing at the repair tool's shape: the
+            // measured loop was write_note -> "missing 'summary'" ->
+            // update_frontmatter with the field passed at the top level ->
+            // "frontmatter is required" -> retry. Three round trips, on every
+            // note written without a summary, on every agent, every night.
+            // The fix is one line: name the call, with the path already in it.
+            text += `\nFix with: update_frontmatter({"path": ${JSON.stringify(trimmedArgs.path)}, `
+              + `"frontmatter": {"summary": "<one sentence>"}, "merge": true}) `
+              + `— the fields go INSIDE \`frontmatter\`, and \`merge: true\` keeps the rest.`;
+          }
+          return { content: [{ type: "text", text }] };
+        }
+
+        case "patch_note": {
+          // A caller that reaches for patch_note to ADD text — no oldString to
+          // match against, just an `operation: "append"` and the new content —
+          // used to get "oldString cannot be empty" and lose the text
+          // entirely: the dispatch forwards only the replace parameters, so
+          // the content never reached the filesystem layer at all.
+          //
+          // Measured on the eSound agent: 27 of 28 patch_note failures across
+          // 400 sessions were exactly this, 18 of them carrying real content.
+          // Every one was a note the agent believed it had written — that is
+          // how a wrong support doctrine came within one malformed argument of
+          // being recorded as canonical. writeNote already implements append,
+          // prepend and frontmatter merge, so route the intent there instead
+          // of dropping it on the floor.
+          const patchOld = trimmedArgs.oldString ?? trimmedArgs.oldContent ?? trimmedArgs.old_string;
+          const patchNew = trimmedArgs.newString ?? trimmedArgs.newContent ?? trimmedArgs.new_string;
+          const hasOld = typeof patchOld === "string" && patchOld.trim() !== "";
+          const op = String(trimmedArgs.mode ?? trimmedArgs.operation ?? "").toLowerCase();
+          const addition = trimmedArgs.content ?? trimmedArgs.data ?? patchNew;
+          const wantsFrontmatter = op === "update_frontmatter" || op === "add_frontmatter";
+
+          if (!hasOld && (op === "append" || op === "prepend" || wantsFrontmatter)) {
+            const writeMode = op === "prepend" ? "prepend" : "append";
+            const body = typeof addition === "string" ? addition : "";
+            if (body === "" && !trimmedArgs.frontmatter) {
+              return {
+                content: [{ type: "text", text: JSON.stringify({
+                  success: false, path: trimmedArgs.path,
+                  message: `patch_note '${op}' needs the text to add, in 'content'. Nothing was written.`
+                }, null, 2) }],
+                isError: true
+              };
+            }
+            try {
+              await fileSystem.writeNote({
+                path: trimmedArgs.path,
+                content: body,
+                frontmatter: trimmedArgs.frontmatter,
+                mode: writeMode
+              });
+              return {
+                content: [{ type: "text", text: JSON.stringify({
+                  success: true, path: trimmedArgs.path,
+                  message: `Applied as write_note mode '${writeMode}' (patch_note replaces a string; use write_note for this next time).`
+                }, null, 2) }]
+              };
+            } catch (error) {
+              return {
+                content: [{ type: "text", text: JSON.stringify({
+                  success: false, path: trimmedArgs.path,
+                  message: error instanceof Error ? error.message : String(error)
+                }, null, 2) }],
+                isError: true
+              };
+            }
+          }
+
+          if (!hasOld) {
+            // Say what to do instead. The old message named the missing
+            // parameter and stopped there, which left the caller no route.
+            return {
+              content: [{ type: "text", text: JSON.stringify({
+                success: false, path: trimmedArgs.path,
+                message: "patch_note replaces an exact string: pass 'oldString' (the text already in the note) and 'newString'. To ADD text instead, call write_note with mode 'append' or 'prepend'. Nothing was written."
+              }, null, 2) }],
+              isError: true
+            };
+          }
+
+          const result = await fileSystem.patchNote({
+            path: trimmedArgs.path,
+            oldString: patchOld,
+            newString: typeof patchNew === "string" ? patchNew : "",
+            replaceAll: trimmedArgs.replaceAll
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: !result.success
+          };
+        }
+
+        case "list_directory": {
+          const listing = await fileSystem.listDirectory(trimmedArgs.path || '');
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify({ dirs: listing.directories, files: listing.files }, null, indent) }]
+          };
+        }
+
+        case "delete_note": {
+          const result = await fileSystem.deleteNote({
+            path: trimmedArgs.path,
+            confirmPath: trimmedArgs.confirmPath,
+            trashMode: trimmedArgs.trashMode
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: !result.success
+          };
+        }
+
+        case "search_notes": {
+          const results = await searchService.search({
+            query: trimmedArgs.query,
+            limit: trimmedArgs.limit,
+            searchContent: trimmedArgs.searchContent,
+            searchFrontmatter: trimmedArgs.searchFrontmatter,
+            caseSensitive: trimmedArgs.caseSensitive,
+            pathPrefix: trimmedArgs.pathPrefix,
+            excludePaths: trimmedArgs.excludePaths
+          });
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify(results, null, indent) }]
+          };
+        }
+
+        case "move_note": {
+          const result = await fileSystem.moveNote({
+            oldPath: trimmedArgs.oldPath,
+            newPath: trimmedArgs.newPath,
+            overwrite: trimmedArgs.overwrite
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: !result.success
+          };
+        }
+
+        case "move_file": {
+          const result = await fileSystem.moveFile({
+            oldPath: trimmedArgs.oldPath,
+            newPath: trimmedArgs.newPath,
+            confirmOldPath: trimmedArgs.confirmOldPath,
+            confirmNewPath: trimmedArgs.confirmNewPath,
+            overwrite: trimmedArgs.overwrite
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: !result.success
+          };
+        }
+
+        case "read_multiple_notes": {
+          const result = await fileSystem.readMultipleNotes({
+            paths: trimmedArgs.paths,
+            includeContent: trimmedArgs.includeContent,
+            includeFrontmatter: trimmedArgs.includeFrontmatter
+          });
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify({ ok: result.successful, err: result.failed }, null, indent) }]
+          };
+        }
+
+        case "update_frontmatter": {
+          const fm = parseFrontmatter(trimmedArgs.frontmatter);
+          if (!fm) {
+            // A bare "required" is the least useful thing to say to a caller
+            // that DID send something — it just sent it in the wrong place.
+            // The usual mistake is passing the fields at the top level
+            // (`{path, summary}`) instead of nested, so name that.
+            const stray = Object.keys(trimmedArgs || {})
+              .filter((k) => !["path", "frontmatter", "merge"].includes(k));
+            const strayNote = stray.length > 0
+              ? ` Received ${stray.map((k) => `\`${k}\``).join(', ')} at the top level — `
+                + `those belong inside \`frontmatter\`.`
+              : '';
+            throw new Error(
+              'frontmatter is required: pass the fields as an object, e.g. '
+              + '{"path": "notes/x.md", "frontmatter": {"summary": "..."}, "merge": true}.'
+              + strayNote,
+            );
+          }
+          await fileSystem.updateFrontmatter({
+            path: trimmedArgs.path,
+            frontmatter: fm,
+            merge: trimmedArgs.merge
+          });
+          return {
+            content: [{ type: "text", text: `Successfully updated frontmatter for: ${trimmedArgs.path}` }]
+          };
+        }
+
+        case "get_notes_info": {
+          const result = await fileSystem.getNotesInfo(trimmedArgs.paths);
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, indent) }]
+          };
+        }
+
+        case "get_frontmatter": {
+          const note = await fileSystem.readNote(trimmedArgs.path);
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify(note.frontmatter, null, indent) }]
+          };
+        }
+
+        case "manage_tags": {
+          const result = await fileSystem.manageTags({
+            path: trimmedArgs.path,
+            operation: trimmedArgs.operation,
+            tags: trimmedArgs.tags
+          });
+          return {
+            content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+            isError: !result.success
+          };
+        }
+
+        case "get_vault_stats": {
+          const recentCount = Math.min(trimmedArgs.recentCount || 5, 20);
+          const stats = await fileSystem.getVaultStats(recentCount);
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify({ notes: stats.totalNotes, folders: stats.totalFolders, size: stats.totalSize, recent: stats.recentlyModified }, null, indent) }]
+          };
+        }
+
+        case "list_all_tags": {
+          const tags = await fileSystem.listAllTags();
+          const indent = trimmedArgs.prettyPrint ? 2 : undefined;
+          return {
+            content: [{ type: "text", text: JSON.stringify(tags, null, indent) }]
+          };
+        }
+
+        default:
+          throw new Error(`Unknown tool: ${toolName}`);
+      }
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }],
+        isError: true
+      };
+    }
+  });
+
+  return server;
+}
+
+function trimPaths(args: any): any {
+  const trimmed = { ...args };
+
+  if (trimmed.path && typeof trimmed.path === 'string') trimmed.path = trimmed.path.trim();
+  if (trimmed.oldPath && typeof trimmed.oldPath === 'string') trimmed.oldPath = trimmed.oldPath.trim();
+  if (trimmed.newPath && typeof trimmed.newPath === 'string') trimmed.newPath = trimmed.newPath.trim();
+  if (trimmed.confirmPath && typeof trimmed.confirmPath === 'string') trimmed.confirmPath = trimmed.confirmPath.trim();
+  if (trimmed.confirmOldPath && typeof trimmed.confirmOldPath === 'string') trimmed.confirmOldPath = trimmed.confirmOldPath.trim();
+  if (trimmed.confirmNewPath && typeof trimmed.confirmNewPath === 'string') trimmed.confirmNewPath = trimmed.confirmNewPath.trim();
+
+  if (trimmed.paths && Array.isArray(trimmed.paths)) {
+    trimmed.paths = trimmed.paths.map((p: any) => typeof p === 'string' ? p.trim() : p);
+  }
+
+  return trimmed;
+}

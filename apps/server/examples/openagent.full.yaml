@@ -1,0 +1,586 @@
+# OpenAgent full-config reference
+# =============================================================================
+# Every option this server reads, with a one-line "why" and the default it
+# falls back to when the key is missing. Most installs only need a small
+# subset — start with the bare ``openagent.yaml`` produced by ``openagent
+# init`` and copy stanzas from here as you turn features on.
+#
+# Convention: every recent feature ships off-by-default so an unset key
+# behaves like the pre-feature shipped code. Turning a section on is the
+# only way it engages.
+# =============================================================================
+
+# Display name shown in the network roster and on first-run banners.
+name: agent
+
+# ── Network identity ────────────────────────────────────────────────
+# Iroh transport keys + DERP relay. Defaults are usually correct;
+# self-host a DERP relay only when you need full data locality.
+network:
+  identity_path: ./identity.key
+  coordinator:
+    key_path: ./coordinator.key
+  derp_url: ""                # empty = Iroh's public DERP relay
+
+  # ── Federation peers (the openagent/agent/1 ALPN) ────────────────
+  # An inbound agent-ALPN stream is authenticated by the Iroh QUIC
+  # handshake, which proves the dialler owns its node_id — NOT that it
+  # is anyone you enrolled. Nothing on that path consumes an invite or
+  # checks a coordinator cert, and the synthesised cert's
+  # capabilities=["agent"] is a provenance label, not a scope (the only
+  # two readers of it pick a log string and a session-id prefix). So
+  # with both toggles off, any node that can dial this one reaches
+  # EVERY gateway route — including POST /api/mcps, which takes
+  # arbitrary argv the MCP pool then spawns.
+  #
+  # Both DEFAULT OFF. They can reject live traffic, and these agents run
+  # unattended; arming either on upgrade would cut a running mesh dead.
+  peers:
+    # WHO may dial. Needs your peer list, so turn `scope` on first.
+    allowlist:
+      enabled: false          # DEFAULT — any node that can dial is trusted
+      # Build the list from logs you are ALREADY collecting — the
+      # `agent.contact` line has recorded every dialling node_id since
+      # the ALPN shipped, so this is a grep, not a maintenance window:
+      #   grep '"event":"agent.contact"' ~/.openagent/events.jsonl \
+      #     | jq -r .node_id | sort -u
+      # A peer that has not dialled within your log retention will NOT
+      # appear — check the list against `openagent network agents`
+      # before enabling, or you will lock out a quiet peer. Denials are
+      # logged as `peer.denied` (reason=not_in_allowlist).
+      node_ids: []
+    # WHAT a peer may reach. No list to maintain: the built-in set is
+    # the routes federation actually uses (POST /api/chat, POST
+    # /api/events/{id}/trigger, GET /api/health, GET /api/agent-info).
+    # Everything else a peer asks for is administration, not the
+    # collaboration vision §11 describes — so this shrinks the blast
+    # radius even for peers you DID enrol, and needs no per-deployment
+    # data. Turn this on before the allowlist.
+    scope:
+      enabled: false          # DEFAULT — peers reach every gateway route
+      # Anything outside the built-in set is refused with 403 and logged
+      # as `peer.denied` (reason=outside_scope) with the method+path —
+      # grep that if a federation feature needs a door this build's list
+      # doesn't know about, then add it here as "<METHOD> <path-regex>":
+      # extra_paths:
+      #   - "GET ^/api/vault/notes/.+$"
+
+# ── MCP install policy ──────────────────────────────────────────────
+# Registering an MCP is not "adding an app": it runs that server's
+# command on this host, as this agent, with its full environment — every
+# API key and mounted path the process can read. Three surfaces reach
+# that outcome and all three end at the same mcps row the pool spawns:
+# POST /api/marketplace/install (resolves a public no-auth registry entry
+# into `npx -y <pkg>` — no signature check, no publisher allowlist, no
+# sandbox), POST /api/mcps (raw argv), and the mcp-manager MCP's
+# add_custom_mcp / update_mcp — which the AGENT itself can call, so
+# prompt-injected content in a page or a ticket is enough to reach it.
+mcps:
+  install_policy:
+    # DEFAULT off — every registration goes through unchecked, because
+    # vision §6 makes runtime registration a documented capability and
+    # arming this by default would break it mid-cron.
+    #
+    # `true` with no allow_patterns = FREEZE: no new MCPs at runtime.
+    # For an unattended production agent that is the whole config — one
+    # line, no package inventory to maintain. Currently enforced at the
+    # marketplace and mcp-manager surfaces; POST /api/mcps is NOT yet
+    # gated (it needs a device cert — an operator administering their own
+    # agent on purpose — but do not read this as covering it).
+    enabled: false
+    # Exceptions, for agents that legitimately install. Matched
+    # case-insensitively (regex, comma-joined) against a one-line
+    # descriptor of what would be registered. The descriptor format is
+    # stable config surface:
+    #   marketplace:io.github.foo/postgres npx -y @foo/postgres@1.0.0
+    #   npx -y @modelcontextprotocol/server-filesystem /srv
+    #   url:https://mcp.example.com/sse
+    # A blocked attempt logs `mcp.install_blocked` with the descriptor
+    # verbatim — that is what you paste here. Anchor patterns at a
+    # publisher or a package, never a bare runtime: "npx" as a pattern
+    # re-permits every npm package in existence.
+    # allow_patterns:
+    #   - "^marketplace:io\\.github\\.trusted/"
+    #   - "^npx -y @modelcontextprotocol/server-filesystem\\b"
+
+# ── Channels (platform bridges) ─────────────────────────────────────
+# Each bridge is opt-in: omit the section and the bridge isn't started.
+# ``personality`` accepts a preset name (casual, technical, teacher,
+# kawaii, pirate, noir, philosopher) OR a free-form string treated as
+# the literal persona directive.
+#
+# ``live`` (default true) makes the bridge narrate the turn in-chat:
+# each tool call and each span of the answer is posted as its own
+# message while the "is writing" indicator stays lit — the Hermes-style
+# feed. Set ``live: false`` per channel (or ``OPENAGENT_CHANNEL_LIVE=0``
+# globally) to fall back to a single final reply per turn. Voice-note
+# turns always use the single-reply path regardless of this setting.
+channels:
+  telegram:
+    token: "${TELEGRAM_BOT_TOKEN}"     # or hard-code; env wins if both set
+    allowed_users: []                  # list of Telegram user_ids ("12345"); empty = open
+    personality: casual
+    live: true                         # narrate tool calls + answer as separate messages
+
+  discord:
+    token: "${DISCORD_BOT_TOKEN}"
+    allowed_users: ["123456789012345678"] # users allowed to DM/use commands
+    allowed_guilds: []
+    listen_channels: []                # shared channels; all members may talk
+    dm_only: false
+    personality: technical
+
+  whatsapp:
+    green_api_id: "${GREEN_API_ID}"
+    green_api_token: "${GREEN_API_TOKEN}"
+    allowed_users: []                  # phone numbers ("39…")
+    personality: casual
+
+  slack:
+    bot_token: "${SLACK_BOT_TOKEN}"    # xoxb-…
+    app_token: "${SLACK_APP_TOKEN}"    # xapp-… (socket mode)
+    allowed_users: ["U0123456789"]
+    listen_channels: ["C0123456789"]
+    personality: technical
+
+  # The one INBOUND channel: a dedicated HTTP listener on its own port
+  # serving only /hooks/*. An external service (or a peer) calls it to fire
+  # an Event — a workflow, a scheduled task, or a chat session. Off by
+  # default; manage events in the app's Events screen / the events-manager MCP.
+  webhook:
+    enabled: false
+    host: 0.0.0.0
+    port: 8899
+    public_url: "https://hooks.example.com"   # optional; shown in the UI
+
+# ── Safety ──────────────────────────────────────────────────────────
+# One toggle, off by default. It is a blocklist, NOT an approval prompt:
+# a matching command is refused outright and the model is told why — no
+# human is asked, because a scheduled task firing at 3am has nobody to
+# ask. ("approvals" is the historical key name; it is kept so existing
+# configs keep working.)
+#
+# Scope — this covers the ``shell_exec`` tool ONLY. The editor MCP and
+# any registered filesystem MCP are NOT gated and can still delete or
+# overwrite anything they can reach. It is also a regex over the command
+# text, so it stops a mistake (`rm -rf /` typed literally) and not an
+# adversary (base64, a variable, a heredoc, or a script file all slip
+# past). Treat it as a seatbelt, not a sandbox.
+#
+# Leave it off unless you know your agent doesn't do the things below by
+# design — the Lyra agent, for one, force-pushes its own branch on every
+# run and would break instantly with this on.
+safety:
+  approvals:
+    enabled: false                      # DEFAULT — off; every command runs unchecked
+    # When true, shell_exec refuses a command matching any of these
+    # built-in patterns (case-insensitive, substring):
+    #   rm -rf /…            sudo rm            dd if=
+    #   mkfs…                > /dev/sd[a-z]     chmod [-R] NNN /…
+    #   git push --force|-f  git reset --hard HEAD|origin
+    #   kubectl delete       docker rm -f|rmi -f|system prune -a
+    #   drop database|table  shutdown|reboot    halt|poweroff
+    # Extend that list with your own regex fragments:
+    block_extra_patterns:
+      - "\\bterraform\\s+destroy\\b"
+    # …and carve exceptions out of it. An allow pattern WINS over a block
+    # pattern, so this is how you keep the list on for an agent that
+    # legitimately does one thing on it. Without this the stanza is
+    # all-or-nothing, and an agent that force-pushes its own branch every
+    # run (as the Lyra agent does) forces you to disable every other
+    # protection to keep working — so you would, and then none of this
+    # would be on at all.
+    #
+    # Be specific. ``git push --force`` as an allow pattern re-permits it
+    # everywhere; scope it to the branch the agent owns instead:
+    # allow_patterns:
+    #   - "git push --force[a-z-]* origin lyra-agent/"
+
+# ── Sandbox ─────────────────────────────────────────────────────────
+# Where the ``shell`` tool's commands actually run. Independent of the
+# ``safety`` blocklist above: that filters WHICH commands run; this decides
+# WHERE they run.
+#
+# ``local`` (the default) runs each command on the host exactly as before —
+# same shell, same environment, same working directory. Leaving this stanza
+# out is identical to ``backend: local``; nothing changes.
+#
+# ``docker`` runs each command as ``docker exec`` inside one hardened,
+# throwaway container (all caps dropped bar a build-minimal few,
+# no-new-privileges, capped pids/cpu/memory, tmpfs /tmp + /var/tmp + workdir,
+# and NETWORK DENIED by default). The container inherits NONE of the host
+# environment — only the ``forward_env`` allowlist crosses in. If the docker
+# daemon or image is unavailable the shell tool FAILS (it never silently falls
+# back to the host), because falling back would defeat the isolation you asked
+# for. Requires a working docker daemon on the host.
+#
+# ``ssh`` runs each command on a REMOTE host over ssh, multiplexed through one
+# ControlMaster connection opened on first use. The remote host IS the sandbox:
+# there is NO file sync (parity with docker's ephemeral tmpfs workdir) — the
+# remote account's isolation is yours to provision. If the host is unreachable
+# the shell tool FAILS at connect time (it never silently falls back to the
+# local host). NOTE: the spawned process is the ssh CLIENT, so a killed/timed-out
+# command reaps the client — the remote process tree may keep running (same
+# limitation as the docker-exec client). Uses your default ssh key/agent unless
+# ``key_path`` is set; host keys are accepted on first use (accept-new).
+sandbox:
+  backend: local                        # DEFAULT — run on the host, unchanged
+  # When ``backend: docker`` the block below configures the container:
+  # docker:
+  #   image: debian:stable-slim         # any image with bash on PATH
+  #   network: false                    # false → --network none (deny egress)
+  #   cpus: 2.0                          # --cpus
+  #   memory_mb: 2048                   # --memory (megabytes)
+  #   pids_limit: 256                   # --pids-limit
+  #   workdir: /workspace               # container working dir (tmpfs unless persistent)
+  #   forward_env: []                   # host env keys allowed INTO the container
+  #   persistent: false                 # false → workdir is a non-persistent tmpfs
+  # When ``backend: ssh`` the block below configures the remote host:
+  # ssh:
+  #   host: sandbox.internal            # REQUIRED — remote host to ssh into
+  #   user: agent                       # REQUIRED — remote login user
+  #   port: 22                          # ssh port (omit for 22)
+  #   key_path: ~/.ssh/id_ed25519       # identity file (omit → default key/agent)
+  #   login_shell: true                 # true → remote ``bash -lc`` (login shell)
+  #   workdir: /home/agent/work         # remote cwd to cd into before each command
+
+# ── Model runtime ───────────────────────────────────────────────────
+# Which LLMs the agent uses lives in the DB (the Models screen / model-manager
+# MCP), not here. This block is for runtime knobs that apply across models.
+model:
+  # Extended thinking budget, in tokens. Engages Anthropic's extended
+  # thinking on the models that support it — Opus and Sonnet. It is SKIPPED
+  # for the Haiku tier, which does not support it (Haiku 4.5 returns HTTP 400
+  # for a thinking budget), so setting this fleet-wide is safe: your cheap
+  # routing model keeps working, your reasoning models gain the budget.
+  # Anthropic ignores a budget below 1024, so anything smaller reads as off.
+  # Omit the key to leave thinking off everywhere.
+  extended_thinking_tokens: 0            # e.g. 4096; 0 / unset = off
+
+  # Per-LLM-call read timeout, in seconds (anti-wedge). A hung provider
+  # connection RAISES instead of silently wedging the worker until the event
+  # lease reaper (120s) reclaims it. This is a per-READ socket timeout, not a
+  # whole-request deadline, so it never trips a legitimately slow stream — it
+  # only fires on a genuinely stalled socket. Applies to every model call (main
+  # agent, team members, routing classifier). Default 90s; MUST stay under the
+  # 120s lease TTL. Omit to use the default; also honours the
+  # OPENAGENT_MODEL_TIMEOUT_SECONDS env var.
+  # timeout_seconds: 90
+
+# ── Budgets ─────────────────────────────────────────────────────────
+# Per-scope spend caps, so a metered API (DeepSeek's pay-as-you-go, an OpenAI
+# key) can't run away with your balance. At the cap the scope is EXCLUDED FROM
+# ROUTING — that model quietly drops out of the enabled catalog for the rest of
+# the window and the agent keeps working on whatever stays enabled (Claude via a
+# subscription proxy is $0 marginal cost). The bot never stops; it stops
+# *spending on that model*. The exclusion lifts automatically when the window
+# rolls over. It NEVER leaves you with zero enabled models — if a cap would take
+# the agent fully offline it is not enforced, and that is logged.
+#
+# OFF BY DEFAULT: omit this whole block and nothing changes. Rules seeded here
+# are a floor, imported additively on boot; editing a rule in the app (Budgets
+# screen), over ``PUT /api/budgets``, or via the ``budget-manager`` MCP is NOT
+# clobbered on the next boot. Deleting a yaml-seeded rule brings it back next
+# boot (it is declared here) — remove it from yaml to retire it for good.
+#
+# Each rule:
+#   scope_kind: global | provider | model | task
+#   scope:      provider name ('deepseek'), a model runtime_id
+#               ('deepseek:deepseek-v4-pro'), or the task name (scope_kind:task).
+#               Omit for scope_kind: global. (Inferred when scope_kind is left
+#               out: a colon → model, empty → global, otherwise provider.)
+#   metric:     cost_usd (dollars) | tokens (input+output). Use tokens when
+#               dollar pricing is uncertain — a token cap is model-agnostic.
+#   window:     hour | day | month  (calendar windows in scheduler.timezone)
+#   amount:     the cap (dollars or tokens per the metric)
+#   alert_thresholds: fractions to alert at, default [0.5, 0.9]; 100% always
+#               alerts. Each crossing emits a ``budget.alert`` event (the logs
+#               MCP sees it) once per threshold per window.
+#   webhook_url: optional URL POSTed on each threshold crossing.
+#   enabled:    true/false
+#
+# NOTE: scope_kind 'task' and window 'per_run' are accepted and REPORTED in the
+# usage view but not yet enforced by the router (task/run enforcement is a
+# separate, planned hook — a task is a caller, not a routing target).
+budgets:
+  # The operator's first concrete rule: DeepSeek, $10/day, alert at 50% and 90%,
+  # excluded at 100% for the rest of the day.
+  - scope_kind: provider
+    scope: deepseek
+    metric: cost_usd
+    window: day
+    amount: 10.00
+    alert_thresholds: [0.5, 0.9]
+    enabled: true
+  # Examples of the other levels (leave commented unless you want them):
+  # - scope_kind: global          # a total daily token ceiling across all models
+  #   metric: tokens
+  #   window: day
+  #   amount: 5000000
+  #   enabled: true
+  # - scope_kind: model           # cap one specific model in dollars per month
+  #   scope: openai:gpt-4o
+  #   metric: cost_usd
+  #   window: month
+  #   amount: 50.00
+  #   webhook_url: https://hooks.example.com/budget
+  #   enabled: true
+
+# ── Memory & learning ───────────────────────────────────────────────
+# Every subsection is independent.
+#
+# ``user_profile`` and ``skills`` used to be documented here. Both were
+# deleted in v0.15.11 (opaque parallel memory stores competing with the
+# vault) and neither key is read any more — they are listed here only so
+# you don't go looking for them. A leftover block for either in your
+# openagent.yaml is inert, not an error.
+memory:
+  curator:
+    enabled: false                      # background prune of stale skills/profiles + DB backup
+    interval_hours: 6
+    skill_stale_days: 14                # unused skills past this age get pruned
+    skill_archive_days: 90              # any skill past this gets pruned regardless of usage
+    profile_archive_days: 90
+    session_retention_days: 90
+    backup_interval_hours: 24
+    backup_keep: 30
+
+  sessions:
+    retention_days: 90                  # friendlier alias for curator.session_retention_days
+
+  # vault_path: ~/my-vault              # where the Markdown memory vault lives (default: <data-dir>/memories)
+
+  vault_reminder:
+    enabled: true                       # on by default: inject a "ALWAYS save to the vault" checkpoint into the turn
+    every_n_turns: 3                     # fires on the first turn, then every N turns
+
+  semantic_search:
+    enabled: false                      # embed conversation turns for similarity recall (needs an OpenAI key)
+
+  # Semantic recall (meaning-based memory over vault notes + past sessions).
+  # Keyword search matches WORDS: "launch deadline" can't find "the ship date
+  # we agreed", so the agent answers "no record" while the note exists. This
+  # layer closes that gap with embeddings. OFF by default and fully inert until
+  # ``embedding_model`` is set — an unset config is byte-identical to the
+  # keyword-only behaviour that shipped before.
+  #
+  # The index is a REBUILDABLE CACHE (its own SQLite file, keyed to the DB);
+  # the Markdown vault stays the single source of truth. Provider-agnostic:
+  # any OpenAI-compatible /embeddings endpoint (§17). The recommended default
+  # is LOCAL — $0, private, offline — via Ollama:
+  #   embedding_model: local:nomic-embed-text
+  #   embedding_base_url: http://localhost:11434/v1   # (ollama pull nomic-embed-text)
+  # Hosted alternative: openai:text-embedding-3-small with the key below or on
+  # the openai provider row.
+  # embedding_model: local:nomic-embed-text   # "<provider>:<model>"; unset => layer inert
+  # embedding_base_url: http://localhost:11434/v1  # the ONLY channel that reaches the memory-search subprocess
+  # embedding_api_key: ""                     # optional; a local server needs none
+
+  # Optional BUILD-time corpus controls. These reduce embedding load; they are
+  # separate from auto_recall's search-time filters. Use them only for derived,
+  # high-churn trees such as per-thread receipts/logs, never for procedures or
+  # factual knowledge. A support-only agent can also skip transcript vectors when
+  # its event recall is vault-only. Defaults index every note and every session.
+  # semantic_index:
+  #   exclude_path_prefixes:
+  #     - product/receipts
+  #     - support/cycle-logs
+  #   sessions: false
+
+  # Automatic recall: before each turn, silently retrieve the top matches and
+  # inject a bounded, VERIFY-FRAMED reminder (never asserted as fact — the agent
+  # is told to confirm with vault_read_note). Prepended to the USER message, so
+  # it never busts the cached system prefix. Needs ``embedding_model`` set.
+  auto_recall:
+    enabled: false                      # inject matches into the turn automatically
+    min_score: 0.75                     # similarity floor; a weak match injects nothing (model-specific — tune it)
+    top_k: 3                            # max hits injected
+    max_tokens: 400                     # hard char cap on the injected block (chars ≈ tokens×4)
+    warm_budget: 128                    # max notes/sessions embedded per background sync pass
+    timeout: 4                          # seconds; a slow/unreachable endpoint degrades to no injection, never blocks the turn
+    # query_marker: customer-message   # embed only the text inside <tag>…</tag>, not the whole turn message.
+                                      # For an event lane whose prompt wraps the person's own sentence in
+                                      # orchestration prose: without it the boilerplate describes the query.
+
+  # Code-enforced quality gate over the Markdown vault: atomic notes,
+  # complete frontmatter, dense real wikilinks, no orphans/broken links,
+  # one connected graph. Exposed to the agent as the ``vault-gate`` MCP and
+  # over REST (/api/vault/gate, /doctor, /stats, /derived, /index/sync).
+  vault:
+    enabled: true                       # the gate subsystem (index + tools + validate-on-write)
+    max_lines: 300                      # a note longer than this is flagged (atomicity)
+    min_outlinks: 3                     # a content note should link out to >= this many real notes
+    enforce_taxonomy: false             # nudge tags[0]==folder + channels-as-tags (advisory)
+    check_em_dash: false                # flag em dashes (—) everywhere, not just journal notes
+    strict: false                       # treat every issue as an error (the "0 errors" target)
+    validate_on_write: true             # REST note writes return quality warnings + keep the index current
+    git:
+      enabled: true                     # back the vault with a git repo; auto-commit every change (with provenance)
+      autocommit_seconds: 25            # sweep interval that captures edits made outside OpenAgent (Obsidian, external MCP); 0 disables
+      author_name: OpenAgent            # committer identity (no global git config needed)
+      author_email: agent@openagent.local
+    # ``maintenance:`` (enabled/interval_hours/autofix/regenerate_derived) was
+    # removed in v0.16.1 — it configured a second, hidden dream mode that ran
+    # the same vault pass on a 12h timer from boot. There is one dream mode now
+    # and it is the top-level ``dream_mode:`` task (see guide/scheduler.md):
+    # it runs that pass itself via ``vault_dream()``, and unlike a timer it can
+    # be aimed at an hour, which is what §12 asks for. Old logs under
+    # ``workspace/_dream/`` are left alone; dream mode writes to
+    # ``dream-logs/``. An openagent.yaml still carrying the block boots fine —
+    # the keys are inert, not fatal.
+
+# ── Skills ──────────────────────────────────────────────────────────
+# File-backed SKILL.md playbooks (Hermes / Claude-Code progressive
+# disclosure). Only a small INDEX (category → name: description) is
+# injected into the cached system prompt; full bodies load on demand via
+# ``skill_view``. OFF BY DEFAULT — with ``enabled: false`` nothing is
+# injected, the ``skills`` builtin MCP is never registered, and the prompt
+# is byte-identical to a build without the feature.
+#
+# skills:
+#   enabled: false            # master switch for the whole subsystem
+#   # path: ~/my-skills       # override the skills dir (default: <data-dir>/skills;
+#                             #   also honours the OPENAGENT_SKILLS_PATH env var)
+#   curator_enabled: false    # "dream mode for skills": a scheduled pass that
+#                             #   consolidates AGENT-authored skills. SECOND gate —
+#                             #   needs enabled: true as well. Only ever touches
+#                             #   created_by: agent skills (seed/user/hub are safe).
+#   # curator_schedule: "0 4 * * 0"   # cron (default: weekly, Sunday 04:00)
+#
+#   # ── Skills-Hub ──────────────────────────────────────────────────
+#   # Pull SKILL.md skills from a shared git remote ("tap") so several
+#   # agents share one versioned source of playbooks. Additive and OFF by
+#   # default; a SECOND gate on top of skills.enabled (mirrors
+#   # curator_enabled). When enabled, two tools appear in the skills MCP:
+#   #   skill_hub_pull(tap, force=False) — shallow-clone the tap into a
+#   #     quarantine dir, safety-scan every */SKILL.md (symlink escape,
+#   #     curl|sh exfil, rm -rf /, invisible/bidi unicode, injection
+#   #     markers), and install the ones that pass — each stamped
+#   #     created_by: hub (so the curator never rewrites upstream-owned
+#   #     skills) with hub_repo / hub_commit lineage. dangerous skills are
+#   #     always refused; caution skills only with force=True. A lockfile
+#   #     at <skills-dir>/.hub/lock.json pins repo+commit+content_hash.
+#   #   skill_hub_list() — what hub skills are installed and from where.
+#   # With hub.enabled: false the two tools are never exposed and the
+#   # skills toolkit is byte-identical to its three-tool original.
+#   hub:
+#     enabled: false          # master switch for the Skills-Hub tools
+#     taps: []                # optional default git taps to advertise, e.g.
+#                             #   - https://git.example.com/org/skills-hub.git
+#                             #   - file:///srv/shared/skills-hub/.git
+
+# ── Self-improvement (intrinsic quality + cost + handoff loop) ──────
+# Four optional built-in scheduled tasks for continuous self-critique:
+#   quality-scorer  — every ~2h, reads the agent's OWN recent outputs (a support
+#                     agent's replies, an ops agent's actions), grades them
+#                     against the agent's OWN vault rules, and files a grounded
+#                     correction for each weak one. Silent unless a real
+#                     regression (batch avg below bar OR >=2 BAD).
+#   quality-digest  — daily, synthesises the scorer's findings into concrete
+#                     improvements: auto-applies only SAFE grounded vault
+#                     rule/doc updates, PROPOSES anything risky, sends the
+#                     operator one short recap. A quiet day = one line.
+#   cost-observability — hourly, the CONSUMPTION arm. Pages the operator only on
+#                     a genuine, CACHE-AWARE cost anomaly (real cost + FRESH /
+#                     non-cached tokens via the engine's own router.cost_anomaly),
+#                     NEVER on the raw summed input-token count (which is mostly
+#                     cheap cache-reads of the re-sent prefix). Silent otherwise.
+#   escalation-audit — daily, the HANDOFF arm. Audits what the agent handed off
+#                     to a human / marked needs-human / left unresolved, and flags
+#                     OVER-ESCALATIONS it could have handled with its own tools
+#                     (vs genuinely-human cases). ROLE-/TOOL-agnostic (not tied to
+#                     any product/queue); files a correction, alerts on regression.
+#
+# OPT-IN — each task is a full model-driven run. Leaving this off preserves
+# provider capacity for interactive turns, especially behind a single
+# subscription/OAuth account. DEDUP: an agent that already ships its own
+# tuned, non-builtin quality-scorer / quality-digest / cost-observability /
+# escalation-audit task keeps it; the builtin defers rather than double-running.
+# Set enabled: true to switch the loop on, or use the per-task toggles.
+#
+# self_improvement:
+#   enabled: false            # master switch (default false; set true to opt in)
+#   scorer_enabled: true      # per-task gate for quality-scorer (default true)
+#   digest_enabled: true      # per-task gate for quality-digest (default true)
+#   cost_observability_enabled: true  # per-task gate for cost-observability (default true)
+#   escalation_audit_enabled: true    # per-task gate for escalation-audit (default true)
+#   # scorer_schedule: "0 */2 * * *"  # cron (default: every 2 hours)
+#   # digest_schedule: "0 9 * * *"    # cron (default: daily 09:00)
+#   # cost_observability_schedule: "0 * * * *"  # cron (default: hourly)
+#   # escalation_audit_schedule: "30 8 * * *"   # cron (default: daily 08:30)
+
+# ── Quick commands ──────────────────────────────────────────────────
+# Bridges expand ``/<trigger>`` to the configured prompt before the
+# agent sees it. Triggers are case-insensitive. Anything after the
+# trigger is appended as a second line.
+quick_commands:
+  recap: "Summarise the last 20 turns with bullets, English."
+  jokes: "Tell me three short jokes."
+  status: "What's the status of my ongoing projects?"
+
+# ── Hooks ───────────────────────────────────────────────────────────
+# Fire-and-forget shell commands triggered by named runtime events.
+# Event metadata arrives in OPENAGENT_EVENT_* env vars. Stdout captured
+# (4 KB cap) into events.jsonl.
+hooks:
+  on_turn_end:        "echo turn $OPENAGENT_EVENT_SESSION_ID >> ~/openagent/turns.log"
+  on_compression:     "logger -t openagent compressed $OPENAGENT_EVENT_SESSION_ID"
+  on_skill_saved:     "osascript -e 'display notification \"new skill: $OPENAGENT_EVENT_NAME\" with title \"OpenAgent\"'"
+
+# ── MCP runtime knobs ───────────────────────────────────────────────
+# Not yaml-configurable today — set via env at launch time:
+#   OPENAGENT_CLAUDE_TOOL_BUDGET=55   # default 200 — tools allowed in upfront list
+#   OPENAGENT_AGNO_TOOL_BUDGET=55     # default 128 — same for the Agno classifier path
+#   OPENAGENT_MCP_PRIORITY=vault,messaging,shell,editor,filesystem,web-search,scheduler
+#     # override the default priority order used when trimming above the budget.
+#     # Unlisted MCPs fall back to alphabetical, then get dropped.
+
+# ── Credential pool (multi-account rotation) ────────────────────────
+# OPTIONAL, OFF BY DEFAULT. A single provider can hold MORE THAN ONE
+# credential and rotate across them on a rate-limit (HTTP 429 / 529)
+# BEFORE the turn falls back to another provider (e.g. DeepSeek). Handy
+# when several accounts sit behind one OpenAI-compatible proxy (the
+# ``local`` provider) and you want to exhaust all of them before spilling
+# to a paid secondary.
+#
+# INERT UNLESS CONFIGURED. With no ``accounts`` (or a single account) the
+# dispatch path is byte-identical to today — no pool is built, nothing on
+# the hot path changes. A pool only comes into being at >= 2 accounts.
+#
+# Accounts are NOT a top-level yaml key: like every provider setting they
+# live in the DB, under the provider row's ``metadata_json``. Set them via
+# the model-manager MCP / Providers UI / REST, storing a JSON blob shaped:
+#
+#   metadata_json = {
+#     "accounts": [
+#       {"api_key": "sk-acct-1", "label": "primary",   "priority": 10},
+#       {"api_key": "sk-acct-2", "label": "secondary", "priority": 0,
+#        "base_url": "https://alt-proxy.internal/v1"}   # optional; omit to
+#     ],                                                 # inherit the row's
+#     "pool_strategy": "fill_first"                      # base_url
+#   }
+#
+#   • api_key   (required) the credential for this account.
+#   • base_url  (optional) per-account endpoint; defaults to the provider's.
+#   • label     (optional) human tag surfaced in logs.
+#   • priority  (optional, default 0) higher wins first under ``fill_first``.
+#
+# Cooldowns are automatic: a 429/529 parks that account for ~1h then it
+# re-enters rotation; a 401/403 marks it DEAD (terminal — a bad key won't
+# be retried). Cooldown state is shared process-wide across sessions.
+#
+# Rotation strategy is per-provider. Set it inline (``metadata.pool_strategy``
+# above) or centrally via this top-level map keyed by provider name:
+credential_pool_strategies:
+  # local: fill_first        # DEFAULT — drain the top-priority account first
+  # openai: round_robin      # spread each request across accounts in turn
+  # anthropic: least_used    # pick the account with the fewest requests so far
+  # Strategies: fill_first (default) | round_robin | least_used.
+  # An unset / unknown value falls back to fill_first.
+
+# ── Notes ───────────────────────────────────────────────────────────
+# Providers, models, MCP entries, scheduled tasks, and workflows are
+# managed exclusively through the SQLite database (configure via the
+# desktop app, the model-manager / mcp-manager / workflow-manager MCPs,
+# or the /api/* REST endpoints). This file only holds server-level
+# knobs.

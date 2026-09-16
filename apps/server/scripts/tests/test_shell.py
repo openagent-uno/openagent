@@ -1,0 +1,1064 @@
+"""Shell MCP — unit + integration tests for the in-process shell tools."""
+from __future__ import annotations
+
+from ._framework import TestContext, test
+
+
+def _reset_shell_hub() -> None:
+    """Isolate hub state between tests so they don't see leaked shells."""
+    from src.mcp.servers.shell import handlers
+    handlers._reset_hub_for_tests()
+
+
+@test("shell", "ShellEvent is a frozen dataclass with expected fields")
+async def t_shell_event_shape(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.events import ShellEvent
+
+    e = ShellEvent(
+        shell_id="sh_abc",
+        kind="completed",
+        exit_code=0,
+        signal=None,
+        bytes_stdout=42,
+        bytes_stderr=0,
+        at=123.0,
+    )
+    assert e.shell_id == "sh_abc"
+    assert e.kind == "completed"
+    assert e.exit_code == 0
+    assert e.signal is None
+    assert e.bytes_stdout == 42
+    assert e.bytes_stderr == 0
+    assert e.at == 123.0
+    # Frozen → setattr raises.
+    try:
+        e.shell_id = "sh_xyz"  # type: ignore[misc]
+    except Exception:
+        pass
+    else:
+        raise AssertionError("ShellEvent should be frozen")
+
+
+@test("shell", "ShellHub: register and get a shell by id")
+async def t_hub_register_get(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_1", session_id="s1", command="echo hi")
+    got = hub.get("sh_1")
+    assert got is not None, "get should return the registered record"
+    assert got.command == "echo hi"
+    assert got.session_id == "s1"
+
+
+@test("shell", "ShellHub: list_for_session filters by session")
+async def t_hub_list_for_session(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_1", session_id="s1", command="a")
+    hub.register(shell_id="sh_2", session_id="s2", command="b")
+    hub.register(shell_id="sh_3", session_id="s1", command="c")
+
+    ids_s1 = {r.shell_id for r in hub.list_for_session("s1")}
+    ids_s2 = {r.shell_id for r in hub.list_for_session("s2")}
+    ids_all = {r.shell_id for r in hub.list_for_session(None)}
+
+    assert ids_s1 == {"sh_1", "sh_3"}, f"expected s1 shells, got {ids_s1}"
+    assert ids_s2 == {"sh_2"}
+    assert ids_all == {"sh_1", "sh_2", "sh_3"}
+
+
+@test("shell", "ShellHub: has_running only true while not completed")
+async def t_hub_has_running(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_1", session_id="s1", command="x")
+    assert hub.has_running("s1") is True
+    hub.mark_completed("sh_1", exit_code=0, signal=None)
+    assert hub.has_running("s1") is False
+
+
+@test("shell", "ShellHub: purge_session removes entries and reports killed ids")
+async def t_hub_purge_session(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_1", session_id="s1", command="a")
+    hub.register(shell_id="sh_2", session_id="s1", command="b")
+    hub.register(shell_id="sh_3", session_id="s2", command="c")
+
+    purged = await hub.purge_session("s1")
+    assert sorted(purged) == ["sh_1", "sh_2"], f"unexpected: {purged}"
+    assert hub.get("sh_1") is None
+    assert hub.get("sh_2") is None
+    assert hub.get("sh_3") is not None
+
+
+@test("shell", "ShellHub: post_event + drain returns events in FIFO order")
+async def t_hub_post_drain(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+    from src.mcp.servers.shell.events import ShellEvent
+
+    hub = ShellHub()
+    e1 = ShellEvent("sh_1", "completed", 0, None, 10, 0, 1.0)
+    e2 = ShellEvent("sh_2", "killed", None, "TERM", 3, 5, 2.0)
+    hub.post_event("s1", e1)
+    hub.post_event("s1", e2)
+    drained = hub.drain("s1")
+    assert [e.shell_id for e in drained] == ["sh_1", "sh_2"]
+    # Queue is empty after drain.
+    assert hub.drain("s1") == []
+
+
+@test("shell", "ShellHub: drain on unknown session returns []")
+async def t_hub_drain_unknown(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    assert hub.drain("nope") == []
+
+
+@test("shell", "ShellHub: wait resolves when an event is posted")
+async def t_hub_wait_wakes_up(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell.hub import ShellHub
+    from src.mcp.servers.shell.events import ShellEvent
+
+    hub = ShellHub()
+    e = ShellEvent("sh_9", "completed", 0, None, 1, 0, 9.0)
+
+    async def delayed_post() -> None:
+        await asyncio.sleep(0.05)
+        hub.post_event("s1", e)
+
+    task = asyncio.create_task(delayed_post())
+    try:
+        events = await hub.wait("s1", timeout=1.0)
+    finally:
+        await task
+    assert len(events) == 1
+    assert events[0].shell_id == "sh_9"
+
+
+@test("shell", "ShellHub: wait returns [] on timeout")
+async def t_hub_wait_timeout(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    events = await hub.wait("s1", timeout=0.05)
+    assert events == []
+
+
+@test("shell", "ShellHub: queue cap drops oldest and keeps newest")
+async def t_hub_queue_cap(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+    from src.mcp.servers.shell.events import ShellEvent
+
+    hub = ShellHub()
+    # Post more than the cap (200) — confirm the newest 200 survive.
+    for i in range(250):
+        hub.post_event("s1", ShellEvent(f"sh_{i}", "completed", 0, None, 1, 0, float(i)))
+    drained = hub.drain("s1")
+    assert len(drained) == 200
+    # The oldest 50 (sh_0 … sh_49) were dropped.
+    assert drained[0].shell_id == "sh_50"
+    assert drained[-1].shell_id == "sh_249"
+
+
+@test("shell", "ShellHub: gc removes completed shells older than TTL")
+async def t_hub_gc(ctx: TestContext) -> None:
+    import time
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_old", session_id="s1", command="a")
+    hub.register(shell_id="sh_new", session_id="s1", command="b")
+    hub.register(shell_id="sh_live", session_id="s1", command="c")
+
+    # Old completed 15 min ago; new completed 1 s ago; live still running.
+    hub.mark_completed("sh_old", exit_code=0, signal=None)
+    hub.mark_completed("sh_new", exit_code=0, signal=None)
+    hub._shells["sh_old"].completed_at = time.time() - 15 * 60
+
+    removed = hub.gc(ttl_seconds=10 * 60)
+    assert removed == ["sh_old"], f"unexpected gc: {removed}"
+    assert hub.get("sh_old") is None
+    assert hub.get("sh_new") is not None
+    assert hub.get("sh_live") is not None
+
+
+@test("shell", "ShellHub: shutdown purges every session and clears state")
+async def t_hub_shutdown(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.hub import ShellHub
+
+    hub = ShellHub()
+    hub.register(shell_id="sh_1", session_id="s1", command="a")
+    hub.register(shell_id="sh_2", session_id="s2", command="b")
+    await hub.shutdown()
+    assert hub.get("sh_1") is None
+    assert hub.get("sh_2") is None
+    assert hub.list_for_session(None) == []
+    assert hub.drain("s1") == []
+    assert hub.drain("s2") == []
+
+
+async def _run_bg_to_completion(bg, *, max_wait: float = 2.5) -> None:
+    """Helper: busy-wait for ``bg`` to exit, then finalise. 50 x 50ms polls."""
+    import asyncio
+    for _ in range(int(max_wait / 0.05)):
+        if not bg.is_running:
+            break
+        await asyncio.sleep(0.05)
+    await bg.finalise()
+
+
+@test("shell", "BackgroundShell: spawn echo and capture stdout + exit_code")
+async def t_bg_spawn_echo(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_echo",
+        command="echo hello-from-shell",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await _run_bg_to_completion(bg)
+    assert not bg.is_running, "echo should have completed within 2.5s"
+    stdout, _ = bg.read(since_stdout=0, since_stderr=0)
+    assert "hello-from-shell" in stdout
+    assert bg.exit_code == 0
+
+
+@test("shell", "BackgroundShell: non-zero exit is captured")
+async def t_bg_nonzero_exit(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_exit",
+        command="exit 7",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await _run_bg_to_completion(bg)
+    assert not bg.is_running
+    assert bg.exit_code == 7
+
+
+@test("shell", "BackgroundShell: stderr is captured separately")
+async def t_bg_stderr(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_err",
+        command="echo to-err 1>&2",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await _run_bg_to_completion(bg)
+    stdout, stderr = bg.read(since_stdout=0, since_stderr=0)
+    assert stdout == "", f"expected no stdout, got: {stdout!r}"
+    assert "to-err" in stderr
+
+
+@test("shell", "BackgroundShell: read cursors advance (since_last semantics)")
+async def t_bg_read_cursor(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_cursor",
+        command="printf 'ABC'",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await _run_bg_to_completion(bg)
+    s1, _ = bg.read(since_stdout=0, since_stderr=0)
+    assert s1 == "ABC"
+    s2, _ = bg.read(since_stdout=len(s1.encode()), since_stderr=0)
+    assert s2 == "", f"expected empty after full read, got: {s2!r}"
+
+
+@test("shell", "BackgroundShell: write_stdin feeds a line to a running cat")
+async def t_bg_stdin_cat(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_cat",
+        command="cat",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    try:
+        n = await bg.write_stdin("hello\nworld\n", press_enter=False)
+        assert n == len("hello\nworld\n")
+        # Close stdin so cat exits.
+        assert bg._proc is not None
+        bg._proc.stdin.close()  # type: ignore[union-attr]
+        await bg._proc.wait()
+        await bg.finalise()
+    finally:
+        if bg.is_running:
+            await bg.kill(signal_name="KILL", grace_seconds=0)  # defensive
+    stdout, _ = bg.read(since_stdout=0, since_stderr=0)
+    assert "hello" in stdout and "world" in stdout
+
+
+@test("shell", "BackgroundShell: write_stdin with press_enter appends a newline")
+async def t_bg_stdin_press_enter(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_cat2",
+        command="cat",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    try:
+        n = await bg.write_stdin("ping", press_enter=True)
+        assert n == len("ping\n")
+        assert bg._proc is not None
+        bg._proc.stdin.close()  # type: ignore[union-attr]
+        await bg._proc.wait()
+        await bg.finalise()
+    finally:
+        if bg.is_running:
+            await bg.kill(signal_name="KILL", grace_seconds=0)
+    stdout, _ = bg.read(since_stdout=0, since_stderr=0)
+    assert stdout.rstrip("\n") == "ping"
+
+
+@test("shell", "BackgroundShell: kill TERM stops a sleep")
+async def t_bg_kill_term(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_sleep",
+        command="sleep 30",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await asyncio.sleep(0.1)  # let it actually start
+    await bg.kill(signal_name="TERM", grace_seconds=2.0)
+    await bg.finalise()
+    assert not bg.is_running
+    # POSIX SIGTERM — signal captured, exit_code is None.
+    assert bg.signal in ("TERM", "15"), f"unexpected signal: {bg.signal}"
+
+
+@test("shell", "BackgroundShell: kill escalates to KILL if TERM ignored")
+async def t_bg_kill_escalate(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    # Trap TERM so only KILL works.
+    bg = BackgroundShell(
+        shell_id="sh_trap",
+        command="trap '' TERM; sleep 30",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await asyncio.sleep(0.2)  # make sure trap is installed
+    await bg.kill(signal_name="TERM", grace_seconds=0.5)
+    await bg.finalise()
+    assert not bg.is_running
+    assert bg.signal in ("KILL", "9"), f"expected KILL, got {bg.signal}"
+
+
+@test("shell", "BackgroundShell.kill swallows ProcessLookupError from race-exited proc")
+async def t_bg_kill_race_exited(ctx: TestContext) -> None:
+    """Regression for ``ProcessLookupError: [Errno 3] No such process`` in
+    ``run_with_timeout`` (observed on lyra music, 2026-05-14): the
+    subprocess can exit between the ``returncode is not None`` check at
+    the top of ``kill`` and the ``os.getpgid`` call below it. Before the
+    fix, that race surfaced an unhandled traceback through
+    ``shell_exec`` and the timeout path failed loudly. After: ``kill``
+    treats it as 'already gone' and returns cleanly."""
+    import asyncio
+    import os as os_mod
+    from unittest.mock import patch
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(
+        shell_id="sh_race",
+        command="sleep 30",
+        cwd=None,
+        env=None,
+    )
+    await bg.start()
+    await asyncio.sleep(0.05)
+
+    # Simulate the race: the proc handle still says returncode=None but the
+    # OS-level process has already gone, so getpgid raises.
+    with patch.object(
+        os_mod, "getpgid",
+        side_effect=ProcessLookupError(3, "No such process"),
+    ):
+        # Must NOT raise — the previous code bubbled ProcessLookupError up.
+        await bg.kill(signal_name="TERM", grace_seconds=0.1)
+
+    # Clean up the real process so it doesn't outlive the test.
+    try:
+        bg._proc.kill()
+        await bg._proc.wait()
+    except Exception:
+        pass
+    await bg.finalise()
+
+
+@test("shell", "BackgroundShell.run_with_timeout: fast command returns normally")
+async def t_bg_run_with_timeout_ok(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(shell_id="sh_ok", command="echo abc", cwd=None, env=None)
+    result = await bg.run_with_timeout(timeout_seconds=2.0)
+    assert result.timed_out is False
+    assert result.exit_code == 0
+    assert "abc" in result.stdout
+
+
+@test("shell", "BackgroundShell.run_with_timeout: slow command is killed")
+async def t_bg_run_with_timeout_kill(ctx: TestContext) -> None:
+    import time
+    from src.mcp.servers.shell.shells import BackgroundShell
+
+    bg = BackgroundShell(shell_id="sh_slow", command="sleep 30", cwd=None, env=None)
+    t0 = time.time()
+    result = await bg.run_with_timeout(timeout_seconds=0.3)
+    elapsed = time.time() - t0
+    assert result.timed_out is True
+    assert elapsed < 5.0, f"kill took too long: {elapsed}"
+    assert result.signal in ("TERM", "KILL", "15", "9")
+
+
+@test("shell", "handlers.shell_exec: foreground success")
+async def t_handlers_exec_fg_ok(ctx: TestContext) -> None:
+    _reset_shell_hub()
+    from src.mcp.servers.shell import handlers
+
+    out = await handlers.shell_exec(
+        command="echo one-two-three",
+        cwd=None, env=None, timeout=5000,
+        run_in_background=False, stdin=None, description=None,
+        session_id=None,
+    )
+    assert out["exit_code"] == 0
+    assert "one-two-three" in out["stdout"]
+    assert out["stderr"] == ""
+    assert out["timed_out"] is False
+
+
+@test("shell", "handlers.shell_exec: foreground timeout sets timed_out=True")
+async def t_handlers_exec_fg_timeout(ctx: TestContext) -> None:
+    _reset_shell_hub()
+    from src.mcp.servers.shell import handlers
+
+    out = await handlers.shell_exec(
+        command="sleep 10",
+        cwd=None, env=None, timeout=200,
+        run_in_background=False, stdin=None, description=None,
+        session_id=None,
+    )
+    assert out["timed_out"] is True
+    assert out["signal"] in ("TERM", "KILL", "15", "9")
+
+
+@test("shell", "shell_exec emits diag events on the timeout path")
+async def t_shell_exec_diag_events(ctx: TestContext) -> None:
+    """The shell-stall diag (chore(diag) on 2026-05-03) needs these
+    five events on the timeout path so the next stall is layer-isolatable.
+    Without them, events.jsonl just shows a tool_use_request with no
+    tool_use_result and we're back to guessing at the layer.
+    """
+    import logging as _logging
+
+    _reset_shell_hub()
+    from src.core.logging import EVENT_LOGGER
+    from src.mcp.servers.shell import handlers
+
+    captured: list[str] = []
+
+    class _Capture(_logging.Handler):
+        def emit(self, record: _logging.LogRecord) -> None:
+            captured.append(record.getMessage())
+
+    handler = _Capture(level=_logging.DEBUG)
+    events_logger = _logging.getLogger(EVENT_LOGGER)
+    events_logger.addHandler(handler)
+    try:
+        out = await handlers.shell_exec(
+            command="sleep 10",
+            cwd=None, env=None, timeout=200,
+            run_in_background=False, stdin=None, description=None,
+            session_id="sess-diag",
+        )
+    finally:
+        events_logger.removeHandler(handler)
+
+    assert out["timed_out"] is True
+    expected = {
+        "shell_exec.handler_enter",
+        "shell_exec.wait_timeout_fired",
+        "shell_exec.kill_returned",
+        "shell_exec.finalise_done",
+        "shell_exec.handler_done",
+    }
+    missing = expected - set(captured)
+    assert not missing, f"diag events missing: {missing}; got {captured}"
+
+
+@test("shell", "BackgroundShell.finalise is bounded when grandchild keeps pipes open")
+async def t_shell_finalise_bounded_with_grandchild_holding_pipes(ctx: TestContext) -> None:
+    """Reproduces the performa scheduler stall (2026-05-04 06:45 UTC):
+    a setsid'd grandchild inherits stdout/stderr from the shell and
+    keeps them open after the immediate shell exits, pinning
+    asyncio.Process.wait() and the _drain tasks. Pre-fix finalise()
+    awaits would never return — diag events showed kill_returned but
+    no finalise_done. The bound + transport-close fallback in
+    _wait_with_timeout / _await_drain must keep the cleanup finite.
+    """
+    import asyncio as _asyncio
+    import time as _time
+
+    from src.mcp.servers.shell.shells import (
+        BackgroundShell,
+        FINALISE_TIMEOUT,
+    )
+
+    # The shell forks a child, the child calls setsid() to become its
+    # own session leader (so killpg on the shell's pgid won't reach
+    # it), then sleeps for a while. The child inherits stdout/stderr
+    # from the shell. The parent exits immediately, so the shell's
+    # immediate child reaps cleanly — but the grandchild keeps the
+    # pipes pinned. Done via python3 to stay portable (macOS lacks
+    # setsid(1) by default).
+    import shlex as _shlex
+    # The marker comment ends up in /proc/<pid>/cmdline so we can pkill
+    # this specific grandchild after the test without nuking unrelated
+    # python processes.
+    _marker = "openagent_t_shell_finalise_grandchild"
+    grandchild_py = (
+        f"# {_marker}\n"
+        "import os, sys, time\n"
+        "if os.fork() == 0:\n"
+        "    os.setsid()\n"
+        "    time.sleep(30)\n"
+        "else:\n"
+        "    sys.exit(0)\n"
+    )
+    sh = BackgroundShell(
+        shell_id="t_grandchild",
+        command=f"python3 -c {_shlex.quote(grandchild_py)}",
+        cwd=None,
+        env=None,
+    )
+    started = _time.monotonic()
+    try:
+        result = await _asyncio.wait_for(
+            sh.run_with_timeout(timeout_seconds=2.0),
+            # Generous outer cap: 3 finalise awaits × FINALISE_TIMEOUT,
+            # plus kill grace, plus headroom. Pre-fix this hangs forever.
+            timeout=FINALISE_TIMEOUT * 6 + 10.0,
+        )
+    except _asyncio.TimeoutError:
+        raise AssertionError(
+            "finalise() hung — setsid grandchild kept stdout/stderr "
+            "open and the cleanup awaits were unbounded"
+        )
+    elapsed = _time.monotonic() - started
+    # The 2s run timeout fires (because proc.wait() itself blocks on
+    # pipe EOF — the same root cause), then finalise's bounded
+    # cleanup kicks in: up to 3 × FINALISE_TIMEOUT. Allow generous
+    # headroom but well under the outer wait_for cap.
+    assert elapsed < FINALISE_TIMEOUT * 6 + 5.0, (
+        f"finalise took {elapsed:.1f}s; expected bounded by FINALISE_TIMEOUT cleanup"
+    )
+    # Whatever exit_code/signal we get is fine; the contract under
+    # test is just that we return at all in bounded time.
+    assert result is not None
+    # Cleanup: the grandchild is still sleeping in its own session;
+    # kill it (matched by the marker) so it doesn't outlive the test.
+    import os as _os
+    _os.system(f"pkill -f {_shlex.quote(_marker)} 2>/dev/null || true")
+
+
+@test("shell", "handlers.shell_which: existing command returns path")
+async def t_handlers_which_ok(ctx: TestContext) -> None:
+    _reset_shell_hub()
+    from src.mcp.servers.shell import handlers
+
+    out = await handlers.shell_which(command="sh")
+    assert out["available"] is True
+    assert out["path"].endswith("/sh") or out["path"].endswith("sh.exe")
+
+
+@test("shell", "handlers.shell_which: missing command returns available=false")
+async def t_handlers_which_missing(ctx: TestContext) -> None:
+    _reset_shell_hub()
+    from src.mcp.servers.shell import handlers
+
+    out = await handlers.shell_which(command="definitely_not_a_real_binary_xyz_123")
+    assert out["available"] is False
+
+
+@test("shell", "handlers.shell_exec background returns shell_id and posts terminal event")
+async def t_handlers_exec_bg_event(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    started = await handlers.shell_exec(
+        command="echo background-done",
+        cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description=None,
+        session_id="sess-A",
+    )
+    assert "shell_id" in started
+    sid_shell = started["shell_id"]
+
+    # Wait for the watcher to post the event.
+    events = await handlers.get_hub().wait("sess-A", timeout=3.0)
+    assert len(events) == 1
+    ev = events[0]
+    assert ev.shell_id == sid_shell
+    assert ev.kind == "completed"
+    assert ev.exit_code == 0
+
+
+@test("shell", "handlers.shell_output: returns delta and marks not running")
+async def t_handlers_output_delta(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    started = await handlers.shell_exec(
+        command="printf 'abc'",
+        cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description=None,
+        session_id="sess-B",
+    )
+    sid_shell = started["shell_id"]
+    # Wait until the watcher posts the terminal event, so we know
+    # output has been fully drained.
+    await handlers.get_hub().wait("sess-B", timeout=3.0)
+    out = await handlers.shell_output(
+        shell_id=sid_shell, filter=None, since_last=True,
+    )
+    assert out["still_running"] is False
+    assert out["stdout_delta"] == "abc"
+    assert out["stderr_delta"] == ""
+    assert out["exit_code"] == 0
+    # Second call with since_last=True returns empty delta (cursors advanced).
+    out2 = await handlers.shell_output(
+        shell_id=sid_shell, filter=None, since_last=True,
+    )
+    assert out2["stdout_delta"] == ""
+
+
+@test("shell", "handlers.shell_output: filter matches per-line regex")
+async def t_handlers_output_filter(ctx: TestContext) -> None:
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    started = await handlers.shell_exec(
+        command="printf 'line-alpha\\nline-beta\\nline-gamma\\n'",
+        cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description=None,
+        session_id="sess-F",
+    )
+    sid_shell = started["shell_id"]
+    await handlers.get_hub().wait("sess-F", timeout=3.0)
+    out = await handlers.shell_output(
+        shell_id=sid_shell, filter=r"beta|gamma", since_last=True,
+    )
+    lines = [l for l in out["stdout_delta"].splitlines() if l]
+    assert lines == ["line-beta", "line-gamma"], f"got: {lines}"
+
+
+@test("shell", "handlers.shell_input writes to a running shell's stdin")
+async def t_handlers_input(ctx: TestContext) -> None:
+    import asyncio
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    started = await handlers.shell_exec(
+        command="cat",
+        cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description=None,
+        session_id="sess-I",
+    )
+    sid = started["shell_id"]
+    written = await handlers.shell_input(shell_id=sid, text="hey", press_enter=True)
+    assert written["bytes_written"] == len("hey\n")
+    # Brief pause so cat has time to echo the input before we kill it.
+    await asyncio.sleep(0.1)
+    # Kill to let the watcher fire so the hub state is clean.
+    await handlers.shell_kill(shell_id=sid, signal="KILL")
+    await handlers.get_hub().wait("sess-I", timeout=3.0)
+    out = await handlers.shell_output(shell_id=sid, filter=None, since_last=True)
+    assert "hey" in out["stdout_delta"]
+
+
+@test("shell", "handlers.shell_kill terminates a running shell")
+async def t_handlers_kill(ctx: TestContext) -> None:
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    started = await handlers.shell_exec(
+        command="sleep 30",
+        cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description=None,
+        session_id="sess-K",
+    )
+    sid = started["shell_id"]
+    res = await handlers.shell_kill(shell_id=sid, signal="TERM")
+    assert res["killed"] is True
+    await handlers.get_hub().wait("sess-K", timeout=3.0)
+    rec = handlers.get_hub().get(sid)
+    assert rec is not None and rec.is_completed
+
+
+@test("shell", "handlers.shell_list returns running and recently-completed shells")
+async def t_handlers_list(ctx: TestContext) -> None:
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    bg1 = await handlers.shell_exec(
+        command="sleep 5", cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description="long",
+        session_id="sess-L",
+    )
+    bg2 = await handlers.shell_exec(
+        command="echo fast", cwd=None, env=None, timeout=None,
+        run_in_background=True, stdin=None, description="short",
+        session_id="sess-L",
+    )
+    await handlers.get_hub().wait("sess-L", timeout=3.0)  # fast one completes
+
+    listing = await handlers.shell_list(session_id="sess-L")
+    assert isinstance(listing, list)
+    ids = {entry["shell_id"] for entry in listing}
+    assert bg1["shell_id"] in ids and bg2["shell_id"] in ids
+    states = {entry["shell_id"]: entry["state"] for entry in listing}
+    assert states[bg2["shell_id"]] == "completed"
+    assert states[bg1["shell_id"]] == "running"
+
+    # Clean up long-runner.
+    await handlers.shell_kill(shell_id=bg1["shell_id"], signal="KILL")
+    await handlers.get_hub().wait("sess-L", timeout=3.0)
+
+
+@test("shell", "adapters.build_runtime_toolkit exposes the six tools by name")
+async def t_adapter_agno(ctx: TestContext) -> None:
+    from src.mcp.servers.shell.adapters import build_runtime_toolkit
+
+    tk = build_runtime_toolkit()
+    names = set()
+    for attr in ("functions",):
+        container = getattr(tk, attr, None)
+        if isinstance(container, dict):
+            names.update(container.keys())
+    # the runtime's Toolkit populates .functions on init with the callables it
+    # was given; names come from the function __name__.
+    if not names:
+        # Fallback: look at the underlying tools list.
+        tools = getattr(tk, "tools", []) or []
+        names = {t.__name__ for t in tools if callable(t)}
+    for expected in ("shell_exec", "shell_output", "shell_input", "shell_kill", "shell_list", "shell_which"):
+        assert expected in names, f"missing tool {expected} in {names}"
+
+
+@test("shell", "MCPPool: in-process shell toolkit appears in runtime_toolkits")
+async def t_pool_in_process_agno(ctx: TestContext) -> None:
+    from src.mcp.pool import MCPPool
+
+    pool = MCPPool.from_config(
+        mcp_config=[{"builtin": "shell"}],
+        include_defaults=False,
+        disable=None,
+        db_path=str(ctx.db_path),
+    )
+    await pool.connect_all()
+    try:
+        kits = pool.runtime_toolkits
+        assert len(kits) == 1, f"expected 1 toolkit, got {len(kits)}: {kits}"
+        kit = kits[0]
+        assert getattr(kit, "name", None) == "shell"
+    finally:
+        await pool.close_all()
+
+
+@test("shell", "MCPPool: bad adapter_module is isolated (pool stays healthy)")
+async def t_pool_in_process_import_failure(ctx: TestContext) -> None:
+    from src.mcp.pool import MCPPool, _ServerSpec
+
+    # Construct a pool directly with a single broken in-process spec.
+    broken = _ServerSpec(
+        name="broken_shell",
+        in_process=True,
+        adapter_module="openagent.mcp.servers.does_not_exist",
+        runtime_toolkit_factory="build_runtime_toolkit",
+    )
+    pool = MCPPool(specs=[broken])
+    # connect_all must NOT raise — the broken spec is simply skipped.
+    await pool.connect_all()
+    try:
+        assert pool.runtime_toolkits == []
+    finally:
+        await pool.close_all()
+
+
+@test("shell", "handlers: shell_exec picks up session_id from contextvar when arg is None")
+async def t_handlers_session_ctxvar(ctx: TestContext) -> None:
+    from src.mcp.servers.shell import handlers, adapters
+
+    _reset_shell_hub()
+    token = adapters.set_session_context("sess-CTX")
+    try:
+        started = await handlers.shell_exec(
+            command="echo ctxvar",
+            cwd=None, env=None, timeout=None,
+            run_in_background=True, stdin=None, description=None,
+            session_id=None,  # omit → fall back to contextvar
+        )
+    finally:
+        adapters.reset_session_context(token)
+    await handlers.get_hub().wait("sess-CTX", timeout=3.0)
+    rec = handlers.get_hub().get(started["shell_id"])
+    assert rec is not None
+    assert rec.session_id == "sess-CTX", f"unexpected session_id: {rec.session_id}"
+
+
+@test("shell", "config.shell_settings returns defaults when unset")
+async def t_config_defaults(ctx: TestContext) -> None:
+    from src.core.config import shell_settings
+
+    s = shell_settings({})
+    assert s.wake_wait_window_seconds == 60.0
+    assert s.autoloop_cap == 25
+
+
+@test("shell", "config.shell_settings honours overrides")
+async def t_config_override(ctx: TestContext) -> None:
+    from src.core.config import shell_settings
+
+    s = shell_settings({"shell": {"wake_wait_window_seconds": 0, "autoloop_cap": 5}})
+    assert s.wake_wait_window_seconds == 0.0
+    assert s.autoloop_cap == 5
+
+
+@test("shell", "agent._run_inner: continues session when bg shell completes")
+async def t_agent_autoloop_continues(ctx: TestContext) -> None:
+    import asyncio
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+    from src.mcp.servers.shell import handlers, adapters
+    from src.mcp.servers.shell.events import ShellEvent
+
+    _reset_shell_hub()
+
+    class FakeModel(BaseModel):
+        history_mode = "provider"
+
+        def __init__(self):
+            self.turns: list[str] = []
+
+        async def generate(
+            self, messages, system=None, tools=None, on_status=None, session_id=None,
+            files=None, images=None, audio=None, videos=None, **_kwargs,
+        ) -> ModelResponse:
+            content = messages[-1]["content"]
+            self.turns.append(content)
+            # Turn 1 — start a background shell then finish.
+            if len(self.turns) == 1:
+                # Simulate the tool-loop having kicked off a bg shell:
+                token = adapters.set_session_context(session_id)
+                try:
+                    await handlers.shell_exec(
+                        command="echo shell-done",
+                        cwd=None, env=None, timeout=None,
+                        run_in_background=True, stdin=None, description=None,
+                        session_id=None,
+                    )
+                finally:
+                    adapters.reset_session_context(token)
+                return ModelResponse(content="Started build, will wait.")
+            # Turn 2 — the reminder came in; produce final text.
+            return ModelResponse(content=f"Saw reminder: {content[:40]}...")
+
+    model = FakeModel()
+    agent = Agent(name="test", model=model)
+    # Skip heavy initialize path; shell MCP doesn't need any MCP pool.
+    agent._initialized = True
+
+    async def _noop_status(*_a, **_k): pass
+
+    result = await agent._run_inner(
+        message="please run the build",
+        attachments=None,
+        _status=_noop_status,
+        session_id="S-AUTO",
+    )
+    # Two turns must have run (the loop re-entered).
+    assert len(model.turns) == 2, f"turns: {model.turns!r}"
+    assert "Saw reminder" in result
+    assert "shell-done" in model.turns[1] or "sh_" in model.turns[1]
+
+
+@test("shell", "agent._run_inner: stops when no bg shells and no events")
+async def t_agent_autoloop_stops(ctx: TestContext) -> None:
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+
+    _reset_shell_hub()
+
+    class NoShellModel(BaseModel):
+        history_mode = "provider"
+        async def generate(self, messages, system=None, tools=None, on_status=None, session_id=None, files=None, images=None, audio=None, videos=None):
+            return ModelResponse(content="just text")
+
+    agent = Agent(name="test", model=NoShellModel())
+    agent._initialized = True
+
+    async def _noop_status(*_a, **_k): pass
+
+    result = await agent._run_inner(
+        message="hi",
+        attachments=None,
+        _status=_noop_status,
+        session_id="S-NONE",
+    )
+    assert result == "just text"
+
+
+@test("shell", "agent._run_inner: passive reminder on next turn")
+async def t_agent_passive_reminder(ctx: TestContext) -> None:
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+    from src.mcp.servers.shell import handlers
+    from src.mcp.servers.shell.events import ShellEvent
+    import time
+
+    _reset_shell_hub()
+    # Pre-seed the hub with a completed event for session S-P.
+    handlers.get_hub().register(shell_id="sh_old", session_id="S-P", command="echo x")
+    handlers.get_hub().mark_completed("sh_old", exit_code=0, signal=None)
+    handlers.get_hub().post_event("S-P", ShellEvent(
+        shell_id="sh_old", kind="completed", exit_code=0, signal=None,
+        bytes_stdout=1, bytes_stderr=0, at=time.time(),
+    ))
+
+    class EchoModel(BaseModel):
+        history_mode = "provider"
+        last_input: str = ""
+        async def generate(self, messages, system=None, tools=None, on_status=None, session_id=None, files=None, images=None, audio=None, videos=None):
+            EchoModel.last_input = messages[-1]["content"]
+            return ModelResponse(content="ok")
+
+    async def _noop_status(*_a, **_k): pass
+
+    agent = Agent(name="test", model=EchoModel())
+    agent._initialized = True
+    result = await agent._run_inner(
+        message="anything new?",
+        attachments=None,
+        _status=_noop_status,
+        session_id="S-P",
+    )
+    assert result == "ok"
+    assert "<system-reminder>" in EchoModel.last_input
+    assert "sh_old" in EchoModel.last_input
+    assert "anything new?" in EchoModel.last_input
+
+
+@test("shell", "agent._run_inner: autoloop_cap stops runaway chains")
+async def t_agent_autoloop_cap(ctx: TestContext) -> None:
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+    from src.mcp.servers.shell import handlers, adapters
+
+    _reset_shell_hub()
+
+    class AlwaysStartsShellModel(BaseModel):
+        history_mode = "provider"
+
+        def __init__(self): self.turns = 0
+
+        async def generate(self, messages, system=None, tools=None, on_status=None, session_id=None, files=None, images=None, audio=None, videos=None):
+            self.turns += 1
+            token = adapters.set_session_context(session_id)
+            try:
+                await handlers.shell_exec(
+                    command="echo runaway",
+                    cwd=None, env=None, timeout=None,
+                    run_in_background=True, stdin=None, description=None,
+                    session_id=None,
+                )
+            finally:
+                adapters.reset_session_context(token)
+            return ModelResponse(content=f"turn {self.turns}")
+
+    async def _noop_status(*_a, **_k): pass
+
+    model = AlwaysStartsShellModel()
+    agent = Agent(name="test", model=model, config={"shell": {"autoloop_cap": 3}})
+    agent._initialized = True
+    result = await agent._run_inner(
+        message="go",
+        attachments=None,
+        _status=_noop_status,
+        session_id="S-CAP",
+    )
+    assert model.turns == 3, f"turns: {model.turns}"
+    assert "turn 3" in result
+
+
+@test("shell", "agent.forget_session purges hub entries for that session")
+async def t_agent_forget_purges_hub(ctx: TestContext) -> None:
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    handlers.get_hub().register(shell_id="sh_x", session_id="S-FOR", command="echo")
+    handlers.get_hub().mark_completed("sh_x", exit_code=0, signal=None)
+
+    class NoopModel(BaseModel):
+        history_mode = "provider"
+        async def generate(self, *a, **kw): return ModelResponse(content="")
+
+    agent = Agent(name="test", model=NoopModel())
+    agent._initialized = True
+    await agent.forget_session("S-FOR")
+    assert handlers.get_hub().list_for_session("S-FOR") == []
+
+
+@test("shell", "agent.shutdown clears the hub")
+async def t_agent_shutdown_clears_hub(ctx: TestContext) -> None:
+    from src.core.agent import Agent
+    from src.models.base import BaseModel, ModelResponse
+    from src.mcp.servers.shell import handlers
+
+    _reset_shell_hub()
+    handlers.get_hub().register(shell_id="sh_y", session_id="S-SH", command="echo")
+    handlers.get_hub().mark_completed("sh_y", exit_code=0, signal=None)
+
+    class NoopModel(BaseModel):
+        history_mode = "provider"
+        async def generate(self, *a, **kw): return ModelResponse(content="")
+
+    agent = Agent(name="test", model=NoopModel())
+    agent._initialized = True
+    await agent.shutdown()
+    assert handlers.get_hub().get("sh_y") is None

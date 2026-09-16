@@ -1,0 +1,13 @@
+FROM hub.spicysparks.com/spicysparks/openagent:v29
+# --chmod al posto di un RUN chmod: quel RUN creava un SECONDO layer che
+# duplicava il binario (289MB), raddoppiando spazio e tempo di build per
+# cambiare un bit di permessi. Il 3-set-2026, con il disco della macchina al
+# 99%, e' proprio quello step a morire con "DeadlineExceeded".
+COPY --chmod=0755 dist/openagent /opt/openagent/bin/openagent
+# Keep the machine config and retention daemon in the derived runtime image.
+# Fresh PVCs seed their live supervisor config from this baseline; without the
+# copy they inherit v29's pre-retention config and, critically, stop only the
+# PyInstaller launcher instead of the SQLite-owning child process group.
+COPY deploy/supervisord.conf /etc/supervisord.conf
+COPY src/core/session_retention.py /opt/openagent/session_retention.py
+COPY src/core/wal_monitor.py /opt/openagent/wal_monitor.py

@@ -1,0 +1,133 @@
+"""model-manager: provider CRUD tools write to the providers table.
+
+The provider-manager tools write directly to the ``providers`` SQLite
+table.
+"""
+from __future__ import annotations
+
+import os
+import uuid
+
+from ._framework import TestContext, test
+
+
+@test("provider_manager", "add_provider writes api_key to DB (v0.12 framework-aware)")
+async def t_add_provider(ctx: TestContext) -> None:
+    import src.mcp.servers.model_manager.server as mgr
+    from src.memory.db import MemoryDB
+
+    tmp_dir = ctx.db_path.parent / f"pmgr-{uuid.uuid4().hex[:8]}"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    db_path = tmp_dir / "test.db"
+
+    prev_db = os.environ.get("OPENAGENT_DB_PATH")
+    os.environ["OPENAGENT_DB_PATH"] = str(db_path)
+    # Reset the per-process MemoryDB singleton so the test picks up the
+    # temp path above rather than a stale connection from a prior test.
+    if mgr._db is not None:
+        await mgr._db.close()
+        mgr._db = None
+
+    try:
+        # Seed schema so the providers table exists.
+        db = MemoryDB(str(db_path))
+        await db.connect()
+        await db.close()
+
+        result = await mgr.add_provider(
+            "zai",
+            framework="api-based",
+            api_key="zai-test-key",
+            base_url="https://api.z.ai/api/paas/v4",
+        )
+        assert result["name"] == "zai"
+        assert result["framework"] == "api-based"
+        assert result["has_api_key"] is True
+        assert result["base_url"] == "https://api.z.ai/api/paas/v4"
+        provider_id = result["id"]
+
+        # Verify the row landed in the DB (cleartext api_key; the DB
+        # file is 0600 and owned by the running user).
+        db = MemoryDB(str(db_path))
+        await db.connect()
+        try:
+            row = await db.get_provider(provider_id)
+            assert row is not None
+            assert row["name"] == "zai"
+            assert row["framework"] == "api-based"
+            assert row["api_key"] == "zai-test-key"
+            assert row["base_url"] == "https://api.z.ai/api/paas/v4"
+        finally:
+            await db.close()
+
+        listed = await mgr.list_providers()
+        zai = next(
+            (p for p in listed if p["name"] == "zai" and p["framework"] == "api-based"),
+            None,
+        )
+        assert zai is not None
+        assert zai["has_api_key"] is True
+
+        # An unknown framework is rejected at the MCP layer (same contract
+        # as the DB layer): ``api-based`` is the only shipped framework.
+        raised = False
+        try:
+            await mgr.add_provider(
+                "anthropic", framework="made-up-cli", api_key="x",
+            )
+        except ValueError as e:
+            raised = True
+            assert "invalid framework" in str(e).lower()
+        assert raised, "add_provider must reject an unknown framework"
+
+        # remove_provider deletes the DB row.
+        await mgr.remove_provider(provider_id)
+        db = MemoryDB(str(db_path))
+        await db.connect()
+        try:
+            assert await db.get_provider(provider_id) is None
+        finally:
+            await db.close()
+    finally:
+        if mgr._db is not None:
+            await mgr._db.close()
+            mgr._db = None
+        if prev_db is None:
+            os.environ.pop("OPENAGENT_DB_PATH", None)
+        else:
+            os.environ["OPENAGENT_DB_PATH"] = prev_db
+        for name in ("test.db", "test.db-shm", "test.db-wal"):
+            try:
+                (tmp_dir / name).unlink()
+            except FileNotFoundError:
+                pass
+        try:
+            tmp_dir.rmdir()
+        except OSError:
+            pass
+
+
+@test("provider_manager", "discovery lists a vendor's models from the OpenRouter catalog")
+async def t_discovery_lists_vendor_models(ctx: TestContext) -> None:
+    """``discovery.list_provider_models`` surfaces a vendor's catalog from
+    OpenRouter (the model picker), carrying whatever pricing OpenRouter
+    reports. Uses a canned OpenRouter response so the test is hermetic."""
+    import time
+    from src.models import discovery
+
+    prev = discovery._OPENROUTER_CACHE
+    try:
+        discovery._OPENROUTER_CACHE = (time.time(), [
+            {"id": "anthropic/claude-sonnet-4.5", "name": "Claude Sonnet 4.5",
+             "pricing": {"prompt": "0.000003", "completion": "0.000015"}},
+            {"id": "anthropic/claude-opus-4.6", "name": "Claude Opus 4.6",
+             "pricing": {"prompt": "0.000015", "completion": "0.000075"}},
+        ])
+        entries = await discovery.list_provider_models("anthropic")
+        ids = {e["id"] for e in entries}
+        assert "claude-sonnet-4.5" in ids, ids
+        assert "claude-opus-4.6" in ids, ids
+        # discovery surfaces whatever OpenRouter has, pricing included.
+        assert any(e.get("output_cost_per_million") for e in entries)
+    finally:
+        discovery._OPENROUTER_CACHE = prev
