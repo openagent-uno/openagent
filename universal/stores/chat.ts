@@ -25,6 +25,7 @@ import type { SessionEntry } from '../services/api';
 import type { SessionMessage, SessionMessagePage, ToolInvocationDetail } from '../../common/unified-history';
 import { normalizeAttachmentRefs, normalizeMessageContent } from '../../common/ui-views';
 import { attachmentKey } from '../../common/attachments';
+import { isAutomaticSessionTitle, sessionTitleFromPrompt } from '../../common/session-title';
 import {
   toolInfoFromInvocationDetail,
   toolInfoFromSummary,
@@ -1087,9 +1088,10 @@ export const useChat = create<ChatState>((set, get) => ({
   addUserMessage: (sessionId, text, attachments) => {
     const state = get();
     const ses = state.sessions.find((s) => s.id === sessionId);
-    const isFirstMessage = ses ? ses.messages.length === 0 : true;
-    const newTitle = isFirstMessage
-      ? (text.slice(0, 40) || attachments?.[0]?.filename || 'New Chat')
+    const suggestedTitle = sessionTitleFromPrompt(text)
+      || (!text.trim() ? attachments?.[0]?.filename : undefined);
+    const newTitle = suggestedTitle && (!ses || isAutomaticSessionTitle(ses.title, sessionId))
+      ? suggestedTitle
       : undefined;
 
     set((s) => {

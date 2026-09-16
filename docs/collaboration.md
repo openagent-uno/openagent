@@ -38,6 +38,11 @@ Reopening observes the existing run; it never resends the user's input. Canonica
 run IDs reconcile replay, and command history survives the live replay window.
 Integrations may resolve actual avatar images from their own user directory.
 
+New conversations keep their placeholder through technical commands such as
+`/model`. The first meaningful request supplies a compact word-boundary title;
+the same rule repairs older session-id or slash-command titles and persists the
+change so every connected client receives it.
+
 Explicit withdrawal clears chat and run transcript projections even after a
 socket disconnect or before the first snapshot. History reads, pagination and
 search anchors are fenced across revocation/regrant and account resets, so a

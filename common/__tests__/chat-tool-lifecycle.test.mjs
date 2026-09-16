@@ -61,6 +61,26 @@ test('a new local chat has recency before its first durable history row exists',
   assert.ok(session.lastActiveAt >= before);
 });
 
+test('technical commands do not name a chat and the next real request repairs it', () => {
+  const calls = [];
+  globalThis.__oaUpdateSessionMetadata = async (...args) => { calls.push(args); };
+  useChat.setState({
+    sessions: [{ id: 'title-repair', title: 'New Chat', messages: [], isProcessing: false }],
+    activeSessionId: 'title-repair',
+  });
+
+  useChat.getState().addUserMessage('title-repair', '/model codex:gpt-5.6-sol:high');
+  assert.equal(useChat.getState().sessions[0].title, 'New Chat');
+  useChat.getState().addUserMessage('title-repair', '  Start   BuzzerBeater locally with Aspire!  ');
+
+  assert.equal(useChat.getState().sessions[0].title, 'Start BuzzerBeater locally with Aspire');
+  assert.deepEqual(calls, [[
+    'title-repair',
+    { title: 'Start BuzzerBeater locally with Aspire' },
+  ]]);
+  delete globalThis.__oaUpdateSessionMetadata;
+});
+
 test('renameSession persists a normalized title and keeps the optimistic value on success', async () => {
   const calls = [];
   globalThis.__oaUpdateSessionMetadata = async (...args) => {
