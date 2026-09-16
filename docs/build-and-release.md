@@ -11,7 +11,19 @@ python3.11 scripts/workspace.py wheel mcp-bridge --output dist/wheels
 python3.11 scripts/workspace.py release-manifest --artifacts dist/artifacts --output dist/release-manifest.json
 ```
 
-The wheel command builds the selected component with `pip wheel --no-deps`.
+The wheel command builds the selected component with `uv build` from a clean
+temporary snapshot of tracked and unignored source files. It never reuses
+setuptools `build/lib` directories. To build all nine Python components:
+
+```sh
+python3 scripts/build_wheels.py --out /absolute/path/to/empty-output
+```
+
+The builder rejects overlapping import payloads across wheels and writes a
+manifest with source hashes, package versions, SHA-256 digests, and whether
+the source snapshot contains uncommitted changes. Use a new empty output
+directory for each build. This prevents an old CLI wheel from overwriting
+the separately owned client transport package.
 Runtime dependencies are resolved by the consuming product's locked build;
 they are not silently fetched as unpinned source checkouts. Packaging a wheel
 does not claim a runnable, signed desktop release.
@@ -36,3 +48,36 @@ preserving historical assets and immutable tags. Verify the entire installed
 version → transition → new distribution → next update chain before retiring
 old development. User identity keys, application IDs and consent files retain
 their existing paths throughout.
+
+## Local macOS qualification
+
+Use the existing Developer ID identity and entitlements. The host bundle must
+be signed and notarized before staging into Electron. Set `CSC_NAME` to an
+existing keychain identity for `packages/host-tools/scripts/sign_macos_bundle.sh`;
+its CI path still imports the supplied certificate into an isolated temporary
+keychain. The local path never exports a private key or changes the keychain
+search list. Notarization credentials are supplied by the caller, never saved
+in a repository or printed in build output.
+
+After notarization and stapling, regenerate the host bundle manifest and use
+a local consumer lock containing that manifest digest. `after-sign-host-tools`
+verifies that Electron preserved the nested signatures, bundle IDs, team and
+bytes. Keep production consumer locks and update endpoints unchanged until a
+release artifact is published and independently qualified.
+
+`desktop-real-iroh.spec.mjs` supports `OPENAGENT_E2E_PACKAGED_APP` to exercise an
+actual installed `.app` with its bundled renderer and host tools. It uses an
+explicit temporary profile and a temporary server. Without that variable,
+the same scenario runs the current Electron development build.
+
+`desktop-updater-chain.spec.mjs` accepts `OPENAGENT_UPDATE_CHAIN_MANIFEST` with
+three signed local archives and their expected SHA-256/version/feed namespace.
+It copies the existing application into a temporary directory and runs the
+real electron-updater/Squirrel install path through loopback feeds. The
+original application and user data are preserved. Stable builds continue to
+reject beta feeds; synthetic fixture version numbers used to qualify a future
+stable transition are recorded separately from the actual beta release.
+
+See [runtime qualification](runtime-and-verification.md) and
+[frozen server qualification](frozen-server-qualification.md) for evidence and
+remaining distribution gates.

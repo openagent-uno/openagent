@@ -1,7 +1,10 @@
 # Product documentation
 
 - [Architecture and migration status](architecture-v1.md)
+- [App capability registration](app-capabilities-v1.md)
+- [Runtime, automation, and verification gates](runtime-and-verification.md)
 - [Build and release contracts](build-and-release.md)
+- [Frozen server qualification](frozen-server-qualification.md)
 - [OpenAgent vision](site/vision.md)
 - [Product guide and documentation site](site/index.md)
 - [Source history manifest](../packaging/source-history.json)

@@ -62,8 +62,13 @@ been relocated into product packages; engine source has been removed from
 this repository. The host-tools compatibility package delegates to the
 independent tool packages. CLI identity and transport implementations now
 share product packages instead of generated copies. Product wheels build.
-Standalone runtime/gateway admission and native release qualification remain
-in progress; package builds do not establish end-to-end readiness. The v1
+The native gateway now admits turns through one Runtime and canonical run
+ledger, binds certificate identities and current result audiences, and exposes
+App dashboard/device sources only in their exact originating context. Managed
+MCP catalogs and automation definition changes use shared public services;
+definition changes and durable grants commit atomically. Native release
+qualification remains in progress; package builds do not establish complete
+end-to-end readiness. The v1
 runtime, product and client integration gates must pass before this document
 can state that the migration is complete. No production repository, release
 asset, installed application or persistent agent directory has been changed

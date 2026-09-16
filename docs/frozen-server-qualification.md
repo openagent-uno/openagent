@@ -25,7 +25,10 @@ The specification includes framework prompt resources, SQL migrations,
 distribution metadata, LiteLLM's extensionless tokenizer tables, and native
 dependencies. Already compiled module and sidecar assets preserve their original
 bytes and executable bits: automatic Mach-O thinning or resigning would invalidate
-the module manifest. The outer executable remains subject to the product's
+the module manifest. The frozen `_audio-worker` entry dispatches before server configuration or
+identity initialization. Its missing-route rejection is included in the smoke.
+
+The outer executable remains subject to the product's
 separate signing and notarization workflow.
 
 Run the installed-binary qualification from an environment containing the MCP
@@ -58,3 +61,22 @@ This frozen smoke uses the marked local fixture bootstrap. Real authenticated
 CLI/Electron provider conversations have separate qualification receipts against
 installed wheels. The smoke does not qualify a production provider, updater
 transition, Windows/Linux server executable or macOS notarization.
+
+For local signing, `scripts/sign-notarize-macos.sh` accepts `CSC_NAME` and,
+when creating a package, `CSC_INSTALLER_NAME` for existing keychain identities.
+This path does not export certificates, create a keychain or change its search
+list. CI retains the explicit certificate-import path. Stage the already signed
+Node and computer-control helper before sealing the server App; their identifiers,
+team and entitlements are checked and preserved. Installer generation does not
+install the package or modify the currently installed application.
+
+The final local runtime smoke used core snapshot12, product snapshot13 and the
+same tools-final distributions. It passed against the Developer ID signed
+executable with SHA-256
+`84168a7a0a6e9db390198a3c6c7eefd647a6be92c99b2fb1aab4a5593d9108ea`.
+The public HTTP MCP adapter disables ambient proxy and certificate settings.
+`artifacts/frozen-server-verification.json` records the exact binary and runtime
+checks; the external `frozen-core12` evidence directory holds all input wheel
+hashes and the complete 140-distribution dependency lock. Signing/notarization
+receipts describe package qualification separately from a real installation;
+no generated installer has been applied to the user's system.

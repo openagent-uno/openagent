@@ -4,8 +4,8 @@
   "app_id": "ai.openagent.desktop",
   "team_id": "B4KWCQFY8V",
   "version": "1.0.0-beta.1",
-  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/desktop-signed-beta1/openagent-app-1.0.0-beta.1-macos-arm64.zip",
-  "archive_sha256": "44aaf89dfba118371422dbd784406afae89a20c8b1f9f54e1777a98070382a83",
+  "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/desktop-beta1-updater-corrected/openagent-app-1.0.0-beta.1-macos-arm64.zip",
+  "archive_sha256": "86889bf5caf4df81566988fbce21f1a165a771343767163c501b28f55652a335",
   "app_asar_sha256": "c99480237eab1ac0bc4d4c67572e5fd58a1a9457e0ee1a67a53f483142adc0ce",
   "code_signing": "verified-existing-developer-id",
   "notarization": "accepted-stapled",
@@ -20,6 +20,13 @@
     ],
     "reload": "canonical run identity; one user and assistant; no repeated effect",
     "profile": "temporary",
-    "keychain": "Chromium mock keychain in test only"
-  }
+    "keychain": "Chromium mock keychain in test only",
+    "final_run": "passed18.4seconds",
+    "log": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/electron-packaged-final-core12.log",
+    "log_sha256": "d3f54fb82ab485e2e8e462cccdedf2297ade2ce672bdc88ed5c190970a2022ea"
+  },
+  "updater_metadata_sha256": "765a5b945d42e54142fd5359bc16941ff72589ff5346c46305797b8c2270a4e3",
+  "notary_submission_id": "c3cddb7f-aed3-4c94-8fab-218e34f2494a",
+  "runtime_core_snapshot": "core-integration-12",
+  "runtime_product_snapshot": "product-integration-13"
 }

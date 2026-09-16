@@ -1,0 +1,55 @@
+{
+  "binary": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/frozen-core12-signed/openagent.app/Contents/MacOS/openagent",
+  "sha256": "84168a7a0a6e9db390198a3c6c7eefd647a6be92c99b2fb1aab4a5593d9108ea",
+  "signing": "existing Developer ID signature verified; notarization pending",
+  "commands": [
+    {
+      "command": [
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 5.705
+    },
+    {
+      "command": [
+        "--help"
+      ],
+      "exit_code": 0,
+      "seconds": 4.122
+    },
+    {
+      "command": [
+        "selfcheck",
+        "--quiet",
+        "--expect",
+        "1.0.0b1"
+      ],
+      "exit_code": 0,
+      "seconds": 3.891
+    }
+  ],
+  "audio_worker": {
+    "early_entry": true,
+    "missing_route_rejected": true
+  },
+  "mcp": {
+    "node_version": "v24.14.0",
+    "vault_tool_count": 15,
+    "vault_write_read": true,
+    "failed_patch_preserves_note": true,
+    "vault_artifact_hashes_match": true,
+    "python_mcp_tools": [
+      "get_budget_usage",
+      "list_budgets",
+      "remove_budget",
+      "set_budget"
+    ]
+  },
+  "runtime": {
+    "gateway_started": true,
+    "external_runtime_path": false,
+    "voice_models_downloaded": false,
+    "shutdown_exit_code": 0,
+    "extraction_cleaned": true
+  }
+}

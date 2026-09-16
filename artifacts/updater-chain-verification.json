@@ -1,0 +1,71 @@
+{
+  "qualification": "incomplete-local-squirrel-chain",
+  "complete_chain": false,
+  "publication": false,
+  "source_versions_are_fixture": true,
+  "earlier_transition_probe": {
+    "qualification": "transition-only-probe",
+    "complete_chain": false,
+    "publication": false,
+    "source_versions_are_fixture": true,
+    "steps": [
+      {
+        "from": "0.17.5",
+        "to": "0.17.6",
+        "feed_namespace": "legacy-transition",
+        "archive_sha256": "f2bc6b71f0301f2b30940305d93af87ab85f4603fe0a7c5572d312bc0e6a861f",
+        "installed_asar_sha256": "5096eaeb80204be06eb4bcacf84cfb934d2aefc3ebd419d2007054fe329964d3",
+        "signature": "verified",
+        "gatekeeper": "accepted"
+      }
+    ],
+    "original_installation_unchanged": true,
+    "request_paths": [
+      "/legacy-transition/latest-mac.yml",
+      "/legacy-transition/openagent-app-0.17.6-macos-arm64.zip"
+    ]
+  },
+  "final_attempt": {
+    "log": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/updater-chain-full-3.log",
+    "log_sha256": "0fbed25a0e33861d6d4b16973aa68121a36ecd2e0f7f598e1e5807e7bd01bc0a",
+    "selected": "0.17.6",
+    "download": "electron-updater and native Squirrel download completed",
+    "terminal_observation": "native update-downloaded event absent after120seconds; no JavaScript error; native Objective-C debugDescription attribute warnings",
+    "remaining_steps": [
+      "transition installation with corrected metadata",
+      "1.0.0 product installation",
+      "1.0.1 subsequent update"
+    ],
+    "cause": "unresolved; no environment or product cause asserted"
+  },
+  "signed_assets": [
+    {
+      "version": "0.17.6",
+      "feed_namespace": "legacy-transition",
+      "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/updater-fixtures/0.17.6/openagent-app-0.17.6-macos-arm64.zip",
+      "sha256": "3dba5d4c8507fc8122d6fc4e9f6579e747ad28f0e7badae22ad3f9c2a2f8d37a",
+      "updater_metadata_sha256": "765a5b945d42e54142fd5359bc16941ff72589ff5346c46305797b8c2270a4e3",
+      "notary_submission_id": "1740a754-5840-4df5-a5e5-b1ce8d402001",
+      "publication": false
+    },
+    {
+      "version": "1.0.0",
+      "feed_namespace": "product",
+      "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/updater-fixtures/1.0.0/openagent-app-1.0.0-macos-arm64.zip",
+      "sha256": "a587915bdb052738ce9aea2c5e60ba68a6a175e9984353253f48736d7349a84a",
+      "updater_metadata_sha256": "765a5b945d42e54142fd5359bc16941ff72589ff5346c46305797b8c2270a4e3",
+      "notary_submission_id": "993b680e-aa81-40e7-864b-274014b33a77",
+      "publication": false
+    },
+    {
+      "version": "1.0.1",
+      "feed_namespace": "product-next",
+      "archive": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/updater-fixtures/1.0.1/openagent-app-1.0.1-macos-arm64.zip",
+      "sha256": "432a7f8253ea5bd9af5db5c11c87729cf1fca089dd0a95bb52ac6ba5c41ed523",
+      "updater_metadata_sha256": "765a5b945d42e54142fd5359bc16941ff72589ff5346c46305797b8c2270a4e3",
+      "notary_submission_id": "89df0f48-a92a-4adb-a7df-36e09b99d341",
+      "publication": false
+    }
+  ],
+  "installed_user_application_modified": false
+}
