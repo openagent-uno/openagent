@@ -1,0 +1,71 @@
+# In-cluster doorway for Replio → OpenAgent Events.
+#
+# Replio (replio-worker / replio-api, same cluster) POSTs a support thread to
+# the agent's webhook listener the moment it lands, instead of the agent
+# waiting for its hourly support-coverage cron. The listener is a dedicated
+# aiohttp app serving ONLY /hooks/* — the agent's /api/* gateway is not
+# registered on this port — and every delivery is HMAC-verified.
+#
+# Nothing here is reachable from outside the cluster: no Ingress, no Gateway,
+# no public hostname. ClusterIP only.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: esound-openagent-hooks
+  namespace: default
+  labels:
+    app: esound-openagent
+spec:
+  type: ClusterIP
+  selector:
+    app: esound-openagent
+  ports:
+    - name: http-hooks
+      port: 8899
+      targetPort: 8899
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lyra-agent-hooks
+  namespace: default
+  labels:
+    app: lyra-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: lyra-agent
+  ports:
+    - name: http-hooks
+      port: 8899
+      targetPort: 8899
+      protocol: TCP
+---
+# lyra-agent runs under a default-deny ingress policy (lyra-agent-deny-ingress),
+# so the Service above reaches nothing until Replio is let in explicitly — on
+# the hooks port and nothing else. replio-api is matched by its Knative service
+# label, which survives a revision bump; the per-revision `app` label does not.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lyra-agent-allow-replio-hooks
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      app: lyra-agent
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: replio-worker
+        - podSelector:
+            matchLabels:
+              serving.knative.dev/service: replio-api
+      ports:
+        - port: 8899
+          protocol: TCP
