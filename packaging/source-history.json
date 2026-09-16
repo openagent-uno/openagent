@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "sources": [
+    {
+      "component": "server",
+      "path": "apps/server",
+      "source_repository": "https://github.com/openagent-uno/openagent-server.git",
+      "source_commit": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
+      "tag_namespace": "legacy/server/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "app",
+      "path": "apps/app",
+      "source_repository": "https://github.com/openagent-uno/openagent-app.git",
+      "source_commit": "ce2072386fc0bb95296abf16873e17a7c9e77146",
+      "tag_namespace": "legacy/app/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "cli",
+      "path": "apps/cli",
+      "source_repository": "https://github.com/openagent-uno/openagent-cli.git",
+      "source_commit": "322cc4be0eea257e9bbdeafdfc14d6add42c3149",
+      "tag_namespace": "legacy/cli/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "mcp",
+      "path": "apps/mcp-bridge",
+      "source_repository": "https://github.com/openagent-uno/openagent-mcp.git",
+      "source_commit": "c14cec2329d6b7ecb71c13e9cad8b4b8825a071b",
+      "tag_namespace": "legacy/mcp/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "docs",
+      "path": "docs/site",
+      "source_repository": "https://github.com/openagent-uno/openagent-docs.git",
+      "source_commit": "cd3788b110681fbe15dbce3e5b5ac828aa00624a",
+      "tag_namespace": "legacy/docs/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "image",
+      "path": "packaging/legacy-image",
+      "source_repository": "https://git.spicysparks.com/SpicySparks/openagent-image",
+      "source_commit": "62918fa697abdf9b0ff7ca2e498c977bc99e6d4c",
+      "tag_namespace": "legacy/image/",
+      "history": "non-squash-subtree"
+    },
+    {
+      "component": "host-tools",
+      "path": "packages/host-tools",
+      "source_repository": "https://github.com/openagent-uno/openagent-host-tools.git",
+      "source_commit": "af6ad6871d4d1208874bf79735710d089f59b959",
+      "tag_namespace": "legacy/host-tools/",
+      "history": "non-squash-subtree"
+    }
+  ]
+}

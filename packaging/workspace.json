@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "product_version": "1.0.0-beta.1",
+  "status": "migration-development",
+  "components": {
+    "server": {"path": "apps/server", "kind": "python", "distribution": "openagent-framework", "command": "openagent", "artifact_prefix": "openagent", "legacy_release_repository": "openagent-uno/openagent-server"},
+    "cli": {"path": "apps/cli", "kind": "python", "distribution": "openagent-cli", "command": "openagent-cli", "artifact_prefix": "openagent-cli", "legacy_release_repository": "openagent-uno/openagent-cli"},
+    "mcp-bridge": {"path": "apps/mcp-bridge", "kind": "python", "distribution": "openagent-mcp", "command": "openagent-mcp", "artifact_prefix": "openagent-mcp", "legacy_release_repository": "openagent-uno/openagent-mcp"},
+    "host-tools": {"path": "packages/host-tools", "kind": "python", "distribution": "openagent-host-tools", "command": "openagent-host-tools", "artifact_prefix": "openagent-host-tools", "legacy_release_repository": "openagent-uno/openagent-host-tools"},
+    "app": {"path": "apps/app/desktop", "kind": "node", "artifact_prefix": "openagent-app", "legacy_release_repository": "openagent-uno/openagent-app"},
+    "universal": {"path": "apps/app/universal", "kind": "node"},
+    "docs": {"path": "docs/site", "kind": "node"}
+  },
+  "compatibility": {
+    "desktop_application_id": "ai.openagent.desktop",
+    "desktop_protocol_scheme": "openagent",
+    "client_mcp_config": "~/.openagent/user/client-mcps.toml",
+    "client_consent": "~/.openagent/user/client-tools-consent.json",
+    "legacy_update_endpoints_retained": true,
+    "updater_transition_qualified": false
+  }
+}
