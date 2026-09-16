@@ -57,6 +57,32 @@ if False:  # TYPE_CHECKING placeholder — satisfies IDEs without importing
 console = Console()
 
 
+def _is_automatic_session_title(title: str, session_id: str = "") -> bool:
+    normalized = title.strip()
+    return (
+        not normalized
+        or bool(session_id and normalized == session_id)
+        or normalized.lower() in {"new chat", "new conversation"}
+        or bool(re.fullmatch(r"Chat \d+", normalized, flags=re.IGNORECASE))
+        or bool(re.match(r"^/[a-z][\w-]*(?:\s|$)", normalized, flags=re.IGNORECASE))
+    )
+
+
+def _session_title_from_message(message: str, max_length: int = 60) -> str | None:
+    title = " ".join(message.split()).strip()
+    if not title or re.match(r"^/[a-z][\w-]*(?:\s|$)", title, flags=re.IGNORECASE):
+        return None
+    title = re.sub(r"^(?:[-*#>]\s*)+", "", title)
+    title = re.sub(r"[`*_~]", "", title).strip()
+    if not title:
+        return None
+    if len(title) > max_length:
+        candidate = title[: max_length + 1]
+        boundary = candidate.rfind(" ")
+        title = candidate[: boundary if boundary >= max_length * 0.6 else max_length].rstrip()
+    return title.rstrip(".!?,;:") or None
+
+
 def _configure_frozen_host_tools() -> None:
     """Locate the checksum-verified native bundle shipped beside the CLI."""
 
@@ -2081,6 +2107,22 @@ async def _interactive_loop(client: GatewayClient, *, network_name: str, handle:
                 continue
 
             # ── Chat message ──
+
+            # Technical commands are handled above and must never become a
+            # chat name.  Rename an automatic placeholder on the first real
+            # request, including a prior /model-titled session from an older
+            # client. A metadata failure must not prevent the turn itself.
+            suggested_title = _session_title_from_message(text)
+            if suggested_title and _is_automatic_session_title(
+                sessions.get(active, ""), active
+            ):
+                sessions[active] = suggested_title
+                try:
+                    await client.rest_patch(
+                        f"/api/sessions/{active}", {"title": suggested_title}
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             if shared_repl:
                 shared_repl.submit(text, active)
             else:

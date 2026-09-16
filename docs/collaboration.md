@@ -33,5 +33,9 @@ Uploaded attachment refs and the current verified capability-host instance are
 included with the turn. Native audio and capability registration remain separate.
 A 404/405 capability probe preserves older server compatibility.
 
+`/new` starts with a placeholder. Slash commands never become the conversation
+name; the first meaningful request creates a compact title, persists it through
+the session metadata API, and also repairs placeholders produced by older clients.
+
 Tests: `python -m unittest discover -s tests -p test_collaboration.py -v`.
 Interactive lifecycle tests: `python -m unittest discover -s tests -p test_shared_repl.py -v`.

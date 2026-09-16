@@ -39,6 +39,22 @@ CAPABILITIES = {
 }
 
 
+class SessionTitleTests(unittest.TestCase):
+    def test_commands_do_not_become_titles(self):
+        self.assertIsNone(main._session_title_from_message(" /model codex:gpt-5.6-sol:high "))
+        self.assertIsNone(main._session_title_from_message("/context"))
+
+    def test_meaningful_message_repairs_automatic_titles(self):
+        self.assertTrue(main._is_automatic_session_title("New Chat", "session-1"))
+        self.assertTrue(main._is_automatic_session_title("Chat 2", "session-1"))
+        self.assertTrue(main._is_automatic_session_title("/model gpt", "session-1"))
+        self.assertFalse(main._is_automatic_session_title("Release planning", "session-1"))
+        self.assertEqual(
+            main._session_title_from_message("  Start   BuzzerBeater locally with Aspire!  "),
+            "Start BuzzerBeater locally with Aspire",
+        )
+
+
 class _API:
     def __init__(self, *, history=None, search=None, capabilities=CAPABILITIES):
         self.history = history
