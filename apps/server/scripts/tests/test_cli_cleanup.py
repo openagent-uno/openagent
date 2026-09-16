@@ -35,16 +35,16 @@ async def t_cleanup_stale_mei_dirs(ctx: TestContext) -> None:
     os.utime(recent, (recent_ts, recent_ts))
     os.utime(foreign, (old, old))
 
-    orig_gettempdir = cli.tempfile.gettempdir
+    orig_managed_root = cli._managed_temp_root
     orig_active_dirs = cli._active_openagent_frozen_extract_dirs
     orig_is_frozen = _frozen.is_frozen
     try:
-        cli.tempfile.gettempdir = lambda: str(temp_root)
+        cli._managed_temp_root = lambda: temp_root
         cli._active_openagent_frozen_extract_dirs = lambda root: {active.resolve()}
         _frozen.is_frozen = lambda: True
         cli._cleanup_stale_openagent_frozen_extract_dirs(max_age_s=60 * 60)
     finally:
-        cli.tempfile.gettempdir = orig_gettempdir
+        cli._managed_temp_root = orig_managed_root
         cli._active_openagent_frozen_extract_dirs = orig_active_dirs
         _frozen.is_frozen = orig_is_frozen
 

@@ -171,24 +171,51 @@ def _setup_agent_dir(agent_dir: str | None) -> None:
     ensure_agent_dir(path)
 
 
+def _managed_temp_root() -> Path | None:
+    """Resolve an explicitly provisioned agent-owned temporary directory.
+
+    A shared OS temp directory is never owned by one product instance. The
+    launcher can select a directory below the agent directory and write its
+    canonical agent path to ``.openagent-temp-owner`` before enabling cleanup.
+    """
+    configured = os.environ.get("OPENAGENT_MANAGED_TEMP_DIR")
+    agent_dir = paths.get_agent_dir()
+    if not configured or agent_dir is None:
+        return None
+    try:
+        root = Path(configured).expanduser()
+        if root.is_symlink():
+            return None
+        root = root.resolve(strict=True)
+        owner = Path(agent_dir).resolve(strict=True)
+        marker = root / ".openagent-temp-owner"
+        if root == owner or not root.is_relative_to(owner) or marker.is_symlink():
+            return None
+        return root if marker.read_text().strip() == str(owner) else None
+    except (OSError, ValueError):
+        return None
+
+
 def _cleanup_stale_openagent_temp_artifacts(max_age_s: int = _STALE_TEMP_ARTIFACT_MAX_AGE_S) -> None:
     """Best-effort sweep of stale OpenAgent temp artifacts.
 
-    Crashes or hard restarts can strand ``/tmp/oa_*`` directories and files.
+    Crashes or hard restarts can strand ``oa_*`` directories and files.
     Left unchecked they accumulate until temp-space pressure starts breaking
     bridge attachment handling, PyInstaller extraction, and other unrelated
-    startup paths. We only touch direct children of the OS temp dir whose
+    startup paths. We only touch direct children of a verified owned temp dir whose
     basename starts with ``oa_`` and are older than a generous grace window.
     """
+    temp_root = _managed_temp_root()
+    if temp_root is None:
+        return
     now = time.time()
-    temp_root = Path(tempfile.gettempdir())
     try:
         entries = list(temp_root.iterdir())
     except OSError:
         return
     for entry in entries:
         try:
-            if not entry.name.startswith("oa_"):
+            if entry.is_symlink() or not entry.name.startswith("oa_"):
                 continue
             age_s = now - entry.stat().st_mtime
             if age_s < max_age_s:
@@ -243,7 +270,7 @@ def _cleanup_stale_openagent_frozen_extract_dirs(
     and a few bad restart loops are enough to fill a production volume.
 
     We only remove directories that:
-    1. live directly under the OS temp root,
+    1. live directly under the verified agent-owned temp root,
     2. look like OpenAgent bundles (contain ``openagent/``),
     3. are older than a grace window, and
     4. are not referenced by any currently-live OpenAgent process.
@@ -253,7 +280,9 @@ def _cleanup_stale_openagent_frozen_extract_dirs(
     if not is_frozen():
         return
     now = time.time()
-    temp_root = Path(tempfile.gettempdir()).resolve()
+    temp_root = _managed_temp_root()
+    if temp_root is None:
+        return
     try:
         entries = list(temp_root.iterdir())
     except OSError:
@@ -265,7 +294,7 @@ def _cleanup_stale_openagent_frozen_extract_dirs(
         pass
     for entry in entries:
         try:
-            if not entry.name.startswith("_MEI") or not entry.is_dir():
+            if entry.is_symlink() or not entry.name.startswith("_MEI") or not entry.is_dir():
                 continue
             if not (entry / "openagent").is_dir():
                 continue
@@ -686,11 +715,12 @@ def serve(
     # Misurato in produzione: 351 estrazioni orfane su tre agent, 129 GB, con
     # un overlay arrivato al 100% — e nessun allarme, perche' il pieno era
     # dentro il container e non sul nodo.
-    if not local_e2e:
+    managed_temp = _managed_temp_root()
+    if not local_e2e and managed_temp is not None:
         try:
             from openagent_core.core.bundle_sweep import sweep as _sweep_bundles
 
-            _esito = _sweep_bundles()
+            _esito = _sweep_bundles(str(managed_temp))
             if _esito.get("rimosse"):
                 from openagent_core.core.logging import elog as _elog
 
