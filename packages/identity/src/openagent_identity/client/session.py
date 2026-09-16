@@ -35,6 +35,9 @@ class NetworkBinding:
     coordinator_node_id: str
     coordinator_pubkey_bytes: bytes
     our_handle: str
+    # Invite hints apply only to the exact coordinator, never another peer.
+    coordinator_relay_url: str | None = None
+    coordinator_addresses: tuple[str, ...] = ()
 
 
 class SessionDialer:
@@ -129,7 +132,13 @@ class SessionDialer:
                 # the next ``open_bi`` fail-and-retry path handle it.
                 pass
             if conn is None:
-                conn = await self._node.dial(node_id, NetworkAlpn.GATEWAY)
+                hints = {}
+                if node_id == self._binding.coordinator_node_id:
+                    if self._binding.coordinator_relay_url:
+                        hints["relay_url"] = self._binding.coordinator_relay_url
+                    if self._binding.coordinator_addresses:
+                        hints["addresses"] = list(self._binding.coordinator_addresses)
+                conn = await self._node.dial(node_id, NetworkAlpn.GATEWAY, **hints)
                 self._connections[node_id] = conn
             return conn
 
