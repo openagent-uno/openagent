@@ -68,6 +68,8 @@ block_cipher = None
 # These packages use dynamic imports that PyInstaller can't detect statically.
 
 hiddenimports = [
+    "openagent_core.audio_worker",
+    "openagent_core.audio_stream",
     # litellm dynamically imports provider modules
     *collect_submodules("litellm"),
     # mcp transports

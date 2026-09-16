@@ -236,7 +236,7 @@ class Collaboration:
                     session.client_id, sid
                 )
                 session.post_turn_hook = self.gateway._make_stream_post_turn_hook()
-                await start_stream(session)
+                await start_stream(session, self.gateway)
             except BaseException:
                 self.runtimes.pop(sid, None)
                 await session.close()

@@ -3234,7 +3234,7 @@ class Gateway:
                 client_id, sid,
             )
             session.post_turn_hook = self._make_stream_post_turn_hook()
-            await start_stream(session)
+            await start_stream(session, self)
             if not _auth_epoch_current():
                 await session.close()
                 return

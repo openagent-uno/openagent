@@ -175,7 +175,7 @@ async def _get_or_create_session(
                 client_id, session_id
             )
             session.post_turn_hook = gateway._make_stream_post_turn_hook()
-            await start_stream(session)
+            await start_stream(session, gateway)
             lock = asyncio.Lock()
             _sessions[key] = (session, lock)
             await _record_session_owner(

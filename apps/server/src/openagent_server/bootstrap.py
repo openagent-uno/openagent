@@ -70,11 +70,14 @@ def start_voice_warmups(config: dict[str, Any]) -> set[asyncio.Task]:
             for name, operation in (("whisper", whisper), ("piper", piper))}
 
 
-async def start_stream(session: Any) -> None:
+async def start_stream(session: Any, gateway: Any) -> None:
     """Select standalone voice adapters for a multimodal gateway session."""
-    from openagent_core.voice.stt_base import resolve_stt
-    from openagent_core.voice.tts_base import resolve_tts
-    await session.start(stt_factory=resolve_stt, tts_factory=resolve_tts)
+    from openagent_core.audio_stream import VoiceSTT, VoiceTTS
+    from openagent_server.audio_service import service_for_gateway
+    voice = service_for_gateway(gateway)
+    async def stt(_db): return VoiceSTT(voice)
+    async def tts(_db): return VoiceTTS(voice)
+    await session.start(stt_factory=stt, tts_factory=tts)
 
 
 def standalone_spec_resolver(config, *, environment=None):
