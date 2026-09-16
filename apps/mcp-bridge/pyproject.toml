@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openagent-mcp"
+version = "0.1.0"
+description = "MCP client for talking to OpenAgent agents over Iroh — agent-to-agent federation for any MCP host."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "OpenAgent" }]
+keywords = ["openagent", "mcp", "iroh", "agent", "federation"]
+dependencies = [
+    "iroh==0.35.0",
+    "aiohttp>=3.9",
+    "cbor2>=5.5",
+    "cryptography>=42",
+]
+
+[project.optional-dependencies]
+# Only needed to RUN the standalone stdio server. The embedded consumer
+# (openagent-server) depends on the base package and never pulls this in.
+stdio = ["mcp>=1.2"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "ruff>=0.5"]
+
+[project.scripts]
+openagent-mcp = "openagent_mcp.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/oa_agent_client", "src/openagent_mcp"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

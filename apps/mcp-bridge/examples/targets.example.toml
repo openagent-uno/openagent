@@ -1,0 +1,20 @@
+# Copy to ~/.openagent-mcp/targets.toml and `chmod 600` it.
+# Each target is either a self-contained invite `ticket` (preferred) OR an
+# explicit `node_id` (+ optional relay_url). `name` is an arbitrary alias —
+# the only token the model ever sees.
+
+[client]
+identity_path        = "~/.openagent-mcp/identity.key"   # persisted; stable node_id
+default_timeout_secs = 900
+strict_config_perms  = true                              # refuse a group/world-readable file
+
+[[targets]]
+name        = "research"
+description = "A research agent — long-form investigation."
+ticket      = "oa1qexample…replace-with-a-real-invite-ticket"
+
+[[targets]]
+name        = "ops"
+description = "An ops agent (iroh-only, no local TCP)."
+node_id     = "<the peer's Iroh node id — 64 hex chars>"
+relay_url   = "https://euw1-1.relay.iroh.network./"

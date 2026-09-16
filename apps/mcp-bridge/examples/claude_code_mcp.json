@@ -1,0 +1,11 @@
+{
+  "//": "Register openagent-mcp with Claude Code (or any MCP host). Point OPENAGENT_MCP_CONFIG at your targets TOML. Use the installed console script `openagent-mcp`, or `python -m openagent_mcp` from a venv that has the package + iroh 0.35.",
+  "mcpServers": {
+    "openagent-agents": {
+      "command": "openagent-mcp",
+      "env": {
+        "OPENAGENT_MCP_CONFIG": "/absolute/path/to/targets.toml"
+      }
+    }
+  }
+}
