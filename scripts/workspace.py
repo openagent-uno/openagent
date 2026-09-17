@@ -71,25 +71,31 @@ def release_manifest(artifacts: Path) -> dict:
     if artifacts.is_symlink() or not artifacts.is_dir():
         raise ValueError("Artifact directory must be an existing directory, not a symlink")
     entries = []
+    build_manifests = []
     for artifact in sorted(artifacts.rglob("*")):
         if artifact.is_symlink():
             raise ValueError(f"Artifact symlinks are not permitted: {artifact}")
         if not artifact.is_file():
             continue
+        if artifact.name == ".gitignore":
+            continue
         digest = hashlib.sha256()
         with artifact.open("rb") as stream:
             for chunk in iter(lambda: stream.read(1024 * 1024), b""):
                 digest.update(chunk)
-        entries.append({"path": artifact.relative_to(artifacts).as_posix(),
-                        "component": artifact_owner(artifact.name, config["components"]),
-                        "size": artifact.stat().st_size, "sha256": digest.hexdigest()})
+        evidence = {"path": artifact.relative_to(artifacts).as_posix(),
+                    "size": artifact.stat().st_size, "sha256": digest.hexdigest()}
+        if artifact.name == "manifest.json":
+            build_manifests.append(evidence)
+            continue
+        entries.append({**evidence, "component": artifact_owner(artifact.name, config["components"])})
     if not entries:
         raise ValueError("At least one built artifact is required")
     return {"format": 1, "product_version": config["product_version"],
             "product_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
             "qualification": "development-unqualified", "compatibility": config["compatibility"],
             "components": {name: {**value, "version": component_version(value)} for name, value in config["components"].items()},
-            "sources": source_history(), "artifacts": entries}
+            "sources": source_history(), "build_manifests": build_manifests, "artifacts": entries}
 
 
 def main(argv: list[str] | None = None) -> int:

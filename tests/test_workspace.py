@@ -32,10 +32,14 @@ class WorkspaceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "openagent-1.tar.gz").write_bytes(b"package")
+            (root / "manifest.json").write_text('{"format":1}\n')
+            (root / ".gitignore").write_text("*\n")
             receipt = workspace.release_manifest(root)
             self.assertEqual(receipt["qualification"], "development-unqualified")
             self.assertEqual(receipt["artifacts"][0]["size"], 7)
             self.assertEqual(len(receipt["artifacts"][0]["sha256"]), 64)
+            self.assertEqual(receipt["build_manifests"][0]["path"], "manifest.json")
+            self.assertEqual(len(receipt["build_manifests"][0]["sha256"]), 64)
             self.assertFalse(receipt["compatibility"]["updater_transition_qualified"])
 
 

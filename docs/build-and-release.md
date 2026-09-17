@@ -36,7 +36,9 @@ monorepo.
 
 The generated release manifest records the exact product commit, individual
 component versions, SHA-256 and size of every supplied artifact, source
-history and compatibility flags. It rejects symbolic links and ambiguous or
+history and compatibility flags. The wheel builder's `manifest.json` is hashed
+as build evidence instead of being assigned to a product component; the
+technical `.gitignore` emitted by `uv` is excluded. It rejects symbolic links and ambiguous or
 unknown artifact ownership. The caller must supply separate protocol,
 storage and signing evidence in a qualification receipt before publishing a
 coordinated `v1.0.0-beta.N` release. A development manifest is not a signature
