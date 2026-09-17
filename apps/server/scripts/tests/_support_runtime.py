@@ -20,8 +20,8 @@ class FunctionSource:
         return await self.toolkit.functions[name].entrypoint(**arguments)
 
 
-def bind_pool(pool):
-    runtime = current_runtime()
+def bind_pool(pool, *, runtime=None):
+    runtime = runtime or current_runtime()
     if runtime is None:
         raise RuntimeError('Support doubles require verify_support.py public runtime harness')
     executor = runtime.services.executor
@@ -34,13 +34,16 @@ def bind_pool(pool):
         runtime.capabilities.register(source_id, source, source, target_label='Deterministic support fixture')
 
 
-def fixture_runtime(function):
+def fixture_runtime(function=None, *, prepare=None):
     """Run a standalone replay through the same public authority as test cases.
 
     The temporary runtime owns only synthetic session data. Business tools must
     still be explicitly registered by ``bind_pool``; none are loaded from user
     configuration or from the registered model adapter.
     """
+    if function is None:
+        return lambda decorated: fixture_runtime(decorated, prepare=prepare)
+
     @wraps(function)
     async def wrapped(*args, **kwargs):
         from openagent_core import Runtime, RuntimeServices, RuntimeSettings, PrincipalRef, ExecutionContext
@@ -76,6 +79,8 @@ def fixture_runtime(function):
             context = ExecutionContext(principal, principal, principal, 'support-replay', 'support-replay', (principal,))
             try:
                 await runtime.start()
+                if prepare is not None:
+                    prepare(runtime)
                 await runtime.submit(RunRequest(run_id='replay', idempotency_key='replay', session_id='support-replay', input=function.__name__), context)
                 record = await runtime.wait('replay', context)
                 if executor.failure is not None:

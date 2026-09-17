@@ -4,22 +4,22 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.0.0b1"
+version = "1.1.0b1"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-storage-sqlite==1.0.0b1",
-    "openagent-modules==1.0.0b1",
+    "openagent-storage-sqlite==1.1.0b1",
+    "openagent-modules==1.1.0b1",
     "openagent-execution==1.0.0b1",
-    "openagent-client-transport==1.0.0b1",
-    "openagent-core==1.0.0b1",
-    "openagent-identity==1.0.0b1",
-    "openagent-dashboards==1.0.0b1",
-    "openagent-product-config==1.0.0b1",
-    "openagent-support-integration==1.0.0b1",
+    "openagent-client-transport==1.1.0b1",
+    "openagent-core==1.1.0b1",
+    "openagent-identity==1.1.0b1",
+    "openagent-dashboards==1.1.0b1",
+    "openagent-product-config==1.1.0b1",
+    "openagent-support-integration==1.1.0b1",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -183,7 +183,7 @@ all = [
     "aiohttp>=3.9",
     # The agent-federation builtin embeds the standalone openagent-mcp package;
     # bundled into the release binary via openagent.spec collect_submodules.
-    "openagent-mcp==1.0.0b1",
+    "openagent-mcp==1.1.0b1",
 ]
 
 [project.scripts]

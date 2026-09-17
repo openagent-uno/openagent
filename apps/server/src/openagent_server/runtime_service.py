@@ -200,6 +200,11 @@ class NativeRuntimeService:
         self.memory_access = NativeMemoryAccess(self)
         self.authorizer.memory_authorizer = self.memory_access.authorize
         self.facade = RuntimeAgentFacade(self, agent)
+        from openagent_core.automation_runtime import AutomationRuntime
+
+        self.automation_runtime = AutomationRuntime(
+            self.agent.memory_db, self.facade, self.automation_execution,
+        )
 
     async def admit_message(
         self,
@@ -362,6 +367,10 @@ class NativeRuntimeService:
     async def start(self):
         from dataclasses import replace
         from openagent_core.capabilities import CapabilityCatalog
+        from openagent_core import ServiceRegistry
+        from openagent_core import DelegationService, ModelCatalog
+        from openagent_core.code_execution import CodeExecutor
+        from openagent_core.memory_access import MemoryAccess
 
         await self.catalog_management.start()
         await self.automations.start()
@@ -370,16 +379,56 @@ class NativeRuntimeService:
         from openagent_server.code_execution import build_code_executor
 
         self.code_executor = build_code_executor(self.agent.config, environment)
-        from openagent_core.prompts import modules_for_catalog
+        from openagent_core.mcp.pool import MCPPool
+        from openagent_server.bootstrap import standalone_spec_resolver
+        from openagent_product_config import build_module_catalog, standalone_profile
 
-        selected_modules = modules_for_catalog(
-            spec.name for spec in getattr(self.agent.capability_pool, "specs", ())
+        async def mcp_pool_factory(_module_context):
+            pool = await MCPPool.from_db(
+                self.agent.memory_db,
+                db_path=self.agent.memory_db.db_path,
+                host_spec_resolver=standalone_spec_resolver(
+                    self.agent.config, environment=environment
+                ),
+            )
+            pool.bind_agent_runtime(self.agent)
+            return pool
+
+        memory_config = self.agent.config.get("memory") or {}
+        vault_path = Path(
+            memory_config.get("vault_path")
+            or Path(self.agent.memory_db.db_path).resolve().parent / "memories"
         )
+        profile = standalone_profile(
+            generation=max(1, int(self.agent.config.get("_runtime_profile_generation", 1))),
+            db_path=self.agent.memory_db.db_path,
+            vault_path=vault_path,
+            environment=environment,
+            mcp_pool_factory=mcp_pool_factory,
+            automation_runtime=self.automation_runtime,
+            ptc_enabled=bool((self.agent.config.get("ptc") or {}).get("enabled")),
+            local_e2e=self.agent.config.get("_local_e2e") is True,
+        )
+        model_catalog = AgentModelCatalog(self.agent, self.authorizer)
+        registry = ServiceRegistry({
+            "module.reference_inspector": self.automation_management,
+            ModelCatalog: model_catalog,
+            "models": model_catalog,
+            DelegationService: self.automations,
+            "delegations": self.automations,
+            "catalog_management": self.catalog_management,
+            "automation_management": self.automation_management,
+            "user_sources": self.catalog_management.user_sources,
+            MemoryAccess: self.memory_access,
+            "memory_access": self.memory_access,
+        })
+        if self.code_executor is not None:
+            registry.bind(CodeExecutor, self.code_executor)
+            registry.bind("code_executor", self.code_executor)
         self.runtime = Runtime(
             RuntimeSettings(
                 self.agent.name,
                 Path(self.agent.memory_db.db_path).resolve().parent,
-                enabled_modules=tuple(sorted(selected_modules)),
                 environment=tuple(sorted(environment.items())),
                 child_concurrency=max(
                     1, int(environment.get("OPENAGENT_CHILD_SESSION_CONCURRENCY", "16"))
@@ -402,15 +451,11 @@ class NativeRuntimeService:
                 executor,
                 self.authorizer,
                 capabilities=CapabilityCatalog(self.authorizer, allow_dynamic=True),
-                models=AgentModelCatalog(self.agent, self.authorizer),
-                user_sources=self.catalog_management.user_sources,
-                catalog_management=self.catalog_management,
-                delegations=self.automations,
-                automation_management=self.automation_management,
-                code_executor=self.code_executor,
-                memory_access=self.memory_access,
+                registry=registry,
             ),
             modules=(executor,),
+            profile=profile,
+            module_catalog=build_module_catalog(),
         )
         if hasattr(self.agent, "extensions"):
             from openagent_server.dashboard_capabilities import DashboardCapabilities
@@ -432,6 +477,9 @@ class NativeRuntimeService:
             set_quick_commands(self.agent.config.get("quick_commands") or {})
             set_hooks(self.agent.config.get("hooks") or {})
         await self.runtime.start()
+        mcp_service = self.runtime.service("mcp.service")
+        if mcp_service is not None and mcp_service.pool is not None:
+            mcp_service.pool.bind_gateway_runtime(self.gateway)
 
     def _dashboard_prompt_available(self, context):
         from openagent_core.contracts import ResourceRef

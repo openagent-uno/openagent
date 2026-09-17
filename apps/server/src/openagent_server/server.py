@@ -2100,13 +2100,9 @@ class AgentServer:
         if self.agent._db is None:
             return
 
-        from openagent_core.core.scheduler import Scheduler
-        scheduler = Scheduler(
-            self.agent.memory_db,
-            self._gateway.runtime_service.facade,
-            broadcast=self._scheduler_broadcast,
-            execution_service=self._gateway.runtime_service.automation_execution,
-        )
+        automation_runtime = self._gateway.runtime_service.automation_runtime
+        scheduler = automation_runtime.scheduler
+        scheduler._broadcast = self._scheduler_broadcast
 
         # One-time cleanup: the retired ``manager-review`` built-in used
         # to seed a row that the scheduler would keep firing from the DB.
@@ -2122,7 +2118,8 @@ class AgentServer:
         await self._sync_cost_observability(scheduler)
         await self._sync_escalation_audit(scheduler)
 
-        await scheduler.start()
+        if not automation_runtime.running:
+            raise RuntimeError("The scheduler module worker is not running")
         self._scheduler = scheduler
         # Expose the live scheduler to the gateway so /api/scheduled-tasks
         # can operate on the same instance that runs the cron loop.

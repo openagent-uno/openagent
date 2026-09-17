@@ -3,7 +3,7 @@
 from __future__ import annotations
 from uuid import uuid4
 from contextlib import nullcontext
-from openagent_core.automation import AutomationRepository
+from openagent_core.automation import AutomationRepository, durable_module_references
 from openagent_core.contracts import ResourceRef, require_authorized
 from openagent_core.runtime import current_execution_context, execution_scope
 from openagent_server.automation_authority import definition_digest
@@ -53,6 +53,9 @@ class NativeAutomationManagement:
     def __init__(self, service):
         self.service = service
         self.repository = AutomationRepository(service.agent.memory_db.db_path)
+
+    async def references_for_removed_modules(self, removed_modules, **_profiles):
+        return await durable_module_references(self.repository, removed_modules)
 
     @staticmethod
     async def _definitions(connection, kind):

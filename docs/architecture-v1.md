@@ -16,6 +16,10 @@ and a fixed catalog.
 
 ## Runtime and capabilities
 
+Version 1.1 selects optional behavior through one descriptor/surface contract;
+see [the standalone profile](modules-v1.1.md). Manager tools are the
+`agent_tools` surface of their domain module rather than a privileged layer.
+
 Core receives explicit settings, services and modules. Construction has no
 listener, user creation, MCP installation or model download side effects.
 Runtime resources and credentials belong to an instance, never to a global

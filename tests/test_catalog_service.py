@@ -64,7 +64,10 @@ class CatalogServiceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_mcp_manager_delegates_to_the_same_host_service(self):
         from openagent_core.mcp.servers.mcp_manager.server import add_custom_mcp, update_mcp
-        runtime = SimpleNamespace(services=SimpleNamespace(catalog_management=self.service),settings=SimpleNamespace(environment=()))
+        runtime = SimpleNamespace(
+            service=lambda key, default=None: self.service if key == "catalog_management" else default,
+            settings=SimpleNamespace(environment=()),
+        )
         with execution_scope(runtime,self.context,'run'):
             row = await add_custom_mcp('from-tool',command=['echo'])
             self.assertEqual(row,await self.service.get(self.context,'from-tool'))

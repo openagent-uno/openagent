@@ -145,7 +145,7 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
             provider_id = await server.agent.memory_db.upsert_provider(name='fixture',framework='api-based',
                 api_key='fixture-only-secret',base_url=str(self.provider.make_url('/v1')))
             await server.agent.memory_db.upsert_model(provider_id=provider_id,model='fixture',tier_hint='smart')
-            from openagent_core.engine import module_pool
+            from openagent_modules.legacy import module_pool
             server.agent.set_capability_pool(module_pool((), db_path=server.agent.memory_db.db_path))
             await server.agent.load_model_catalog()
             store = startup.CoordinatorStore(server.agent.memory_db)

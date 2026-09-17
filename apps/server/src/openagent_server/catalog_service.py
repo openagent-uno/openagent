@@ -19,6 +19,7 @@ class NativeCatalogService:
         self.authorizer = authorizer
         self._lock = asyncio.Lock()
         self._ownership = {}
+        self._pool = None
         from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, DEFAULT_MCPS
 
         names = set(BUILTIN_MCP_SPECS)
@@ -71,10 +72,20 @@ class NativeCatalogService:
         self._ownership.update({name: "managed" for name in self.managed_names})
 
     async def _refresh(self):
-        pool = self.agent.capability_pool
+        pool = self._pool
         if pool is not None:
             pool.set_catalog_user_sources(self.user_sources)
             await pool.reload()
+
+    def bind_pool(self, pool):
+        """Bind the MCP module instance selected by the active graph."""
+        if self._pool is not None and self._pool is not pool:
+            raise RuntimeError("Catalog management is already bound to an active MCP graph")
+        self._pool = pool
+
+    def unbind_pool(self, pool):
+        if self._pool is pool:
+            self._pool = None
 
     async def _check(self, context, action, name="*"):
         await require_authorized(

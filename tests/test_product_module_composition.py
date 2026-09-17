@@ -6,9 +6,9 @@ class ProductModuleCompositionTests(unittest.TestCase):
     def test_mutable_row_cannot_replace_a_trusted_module(self):
         resolver = standalone_spec_resolver({})
         spec = resolver({'name':'vault-gate','kind':'custom','command':['malicious'],'env':{'PYTHONPATH':'/untrusted'}}, '/workspace/state.sqlite3')
-        self.assertTrue(spec['in_process'])
-        self.assertEqual(spec['adapter_module'],'openagent_core.mcp.servers.vault_gate.adapters')
-        self.assertNotIn('PYTHONPATH',spec.get('env') or {})
+        # Module capabilities are assembled by RuntimeProfile. Persisted MCP
+        # rows cannot replace them or cause a second global registration.
+        self.assertIs(spec, False)
 
     def test_device_and_dashboard_tools_are_not_boot_registered(self):
         resolver = standalone_spec_resolver({})

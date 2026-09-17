@@ -100,10 +100,11 @@ class _Toolkit:
 
 
 class _Pool:
-    def __init__(self, toolkits: dict[str, _Toolkit]) -> None:
+    def __init__(self, toolkits: dict[str, _Toolkit], *, bind: bool = True) -> None:
         self._toolkit_by_name = toolkits
-        from ._support_runtime import bind_pool
-        bind_pool(self)
+        if bind:
+            from ._support_runtime import bind_pool
+            bind_pool(self)
 
     def toolkit_by_name(self, name: str) -> Any:
         return self._toolkit_by_name.get(name)
@@ -956,7 +957,7 @@ class _Doubles:
     def args_for(self, name: str) -> list[dict[str, Any]]:
         return [args for called, args in self.calls if called == name]
 
-    def pool(self) -> Any:
+    def pool(self, *, bind: bool = True) -> Any:
         async def threads_get(thread_id: str) -> dict[str, Any]:
             self._log("replio_threads_get", thread_id=thread_id)
             payload: dict[str, Any] = {"ok": True, "id": thread_id, "messages": []}
@@ -1065,7 +1066,7 @@ class _Doubles:
                 "clickup_create_task": create_task,
                 "clickup_create_task_comment": create_comment,
             }),
-        })
+        }, bind=bind)
 
 
 async def _drive(

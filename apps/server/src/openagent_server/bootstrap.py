@@ -12,7 +12,6 @@ from typing import Any
 
 async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     from openagent_dashboards.migration import ensure_custom_views_storage
-    from openagent_core.memory.bootstrap import ensure_builtin_mcps
     from openagent_core.mcp.pool import MCPPool
     from openagent_server import __version__
 
@@ -29,12 +28,10 @@ async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     # but must not spawn MCPs or initialize a provider runtime.
     if config.get("_local_e2e") is True:
         return
-    await ensure_builtin_mcps(db, config=config)
-    for name in ("agent-manager", "agent-federation"):
-        if await db.get_mcp(name) is None:
-            await db.upsert_mcp(name,kind="builtin",builtin_name=name,source="standalone-product")
-    pool = await MCPPool.from_db(db, db_path=db.db_path,
-                                host_spec_resolver=standalone_spec_resolver(config,environment=getattr(agent,"product_environment",{})))
+    # Optional OpenAgent modules own their native capabilities. The engine pool
+    # contains only the uniform discovery gateway; the MCP module builds and
+    # owns protocol connections from the persisted external-server catalog.
+    pool = MCPPool.from_config([{"builtin": "tool-search"}], include_defaults=False)
     agent.set_capability_pool(pool)
     await agent.load_model_catalog()
 
@@ -87,9 +84,15 @@ def standalone_spec_resolver(config, *, environment=None):
                "agent-federation": "openagent_mcp.federation.adapters"}
     # These old globally registered tools belong to an originating App/CLI.
     contextual = frozenset({"ui-manager", "filesystem", "editor", "shell", "computer-control", "agent-in-chrome"})
+    module_native = frozenset({
+        "tool-search", "vault", "vault-gate", "attachments", "logs",
+        "memory-search", "scheduler", "mcp-manager", "model-manager",
+        "workflow-manager", "events-manager", "budget-manager", "skills",
+        "skill-data", "delegation", "ptc",
+    })
     def resolve(row, db_path):
         name = row['name']
-        if name in contextual:
+        if name in contextual or name in module_native:
             return False
         if name in product:
             return dict(name=name,in_process=True,adapter_module=product[name],

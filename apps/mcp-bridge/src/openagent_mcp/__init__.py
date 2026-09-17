@@ -12,4 +12,6 @@ from __future__ import annotations
 from . import tools
 from .backends.base import Backend, Target
 
-__all__ = ["Backend", "Target", "tools"]
+__version__ = "1.1.0b1"
+
+__all__ = ["Backend", "Target", "tools", "__version__"]

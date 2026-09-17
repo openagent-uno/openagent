@@ -23,12 +23,16 @@ class FakeAgent:
             return []
 
         self.memory_db = SimpleNamespace(db_path=str(path), list_mcps=list_mcps)
+        self.config = {"_local_e2e": True}
         self.calls = []
         self.running = asyncio.Event()
         self.release = asyncio.Event()
 
     async def initialize(self):
         pass
+
+    def set_capability_pool(self, pool):
+        self.capability_pool = pool
 
     async def run_stream(self, message, **kwargs):
         self.calls.append((message, kwargs))

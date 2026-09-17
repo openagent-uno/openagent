@@ -121,7 +121,7 @@ async def run(root: Path) -> None:
     from aiohttp import web
     import ast
     from openagent_core.core.paths import set_agent_dir
-    from openagent_core.engine import module_pool
+    from openagent_modules.legacy import module_pool
     from openagent_server.server import AgentServer
     from openagent_identity.coordinator.store import CoordinatorStore
     from openagent_identity.ticket import InviteTicket

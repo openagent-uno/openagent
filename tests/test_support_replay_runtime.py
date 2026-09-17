@@ -12,10 +12,17 @@ from openagent_core.runtime import current_runtime
 
 class SupportReplayRuntimeTests(unittest.IsolatedAsyncioTestCase):
     async def test_replay_dispatches_registered_fixture_through_runtime(self):
-        @fixture_runtime
+        doubles = _Doubles(thread={'product': 'esound', 'messages': []})
+        prepared = {}
+
+        def prepare(runtime):
+            from scripts.tests._support_runtime import bind_pool
+            prepared['pool'] = doubles.pool(bind=False)
+            bind_pool(prepared['pool'], runtime=runtime)
+
+        @fixture_runtime(prepare=prepare)
         async def replay():
-            doubles = _Doubles(thread={'product': 'esound', 'messages': []})
-            pool = doubles.pool()
+            pool = prepared['pool']
             result = await call_tool(pool, 'replio', 'replio_threads_get', {'thread_id': 'synthetic'})
             self.assertIn('replio_threads_get', doubles.names)
             runtime = current_runtime()

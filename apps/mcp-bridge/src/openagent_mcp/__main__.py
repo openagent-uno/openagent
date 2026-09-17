@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import os
 import sys
+import argparse
 
-from . import log
+from . import __version__, log
 from .backends.standalone import StandaloneBackend
 from .config import load_config
 from .errors import ConfigError
@@ -17,7 +18,13 @@ from .identity import resolve_identity_path
 from .server import build_server
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        prog="openagent-mcp",
+        description="Expose configured OpenAgent peers as MCP tools over stdio.",
+    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.parse_args(argv)
     log.setup(os.environ.get("OPENAGENT_MCP_LOGLEVEL", "INFO"))
 
     cfg_path = os.environ.get("OPENAGENT_MCP_CONFIG")
