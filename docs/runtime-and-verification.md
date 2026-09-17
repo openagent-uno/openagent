@@ -134,8 +134,8 @@ The following release gates remain open until separately evidenced:
 - Real provider API/subscription accounts, audio devices, computer-control
   and Chrome actions. All model-loop evidence above uses a deterministic
   local HTTP provider; the two-account path is transport/API coverage.
-- Other-platform installers and signatures. The complete updater transition
-  remains unqualified as detailed below.
+- Other-platform installers and signatures. The complete macOS ARM64 updater
+  transition is qualified below; equivalent platform chains remain open.
 - Migration on authorized copies of real agent data, exact running-delivery
   reconciliation, and coordinated restore after post-migration writes.
 - Qualified release manifests and immutable publication in the destination
@@ -145,15 +145,20 @@ Server startup now requires a configured native network identity. An embedding
 application constructs Core directly and supplies its own identity instead of
 using an unauthenticated, owner-assuming native headless mode.
 
-## Updater qualification limit
+## Updater qualification
 
-`artifacts/updater-chain-verification.json` preserves the successful earlier
-native installation of the isolated 0.17.5 copy to the 0.17.6 transition fixture,
-including signature and Gatekeeper checks. A later full three-step attempt used
-archives with corrected, signed `app-update.yml` metadata. Both electron-updater
-and Squirrel completed the first download, but the native `update-downloaded`
-event did not arrive within 120 seconds. No JavaScript error was reported;
-Objective-C debug-description attribute warnings were captured. The underlying
-cause is unresolved, so the complete transition/product/next-update chain is
-not qualified. The real installed application remained unchanged. The metadata
-guard now prevents signing an App without its update-cache configuration.
+`artifacts/updater-chain-verification.json` records a complete native macOS
+ARM64 Squirrel chain on an isolated copy:
+`0.17.5 → 0.17.6 → 1.0.0 → 1.0.1`. Every archive matches its expected digest;
+every installed result passes strict signature and Gatekeeper checks. The exact
+public `v0.17.5` archive is the source, while the three destinations are signed,
+notarized local release fixtures and remain unpublished.
+
+The earlier timeout was in the acceptance test: it registered
+`update-downloaded` on Electron's native updater while the download used the
+separate `electron-updater` instance. The listener now uses the same instance
+as `checkForUpdates` and `downloadUpdate`. Two complete runs pass in 1.9 and
+1.7 minutes. The test also verifies that the source version, `Info.plist` and
+`app.asar` remain unchanged. The installed user application was inspected
+separately and remains valid, signed, notarized and unchanged. Platform-specific
+updater chains outside macOS ARM64 remain open.

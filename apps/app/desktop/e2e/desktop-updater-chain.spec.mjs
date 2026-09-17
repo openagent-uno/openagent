@@ -49,7 +49,10 @@ test('signed macOS updater installs the transition and subsequent distributions 
   await writeFile(launcher,`#!/bin/sh\nexec /usr/bin/sandbox-exec -f ${quote(policy)} ${quote(join(application,'Contents/MacOS/OpenAgent'))} "$@"\n`);
   await chmod(launcher,0o700);
   const originalAsar = join(manifest.installed_app,'Contents/Resources/app.asar');
+  const originalInfo = join(manifest.installed_app,'Contents/Info.plist');
+  expect(version(manifest.installed_app)).toBe(manifest.installed_version);
   const originalDigest = sha256(await readFile(originalAsar));
+  const originalInfoDigest = sha256(await readFile(originalInfo));
   execFileSync('/usr/bin/ditto',[manifest.installed_app,application]);
   let step;
   const requests = [];
@@ -105,7 +108,7 @@ test('signed macOS updater installs the transition and subsequent distributions 
         const state = globalThis.updateProbe;
         updater.logger = {info:value=>state.log.push(String(value)),warn:value=>state.log.push(String(value)),error:value=>state.log.push(String(value)),debug:()=>{}};
         updater.on('error',error=>state.errors.push(String(error)));
-        autoUpdater.once('update-downloaded',()=>{state.ready=true;});
+        updater.once('update-downloaded',()=>{state.ready=true;});
         updater.autoDownload=false;
         updater.autoInstallOnAppQuit=true;
         updater.autoRunAppAfterInstall=false;
@@ -152,6 +155,7 @@ test('signed macOS updater installs the transition and subsequent distributions 
     }
     await new Promise(resolve=>server.close(resolve));
     expect(sha256(await readFile(originalAsar))).toBe(originalDigest);
+    expect(sha256(await readFile(originalInfo))).toBe(originalInfoDigest);
     if(success){
       // Native ShipIt may install as root. Preserve the verified installed
       // result as an artifact instead of requesting privileges to erase it.
