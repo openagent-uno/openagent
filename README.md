@@ -8,7 +8,7 @@ through their public contracts and own their own deployments.
 Start with [the documentation index](docs/README.md). Repository paths and
 build entry points are listed by `python3.11 scripts/workspace.py list`.
 
-The `v1.1.0-beta.1` release candidate uses the modular runtime and public
+The `v1.1.0-beta.2` release candidate uses the modular runtime and public
 package boundaries throughout. Imported legacy components remain available for
 the updater transition, while new builds consume pinned Core and Tools wheels.
 Existing updater endpoints stay in place until every supported platform has
