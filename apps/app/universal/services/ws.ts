@@ -69,7 +69,25 @@ export class OpenAgentWS {
         const origin = this.url.replace(/^ws/, 'http').replace(/\/ws$/, '');
         const path = '/api/sessions/' + encodeURIComponent(sessionId);
         const response = await fetch(origin + path);
-        if (response.status === 404) {
+        let missing = response.status === 404;
+        if (response.status === 405) {
+          // Collaboration shipped one release before GET metadata. Those
+          // gateways can still list and PATCH sessions, so distinguish an
+          // existing chat from a new app-created id without renaming the
+          // former to its next message text.
+          const listed = await fetch(origin + '/api/sessions?limit=200');
+          if (!listed.ok) throw new Error('Session unavailable');
+          const body = await listed.json();
+          const sessions = Array.isArray(body?.sessions) ? body.sessions : [];
+          const exists = sessions.some((item: unknown) => {
+            if (!item || typeof item !== 'object') return false;
+            const row = item as { id?: unknown; session_id?: unknown };
+            return row.id === sessionId || row.session_id === sessionId;
+          });
+          if (exists) return false;
+          missing = true;
+        }
+        if (missing) {
           const created = await fetch(origin + path, { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ title: title.slice(0, 70) || 'Chat' }) });
           if (!created.ok) throw new Error('Could not create shared session');
