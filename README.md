@@ -8,7 +8,8 @@ through their public contracts and own their own deployments.
 Start with [the documentation index](docs/README.md). Repository paths and
 build entry points are listed by `python3.11 scripts/workspace.py list`.
 
-The v1 migration is in progress. Imported legacy components remain executable
-while the package boundaries are cut over; this checkout is not a published
-v1 release. Existing updater endpoints remain in place until the complete
-transition chain is qualified.
+The `v1.1.0-beta.1` release candidate uses the modular runtime and public
+package boundaries throughout. Imported legacy components remain available for
+the updater transition, while new builds consume pinned Core and Tools wheels.
+Existing updater endpoints stay in place until every supported platform has
+completed its signed transition chain.

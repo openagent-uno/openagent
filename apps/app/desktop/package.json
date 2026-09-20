@@ -1,7 +1,7 @@
 {
   "name": "openagent-desktop",
   "description": "Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.",
-  "version": "1.0.0-beta.1",
+  "version": "1.1.0-beta.1",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -106,7 +106,7 @@
         "host-tools/darwin-(arm64|x64)/openagent-computer-control\\.app(/.*)?$"
       ],
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network \u2014 required when connecting to a server running on the same Mac or LAN."
+        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
       },
       "target": [
         {

@@ -41,7 +41,7 @@ as build evidence instead of being assigned to a product component; the
 technical `.gitignore` emitted by `uv` is excluded. It rejects symbolic links and ambiguous or
 unknown artifact ownership. The caller must supply separate protocol,
 storage and signing evidence in a qualification receipt before publishing a
-coordinated `v1.0.0-beta.N` release. A development manifest is not a signature
+coordinated `v1.1.0-beta.N` release. A development manifest is not a signature
 or a qualification claim.
 
 Never change production update endpoints solely because source moved.
