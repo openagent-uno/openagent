@@ -17,6 +17,7 @@ from scripts.tests._framework import TESTS, TestContext, run_one
 from openagent_core import Runtime, RuntimeServices, RuntimeSettings, PrincipalRef, ExecutionContext
 from openagent_core.contracts import RunRequest
 from openagent_storage_sqlite import SqliteRuntimeStore
+from scripts.tests._support_runtime import prepare_support_sources
 
 MODULES=('local_support_controller','support_turn','support_context','support_diagnostic_routing','support_sept6','support_progress','support_voice','support_sept7','support_attachments')
 
@@ -59,6 +60,7 @@ async def main():
             context=ExecutionContext(principal,principal,principal,'test-session','support-test',(principal,))
             async def check(_):
                 await runtime.start()
+                prepare_support_sources(runtime)
                 await runtime.submit(RunRequest(run_id=f'test-{index}',idempotency_key=f'test-{index}',session_id='test-session',input=name),context)
                 record=await runtime.wait(f'test-{index}',context)
                 if executor.failure:raise executor.failure

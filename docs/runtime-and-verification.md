@@ -108,11 +108,12 @@ bundle includes the compiled computer-control sidecar and the Chrome runtime;
 the test only operates on its temporary filesystem fixture.
 
 The product support extension retains all nine legacy regression modules and
-their helper scripts. `python tests/verify_support.py` runs 230 deterministic
-cases through a real Runtime and uniform capability catalog with recorded
-function doubles. The exact original v0.21.8 source passes 194 and fails 36;
-the migrated extension has the same 194 passes and 36 failures, with identical
-failure-message SHA-256 values and no new failures. These inherited failures
+their helper scripts. The support-only changes through legacy server v0.21.14
+are ported into the product extension with their corpus and routing tests.
+`python tests/verify_support.py` runs 235 deterministic cases through a real
+Runtime and uniform capability catalog with recorded function doubles. The
+migrated extension passes 200 and retains 35 already classified failures, with
+identical failure-message SHA-256 values and no new failures. These inherited failures
 are primarily older reply fixtures predating the human-voice review default.
 `tests/support-baseline.json` pins that source and those exact failures;
 `artifacts/support-regression-verification.json` records every result. A new

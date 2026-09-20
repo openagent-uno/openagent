@@ -1,14 +1,14 @@
 {
-  "package_version": "1.0.0b1",
-  "package_file": "/Users/alessandrogerelli/OpenAgent/openagent/.workspace/package-check/lib/python3.12/site-packages/openagent_support/__init__.py",
+  "package_version": "1.1.0b1",
+  "package_file": "/private/tmp/openagent-release-verify-20260920-2/lib/python3.12/site-packages/openagent_support/__init__.py",
   "wheel_source": {
-    "url": "file:///Users/alessandrogerelli/OpenAgent/.migration/openagent-v1/artifacts/product-integration-12/openagent_support_integration-1.0.0b1-py3-none-any.whl",
+    "url": "file:///private/tmp/openagent-product-pre-release-20260920-2/openagent_support_integration-1.1.0b1-py3-none-any.whl",
     "archive_info": {}
   },
-  "source_baseline": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
-  "tests": 230,
-  "passed": 194,
-  "known_baseline_failures": 36,
+  "source_baseline": "994253cbe52e5932d0dbf27f2ebfaec1eef6c416",
+  "tests": 235,
+  "passed": 200,
+  "known_baseline_failures": 35,
   "new_failures": 0,
   "results": [
     {
@@ -482,6 +482,20 @@
     },
     {
       "category": "local_support_controller",
+      "name": "legal corpus: every notice is silenced or read by the classifier, no customer by a keyword",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
+      "name": "legal sender in Replio's webhook shape and a keyword-free follow-up stay silent",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "local_support_controller",
       "name": "a Play review is answered in the reviewer's language",
       "status": "ok",
       "known_baseline_failure": false,
@@ -629,10 +643,10 @@
     },
     {
       "category": "local_support_controller",
-      "name": "the queue is written before the reply promises it",
-      "status": "fail",
-      "known_baseline_failure": true,
-      "message_sha256": "259ef7c786532cd76e6cbe28cf8e634889649450bf12dbaff6b0514a9d336fc6"
+      "name": "a handoff queues the thread and sends the customer nothing",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "category": "local_support_controller",
@@ -1204,6 +1218,27 @@
     {
       "category": "support_diagnostic_routing",
       "name": "the web form's own questions never name the broken component",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "the web form's own questions never pick the capture category",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "being a subscriber does not outrank the symptom",
+      "status": "ok",
+      "known_baseline_failure": false,
+      "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "category": "support_diagnostic_routing",
+      "name": "a capture targets the account the app declared, not the sender",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

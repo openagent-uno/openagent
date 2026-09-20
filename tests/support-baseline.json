@@ -1,8 +1,8 @@
 {
-  "source_commit": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
-  "source_version": "0.21.8",
-  "tests": 230,
-  "passed": 194,
+  "source_commit": "994253cbe52e5932d0dbf27f2ebfaec1eef6c416",
+  "source_version": "0.21.14",
+  "tests": 235,
+  "passed": 200,
   "failures": [
     {
       "category": "local_support_controller",
@@ -113,11 +113,6 @@
       "category": "local_support_controller",
       "name": "an in-app purchase is never told to sign in with an email",
       "message_sha256": "6bbb523558a4a708a263dd82cbf2bb794f6853e2cc16b23d044669d5100a13fe"
-    },
-    {
-      "category": "local_support_controller",
-      "name": "the queue is written before the reply promises it",
-      "message_sha256": "259ef7c786532cd76e6cbe28cf8e634889649450bf12dbaff6b0514a9d336fc6"
     },
     {
       "category": "local_support_controller",

@@ -56,6 +56,16 @@
       "source_commit": "af6ad6871d4d1208874bf79735710d089f59b959",
       "tag_namespace": "legacy/host-tools/",
       "history": "non-squash-subtree"
+    },
+    {
+      "component": "support-extension-refresh",
+      "path": "packages/integrations/support",
+      "test_path": "apps/server/scripts/tests",
+      "source_repository": "https://github.com/openagent-uno/openagent-server.git",
+      "source_commit": "994253cbe52e5932d0dbf27f2ebfaec1eef6c416",
+      "source_tag": "v0.21.14",
+      "base_import_commit": "1842ce6a82f93bdf34783da3b9d10515439fb49e",
+      "history": "selective-product-extension-port"
     }
   ]
 }
