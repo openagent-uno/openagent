@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openagent-mcp"
-version = "1.1.0b4"
+version = "1.1.0b5"
 description = "MCP client for talking to OpenAgent agents over Iroh — agent-to-agent federation for any MCP host."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "OpenAgent" }]
 keywords = ["openagent", "mcp", "iroh", "agent", "federation"]
 dependencies = [
-    "openagent-identity==1.1.0b4",
+    "openagent-identity==1.1.0b5",
     "iroh==0.35.0",
     "aiohttp>=3.9",
     "cbor2>=5.5",

@@ -13,7 +13,7 @@ an isolated Python 3.11+ environment.
 # From the wheelhouse prepared in Getting Started
 python3.11 -m venv /opt/openagent
 /opt/openagent/bin/python -m pip install --pre --find-links . \
-  openagent-framework==1.1.0b4
+  openagent-framework==1.1.0b5
 
 # Start with an agent directory (auto-bootstraps network + prints invite)
 /opt/openagent/bin/openagent serve ./my-agent
@@ -23,7 +23,7 @@ python3.11 -m venv /opt/openagent
 ```
 
 Browse the coordinated product release at
-<https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.4>.
+<https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.5>.
 
 ### Future package-index installation
 

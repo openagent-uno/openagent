@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-dashboards"
-version = "1.1.0b4"
+version = "1.1.0b5"
 description = "Standalone OpenAgent product dashboards"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openagent-core==1.1.0b1", "openagent-identity==1.1.0b4", "aiohttp>=3.9", "jsonschema>=4.20.0"]
+dependencies = ["openagent-core==1.1.0b1", "openagent-identity==1.1.0b5", "aiohttp>=3.9", "jsonschema>=4.20.0"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

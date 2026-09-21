@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import tempfile
 import unittest
 
-from openagent_core.contracts import IdempotencyConflict
+from openagent_core.contracts import IdempotencyConflict, ResourceRef
 from openagent_core.core.on_behalf_context import (
     install_on_behalf_identity,
     reset_on_behalf_identity,
@@ -144,6 +144,37 @@ class RuntimeServiceTests(unittest.IsolatedAsyncioTestCase):
         finally:
             reset_on_behalf_identity(token)
         self.assertEqual(self.agent.calls, [])
+
+    async def test_workspace_tool_authorization_uses_modular_mcp_pool(self):
+        context = await self.service.authorizer.context_for_identity(
+            self.identity, "workspace-tools"
+        )
+        original_runtime = self.service.runtime
+        original_compatibility_pool = self.agent.capability_pool
+        try:
+            # The compatibility pool exposes only the discovery broker.  The
+            # module pool is authoritative for concrete capability sources.
+            self.agent.capability_pool = SimpleNamespace(
+                server_summary=lambda: {"tool-search": 4}
+            )
+            module_pool = SimpleNamespace(
+                server_summary=lambda: {"shell": 6}
+            )
+            self.service.runtime = SimpleNamespace(
+                service=lambda key: SimpleNamespace(pool=module_pool)
+                if key == "mcp.service"
+                else None
+            )
+            allowed = await self.service._authorize_source(
+                context,
+                "tool.discover",
+                ResourceRef("capability", context.tenant_id, "shell"),
+                audience=context.audience,
+            )
+            self.assertTrue(allowed)
+        finally:
+            self.service.runtime = original_runtime
+            self.agent.capability_pool = original_compatibility_pool
 
     async def test_admission_persists_before_observation_and_retry_keeps_target(self):
         first = await self.service.admit_message(

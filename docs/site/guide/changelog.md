@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.5
+
+### Modular capability authorization
+
+- Standalone runtime authorization now resolves concrete filesystem, editor and
+  shell sources from the active MCP module pool. The compatibility Agent pool
+  remains limited to the discovery broker without hiding module-owned tools
+  from authenticated CLI, Telegram or other durable turns.
+- A regression test keeps the two pools deliberately different and verifies
+  that a server workspace tool remains discoverable through the public runtime
+  policy.
+
 ## v1.1.0-beta.4
 
 ### Standalone host tools and visual input recovery

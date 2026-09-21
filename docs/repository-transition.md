@@ -36,7 +36,7 @@ template owned by the canonical product repository.
 ## Current beta
 
 The coordinated product release is
-[`v1.1.0-beta.4`](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.4),
+[`v1.1.0-beta.5`](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.5),
 with Core `v1.1.0-beta.1` and Tools `v1.0.0-beta.1`. Its manifest is
 `development-unqualified`: it includes a qualified Apple Silicon desktop
 artifact and Python wheels but does not claim a complete cross-platform updater
