@@ -83,7 +83,8 @@ two isolated runtimes, multiuser and multidevice attribution, channel
 capability isolation, managed catalog enforcement, durable run retries and
 cancellation, prompt/vault parity, provider and automation compatibility,
 real authenticated client E2E and backup restoration. Deterministic tests and
-real-provider/platform evidence are reported separately. Historical source
-repositories remain available until the public site, download links and full
-installed-client transition chain have been verified, after which they can be
-archived without deleting their tags or release assets.
+real-provider/platform evidence are reported separately. After owner acceptance
+of the public site and canonical downloads on 21 September 2026, the historical
+source repositories were archived without deleting their tags, release assets
+or updater endpoints. The full installed-client transition chain remains an
+explicit release-qualification gate for the current beta.

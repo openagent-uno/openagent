@@ -16,18 +16,18 @@ New development and releases use exactly three repositories:
 `openagent-host-tools` and `openagent-docs` preserve imported history, tags,
 release assets and update endpoints. They receive no new feature development.
 
-They remain unarchived until a human verifies:
+The owner accepted the public site and canonical download surface on
+21 September 2026 and authorized archival of these repositories. They are now
+archived, not deleted. Archiving keeps their source, immutable tags, release
+downloads and updater endpoints available while preventing new development in
+the retired repositories. The public site deploys from `openagent/docs/site`;
+`openagent-docs` retains only its historical deployment record and transition
+mirror.
 
-1. the public site and all canonical download links;
-2. installed 0.x client discovery of the signed transition release;
-3. transition to the canonical product distribution;
-4. one subsequent update from the canonical repository;
-5. rollback and historical asset availability.
-
-After those checks the repositories are archived, not deleted. Archiving keeps
-immutable tags, release downloads and source links available. The public site
-already deploys from `openagent/docs/site`; `openagent-docs` retains only its
-historical deployment record and transition mirror.
+The current beta remains `development-unqualified`. Archival preserves the
+historical endpoints needed to test installed 0.x discovery, transition to the
+canonical distribution, a subsequent canonical update and rollback; it does
+not claim that the full cross-platform updater chain has already qualified.
 
 `openagent-mcp-template` is a maintained starter template rather than an
 imported product component. It remains active unless it is replaced by a new

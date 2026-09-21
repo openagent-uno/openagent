@@ -50,6 +50,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
-during the transition. Those repositories retain their immutable tags and
-release assets until the installed-version → transition → canonical-release
-chain has been verified.
+during the transition. The historical repositories are archived read-only and
+retain their immutable tags and release assets. The installed-version →
+transition → canonical-release chain remains a release-qualification gate;
+archival does not change the current beta's `development-unqualified` status.
