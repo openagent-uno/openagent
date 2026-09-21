@@ -1,6 +1,6 @@
 # Download OpenAgent
 
-The current public build is **v1.1.0-beta.2**. It is a beta of the new modular
+The current public build is **v1.1.0-beta.3**. It is a beta of the new modular
 architecture and its release manifest is marked `development-unqualified`:
 the published artifacts are tested, but this release does not claim a complete
 cross-platform updater chain.
@@ -46,7 +46,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — kernel, SDK, storage and optional module wheels.
 - [OpenAgent Tools v1.0.0-beta.1](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.1)
   — filesystem, editor, shell, web search and device capability packages.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.2/product-release-manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.3/product-release-manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints

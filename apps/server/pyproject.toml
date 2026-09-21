@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b2"
+version = "1.1.0b3"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,12 +14,15 @@ dependencies = [
     "openagent-storage-sqlite==1.1.0b1",
     "openagent-modules==1.1.0b1",
     "openagent-execution==1.0.0b1",
-    "openagent-client-transport==1.1.0b2",
+    "openagent-client-transport==1.1.0b3",
     "openagent-core==1.1.0b1",
-    "openagent-identity==1.1.0b2",
-    "openagent-dashboards==1.1.0b2",
-    "openagent-product-config==1.1.0b2",
-    "openagent-support-integration==1.1.0b2",
+    "openagent-identity==1.1.0b3",
+    "openagent-dashboards==1.1.0b3",
+    "openagent-product-config==1.1.0b3",
+    "openagent-support-integration==1.1.0b3",
+    # Federation is part of the standard server catalog and must be present
+    # in every wheel install, not only when the optional channel bundle is requested.
+    "openagent-mcp==1.1.0b3",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -181,9 +184,6 @@ all = [
     "slack-bolt>=1.20.0",
     "slack-sdk>=3.30.0",
     "aiohttp>=3.9",
-    # The agent-federation builtin embeds the standalone openagent-mcp package;
-    # bundled into the release binary via openagent.spec collect_submodules.
-    "openagent-mcp==1.1.0b2",
 ]
 
 [project.scripts]

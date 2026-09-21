@@ -11,7 +11,7 @@ The public guide and verified downloads are at
 [openagent.uno](https://openagent.uno/); new coordinated product releases are
 published only from this repository.
 
-The `v1.1.0-beta.2` release candidate uses the modular runtime and public
+The `v1.1.0-beta.3` release candidate uses the modular runtime and public
 package boundaries throughout. Imported legacy components remain available for
 the updater transition, while new builds consume pinned Core and Tools wheels.
 Existing updater endpoints stay in place until every supported platform has

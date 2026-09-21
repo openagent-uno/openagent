@@ -81,7 +81,8 @@ def standalone_spec_resolver(config, *, environment=None):
     """Trusted product composition; persisted row fields cannot replace modules."""
     from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, resolve_builtin_entry
     product = {"agent-manager": "openagent_product_config.tools.agent_manager.adapters",
-               "agent-federation": "openagent_mcp.federation.adapters"}
+               "agent-federation": "openagent_mcp.federation.adapters",
+               "messaging": "openagent_server.messaging_tools.adapters"}
     # These old globally registered tools belong to an originating App/CLI.
     contextual = frozenset({"ui-manager", "filesystem", "editor", "shell", "computer-control", "agent-in-chrome"})
     module_native = frozenset({
@@ -95,8 +96,11 @@ def standalone_spec_resolver(config, *, environment=None):
         if name in contextual or name in module_native:
             return False
         if name in product:
-            return dict(name=name,in_process=True,adapter_module=product[name],
-                        runtime_toolkit_factory="build_runtime_toolkit")
+            resolved = dict(name=name,in_process=True,adapter_module=product[name],
+                            runtime_toolkit_factory="build_runtime_toolkit")
+            if name == "messaging":
+                resolved["env"] = dict(environment or {})
+            return resolved
         if name in BUILTIN_MCP_SPECS:
             # Environment comes from the product's explicit module config,
             # never an arbitrary API-provided PYTHONPATH/argv override.

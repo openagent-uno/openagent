@@ -59,7 +59,7 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.2", "product-release-manifest.json"),
+    ("openagent-uno/openagent", "v1.1.0-beta.3", "product-release-manifest.json"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.1", "manifest.json"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.1", "manifest.json"),
 )
@@ -122,16 +122,28 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b2"
+    DIST="openagent-framework==1.1.0b3"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b2"
+    DIST="openagent-cli==1.1.0b3"
     COMMAND="openagent-cli"
 fi
 
+# The installer must not let ``--pre`` upgrade unrelated transitive packages
+# to release candidates merely because the first-party product is a beta.
+# These are the versions qualified by the product wheel test environment.
+CONSTRAINTS="$TMP_DIR/constraints.txt"
+cat >"$CONSTRAINTS" <<'EOF'
+hf-xet==1.6.0
+litellm==1.102.0
+pydantic==2.13.5
+pydantic-core==2.46.5
+SQLAlchemy==2.0.54
+EOF
+
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
 "$VENV/bin/python" -m pip install --disable-pip-version-check \
-    --pre --find-links "$WHEELHOUSE" "$DIST"
+    --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
 
 if [ -z "$PREFIX" ]; then
     PREFIX="$HOME/.local/bin"

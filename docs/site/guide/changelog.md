@@ -2,6 +2,20 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.3
+
+### Standalone installation and channel recovery
+
+- The standard server wheel now installs the federation bridge it exposes in
+  its catalog; users no longer need the optional `all` extra to avoid a
+  missing `openagent_mcp` import.
+- Telegram, Discord and WhatsApp messaging capabilities are supplied directly
+  by the standalone product from its verified channel configuration. They no
+  longer depend on a Node sidecar that was absent from Python wheel installs.
+- The public installer constrains the third-party dependency set qualified by
+  the release, so installing a first-party beta does not select unrelated
+  Pydantic, SQLAlchemy, LiteLLM or Hugging Face prereleases.
+
 ## v1.1.0-beta.2
 
 ### Modular runtime and canonical product repository
