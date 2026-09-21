@@ -70,11 +70,11 @@ That constraint is about the **store**, not the **index**. What the agent *knows
 
 The agent maintains the vault automatically as it learns. New facts produce new notes. Related notes are cross-linked the moment a connection is recognized. Contradictions between an existing note and a new observation are flagged and reconciled rather than silently overwritten. The vault grows in the same shape regardless of which model wrote the entry.
 
-Before acting on any non-trivial question, the agent consults the vault. After any meaningful learning, the agent writes to the vault. This is the agent's discipline, not an optional behavior.
+When the Vault module is active and authorized, the agent consults it before relevant non-trivial work and persists meaningful learning before finishing. These framework rules are mandatory for that module; a host that omits Vault receives no memory tools, hooks, reminders or impossible write requirement.
 
-## 6. MCPs (Capabilities)
+## 6. Capabilities and MCP
 
-The agent's capabilities beyond reasoning — file editing, shell execution, web search, browser control, calendar access, anything that touches the world — are delivered through MCPs (Model Context Protocol servers).
+The agent's capabilities beyond reasoning — file editing, shell execution, web search, browser control, calendar access, anything that touches the world — share one catalog. A capability may come from a native module, an external MCP server, the host product or an authenticated client.
 
 Capabilities are registered explicitly by enabled modules, the host product or an authenticated originating client. Domain tools for the vault, history, scheduler, workflow, models and delegation live next to those Core modules. Independent filesystem, editor, shell, web search, computer-control and browser tools live in OpenAgent Tools. Dashboard capabilities belong to OpenAgent App. No computer or dashboard tool is installed by importing Core.
 
@@ -84,7 +84,7 @@ When their host enables dynamic installation, users can register custom MCPs at 
 
 A marketplace exposes vetted MCPs for easy discovery and installation. The marketplace is part of the OpenAgent experience, not an external add-on. Adding capabilities to an OpenAgent never requires modifying its source code.
 
-MCPs are loaded into model context lazily. Tool schemas are deferred by default — the agent does not pay token cost for capabilities it is not currently using. A single discovery MCP, **tool-search**, is always injected; it is the agent's index into every other MCP available to it, both built-in and user-registered. When the agent needs a capability, it queries tool-search to load the relevant tool schemas on demand. The framework system prompt may include brief notes about a handful of high-traffic built-in tools to shortcut the most common discoveries, but the schemas themselves are still pulled through tool-search at the moment they are used.
+Tool schemas can be deferred so the agent does not pay token cost for capabilities it is not currently using. The optional Tool Discovery module indexes the active catalog and contributes mandatory discovery discipline when enabled. The standalone full profile enables it; a minimal embedded product may expose a small fixed native catalog without discovery or MCP support.
 
 ## 7. Scheduled Tasks
 
@@ -154,7 +154,7 @@ Dream mode runs while the agent is otherwise idle — nightly by default, at a t
 
 ## 13. Auto-Update
 
-The agent checks for new releases at `github.com/openagent-uno/openagent-server` and installs them automatically. Updates are platform-aware (macOS package, Linux tarball, Windows archive), checksum-verified during download, and rollback-safe — a failed install does not leave the agent broken.
+The standalone product checks coordinated releases at `github.com/openagent-uno/openagent`. Core and Tools retain independent library versions that are pinned by each product build. Historical updater endpoints remain reachable only for the verified transition from installed 0.x clients. Updates are platform-aware, checksum-verified during download, and rollback-safe — a failed install does not leave the agent broken.
 
 Auto-update is configurable but on by default. The user can change the check interval, pin to a specific release, or pause updates during sensitive work. An agent that cannot update itself is a dead branch.
 
@@ -170,11 +170,11 @@ The log is local by default. Aggregation, remote forwarding, and retention polic
 
 A versioned framework system prompt is injected into every actual agent run. Enabled modules contribute mandatory applicable instructions; the host adds system prompt and persona, followed by trusted execution context and currently available capabilities. Product prompts cannot replace the framework. MCP descriptions remain tool documentation, without automatically gaining framework authority.
 
-A framework system prompt is injected into every conversation. It describes OpenAgent to the agent itself: the vault, the MCPs, the sub-agent model, the scheduler, the workflow engine, the network, the logs — every lever the agent can pull.
+A framework system prompt is injected into every conversation. It describes the kernel and only the active module surfaces and capabilities — never tools, Vault, Scheduler or Workflows that the host omitted.
 
 This prompt is non-removable. A user-defined persona prompt — declared in the agent's YAML configuration — is layered on top of it, shaping the agent's voice and character; the framework prompt underneath establishes the agent's awareness of its own system. The user defines who the agent is; the framework defines what the agent has.
 
-The same two-layer prompt — framework underneath, user persona on top — is loaded into every AI execution within OpenAgent, not just live chat turns. Sub-agents at any depth of delegation (team leaders and team members alike), AI blocks fired inside a workflow, and scheduled tasks all run with the same framework prompt, the same user persona, and the same deferred-MCP setup: tool-search injected, every other capability discoverable through it. There is no reduced or alternate baseline for non-interactive execution paths — the agent is the same agent wherever it runs. Each of these runs is a child session in the sense of §4 — a delegated team member, a workflow AI block, a scheduled firing each get their own durable, navigable session — and the prompt that seeds it is recorded as an agent-authored message, distinct from a message a human sent, so the trail shows not just what was said but who said it.
+The same composition path is loaded into every real AI execution, not just live chat turns. Sub-agents at any depth, workflow AI blocks and scheduled firings receive kernel rules, applicable active-module rules, the host prompt and their verified execution context. There is no reduced provider-specific baseline. Each execution owns a durable, navigable session, and its seed prompt is recorded as agent-authored rather than attributed to a human.
 
 An OpenAgent agent knows what it is and what it can do. When asked a question, it does not guess at its own capabilities. When given a task, it does not improvise around its tools — it knows them, reaches for them deliberately, and surfaces them to the user when relevant.
 

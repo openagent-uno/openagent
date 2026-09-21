@@ -1,82 +1,60 @@
-# Scheduler & Dream Mode
+# Scheduler and Dream Mode
+
+Scheduler and Vault are independent optional modules in OpenAgent v1.1. The
+standalone full profile enables both and registers an integration that schedules
+Vault's dream maintenance. A product can enable Scheduler without Vault, Vault
+without Scheduler, or neither.
 
 ## Scheduler
 
-Cron tasks stored in SQLite — survive reboots. Runs as part of `openagent serve`
-whenever a database is attached. Changes take effect within ~30 seconds
-(the scheduler's next tick) without needing a restart.
+`openagent-module-scheduler` owns schedule definitions, timezone handling,
+firings, deduplication and its worker. Its `agent_tools` surface provides the
+`schedule_*` tools; its `host_api` surface lets the product manage schedules
+without exposing manager tools to the model.
 
-Manage tasks via:
+A schedule can start a normal agent run directly. If Workflows is also active,
+it can target a specific workflow version. Workflows is not a dependency of
+Scheduler.
 
-- the **Tasks** tab in the desktop / universal app (reads and writes
-  `/api/scheduled-tasks` on the gateway);
-- the `scheduler` MCP server (from inside an agent chat — `create_scheduled_task`,
-  `update_scheduled_task`, etc.);
-- the REST API (`POST /api/scheduled-tasks`, `GET /api/scheduled-tasks`, etc.).
+```python
+ModuleConfig(
+    surfaces={"service", "agent_tools", "host_api", "workers"},
+)
+```
+
+Every firing revalidates its durable delegation and target references. Device
+capabilities supplied by an App or CLI turn are not persisted. Timezone, DST,
+pending occurrences and event deduplication remain durable across restarts.
+
+If disabling a module would invalidate active schedules, reconfiguration
+preflight returns the affected references. The host must cancel the change or
+explicitly pause those schedules; nothing is deleted automatically.
 
 ## Dream Mode
 
-Nightly maintenance task, run through the same tick loop as any other
-scheduled task. It works two missions:
-
-- **Mission 1 — curate the vault.** Merge duplicates, cross-link notes with
-  wikilinks, reconcile contradictions, keep `tags:` consistent.
-- **Mission 2 — analyze the last day of logs and fix what is broken.** Read
-  ~24h of `events.jsonl` and act on broken scheduled tasks (fix, reschedule,
-  or retire them), failed or stalled workflows, and recurring model / MCP /
-  federation / channel errors.
-
-The receipt lands in the vault at `dream-logs/dream-log-YYYY-MM-DD.md`.
+Dream Mode belongs to `openagent-module-vault`. It starts a real child session
+that consolidates notes, repairs links, records provenance and writes a durable
+receipt. The standalone and initial GlassPalace profiles preserve the existing
+default cadence and reminder behavior.
 
 ```yaml
 dream_mode:
   enabled: true
   time: "3:00"
-  timezone: "Europe/Rome"   # omit → UTC
+  timezone: "Europe/Rome"
 ```
 
-::: warning `time` is UTC unless you say otherwise
-Crons evaluate in **UTC**, not in the host's local zone — an untagged
-`3:00` fires at 03:00 UTC on every machine, which is 05:00 in Rome in
-summer. Name a `timezone` (any IANA zone) to get the wall-clock hour you
-actually meant, and DST is handled for you.
+Name an IANA timezone when the schedule should follow local wall-clock time and
+DST. Without one, cron expressions use UTC.
 
-Set `scheduler.timezone` to make that the default for every new task.
-It is materialised into each task when it is created and never re-applied
-to tasks that already exist, so setting it never silently re-aims a cron
-you already hand-converted to UTC.
-:::
+Removing Vault removes Dream tools, hooks, reminders and prompt instructions.
+Disabling Scheduler does not delete Vault data, and Vault can still run a
+manually requested maintenance child session.
 
-## Auto-Update
+## Auto-update
 
-The second built-in task: check GitHub releases, download, and let the
-launcher pick up the new binary on the next restart. **Off unless you
-enable it.** Once enabled the check defaults to a daily `0 4 * * *` cron;
-override it with `check_interval`.
-
-```yaml
-auto_update:
-  enabled: true
-  mode: auto                  # auto | notify | manual
-  check_interval: "0 4 * * *" # default; any 5-field cron
-```
-
-See [Deployment → Auto-Update](./deployment.md#auto-update) for the mode
-semantics and restart behaviour.
-
-## Built-in tasks
-
-There are exactly two built-in scheduled tasks — `dream-mode` and
-`auto-update`, both above. Everything else on the schedule is one you
-created.
-
-::: warning `manager_review` was retired
-The weekly **Manager Review** task no longer exists. Its duties were folded
-into Dream Mode's Mission 2, which runs nightly rather than weekly.
-
-There is no `manager_review` config section — setting one has no effect. On
-every boot the server **hard-deletes** any leftover `manager-review` row from
-`scheduled_tasks`, so an old install stops running the stale prompt without
-you needing to clean up. The `manager-reviews/` receipts a previous version
-wrote to your vault are left alone; Dream Mode writes to `dream-logs/` now.
-:::
+Product updates belong to the standalone product rather than the Core Scheduler
+contract. During the v1.1 beta transition, installed 0.x clients retain their
+historical updater endpoints while new coordinated artifacts are published from
+[`openagent`](https://github.com/openagent-uno/openagent/releases). See
+[Deployment](./deployment.md#auto-update) for the currently qualified path.

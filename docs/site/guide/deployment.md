@@ -2,28 +2,39 @@
 
 ## VPS Quick Setup
 
-### Standalone Executable (recommended)
+The current v1.1 product build is a beta distributed as verified Python wheels.
+Download the complete product/Core/Tools wheelhouse using the commands in
+[Getting Started](./getting-started.md), then install the standalone package in
+an isolated Python 3.11+ environment.
+
+### Beta wheel installation
 
 ```bash
-# Install the latest server release for your platform
-curl -fsSL https://openagent.uno/install.sh | sh
+# From the wheelhouse prepared in Getting Started
+python3.11 -m venv /opt/openagent
+/opt/openagent/bin/python -m pip install --pre --find-links . \
+  openagent-framework==1.1.0b2
 
 # Start with an agent directory (auto-bootstraps network + prints invite)
-openagent serve ./my-agent
+/opt/openagent/bin/openagent serve ./my-agent
 
 # Register as OS service
-openagent service install ./my-agent
+/opt/openagent/bin/openagent service install ./my-agent
 ```
 
-Prefer to grab the archive yourself? Browse releases at
-<https://github.com/openagent-uno/openagent-server/releases>.
+Browse the coordinated product release at
+<https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.2>.
 
-### pip install
+### Future package-index installation
 
 ```bash
 pip install 'openagent-framework[all]'
 openagent serve ./my-agent
 ```
+
+Use this shorter form only when the selected version and every pinned
+first-party dependency are available from the same configured package index.
+For the current beta, use the verified wheelhouse above.
 
 ## Doctor & Setup
 

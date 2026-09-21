@@ -1,19 +1,23 @@
 # Documentation
 
-OpenAgent is a persistent AI agent framework. You run an **Agent Server** on a machine you control, then talk to it from the **Desktop App** or **CLI** — all pointing at the same agent, sharing the same memory and tools.
+OpenAgent is both an embeddable modular agent runtime and a complete standalone
+product. The standalone **Server**, **Desktop App** and **CLI** share sessions
+and whichever optional modules the product profile enables. Other products can
+import Core and supply their own identity, storage, tools and infrastructure.
 
 It's model-agnostic: Claude, GLM, Ollama, LM Studio, vLLM, or any OpenAI-compatible provider. Swap the model without losing memory or tool state. Run multiple independent agents side-by-side, each in its own folder.
 
 ## Start here
 
-- [Getting Started](./getting-started.md) — download, install, first run
+- [Downloads](../downloads.md) — current canonical release artifacts
+- [Getting Started](./getting-started.md) — install, first run and embedding
 - [Configuration reference](./config-reference.md)
 
 ## Core concepts
 
 - [Invitation System & Networking](./invitation-system.md) — Iroh P2P transport, coordinator, device certs, invite tickets
 - [Models](./models.md) — pick a provider
-- [MCP tools](./mcp.md) — filesystem, editor, browser, web search, and more
+- [MCP and capabilities](./mcp.md) — uniform tools, catalog modes and client sources
 - [Gateway](./gateway.md) — WebSocket + REST surface over Iroh QUIC
 - [Channels](./channels.md) — Telegram, Discord, WhatsApp, Webhook
 - [Events](./events.md) — inbound webhook triggers for workflows, tasks, and chats

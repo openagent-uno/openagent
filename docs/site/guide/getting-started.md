@@ -1,85 +1,107 @@
 # Getting Started
 
-OpenAgent has two installable client pieces plus an optional CLI. You only need the **Agent Server** — the CLI and Desktop App are optional clients.
+OpenAgent can be used as the complete standalone product or embedded as a
+library. The current public product build is **v1.1.0-beta.2**; see the
+[downloads page](../downloads) for its qualification status and available
+platforms.
 
-## Agent Server
-
-The runtime. Install this on the machine where your agent should live.
-
-<ReleaseDownloads target="server" />
-
-**macOS** — double-click the `.pkg`. **Linux / Windows** — extract the archive. Or from a terminal:
-
-```bash
-curl -fsSL https://openagent.uno/install.sh | sh
-```
-
-Start it from any folder:
-
-```bash
-openagent serve ./my-agent
-```
-
-The folder becomes your agent — config, memory, and database live inside `./my-agent/`.
-
-**First run:** `openagent serve` automatically bootstraps a personal network. It prints an invite ticket (`oa1...`) — paste this into the desktop app or CLI client to connect. No separate setup step needed. See [Invitation System & Networking](./invitation-system.md) for details on how the network works.
-
-```bash
-openagent serve --no-auto-init   # Skip network bootstrap (standalone mode)
-```
-
-## Desktop App
-
-A native chat window for your agent.
+## Desktop app
 
 <ReleaseDownloads target="desktop" />
 
-Launch the installer, then paste the invite ticket printed by `openagent serve` to connect. The desktop app handles the Iroh P2P transport and device certificate automatically — no manual config needed.
+Install the `.dmg`, launch OpenAgent, and connect it to an existing standalone
+server. The current beta desktop artifact supports Apple Silicon macOS. The app
+registers dashboard and local-computer capabilities only for its authenticated
+device turns; Telegram, scheduled work and other clients do not inherit them.
 
-## CLI Client
+## Standalone server and CLI
 
-A terminal client for talking to a running server.
+<ReleaseDownloads target="server" />
 
 <ReleaseDownloads target="cli" />
 
-Extract the archive and connect using the invite ticket:
+The beta server and CLI are Python 3.11+ wheels. Their dependencies span the
+three independently versioned repositories, so download one verified
+wheelhouse before installing either component:
 
 ```bash
-# First-time join (paste the oa1... ticket from the server)
-openagent-cli connect oa1abc123...
+# Standalone server
+curl -fsSL https://openagent.uno/install.sh | sh
 
-# Returning user (saved credentials)
-openagent-cli connect alice@homelab
+# CLI
+curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
+
+# Download and verify every first-party wheel without installing
+curl -fsSL https://openagent.uno/install.sh | sh -s -- --check
 ```
 
-## Multi-agent
-
-Run multiple independent agents in parallel, each with its own data directory:
+The installer pins the three release tags below, checks every first-party wheel
+against its published manifest, creates an isolated virtual environment and
+refuses to overwrite an unrelated command. The equivalent manual procedure is:
 
 ```bash
-openagent serve ./agent-work
-openagent serve ./agent-home
+mkdir openagent-1.1-beta && cd openagent-1.1-beta
+
+gh release download v1.1.0-beta.2 \
+  --repo openagent-uno/openagent --pattern '*.whl'
+gh release download v1.1.0-beta.1 \
+  --repo openagent-uno/openagent-core --pattern '*.whl'
+gh release download v1.0.0-beta.1 \
+  --repo openagent-uno/openagent-tools --pattern '*.whl'
+
+python3.11 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install --pre --find-links . \
+  openagent-framework==1.1.0b2 openagent-cli==1.1.0b2
 ```
 
-Each directory contains its own `openagent.yaml`, database, memories, and logs. Each gets its own Iroh identity and network configuration.
+The release manifests publish the expected SHA-256 for every first-party wheel:
 
-## Service installation
+- [product manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.2/product-release-manifest.json)
+- [Core manifest](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.1/manifest.json)
+- [Tools manifest](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.1/manifest.json)
 
-Install OpenAgent as a system service that auto-starts on boot:
+Start a standalone agent from any folder:
 
 ```bash
-openagent service install          # Default service
-openagent service install ./my-agent   # Per-agent service
-openagent service status
-openagent service uninstall
+.venv/bin/openagent serve ./my-agent
 ```
 
-Supports systemd (Linux), launchd (macOS), and Task Scheduler (Windows).
+The folder contains the product configuration, SQLite state, vault and logs.
+On first run the standalone identity package bootstraps the configured network
+and prints an invite ticket. Connect the CLI with that verified ticket:
+
+```bash
+.venv/bin/openagent-cli connect oa1abc123...
+```
+
+## Embed Core in another product
+
+Products install only the Core packages and modules they select. The host owns
+authentication, authorization, credentials, infrastructure and deployment:
+
+```python
+profile = RuntimeProfile(modules={
+    "sessions": ModuleConfig(surfaces={"service", "agent_tools", "host_api"}),
+    "vault": ModuleConfig(surfaces={"service", "agent_tools"}),
+    "mcp": ModuleConfig(
+        surfaces={"service", "host_api"},
+        options={"catalog_mode": "managed"},
+    ),
+})
+
+runtime = Runtime(settings=settings, services=services, profile=profile)
+await runtime.start()
+```
+
+GlassPalace follows this model: it builds its own worker image from pinned
+packages and owns its pods, sandbox, volumes and identity adapters. It does not
+download or patch the standalone OpenAgent repository at runtime.
 
 ## Next steps
 
-- [Invitation System & Networking](./invitation-system.md) — how clients connect
-- [Configure your agent](./config-reference.md)
-- [Pick a model](./models.md)
-- [Add MCP tools](./mcp.md)
-- [Connect a channel](./channels.md)
+- [Understand the modular architecture](./architecture)
+- [Configure the standalone product](./config-reference)
+- [Choose models](./models)
+- [Configure MCP mode](./mcp)
+- [Connect a channel](./channels)

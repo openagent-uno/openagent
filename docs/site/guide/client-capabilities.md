@@ -1,19 +1,16 @@
 # Client Computer Capabilities
 
-OpenAgent can execute machine-bound MCPs on the computer running an
-authenticated Desktop or CLI client. The agent itself, its memory, sessions and
-orchestration continue to run on the OpenAgent server; the client is a temporary
+OpenAgent can execute machine-bound capabilities on the computer running an
+authenticated Desktop or CLI client. The agent itself, its sessions and enabled
+modules continue to run on the OpenAgent server; the client is a temporary
 capability host for the interactive turn it sends.
 
 ## Execution locations
 
-Tool Search uses explicit locations:
-
-- `server:<mcp>` runs on the OpenAgent server.
-- `client:<mcp>` runs on the computer that sent this interactive turn.
-
-Legacy unprefixed names continue to mean the server. Resolution never crosses
-locations: an unavailable `client:filesystem` call fails instead of falling back
+Discovery presents concrete destinations such as “Shell — Mac di Alice” and
+“Shell — Agent environment”. The model receives an opaque `ToolRef`; internal
+source prefixes are not part of the model-facing contract. Resolution never
+crosses destinations: an unavailable client call fails instead of falling back
 to the server or another online device.
 
 The client target belongs to one turn, not to the durable session. If a session
@@ -22,7 +19,7 @@ status events and audit entries always include the execution host.
 
 ## What is local
 
-The official host bundle advertises these machine-bound MCPs when available:
+The official host bundle advertises these machine-bound capabilities when available:
 
 - `filesystem`
 - `editor`
@@ -35,7 +32,7 @@ to the user's everyday Chrome profile. Operating-system permissions still
 apply. For example, macOS requires Accessibility and Screen Recording grants for
 computer control.
 
-Additional local MCPs may be registered explicitly in
+Additional local MCP servers may be registered explicitly in
 `~/.openagent/user/client-mcps.toml`. Their command, environment and secrets stay
 on the device; the server receives only the public MCP catalog and schemas.
 

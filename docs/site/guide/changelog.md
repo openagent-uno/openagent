@@ -2,6 +2,30 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.2
+
+### Modular runtime and canonical product repository
+
+- OpenAgent Core now exposes a small kernel plus independently installable
+  Sessions, Search, Vault, MCP, Workflows, Scheduler, Events, Delegation,
+  Skills, Models, Budget, Attachments, Logs, PTC and Tool Discovery modules.
+- Every module uses the same descriptor, lifecycle, service registry and
+  surface contract. Manager tools are an optional `agent_tools` surface rather
+  than a privileged architecture layer.
+- Native, MCP, product and authenticated-device capabilities share one catalog
+  and opaque references. App dashboard and computer tools remain scoped to the
+  connected client context.
+- App, CLI, server and MCP bridge are now released together from
+  [`openagent`](https://github.com/openagent-uno/openagent). Core and Tools keep
+  independent versions.
+- Framework tool rules and Vault recall/save/quality rules are contributed by
+  their active modules and cannot be replaced by the host system prompt.
+- The published beta includes Python product wheels and a signed, notarized,
+  stapled Apple Silicon desktop build. The manifest remains
+  `development-unqualified` pending a complete cross-platform updater chain.
+
+See [Architecture](./architecture.md) and [Downloads](../downloads.md).
+
 ## v0.14.18
 
 ### The write gate now covers the app and CLI too

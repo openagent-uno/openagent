@@ -60,7 +60,8 @@ is insufficient.
 
 ## Current status
 
-The repository-history import and workspace/release tooling are implemented.
+The repository-history import, workspace/release tooling and modular v1.1
+runtime are implemented and published as beta releases.
 Server composition, identity, dashboards, support and product prompts have
 been relocated into product packages; engine source has been removed from
 this repository. The host-tools compatibility package delegates to the
@@ -70,17 +71,19 @@ The native gateway now admits turns through one Runtime and canonical run
 ledger, binds certificate identities and current result audiences, and exposes
 App dashboard/device sources only in their exact originating context. Managed
 MCP catalogs and automation definition changes use shared public services;
-definition changes and durable grants commit atomically. Native release
-qualification remains in progress; package builds do not establish complete
-end-to-end readiness. The v1
-runtime, product and client integration gates must pass before this document
-can state that the migration is complete. No production repository, release
-asset, installed application or persistent agent directory has been changed
-by this import.
+definition changes and durable grants commit atomically. The standalone product
+and GlassPalace integration use public package boundaries without source
+overlays. Product `v1.1.0-beta.2`, Core `v1.1.0-beta.1` and Tools
+`v1.0.0-beta.1` are public. Native cross-platform updater qualification remains
+in progress; the current product manifest is therefore
+`development-unqualified` and advertises only the exact artifacts it contains.
 
 Release qualification includes installed-wheel tests outside source trees,
 two isolated runtimes, multiuser and multidevice attribution, channel
 capability isolation, managed catalog enforcement, durable run retries and
 cancellation, prompt/vault parity, provider and automation compatibility,
 real authenticated client E2E and backup restoration. Deterministic tests and
-real-provider/platform evidence must be reported separately.
+real-provider/platform evidence are reported separately. Historical source
+repositories remain available until the public site, download links and full
+installed-client transition chain have been verified, after which they can be
+archived without deleting their tags or release assets.

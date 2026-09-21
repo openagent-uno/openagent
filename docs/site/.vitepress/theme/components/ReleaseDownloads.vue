@@ -26,34 +26,24 @@ type Target = "server" | "cli" | "desktop";
 
 const props = defineProps<{ target?: Target }>();
 
-const REPOS: Record<Target, string> = {
-  server: "openagent-uno/openagent-server",
-  cli: "openagent-uno/openagent-cli",
-  desktop: "openagent-uno/openagent-app",
-};
-
-const repoPath = computed(() => (props.target ? REPOS[props.target] : REPOS.server));
+const repoPath = "openagent-uno/openagent";
 const releasesUrl = computed(
-  () => `https://api.github.com/repos/${repoPath.value}/releases?per_page=30`,
+  () => `https://api.github.com/repos/${repoPath}/releases?per_page=30`,
 );
 const allReleasesUrl = computed(
-  () => `https://github.com/${repoPath.value}/releases`,
+  () => `https://github.com/${repoPath}/releases`,
 );
 
 const loading = ref(true);
 const error = ref("");
 const releases = ref<Release[]>([]);
 
-function isServerExecutableAsset(name: string) {
-  return /^openagent-\d+\.\d+\.\d+-(macos|linux|windows)-(arm64|x64)\.(tar\.gz|zip|pkg)$/i.test(
-    name,
-  );
+function isServerAsset(name: string) {
+  return /^openagent_framework-\d+\.\d+\.\d+(?:[a-z]+\d+)?-py3-none-any\.whl$/i.test(name);
 }
 
-function isCliExecutableAsset(name: string) {
-  return /^openagent-cli-\d+\.\d+\.\d+-(macos|linux|windows)-(arm64|x64)\.(tar\.gz|zip|pkg)$/i.test(
-    name,
-  );
+function isCliAsset(name: string) {
+  return /^openagent_cli-\d+\.\d+\.\d+(?:[a-z]+\d+)?-py3-none-any\.whl$/i.test(name);
 }
 
 function isMacDesktopAsset(name: string) {
@@ -90,22 +80,10 @@ function archLabel(name: string): string {
   return "";
 }
 
-function executablePlatformLabel(name: string): string {
-  if (/macos/i.test(name)) return "macOS";
-  if (/linux/i.test(name)) return "Linux";
-  if (/windows/i.test(name)) return "Windows";
-  return "";
-}
-
 function assetLabel(name: string) {
   const arch = archLabel(name);
-  if ((isServerExecutableAsset(name) || isCliExecutableAsset(name)) && /\.pkg$/i.test(name)) {
-    return `macOS installer${arch}`;
-  }
-  if (isServerExecutableAsset(name) || isCliExecutableAsset(name)) {
-    const plat = executablePlatformLabel(name);
-    return `${plat}${arch}`;
-  }
+  if (isServerAsset(name)) return "Server · Python wheel";
+  if (isCliAsset(name)) return "CLI · Python wheel";
   if (/\.dmg$/i.test(name)) return `macOS${arch}`;
   if (/\.exe$/i.test(name)) return `Windows${arch}`;
   if (/\.msi$/i.test(name)) return `Windows MSI${arch}`;
@@ -131,7 +109,7 @@ function assetPriority(name: string) {
 function findLatestMatch(
   matcher: (asset: ReleaseAsset) => boolean,
 ): ReleaseMatch | null {
-  for (const release of stableReleases.value) {
+  for (const release of publishedReleases.value) {
     const assets = release.assets
       .filter(matcher)
       .sort((left, right) => assetPriority(left.name) - assetPriority(right.name));
@@ -142,32 +120,25 @@ function findLatestMatch(
   return null;
 }
 
-const stableReleases = computed(() =>
-  releases.value.filter((release) => !release.draft && !release.prerelease),
+const publishedReleases = computed(() =>
+  releases.value.filter((release) => !release.draft),
 );
 
 const serverDownload = computed(() =>
-  findLatestMatch((asset) => isServerExecutableAsset(asset.name)),
+  findLatestMatch((asset) => isServerAsset(asset.name)),
 );
 
 const cliDownload = computed(() =>
-  findLatestMatch((asset) => isCliExecutableAsset(asset.name)),
+  findLatestMatch((asset) => isCliAsset(asset.name)),
 );
 
 const desktopAssets = computed<ReleaseMatch | null>(() => {
-  const platforms = [
-    findLatestMatch((asset) => isMacDesktopAsset(asset.name)),
-    findLatestMatch((asset) => isWindowsDesktopAsset(asset.name)),
-    findLatestMatch((asset) => isLinuxDesktopAsset(asset.name)),
-  ].filter((match): match is ReleaseMatch => match !== null);
-  if (!platforms.length) return null;
-  const newest = platforms.reduce((acc, m) =>
-    new Date(m.release.published_at) > new Date(acc.release.published_at) ? m : acc,
+  return findLatestMatch(
+    (asset) =>
+      isMacDesktopAsset(asset.name) ||
+      isWindowsDesktopAsset(asset.name) ||
+      isLinuxDesktopAsset(asset.name),
   );
-  const assets = platforms
-    .flatMap((m) => m.assets)
-    .sort((a, b) => assetPriority(a.name) - assetPriority(b.name));
-  return { release: newest.release, assets };
 });
 
 onMounted(async () => {
@@ -212,6 +183,10 @@ const activeMatch = computed<ReleaseMatch | null>(() => {
     </div>
 
     <template v-else-if="activeMatch">
+      <div class="downloads-inline-release">
+        <a :href="activeMatch.release.html_url">{{ activeMatch.release.tag_name }}</a>
+        <span v-if="activeMatch.release.prerelease" class="downloads-inline-badge">Beta</span>
+      </div>
       <a
         v-for="asset in activeMatch.assets"
         :key="asset.browser_download_url"
@@ -239,6 +214,27 @@ const activeMatch = computed<ReleaseMatch | null>(() => {
   margin-right: 8px;
   animation: oa-pulse 1.4s ease-in-out infinite;
   vertical-align: middle;
+}
+
+.downloads-inline-release {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.downloads-inline-badge {
+  border: 1px solid var(--vp-c-brand-1);
+  border-radius: 999px;
+  color: var(--vp-c-brand-1);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  padding: 4px 7px;
+  text-transform: uppercase;
 }
 
 @keyframes oa-pulse {

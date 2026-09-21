@@ -1,11 +1,13 @@
 # Desktop App
 
-OpenAgent ships an Electron desktop app that connects to any OpenAgent instance via the WebSocket channel. It is an independent client application: it does not bundle the Agent Server, and it expects a running OpenAgent runtime to connect to. Built with React Native Web, the same codebase compiles for web, macOS, Windows, Linux, and future iOS/Android.
+OpenAgent ships an Electron desktop app that connects to any OpenAgent instance via the public gateway. It is an independent client application: it does not bundle the Agent Server, and it expects a running OpenAgent runtime to connect to. The app also registers dashboard, filesystem, editor, shell, computer-control and agent-in-chrome capabilities for its authenticated device context. Other channels and durable automation do not inherit them.
+
+Download published builds from the canonical [OpenAgent release](../downloads.md).
 
 ## Quick Start
 
 ```bash
-cd app
+cd apps/app
 ./setup.sh              # install dependencies (universal + desktop)
 ./start.sh macos        # start Electron in dev mode
 ```
@@ -28,14 +30,18 @@ cd app
 
 ## Auto-Update
 
-The desktop app uses `electron-updater` with GitHub Releases. When a new release is published (via `scripts/release.sh`), the app detects it, downloads in background, and prompts the user to restart.
+The desktop app uses `electron-updater` with GitHub Releases. New coordinated
+product releases are published from
+[`openagent`](https://github.com/openagent-uno/openagent/releases). Historical
+`openagent-app` endpoints remain available only for the verified updater
+transition; they are not the source repository for new development.
 
 ## Architecture
 
 Following the Mixout-Client monorepo pattern:
 
 ```
-app/
+apps/app/
 ├── universal/          # Shared React Native + Web codebase
 │   ├── app/            #   Expo Router screens (Login, Chat, ...)
 │   ├── stores/         #   Zustand state (connection, chat, vault)

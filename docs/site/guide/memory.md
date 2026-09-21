@@ -1,8 +1,22 @@
 # Memory & Vault
 
-OpenAgent's long-term memory is a plain **Obsidian-compatible markdown vault** — one `.md` file per note, with YAML frontmatter, `[[wikilinks]]`, and tags. The agent reads and writes those files directly via the `vault` MCP. Open the same folder in Obsidian and graph view, backlinks, and plugins all work, untouched.
+OpenAgent's optional Vault module provides long-term memory as a plain
+**Obsidian-compatible markdown vault** — one `.md` file per note, with YAML
+frontmatter, `[[wikilinks]]`, and tags. Open the same folder in Obsidian and
+graph view, backlinks, and plugins all work untouched.
 
-The markdown is the source of truth. On top of it sits a code-enforced **quality system** (shipped in v0.14.12): an incremental SQLite + FTS5 index, a quality gate that grades every note, a mechanical doctor, derived artifacts (`llms.txt`, `_showcase/`), link-rewriting move/rename, and a git-backed history. The index is a cache — delete it and it rebuilds from the markdown.
+Vault is independent from Sessions. Sessions searches authoritative
+transcripts; Vault searches consolidated notes. Removing Vault registers no
+memory tools, hooks, reminder or prompt rules, while the kernel and Sessions
+continue to work. The standalone full profile and the initial GlassPalace
+profile enable Vault and preserve the established recall, save, quality and
+Dream rules.
+
+The markdown is the source of truth. On top of it sits a code-enforced
+**quality system**: an incremental SQLite + FTS5 index, a quality gate that
+grades every note, a mechanical doctor, derived artifacts (`llms.txt`,
+`_showcase/`), link-rewriting move/rename, and a git-backed history. The index
+is a cache — delete it and it rebuilds from the markdown.
 
 ::: tip
 For the gate rules, the index, the doctor, git provenance, the `vault-gate` MCP tools, and the `openagent vault` CLI, see **[Vault Quality System](./vault-quality.md)**.
