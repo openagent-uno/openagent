@@ -12,8 +12,15 @@ class ProductModuleCompositionTests(unittest.TestCase):
 
     def test_device_and_dashboard_tools_are_not_boot_registered(self):
         resolver = standalone_spec_resolver({})
-        for name in ['ui-manager','filesystem','editor','shell','computer-control','agent-in-chrome']:
+        for name in ['ui-manager','computer-control','agent-in-chrome']:
             self.assertIs(resolver({'name':name,'kind':'builtin'}, '/workspace/state.sqlite3'), False)
+
+    def test_server_workspace_tools_are_distinct_product_capabilities(self):
+        resolver = standalone_spec_resolver({})
+        for name in ['filesystem','editor','shell']:
+            spec = resolver({'name':name,'kind':'builtin'}, '/workspace/state.sqlite3')
+            self.assertEqual(spec['name'], name)
+            self.assertEqual(spec['_cwd'], '/workspace')
 
     def test_product_tools_resolve_to_product_owned_implementations(self):
         resolver = standalone_spec_resolver({})

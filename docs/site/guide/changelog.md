@@ -2,6 +2,19 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.6
+
+### Uniform native and MCP capability visibility
+
+- Standalone authorization now verifies source presence through the runtime's
+  uniform catalog snapshot. Native module capabilities such as Vault and
+  Sessions, external MCP servers and product sources therefore use the same
+  trusted registration boundary.
+- Audience, delegation, Vault ownership, temporary-device leases and immediate
+  revocation remain independently enforced after registration is verified.
+- The release adds regressions for native source discovery and unregistered or
+  revoked sources, plus live Telegram qualification on the Performa fleet.
+
 ## v1.1.0-beta.5
 
 ### Modular capability authorization

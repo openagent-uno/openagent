@@ -605,17 +605,11 @@ class NativeRuntimeService:
             )
         if context.delegation_id and f"capability:{source}" not in context.scopes:
             return False
-        # The modular runtime owns the authoritative MCP pool.  The Agent's
-        # compatibility pool intentionally contains only ``tool-search`` and
-        # therefore cannot be used to decide whether a module capability is
-        # present (doing so hid every standalone workspace tool).
-        mcp_service = (
-            self.runtime.service("mcp.service")
-            if self.runtime is not None
-            else None
-        )
-        pool = getattr(mcp_service, "pool", None) or self.agent.capability_pool
-        if pool is None or source not in pool.server_summary():
+        # One catalog owns native module capabilities, external MCPs and
+        # product sources. Pool membership is an implementation detail of the
+        # optional MCP module and cannot authorize (or hide) the other kinds.
+        catalog = getattr(self.runtime, "capabilities", None)
+        if catalog is None or not catalog.has_source(source, context):
             return False
         policies = self.agent.config.get("runtime_tool_audiences") or {}
         domain = {"vault-gate": "vault", "skill-data": "skills"}.get(source, source)

@@ -145,36 +145,36 @@ class RuntimeServiceTests(unittest.IsolatedAsyncioTestCase):
             reset_on_behalf_identity(token)
         self.assertEqual(self.agent.calls, [])
 
-    async def test_workspace_tool_authorization_uses_modular_mcp_pool(self):
+    async def test_workspace_tool_authorization_uses_uniform_runtime_catalog(self):
         context = await self.service.authorizer.context_for_identity(
             self.identity, "workspace-tools"
         )
-        original_runtime = self.service.runtime
-        original_compatibility_pool = self.agent.capability_pool
-        try:
-            # The compatibility pool exposes only the discovery broker.  The
-            # module pool is authoritative for concrete capability sources.
-            self.agent.capability_pool = SimpleNamespace(
-                server_summary=lambda: {"tool-search": 4}
-            )
-            module_pool = SimpleNamespace(
-                server_summary=lambda: {"shell": 6}
-            )
-            self.service.runtime = SimpleNamespace(
-                service=lambda key: SimpleNamespace(pool=module_pool)
-                if key == "mcp.service"
-                else None
-            )
-            allowed = await self.service._authorize_source(
+        # Sessions is a native module capability, not an MCP pool entry. Its
+        # trusted catalog registration is sufficient before product policy.
+        self.assertTrue(
+            self.service.runtime.capabilities.has_source("sessions", context)
+        )
+        self.assertTrue(
+            await self.service._authorize_source(
                 context,
                 "tool.discover",
-                ResourceRef("capability", context.tenant_id, "shell"),
+                ResourceRef("capability", context.tenant_id, "sessions"),
                 audience=context.audience,
             )
-            self.assertTrue(allowed)
-        finally:
-            self.service.runtime = original_runtime
-            self.agent.capability_pool = original_compatibility_pool
+        )
+        visible_sources = {
+            tool.source_id
+            for tool in await self.service.runtime.capabilities.discover(context)
+        }
+        self.assertIn("sessions", visible_sources)
+        self.assertFalse(
+            await self.service._authorize_source(
+                context,
+                "tool.discover",
+                ResourceRef("capability", context.tenant_id, "not-registered"),
+                audience=context.audience,
+            )
+        )
 
     async def test_admission_persists_before_observation_and_retry_keeps_target(self):
         first = await self.service.admit_message(

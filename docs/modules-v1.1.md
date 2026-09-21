@@ -6,6 +6,11 @@ discovery, Sessions, federated Search, Vault, dynamic MCP management, Workflows,
 Scheduler, Events, Delegation, Skills, Models, Budget, Attachments and Logs; PTC
 is enabled only by product configuration.
 
+Standalone authorization checks capability presence through the uniform
+runtime catalog. It does not infer native module availability from the MCP
+module's connection pool, so Sessions, Vault and other native capabilities are
+visible whenever their registered surface is active.
+
 The three automation domains contribute separate workers to the runtime graph.
 They share one execution implementation, but activation and shutdown are
 reference-counted by domain, so hot removal of Scheduler does not stop Workflow
