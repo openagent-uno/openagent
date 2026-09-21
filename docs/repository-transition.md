@@ -26,8 +26,8 @@ They remain unarchived until a human verifies:
 
 After those checks the repositories are archived, not deleted. Archiving keeps
 immutable tags, release downloads and source links available. The public site
-must already deploy from `openagent/docs/site` before `openagent-docs` is
-archived.
+already deploys from `openagent/docs/site`; `openagent-docs` retains only its
+historical deployment record and transition mirror.
 
 `openagent-mcp-template` is a maintained starter template rather than an
 imported product component. It remains active unless it is replaced by a new

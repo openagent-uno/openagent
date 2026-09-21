@@ -15,7 +15,7 @@ This repository owns standalone authentication and identity, installation,
 configuration, app dashboards, client capability assembly and channels. It
 does not own the reusable agent engine or autonomous computer tools.
 
-The canonical website source lives under `docs/site`. During the verification
-window it is mirrored to the historical `openagent-docs` Pages deployment;
-hosting moves to this repository before the historical repositories are
-archived.
+The canonical website source and GitHub Pages workflow live under `docs/site`
+and `.github/workflows/docs-pages.yml`. The historical `openagent-docs`
+repository retains its deployment history and a source mirror, but no longer
+owns the public domain.
