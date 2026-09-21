@@ -75,6 +75,22 @@ Only the originating interactive turn and its authorized child sessions can use
 them. Telegram, another app connection, scheduled work and delayed automation
 do not inherit them. See [Client Computer Capabilities](./client-capabilities.md).
 
+The standalone full profile also registers `filesystem`, `editor` and `shell`
+for the server workspace. These are durable product-owned destinations and are
+therefore available to Telegram and automation when authorized. They operate on
+the machine running `openagent`, never on a connected user's computer. Configure
+them independently:
+
+```yaml
+server_host_tools:
+  enabled: true
+  tools: [filesystem, editor, shell]
+```
+
+Set `server_host_tools: false` to run a session-only server, or list only the
+tools the deployment should expose. The shell subprocess receives runtime safety
+and sandbox policy but does not inherit channel or provider credentials.
+
 ## Tool Discovery
 
 Tool Discovery is an optional Core module. When its `agent_tools` surface is

@@ -7,6 +7,9 @@ This module is called only by the standalone server's start operation.
 from __future__ import annotations
 
 import asyncio
+import os
+import sys
+from pathlib import Path
 from typing import Any
 
 
@@ -83,17 +86,69 @@ def standalone_spec_resolver(config, *, environment=None):
     product = {"agent-manager": "openagent_product_config.tools.agent_manager.adapters",
                "agent-federation": "openagent_mcp.federation.adapters",
                "messaging": "openagent_server.messaging_tools.adapters"}
-    # These old globally registered tools belong to an originating App/CLI.
-    contextual = frozenset({"ui-manager", "filesystem", "editor", "shell", "computer-control", "agent-in-chrome"})
+    # Dashboard and physical-computer tools belong to an originating App/CLI.
+    # The standalone server may separately expose its own workspace filesystem,
+    # editor and shell. Those are durable product capabilities with a distinct
+    # destination; they never grant access to a connected user's computer.
+    client_only = frozenset({"ui-manager", "computer-control", "agent-in-chrome"})
+    server_host_tools = frozenset({"filesystem", "editor", "shell"})
     module_native = frozenset({
         "tool-search", "vault", "vault-gate", "attachments", "logs",
         "memory-search", "scheduler", "mcp-manager", "model-manager",
         "workflow-manager", "events-manager", "budget-manager", "skills",
         "skill-data", "delegation", "ptc",
     })
+
+    def server_tool_enabled(name: str) -> bool:
+        settings = config.get("server_host_tools", {})
+        if settings is False:
+            return False
+        if settings is None:
+            settings = {}
+        if not isinstance(settings, dict):
+            raise ValueError("server_host_tools must be an object or false")
+        if settings.get("enabled", True) is False:
+            return False
+        selected = settings.get("tools", sorted(server_host_tools))
+        if not isinstance(selected, (list, tuple, set, frozenset)):
+            raise ValueError("server_host_tools.tools must be a list")
+        return name in {str(item).strip() for item in selected}
+
+    def server_tool_environment() -> dict[str, str]:
+        """Pass runtime policy and ordinary process settings, never secrets."""
+        source = dict(environment or os.environ)
+        exact = {
+            "HOME", "LANG", "LC_ALL", "LOGNAME", "PATH", "SHELL", "TMPDIR",
+            "USER", "OPENAGENT_MAX_TOOL_RESULT_CHARS",
+        }
+        prefixes = (
+            "LC_", "OPENAGENT_SAFETY_", "OPENAGENT_SANDBOX_",
+            "OPENAGENT_TOOL_OFFLOAD_",
+        )
+        safe = {
+            str(key): str(value)
+            for key, value in source.items()
+            if key in exact or any(str(key).startswith(prefix) for prefix in prefixes)
+        }
+        safe["PYTHONIOENCODING"] = "utf-8"
+        safe["PYTHONUNBUFFERED"] = "1"
+        return safe
+
     def resolve(row, db_path):
         name = row['name']
-        if name in contextual or name in module_native:
+        if name in server_host_tools:
+            if not server_tool_enabled(name):
+                return False
+            workspace = Path(db_path).resolve().parent if db_path else Path.cwd().resolve()
+            return {
+                "name": name,
+                "command": [
+                    sys.executable, "-m", "openagent_host_tools.mcp_server", name,
+                ],
+                "env": server_tool_environment(),
+                "_cwd": str(workspace),
+            }
+        if name in client_only or name in module_native:
             return False
         if name in product:
             resolved = dict(name=name,in_process=True,adapter_module=product[name],

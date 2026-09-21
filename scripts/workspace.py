@@ -46,10 +46,19 @@ def source_history() -> list[dict]:
 
 def verify_history() -> None:
     for source in source_history():
-        subprocess.run(["git", "merge-base", "--is-ancestor", source["source_commit"], "HEAD"], cwd=ROOT, check=True)
+        # Full subtree imports retain the source commit as an ancestor. A
+        # deliberately selective product-extension port records the upstream
+        # source commit for provenance and the imported base commit separately;
+        # only that base is expected to exist in this repository's ancestry.
+        ancestry_commit = source.get("base_import_commit", source["source_commit"])
+        subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestry_commit, "HEAD"],
+            cwd=ROOT,
+            check=True,
+        )
         if not (ROOT / source["path"]).is_dir():
             raise ValueError(f"Missing imported component {source['path']}")
-    print(f"Verified complete ancestry for {len(source_history())} source repositories")
+    print(f"Verified recorded import ancestry for {len(source_history())} source entries")
 
 
 def artifact_owner(filename: str, components: dict) -> str:

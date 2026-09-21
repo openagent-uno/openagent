@@ -2,6 +2,21 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.4
+
+### Standalone host tools and visual input recovery
+
+- Standalone servers now expose filesystem, editor and shell capabilities for
+  their own agent workspace. Telegram and other durable channels can use these
+  product-owned destinations without borrowing a connected desktop's temporary
+  computer access.
+- Operators can restrict or disable the server tool set with
+  `server_host_tools`; subprocesses receive sandbox policy and ordinary process
+  settings while channel and model credentials stay out of their environment.
+- The qualified Claude subscription proxy path preserves OpenAI-compatible
+  image parts, allowing configured Claude models to receive Telegram images
+  instead of silently dropping them.
+
 ## v1.1.0-beta.3
 
 ### Standalone installation and channel recovery
