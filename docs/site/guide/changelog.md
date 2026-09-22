@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## OpenAgent Tools v1.0.0-beta.2
+
+### Meta Ads video upload
+
+- The optional Meta Ads MCP package adds `meta_ads_upload_ad_video` while
+  preserving the existing 54-tool catalog.
+- Google Drive share links are normalized to direct downloads before Meta is
+  asked to ingest the video. The tool returns the resulting `video_id` and
+  directs callers to poll processing status before creating the creative.
+- The write surface remains gated by `META_ADS_ENABLE_WRITE_TOOLS=true`. Release
+  assets are reproducible, checksummed and intended for immutable installation.
+
 ## v1.1.0-beta.7
 
 ### Large capability-source discovery

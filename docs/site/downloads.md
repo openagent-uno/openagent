@@ -44,8 +44,9 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
 
 - [OpenAgent Core v1.1.0-beta.3](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.3)
   — kernel, SDK, storage and optional module wheels.
-- [OpenAgent Tools v1.0.0-beta.1](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.1)
-  — filesystem, editor, shell, web search and device capability packages.
+- [OpenAgent Tools v1.0.0-beta.2](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.2)
+  — filesystem, editor, shell, web search, device capabilities and the optional
+  Meta Ads MCP package with video upload support.
 - [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.7/product-release-manifest.json)
   — component versions, source commits and SHA-256 digests.
 

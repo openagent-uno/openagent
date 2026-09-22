@@ -114,3 +114,21 @@ the model to:
 
 The standalone full profile enables it. A minimal product can omit it and expose
 only a small fixed native catalog.
+
+## Optional Meta Ads package
+
+OpenAgent Tools `v1.0.0-beta.2` publishes the optional
+[`@openagent-uno/meta-ads-mcp-server`](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.2)
+package. It preserves the upstream catalog and adds
+`meta_ads_upload_ad_video`, including conversion of ordinary Google Drive share
+links to a direct download URL accepted by Meta.
+
+Write operations remain opt-in with `META_ADS_ENABLE_WRITE_TOOLS=true`. With
+that flag enabled the source exposes 55 tools, including image and video upload;
+without it the write tools stay absent. Video upload returns a `video_id` that
+can be polled with `meta_ads_get_ad_video` before it is used in a creative.
+
+Install the release asset into an immutable deployment directory and configure
+the MCP source to execute its `meta-ads-mcp` binary. Pin the asset digest from
+the release manifest instead of resolving an npm package dynamically at service
+startup.
