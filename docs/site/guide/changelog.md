@@ -2,6 +2,19 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.7
+
+### Large capability-source discovery
+
+- Tool discovery now returns compact, ranked pages instead of every full JSON
+  schema at once. Sources such as Meta Ads can expose 54 tools without the
+  provider truncating later write-tool references.
+- `tool_search_list_tools` accepts a capability query, page size and offset;
+  `tool_search_describe_tool` remains the authoritative full-schema lookup.
+- The framework prompt tells agents to search, describe and call the selected
+  opaque reference in the same run. Revocation and destination binding remain
+  enforced at every call.
+
 ## v1.1.0-beta.6
 
 ### Uniform native and MCP capability visibility

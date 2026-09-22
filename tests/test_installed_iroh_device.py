@@ -78,7 +78,7 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                     if step == 1:
                         call = ('tool_search_list_tools', {'source_ref':source('shell')})
                     elif step == 2:
-                        reference = next(tool['tool_ref'] for tool in results[1] if tool['name']=='shell_exec')
+                        reference = next(tool['tool_ref'] for tool in results[1]['tools'] if tool['name']=='shell_exec')
                         self.references[specification['device']] = reference
                         if specification['mode']=='revoke':
                             await device.set_consent(False)
@@ -90,13 +90,13 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                         self.assertFalse(results[-1].get('isError'), results[-1])
                         call = ('tool_search_list_tools', {'source_ref':source('editor')})
                     elif step == 4:
-                        reference = next(tool['tool_ref'] for tool in results[3] if tool['name']=='edit')
+                        reference = next(tool['tool_ref'] for tool in results[3]['tools'] if tool['name']=='edit')
                         call = ('tool_search_call_tool', {'tool_ref':reference,'args':device.editor_arguments})
                     elif step == 5:
                         self.assertFalse(results[-1].get('isError'), results[-1])
                         call = ('tool_search_list_tools', {'source_ref':source('filesystem')})
                     elif step == 6:
-                        reference = next(tool['tool_ref'] for tool in results[5] if tool['name']=='read_text_file')
+                        reference = next(tool['tool_ref'] for tool in results[5]['tools'] if tool['name']=='read_text_file')
                         call = ('tool_search_call_tool', {'tool_ref':reference,'args':device.filesystem_arguments})
                     else:
                         self.assertFalse(results[-1].get('isError'), results[-1])

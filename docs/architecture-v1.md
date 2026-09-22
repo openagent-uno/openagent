@@ -73,7 +73,7 @@ App dashboard/device sources only in their exact originating context. Managed
 MCP catalogs and automation definition changes use shared public services;
 definition changes and durable grants commit atomically. The standalone product
 and GlassPalace integration use public package boundaries without source
-overlays. Product `v1.1.0-beta.6`, Core `v1.1.0-beta.2` and Tools
+overlays. Product `v1.1.0-beta.7`, Core `v1.1.0-beta.3` and Tools
 `v1.0.0-beta.1` are public. Native cross-platform updater qualification remains
 in progress; the current product manifest is therefore
 `development-unqualified` and advertises only the exact artifacts it contains.

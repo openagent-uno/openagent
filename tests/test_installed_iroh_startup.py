@@ -49,8 +49,8 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                     call=('tool_search_list_tools',{'source_ref':app_sources[0]['source_ref']})
                 else:self.assertEqual(app_sources,[],sources)
             elif len(results)==2 and app_turn:
-                tools=self.tool_data(results[1]['content'])
-                ref=next(tool['tool_ref'] for tool in tools if tool['name']=='ui_create_view')
+                discovery=self.tool_data(results[1]['content'])
+                ref=next(tool['tool_ref'] for tool in discovery['tools'] if tool['name']=='ui_create_view')
                 call=('tool_search_call_tool',{'tool_ref':ref,'args':{'title':'Fixture dashboard','markup':'<text>Created through the model</text>'}})
             elif app_turn:
                 result=self.tool_data(results[2]['content']);self.assertTrue(result['ok'],result)

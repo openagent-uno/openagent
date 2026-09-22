@@ -150,10 +150,10 @@ async def run(root: Path) -> None:
                 if len(sources)!=1:raise web.HTTPConflict(text='Expected exactly one originating filesystem')
                 call=('tool_search_list_tools',{'source_ref':sources[0]['source_ref']})
             elif len(results)==2:
-                ref=next(tool['tool_ref'] for tool in results[1] if tool['name']=='write_file')
+                ref=next(tool['tool_ref'] for tool in results[1]['tools'] if tool['name']=='write_file')
                 call=('tool_search_call_tool',{'tool_ref':ref,'args':{'path':str(target),'content':'desktop-sentinel'}})
             elif len(results)==3 and not results[-1].get('isError'):
-                ref=next(tool['tool_ref'] for tool in results[1] if tool['name']=='read_text_file')
+                ref=next(tool['tool_ref'] for tool in results[1]['tools'] if tool['name']=='read_text_file')
                 call=('tool_search_call_tool',{'tool_ref':ref,'args':{'path':str(target)}})
             elif len(results)>=4 and not results[-1].get('isError') and 'desktop-sentinel' in json.dumps(results[-1]):
                 final='desktop file written'

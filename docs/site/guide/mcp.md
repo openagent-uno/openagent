@@ -36,8 +36,17 @@ policy. Replio can use `fixed`. The standalone full profile uses `dynamic`.
 
 ## Discovery and invocation
 
-The active catalog returns a name, description, JSON schema and opaque
-reference. Invocation always uses that exact reference:
+The active catalog first returns compact, ranked pages containing names,
+short descriptions and opaque references. A large source can be narrowed by
+capability words instead of returning dozens of full schemas at once:
+
+```text
+tool_search_list_tools(source_ref, query="create adset", limit=10)
+tool_search_describe_tool(tool_ref)
+```
+
+The second call returns the selected tool's complete JSON schema. Invocation
+then uses that exact reference in the same run:
 
 ```python
 result = await capability_catalog.call_tool(tool_ref, arguments)
