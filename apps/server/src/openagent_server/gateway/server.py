@@ -3042,6 +3042,16 @@ class Gateway:
         if evt is None:
             return
 
+        # A bridge reuses its stable session id after /clear. Persisting and
+        # projecting that new generation must finish before attachment ACLs or
+        # runtime admission inspect the session tombstone.
+        if isinstance(evt, (SessionOpen, TextFinal, Attachment)):
+            await self.sessions.ensure_session_persisted(
+                sid,
+                client_id,
+                handle=handle,
+            )
+
         # Every input surface converges on durable AttachmentRefs before the
         # turn reaches the agent.  An absolute host path is accepted only from
         # a certificate carrying the internal ``bridge`` capability; ordinary

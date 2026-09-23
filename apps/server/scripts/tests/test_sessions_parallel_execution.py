@@ -25,6 +25,51 @@ import time
 from ._framework import TestContext, test
 
 
+@test("sessions_parallel", "runtime admission waits for recreated session persistence")
+async def t_recreated_session_persistence_barrier(ctx: TestContext) -> None:
+    from openagent_server.gateway.sessions import SessionManager
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    calls: list[str] = []
+
+    class DB:
+        async def upsert_session(self, session_id: str, **_kwargs) -> None:
+            calls.append(session_id)
+            started.set()
+            await release.wait()
+
+    manager = SessionManager(agent_name="test-agent")
+    manager.set_db(DB())
+    session_id = manager.get_or_create_session(
+        "bridge-device",
+        "tg:stable-user",
+        handle="__bridge_telegram",
+    )
+    await started.wait()
+    barrier = asyncio.create_task(
+        manager.ensure_session_persisted(
+            session_id,
+            "bridge-device",
+            handle="__bridge_telegram",
+        )
+    )
+    await asyncio.sleep(0)
+    assert not barrier.done(), "admission passed the pending session write"
+    release.set()
+    await barrier
+
+    # A later frame for the same in-memory session persists again. This is the
+    # path that recreates a source deleted by /clear without requiring a new
+    # WebSocket SessionOpen frame.
+    await manager.ensure_session_persisted(
+        session_id,
+        "bridge-device",
+        handle="__bridge_telegram",
+    )
+    assert calls == [session_id, session_id], calls
+
+
 @test("sessions_parallel", "two sessions on one client run concurrently")
 async def t_parallel_sessions(ctx: TestContext) -> None:
     from openagent_server.gateway.sessions import SessionManager

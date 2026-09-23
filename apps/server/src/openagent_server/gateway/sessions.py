@@ -86,17 +86,18 @@ class SessionManager:
         self.agent_name = agent_name
         self._db: Any = None
         self._clients: dict[str, _ClientState] = {}
+        self._persistence_tasks: dict[str, asyncio.Task] = {}
 
     def set_db(self, db: Any) -> None:
         self._db = db
 
-    def _fire_and_forget(self, coro) -> None:
+    def _fire_and_forget(self, coro) -> asyncio.Task | None:
         """Schedule a DB write on the running loop without blocking the caller."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
-            return
-        loop.create_task(coro)
+            return None
+        return loop.create_task(coro)
 
     def _state(self, client_id: str) -> _ClientState:
         if client_id not in self._clients:
@@ -134,10 +135,54 @@ class SessionManager:
         if self._db is None:
             return
         owner = (handle or "").strip() or client_id
-        self._fire_and_forget(
+        task = self._fire_and_forget(
             self._db.upsert_session(
                 session_id, client_id=owner, title=title, device_id=client_id,
             )
+        )
+        if task is not None:
+            self._persistence_tasks[session_id] = task
+
+            def _finished(completed: asyncio.Task) -> None:
+                if self._persistence_tasks.get(session_id) is completed:
+                    self._persistence_tasks.pop(session_id, None)
+                # Consume background failures so they do not become an
+                # unhandled-task warning. A turn that needs the row calls
+                # ensure_session_persisted and receives the failure directly.
+                if not completed.cancelled():
+                    try:
+                        completed.exception()
+                    except Exception:
+                        pass
+
+            task.add_done_callback(_finished)
+
+    async def ensure_session_persisted(
+        self,
+        session_id: str,
+        client_id: str,
+        *,
+        handle: str | None = None,
+    ) -> None:
+        """Finish the session write before a frame can admit a runtime run.
+
+        Bridge ids are stable across ``/clear``. The clear path deletes the
+        compatibility source and tombstones its normalized projection; the
+        next frame recreates that source. Waiting here makes that generation
+        change authoritative before runtime authorization reads it, instead of
+        racing a fire-and-forget projection and failing with ``run.read``.
+        """
+        if self._db is None:
+            return
+        pending = self._persistence_tasks.get(session_id)
+        if pending is not None:
+            await asyncio.shield(pending)
+            return
+        owner = (handle or "").strip() or client_id
+        await self._db.upsert_session(
+            session_id,
+            client_id=owner,
+            device_id=client_id,
         )
 
     def _remove_session_from_db(self, session_id: str) -> None:
@@ -477,6 +522,11 @@ class SessionManager:
                 if ss.worker_task and not ss.worker_task.done():
                     ss.worker_task.cancel()
                     tasks.append(ss.worker_task)
+        tasks.extend(
+            task for task in self._persistence_tasks.values()
+            if not task.done()
+        )
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        self._persistence_tasks.clear()
         self._clients.clear()

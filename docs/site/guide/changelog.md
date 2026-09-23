@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.8
+
+### Telegram session recreation after clear
+
+- A new message on a stable bridge session id now waits for the recreated
+  session generation to be persisted before the run is admitted.
+- Core `v1.1.0-beta.4` replaces a deleted compatibility generation in full,
+  clearing its tombstone without restoring the transcript that `/clear`
+  removed.
+- This prevents the accepted run from failing its next `run.read`,
+  `run.execute` or `run.publish` authorization check.
+
 ## OpenAgent Tools v1.0.0-beta.2
 
 ### Meta Ads video upload
