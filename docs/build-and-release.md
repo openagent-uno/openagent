@@ -83,3 +83,29 @@ stable transition are recorded separately from the actual beta release.
 See [runtime qualification](runtime-and-verification.md) and
 [frozen server qualification](frozen-server-qualification.md) for evidence and
 remaining distribution gates.
+
+## Native bundle CI after Python beta 9
+
+The root `Host tools native bundles` workflow is an explicit manual gate. It
+checks out the exact selected `main` commit, downloads the Core beta 5,
+Tools beta 3 and host-tools beta 4 wheels, and builds all six native targets.
+It runs host-tools tests and native sidecar smoke checks, then signs, notarizes
+and verifies both macOS archives before uploading the candidate archives as
+short-lived workflow artifacts. It does not publish an App release or change
+an updater feed. Archive assembly and the `release_index.py` consumer lock
+remain separate review steps after all six jobs pass.
+
+The workflow requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` as Actions secrets on the
+**`openagent`** repository. These names currently exist only on the historical
+`openagent-app` repository. Configure them on the monorepo through GitHub's
+secret controls; do not paste values into chat, source files or CI logs. The
+workflow fails before starting its matrix when any required secret is absent.
+
+The workflow's macOS arm64 path was rehearsed locally from the released
+wheelhouse: 17 focused host-tools tests passed, PyInstaller and the Rust
+sidecar built, the sidecar catalog snapshot matched, the bundled MCP smoke
+passed with real display/window discovery, input, screenshots and browser
+interaction, and the archive verifier accepted the resulting tarball. This
+local archive was **not signed or notarized** and is not a release asset. The
+other five platform jobs and signed macOS path require the workflow run.

@@ -336,7 +336,11 @@ async def _computer_control(
                             f"{initialized.serverInfo.name}"
                         )
                     catalog = await session.list_tools()
-                    if [tool.name for tool in catalog.tools] != ["computer"]:
+                    expected_tools = {
+                        "computer", "computer_list_displays", "computer_list_windows",
+                        "computer_capture_window",
+                    }
+                    if {tool.name for tool in catalog.tools} != expected_tools:
                         raise RuntimeError(
                             "unexpected computer-control tool catalog: "
                             f"{[tool.name for tool in catalog.tools]}"
@@ -365,6 +369,24 @@ async def _computer_control(
                         )
                         _require_permission_error(cursor, "Accessibility")
                     else:
+                        displays_result = await session.call_tool(
+                            "computer_list_displays", {}
+                        )
+                        if displays_result.isError:
+                            raise RuntimeError(
+                                "computer-control display discovery failed: "
+                                f"{_result_text(displays_result)}"
+                            )
+                        displays = json.loads(_result_text(displays_result))["displays"]
+                        if not displays or not isinstance(displays[0].get("display_id"), int):
+                            raise RuntimeError("computer-control returned no exact display ID")
+                        windows_result = await session.call_tool(
+                            "computer_list_windows", {}
+                        )
+                        if windows_result.isError or not isinstance(
+                            json.loads(_result_text(windows_result)).get("windows"), list
+                        ):
+                            raise RuntimeError("computer-control window inventory failed")
                         cursor = await session.call_tool(
                             "computer", {"action": "get_cursor_position"}
                         )
@@ -393,6 +415,11 @@ async def _computer_control(
                             "computer", {"action": "get_screenshot"}
                         )
                         _validate_screenshot_result(screenshot)
+                        targeted = await session.call_tool(
+                            "computer", {"action": "get_screenshot",
+                                         "display_id": displays[0]["display_id"]}
+                        )
+                        _validate_screenshot_result(targeted)
         except BaseException:
             errlog.seek(0)
             captured = errlog.read()

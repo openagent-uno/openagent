@@ -121,7 +121,8 @@ def test_macos_capture_preflights_screen_recording_and_fails_closed():
     )
     assert "CGPreflightScreenCaptureAccess" in source
     assert "CGRequestScreenCaptureAccess" in source
-    assert source.count("require_screen_recording_permission()?") == 2
+    # Full-screen, region and exact-window capture each preflight permission.
+    assert source.count("require_screen_recording_permission()?") == 3
     assert "Err(anyhow!(MAC_SCREEN_RECORDING_HINT))" in source
 
 

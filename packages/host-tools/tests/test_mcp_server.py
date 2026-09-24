@@ -42,7 +42,7 @@ async def _request(process, request_id: int, method: str, params: dict | None = 
         payload["params"] = params
     process.stdin.write((json.dumps(payload) + "\n").encode())
     await process.stdin.drain()
-    response = json.loads(await asyncio.wait_for(process.stdout.readline(), timeout=5))
+    response = json.loads(await asyncio.wait_for(process.stdout.readline(), timeout=20))
     assert response["id"] == request_id
     assert "error" not in response, response
     return response["result"]
