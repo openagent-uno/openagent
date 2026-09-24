@@ -95,6 +95,13 @@ produces a proposed `release-index.json` consumer lock. `signing_mode=local`
 uploads unsigned six-platform candidate archives without a release index;
 sign both macOS bundles locally, regenerate their manifests and archives, and
 run `release_index.py` on the merged set only after independent verification.
+`packages/host-tools/scripts/finalize_local_signing.sh` performs those steps
+from the downloaded candidate directory into a new output directory. Pass the
+workflow's exact source commit as its third argument and run it with the
+released-wheel Python environment plus `CSC_NAME`, `APPLE_ID`,
+`APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID` in the environment. It checks
+all six detached archive hashes and manifest contents before writing the lock;
+the two macOS archives are signed and notarized again from the CI candidates.
 Neither mode publishes an App release or changes an updater feed. Review the
 lock, publish the component archives under a `v1.0.0b4` tag on this repository
 at the workflow source commit, then update App/CLI/server consumer locks before
