@@ -38,7 +38,7 @@ def test_transport_and_identity_have_one_shared_implementation():
 
 def test_cli_declares_exact_public_transport_dependency():
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
-    assert "openagent-client-transport==1.0.0b1" in dependencies
+    assert "openagent-client-transport==1.1.0b8" in dependencies
     assert not (ROOT / "scripts/vendor-client-transport.py").exists()
 
 

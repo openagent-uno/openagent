@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b8"
+version = "1.1.0b9"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,13 +12,13 @@ license = "MIT"
 
 dependencies = [
     "openagent-storage-sqlite==1.1.0b4",
-    "openagent-modules==1.1.0b1",
+    "openagent-modules==1.1.0b2",
     "openagent-execution==1.0.0b1",
     "openagent-client-transport==1.1.0b8",
     "openagent-core==1.1.0b4",
     "openagent-identity==1.1.0b8",
     "openagent-dashboards==1.1.0b8",
-    "openagent-product-config==1.1.0b8",
+    "openagent-product-config==1.1.0b9",
     "openagent-support-integration==1.1.0b8",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.

@@ -34,6 +34,10 @@ async def test_manifest_lock_covers_all_builtins(tmp_path: Path):
             "computer-control",
             "agent-in-chrome",
         }
+        computer = next(server for server in status["servers"] if server["name"] == "computer-control")
+        assert {"computer_list_windows", "computer_capture_window"} <= {
+            tool["name"] for tool in computer["tools"]
+        }
         for value in lock["servers"].values():
             assert value["version"]
             assert re.fullmatch(r"[0-9a-f]{64}", value["sha256"])

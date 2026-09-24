@@ -11,14 +11,15 @@ names are not copied from Codex when OpenAgent already has a domain contract.
 | Apply a contextual text patch | Editor `apply_patch` | `openagent-tools` editor 1.1.0; one existing file per call, exact unified-diff context, authorized path roots. |
 | Run a command, stream input/output, stop a job | `shell_exec`, `shell_input`, `shell_output`, `shell_kill`, `shell_list` | `openagent-tools` shell; background jobs remain scoped to their local principal. |
 | Inspect OS processes | `shell_processes` | `openagent-tools` shell 1.1.0; PID and executable name only, with name/PID filters. No command line or environment values. |
-| Inspect the screen and control desktop apps | `computer-control` | Device sidecar registered by App/CLI for the verified interactive turn. |
+| Inspect the screen and control desktop apps | `computer`, `computer_list_windows`, `computer_capture_window` | Device sidecar registered by App/CLI for the verified interactive turn. Window inventory and exact-window capture enter the `1.0.0b2` device source; installed App bundles remain on their published lock until rebuilt and signed. |
 | Navigate/inspect browser tabs, page text, forms, console, network | `agent-in-chrome` | Device sidecar registered by App/CLI for the verified interactive turn. |
 | Search the web and read a page | `full-web-search`, `get-web-search-summaries`, `get-single-web-page-content` | Independent `openagent-web-search-mcp`, installed and registered explicitly by the host; its browser runtime is provisioned separately. |
 | Generate an image or video | `generate_image`, `generate_video` | Standalone `media-gen` capability using configured providers; provider availability determines whether calls succeed. |
 | View an attached image | Attachments module / filesystem media read | Core module for turn attachments; filesystem capability for an authorized local path. |
 | Discover/call tools, inspect results | Tool Discovery and the unified `ToolRef` dispatcher | Optional Core module; all sources use the same authorization and result envelope. |
 | Python pipelines over authorized tools | PTC `run_python` | Optional Core module with host-supplied isolated executor. |
-| Sessions, children, scheduling, workflows, logs, memory | Sessions/Delegation/Scheduler/Workflow/Logs/Vault modules | Core services and host APIs, with the host's identity and authorization. |
+| Sessions and exact run state | Sessions module: list/search/read/create/rename/archive/restore plus `runs_get`, `runs_events`, `runs_children`, `runs_wait`, `runs_cancel` | Core `openagent-module-sessions` `1.1.0b2`; host authorization applies to every target. |
+| Synchronous child delegation, scheduling, workflows, logs and memory | Delegation/Scheduler/Workflow/Logs/Vault modules | Core services and host APIs. Existing `delegate_task` waits for its child; team mode can fan out parallel calls within a turn. |
 
 The `apply_patch` and `shell_processes` rows describe the upcoming independent
 editor/shell `1.0.0b2` and host-tools `1.0.0b2` source. The currently pinned
@@ -26,13 +27,45 @@ App/CLI bundles and server dependency remain `1.0.0b1` until signed platform
 bundles and the release index have been produced and their consumer locks
 updated. Do not claim these two tools are present in an installed older bundle.
 
+The same release boundary applies to the new computer window tools and run
+controls. `openagent-device-tools` `1.0.0b2`, `openagent-host-tools` `1.0.0b3`,
+and `openagent-module-sessions` `1.1.0b2` are source candidates. The desktop
+resource lock still identifies its previously signed host-tools bundle; source
+changes alone do not add tools to an installed desktop application.
+
 Codex task/sidebar/worktree/usage-reset/confetti controls are controls of the
 Codex application, not general agent tools. OpenAgent's sessions, delegation,
-scheduler, workflow and host APIs provide the corresponding product concepts
-where applicable. Direct agent-to-agent messaging across arbitrary existing
-sessions is **not** inferred from a task ID: it needs an explicit host-authorized
-recipient and publication policy. Device tools are never promoted to durable
+scheduler, workflow and host APIs cover only the explicitly listed concepts.
+The Codex collaboration surface also includes asynchronous agent spawn,
+follow-up tasks, agent-to-agent messages, interruption, listing and waiting.
+OpenAgent now has exact-run observation, bounded waiting and cancellation, but
+does **not** yet expose detached spawn or follow-up to a live child as an agent
+tool. Direct agent-to-agent messaging across arbitrary existing sessions is
+**not** inferred from a task ID: it needs an explicit host-authorized recipient,
+delegation and publication policy. Device tools are never promoted to durable
 tools for a channel, workflow or scheduled task.
+
+Computer control remains another material gap. The native sidecar supports
+mouse, keyboard, screenshots, recording, window inventory and window capture;
+it does not expose an accessibility element tree, element-targeted actions,
+application lifecycle control, an element wait, or selection among existing
+browser/app surfaces. The dedicated Agent-in-Chrome sidecar covers page trees
+and tab interaction within its own browser profile, not all operating-system
+windows. Multi-monitor targeting also remains to be designed as an explicit
+device-bound destination rather than an argument that silently changes target.
+
+| Collaboration operation | Current OpenAgent behavior | Remaining contract |
+| --- | --- | --- |
+| Spawn a child and continue immediately | `delegate_task` creates a durable child but waits for its answer; team mode can issue parallel calls in one turn. | A public async child admission API with a durable run ID, a host-approved delegation and no retained client lease. |
+| Read/list children and wait | Sessions tools now expose `runs_get`, `runs_children`, `runs_events` and bounded `runs_wait`. | Multi-agent presence/status beyond persisted runs needs a host-defined scope and lifecycle. |
+| Interrupt a child | `runs_cancel` targets an exact run ID and reports whether cancellation is terminal. | Follow-up of a live child must define steering semantics and avoid duplicating external effects. |
+| Send a follow-up or message to another agent | A person may add a turn to a shared session through authenticated ingress. | Agent-originated cross-session delivery needs recipient authorization, authorship, audience, idempotency and a durable delivery receipt. |
+
+These contracts belong in Core and its optional Sessions/Delegation modules.
+GlassPalace, Replio and standalone OpenAgent decide who may invoke them. The
+computer UI tree and app lifecycle belong to client-registered device
+capabilities; installing those packages must not add them to Telegram or a
+GlassPalace sandbox.
 
 The generic web-search package currently covers search and page text, not the
 whole Codex `web.run` surface (finance, weather, sport, clocks, image search and

@@ -16,7 +16,7 @@ dependencies = [
     "openagent-filesystem==1.0.0b2",
     "openagent-editor==1.0.0b2",
     "openagent-shell==1.0.0b2",
-    "openagent-device-tools==1.0.0b1",
+    "openagent-device-tools==1.0.0b2",
 ]
 
 [project.optional-dependencies]
