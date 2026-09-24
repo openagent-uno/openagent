@@ -183,6 +183,43 @@ async def test_filesystem_editor_shell_and_durable_idempotency(paths: HostPaths,
 
 
 @pytest.mark.asyncio
+async def test_structured_patch_and_processes_use_existing_client_capabilities(
+    paths: HostPaths, tmp_path: Path,
+):
+    host = CapabilityHost(paths=paths, cwd=tmp_path, builtin_names=("editor", "shell"))
+    await host.start()
+    await host.set_consent(True)
+    target = tmp_path / "patch.txt"
+    target.write_text("before\n")
+    try:
+        catalog = {entry["name"]: entry for entry in await host.catalog()}
+        assert "apply_patch" in {tool["name"] for tool in catalog["editor"]["tools"]}
+        assert "shell_processes" in {tool["name"] for tool in catalog["shell"]["tools"]}
+        patch = await host.call(
+            "editor", "apply_patch",
+            {"file_path": str(target), "patch": "@@ -1 +1 @@\n-before\n+after\n"},
+            principal="test-client", idempotency_key="patch-1",
+        )
+        assert patch.structured_content["changed"] is True
+        assert patch.meta["openagent/location"] == "client"
+        assert target.read_text() == "after\n"
+
+        processes = await host.call(
+            "shell", "shell_processes", {"pid": os.getpid()}, principal="test-client",
+        )
+        assert processes.structured_content["processes"][0]["pid"] == os.getpid()
+        assert processes.meta["openagent/location"] == "client"
+
+        await host.set_consent(False)
+        with pytest.raises(HostError):
+            await host.call(
+                "shell", "shell_processes", {"pid": os.getpid()}, principal="test-client",
+            )
+    finally:
+        await host.close()
+
+
+@pytest.mark.asyncio
 async def test_revocation_rejects_calls_and_is_shared(paths: HostPaths, tmp_path: Path):
     one = CapabilityHost(paths=paths, cwd=tmp_path)
     two = CapabilityHost(paths=paths, cwd=tmp_path)

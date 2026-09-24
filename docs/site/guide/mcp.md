@@ -80,6 +80,13 @@ client instance. Those tools come from
 [`openagent-tools`](https://github.com/openagent-uno/openagent-tools) or the
 standalone product package, not from Core.
 
+Starting with host-tools `1.0.0b2`, the editor also exposes `apply_patch` for verified unified-diff edits to one
+existing file at a time. The shell exposes `shell_processes` for a structured
+process list containing only PID and executable name; command lines and
+environment variables are excluded. Both use the same client or server
+destination as their parent capability and are discoverable through Tool
+Discovery without any new model-facing dispatch path.
+
 Only the originating interactive turn and its authorized child sessions can use
 them. Telegram, another app connection, scheduled work and delayed automation
 do not inherit them. See [Client Computer Capabilities](./client-capabilities.md).

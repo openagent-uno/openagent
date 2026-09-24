@@ -3,6 +3,7 @@
 - [Architecture and migration status](architecture-v1.md)
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)
+- [Native capability coverage](native-capability-coverage.md)
 - [Runtime, automation, and verification gates](runtime-and-verification.md)
 - [Build and release contracts](build-and-release.md)
 - [Repository and updater transition](repository-transition.md)
