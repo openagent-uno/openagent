@@ -26,9 +26,10 @@ The selected-bundle tests verify these boundaries using a real shell process.
 
 The usage reference below documents the preserved product behavior.
 
-The `1.0.0b3` source candidate composes device-tools `1.0.0b2`. Its local
-computer-control source additionally lists desktop windows and captures one
-window by the returned window/process pair. The desktop app's checked-in
+The `1.0.0b4` source candidate composes device-tools `1.0.0b3`. Its local
+computer-control source lists desktop windows, captures one by the returned
+window/process pair, and discovers displays for explicit screenshot and pointer
+targeting. The desktop app's checked-in
 resource manifest still points to the previously signed bundle; a new signed
 multi-platform bundle and installer lock are required before installed app
 users receive these tools.

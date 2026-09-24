@@ -35,7 +35,7 @@ async def test_manifest_lock_covers_all_builtins(tmp_path: Path):
             "agent-in-chrome",
         }
         computer = next(server for server in status["servers"] if server["name"] == "computer-control")
-        assert {"computer_list_windows", "computer_capture_window"} <= {
+        assert {"computer_list_displays", "computer_list_windows", "computer_capture_window"} <= {
             tool["name"] for tool in computer["tools"]
         }
         for value in lock["servers"].values():
