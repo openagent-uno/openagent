@@ -55,6 +55,8 @@ import hashlib
 import json
 from pathlib import Path
 import sys
+import time
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
@@ -67,8 +69,19 @@ headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-sit
 
 
 def fetch(url: str) -> bytes:
-    with urlopen(Request(url, headers=headers), timeout=60) as response:
-        return response.read()
+    attempts = 5
+    for attempt in range(attempts):
+        try:
+            with urlopen(Request(url, headers=headers), timeout=60) as response:
+                return response.read()
+        except HTTPError as error:
+            if error.code not in (429, 500, 502, 503, 504) or attempt == attempts - 1:
+                raise RuntimeError(f"Could not download {url}: HTTP {error.code}") from error
+        except (URLError, TimeoutError) as error:
+            if attempt == attempts - 1:
+                raise RuntimeError(f"Could not download {url}: {error}") from error
+        time.sleep(2 ** attempt)
+    raise AssertionError("unreachable")
 
 
 verified = 0
