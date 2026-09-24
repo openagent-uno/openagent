@@ -84,7 +84,7 @@ See [runtime qualification](runtime-and-verification.md) and
 [frozen server qualification](frozen-server-qualification.md) for evidence and
 remaining distribution gates.
 
-## Native bundle CI after Python beta 9
+## Native bundle release after Python beta 9
 
 The root `Host tools native bundles` workflow is an explicit manual gate. It
 checks out the exact selected `main` commit, downloads the Core beta 5,
@@ -118,17 +118,19 @@ Developer ID identity and notarization credential can qualify a macOS bundle
 with `CSC_NAME` through `sign_macos_bundle.sh`, without exporting the private
 key or changing the keychain search list.
 
-The workflow's macOS arm64 path was rehearsed locally from the released
-wheelhouse: 17 focused host-tools tests passed, PyInstaller and the Rust
-sidecar built, the sidecar catalog snapshot matched, and the bundled MCP smoke
-passed with real display/window discovery, input, screenshots and browser
-interaction. The resulting bundle was then signed with the existing Developer
-ID identity, accepted by Apple notarization (submission
-`cd437d1d-d225-4b4f-a36e-704a87eee355`), stapled, rehashed, and repackaged.
-The extracted archive passed strict code-signature checks for the host, Node,
-and computer-control helper, plus stapler and Gatekeeper validation. Its
-SHA-256 is
-`ed7b59f0c2c11f470705bc6382ae5a62a36d26bdca37672d3289c348cc099f1e`.
-This is a local qualification artifact, not a published release asset. The
-other five platform jobs, six-platform consumer lock, and updated App/CLI
-installers still require qualification.
+The six-platform matrix passed on
+[run 36035151417](https://github.com/openagent-uno/openagent/actions/runs/36035151417)
+at source commit `37f8f907f72809cd4589bdbd146e8c85733e2d67`. Both macOS
+candidates were signed with the existing local Developer ID identity,
+notarized by Apple (submissions
+`32d61e5c-44ca-497d-8726-ca9fe1b15297` and
+`08f4ba77-eade-4cd0-bc52-f847c061995a`), stapled, and checked with
+strict code-signature and Gatekeeper verification. All six archive and wheel
+digests were independently checked against the generated consumer index.
+The exact 14 assets are published at
+[`v1.0.0b4`](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b4),
+with the release index SHA-256
+`42f723ee3738e0f0188a7f9e152de09ef3bb7e75791c30bb59566078c2cb29a9`.
+The App and CLI beta 10 locks consume that published index. Qualification of
+their distributable artifacts and updater paths is recorded separately in the
+product release receipt.

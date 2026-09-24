@@ -59,9 +59,9 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.8", "product-release-manifest.json"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.4", "manifest.json"),
-    ("openagent-uno/openagent-tools", "v1.0.0-beta.2", "manifest.json"),
+    ("openagent-uno/openagent", "v1.1.0-beta.10", "product-release-manifest.json"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.5", "manifest.json"),
+    ("openagent-uno/openagent-tools", "v1.0.0-beta.3", "manifest.json"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -122,10 +122,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b8"
+    DIST="openagent-framework==1.1.0b10"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b8"
+    DIST="openagent-cli==1.1.0b10"
     COMMAND="openagent-cli"
 fi
 

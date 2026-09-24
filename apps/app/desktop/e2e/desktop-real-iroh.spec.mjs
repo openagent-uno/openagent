@@ -46,6 +46,7 @@ test('real Electron enrolls and executes filesystem through the uniform catalog 
     if (!PACKAGED_APP) renderer = await new StaticRendererServer({ webRoot: WEB_ROOT }).start();
     harness = await startServerHarness(serverState);
     electronApp = await electron.launch({
+      timeout: 90_000,
       executablePath: PACKAGED_APP ? join(PACKAGED_APP, 'Contents/MacOS/OpenAgent') : undefined,
       args: PACKAGED_APP
         ? ['--use-mock-keychain', '--local-e2e', `--e2e-user-data-dir=${userData}`]
@@ -112,7 +113,9 @@ test('real Electron enrolls and executes filesystem through the uniform catalog 
     const clientInstanceId = await page.evaluate(() => window.desktop.clientInstanceId);
     expect(clientInstanceId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(status.connectedAccounts).toBe(1);
-    expect(status.servers.some((server) => server.name === 'filesystem')).toBe(true);
+    for (const name of ['filesystem', 'editor', 'shell', 'computer-control']) {
+      expect(status.servers.some((server) => server.name === name)).toBe(true);
+    }
 
     const composer = page.getByPlaceholder('Message OpenAgent...');
     await composer.fill('desktop: write and read the Desktop Iroh sentinel');

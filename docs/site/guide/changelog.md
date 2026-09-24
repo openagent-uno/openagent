@@ -2,6 +2,25 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.10
+
+- The desktop App and CLI now pin the independently published host-tools
+  `v1.0.0b4` release. Tool references still resolve through the uniform catalog
+  and client-local computer capabilities remain bound to the verified device.
+- The Python server, CLI and MCP bridge were rebuilt from the same product
+  source. The signed and notarized Apple Silicon App includes the new local
+  computer-control bundle.
+- The published release receipt records exact digests and remaining updater
+  and platform qualification gates.
+
+## v1.1.0-beta.9
+
+- Core beta 5 adds optional session inspection, child navigation, waiting and
+  cancellation. Tools beta 3 and host-tools beta 4 add contextual editing,
+  process and window discovery, window capture and exact display targeting.
+- The Python wheelhouse was qualified before the platform-specific host bundle
+  and App installers were built.
+
 ## v1.1.0-beta.8
 
 ### Telegram session recreation after clear
