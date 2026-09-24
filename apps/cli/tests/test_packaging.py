@@ -38,7 +38,7 @@ def test_transport_and_identity_have_one_shared_implementation():
 
 def test_cli_declares_exact_public_transport_dependency():
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
-    assert "openagent-client-transport==1.1.0b9" in dependencies
+    assert "openagent-client-transport==1.1.0b10" in dependencies
     assert not (ROOT / "scripts/vendor-client-transport.py").exists()
 
 
@@ -386,8 +386,9 @@ def test_release_spec_fails_closed_without_a_pinned_native_bundle():
 def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     lock_path = ROOT / "host-tools.lock.json"
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    assert _sha256(lock_path) == "88efc4b74b89796f1862839f8d8f3ec51f463cc15799f9de40a4502ae2421f08"
-    assert lock["source_commit"] == "af6ad6871d4d1208874bf79735710d089f59b959"
+    assert _sha256(lock_path) == "42f723ee3738e0f0188a7f9e152de09ef3bb7e75791c30bb59566078c2cb29a9"
+    assert lock["source_repository"] == "openagent-uno/openagent"
+    assert lock["source_commit"] == "37f8f907f72809cd4589bdbd146e8c85733e2d67"
     assert set(lock["platforms"]) == {
         "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64",
         "win32-arm64", "win32-x64",
@@ -398,13 +399,9 @@ def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     assert "openagent-host-tools @" not in pyproject
     assert "[tool.uv.sources]" not in pyproject
     assert "../openagent-host-tools" not in pyproject
-    for workflow_name in ("test.yml", "release.yml"):
-        workflow = (
-            ROOT / ".github" / "workflows" / workflow_name
-        ).read_text(encoding="utf-8")
-        assert wheel["asset"] in workflow
-        assert "openagent-host-tools.whl" not in workflow
-        assert "pytest-asyncio" in workflow
+    assert wheel["asset"] == "openagent_host_tools-1.0.0b4-py3-none-any.whl"
+    workflow = (ROOT.parents[1] / ".github" / "workflows" / "host-tools-bundles.yml").read_text(encoding="utf-8")
+    assert "openagent_host_tools-*.whl" in workflow
 
 
 def test_frozen_entrypoint_discovers_external_host_tools_locations():

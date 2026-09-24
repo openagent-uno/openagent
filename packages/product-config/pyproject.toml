@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-product-config"
-version = "1.1.0b9"
+version = "1.1.0b10"
 description = "Standalone OpenAgent product product-config"
 requires-python = ">=3.11"
 license = "MIT"
