@@ -386,7 +386,10 @@ async def _computer_control(
                         if windows_result.isError or not isinstance(
                             json.loads(_result_text(windows_result)).get("windows"), list
                         ):
-                            raise RuntimeError("computer-control window inventory failed")
+                            raise RuntimeError(
+                                "computer-control window inventory failed: "
+                                f"{_result_text(windows_result)}"
+                            )
                         cursor = await session.call_tool(
                             "computer", {"action": "get_cursor_position"}
                         )
