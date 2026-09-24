@@ -4,6 +4,7 @@
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)
 - [Native capability coverage](native-capability-coverage.md)
+- [Beta 9 Python artifact qualification](releases/v1.1.0-beta.9.md)
 - [Runtime, automation, and verification gates](runtime-and-verification.md)
 - [Build and release contracts](build-and-release.md)
 - [Repository and updater transition](repository-transition.md)

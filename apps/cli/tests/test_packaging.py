@@ -38,7 +38,7 @@ def test_transport_and_identity_have_one_shared_implementation():
 
 def test_cli_declares_exact_public_transport_dependency():
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
-    assert "openagent-client-transport==1.1.0b8" in dependencies
+    assert "openagent-client-transport==1.1.0b9" in dependencies
     assert not (ROOT / "scripts/vendor-client-transport.py").exists()
 
 
@@ -394,7 +394,7 @@ def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     }
     wheel = lock["python_wheel"]
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"openagent-host-tools==1.0.0b1"' in pyproject
+    assert '"openagent-host-tools==1.0.0b4"' in pyproject
     assert "openagent-host-tools @" not in pyproject
     assert "[tool.uv.sources]" not in pyproject
     assert "../openagent-host-tools" not in pyproject
