@@ -104,11 +104,22 @@ The workflow requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `openagent-app` repository. Configure them on the monorepo through GitHub's
 secret controls; do not paste values into chat, source files or CI logs. The
 workflow fails before starting its matrix when any required secret is absent.
+This is a CI configuration gate, not a macOS signing limitation: the local
+Developer ID identity and notarization credential can qualify a macOS bundle
+with `CSC_NAME` through `sign_macos_bundle.sh`, without exporting the private
+key or changing the keychain search list.
 
 The workflow's macOS arm64 path was rehearsed locally from the released
 wheelhouse: 17 focused host-tools tests passed, PyInstaller and the Rust
-sidecar built, the sidecar catalog snapshot matched, the bundled MCP smoke
+sidecar built, the sidecar catalog snapshot matched, and the bundled MCP smoke
 passed with real display/window discovery, input, screenshots and browser
-interaction, and the archive verifier accepted the resulting tarball. This
-local archive was **not signed or notarized** and is not a release asset. The
-other five platform jobs and signed macOS path require the workflow run.
+interaction. The resulting bundle was then signed with the existing Developer
+ID identity, accepted by Apple notarization (submission
+`cd437d1d-d225-4b4f-a36e-704a87eee355`), stapled, rehashed, and repackaged.
+The extracted archive passed strict code-signature checks for the host, Node,
+and computer-control helper, plus stapler and Gatekeeper validation. Its
+SHA-256 is
+`ed7b59f0c2c11f470705bc6382ae5a62a36d26bdca37672d3289c348cc099f1e`.
+This is a local qualification artifact, not a published release asset. The
+other five platform jobs, six-platform consumer lock, and updated App/CLI
+installers still require qualification.
