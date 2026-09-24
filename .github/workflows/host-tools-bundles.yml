@@ -176,6 +176,7 @@ jobs:
 
   assemble:
     needs: bundle
+    if: always() && needs.bundle.result == 'success'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
