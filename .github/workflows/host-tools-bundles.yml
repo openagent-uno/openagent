@@ -159,3 +159,45 @@ jobs:
             packages/host-tools/dist/openagent-host-tools-${{ matrix.platform }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 14
+
+  assemble:
+    needs: bundle
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: host-tools-*
+          path: dist
+          merge-multiple: true
+      - name: Include the immutable host-tools wheel
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.1.0-beta.9 --repo openagent-uno/openagent \
+            --pattern 'openagent_host_tools-*.whl' --dir dist
+      - name: Verify all six archives and produce the consumer lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          python packages/host-tools/scripts/release_index.py dist \
+            --source-commit '${{ github.sha }}' \
+            --source-repository openagent-uno/openagent
+          test -s dist/release-index.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-tools-release-candidate
+          path: |
+            dist/openagent-host-tools-*.tar.gz
+            dist/openagent-host-tools-*.tar.gz.sha256
+            dist/openagent_host_tools-*.whl
+            dist/release-index.json
+          if-no-files-found: error
+          retention-days: 14

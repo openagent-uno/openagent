@@ -91,9 +91,12 @@ checks out the exact selected `main` commit, downloads the Core beta 5,
 Tools beta 3 and host-tools beta 4 wheels, and builds all six native targets.
 It runs host-tools tests and native sidecar smoke checks, then signs, notarizes
 and verifies both macOS archives before uploading the candidate archives as
-short-lived workflow artifacts. It does not publish an App release or change
-an updater feed. Archive assembly and the `release_index.py` consumer lock
-remain separate review steps after all six jobs pass.
+short-lived workflow artifacts. The final assemble job verifies all six
+archives and produces a proposed `release-index.json` consumer lock from the
+exact host-tools wheel. It does not publish an App release or change an updater
+feed. Review the lock, publish the component archives under a `v1.0.0b4` tag
+on this repository at the workflow source commit, then update App/CLI/server
+consumer locks before packaging those products.
 
 The workflow requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` as Actions secrets on the
