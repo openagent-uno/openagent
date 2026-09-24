@@ -2,12 +2,22 @@ name: Host tools native bundles
 
 on:
   workflow_dispatch:
+    inputs:
+      signing_mode:
+        description: Sign macOS in CI, or build unsigned candidates for local signing
+        required: true
+        type: choice
+        options:
+          - ci
+          - local
+        default: local
 
 permissions:
   contents: read
 
 jobs:
   signing-inputs:
+    if: inputs.signing_mode == 'ci'
     runs-on: ubuntu-24.04
     steps:
       - name: Require the existing Apple release credentials on this repository
@@ -25,6 +35,7 @@ jobs:
 
   bundle:
     needs: signing-inputs
+    if: always() && (inputs.signing_mode == 'local' || needs.signing-inputs.result == 'success')
     strategy:
       fail-fast: false
       matrix:
@@ -96,7 +107,7 @@ jobs:
       - name: Build bundle with required sidecars
         run: python packages/host-tools/scripts/build_standalone.py --require-sidecars --expect-platform ${{ matrix.platform }}
       - name: Sign and notarize macOS executables
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && inputs.signing_mode == 'ci'
         shell: bash
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
@@ -147,10 +158,14 @@ jobs:
           set -euo pipefail
           python packages/host-tools/scripts/package_bundle.py \
             "packages/host-tools/dist/${{ matrix.platform }}"
-          if [[ "${{ runner.os }}" == macOS ]]; then
+          if [[ "${{ runner.os }}" == macOS && "${{ inputs.signing_mode }}" == ci ]]; then
             packages/host-tools/scripts/verify_macos_archive.sh \
               "packages/host-tools/dist/openagent-host-tools-${{ matrix.platform }}.tar.gz"
           fi
+          python packages/host-tools/scripts/verify_bundle_archive.py \
+            "packages/host-tools/dist/openagent-host-tools-${{ matrix.platform }}.tar.gz" \
+            "$RUNNER_TEMP/verified-${{ matrix.platform }}" \
+            --expect-platform "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
         with:
           name: host-tools-${{ matrix.platform }}
@@ -183,7 +198,8 @@ jobs:
         run: |
           gh release download v1.1.0-beta.9 --repo openagent-uno/openagent \
             --pattern 'openagent_host_tools-*.whl' --dir dist
-      - name: Verify all six archives and produce the consumer lock
+      - name: Verify all six signed archives and produce the consumer lock
+        if: inputs.signing_mode == 'ci'
         shell: bash
         run: |
           set -euo pipefail
@@ -193,7 +209,7 @@ jobs:
           test -s dist/release-index.json
       - uses: actions/upload-artifact@v4
         with:
-          name: host-tools-release-candidate
+          name: host-tools-${{ inputs.signing_mode }}-candidate
           path: |
             dist/openagent-host-tools-*.tar.gz
             dist/openagent-host-tools-*.tar.gz.sha256

@@ -89,21 +89,23 @@ remaining distribution gates.
 The root `Host tools native bundles` workflow is an explicit manual gate. It
 checks out the exact selected `main` commit, downloads the Core beta 5,
 Tools beta 3 and host-tools beta 4 wheels, and builds all six native targets.
-It runs host-tools tests and native sidecar smoke checks, then signs, notarizes
-and verifies both macOS archives before uploading the candidate archives as
-short-lived workflow artifacts. The final assemble job verifies all six
-archives and produces a proposed `release-index.json` consumer lock from the
-exact host-tools wheel. It does not publish an App release or change an updater
-feed. Review the lock, publish the component archives under a `v1.0.0b4` tag
-on this repository at the workflow source commit, then update App/CLI/server
-consumer locks before packaging those products.
+It runs host-tools tests and native sidecar smoke checks on every target.
+`signing_mode=ci` signs, notarizes, and verifies both macOS archives in CI and
+produces a proposed `release-index.json` consumer lock. `signing_mode=local`
+uploads unsigned six-platform candidate archives without a release index;
+sign both macOS bundles locally, regenerate their manifests and archives, and
+run `release_index.py` on the merged set only after independent verification.
+Neither mode publishes an App release or changes an updater feed. Review the
+lock, publish the component archives under a `v1.0.0b4` tag on this repository
+at the workflow source commit, then update App/CLI/server consumer locks before
+packaging those products.
 
-The workflow requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
+The CI signing mode requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` as Actions secrets on the
 **`openagent`** repository. These names currently exist only on the historical
 `openagent-app` repository. Configure them on the monorepo through GitHub's
 secret controls; do not paste values into chat, source files or CI logs. The
-workflow fails before starting its matrix when any required secret is absent.
+CI mode fails before starting its matrix when any required secret is absent.
 This is a CI configuration gate, not a macOS signing limitation: the local
 Developer ID identity and notarization credential can qualify a macOS bundle
 with `CSC_NAME` through `sign_macos_bundle.sh`, without exporting the private
