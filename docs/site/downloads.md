@@ -1,9 +1,9 @@
 # Download OpenAgent
 
-The current public build is **v1.1.0-beta.11**. It is a beta of the new modular
-architecture and its release manifest is marked `development-unqualified`:
-the published artifacts are tested, but this release does not claim a complete
-cross-platform updater chain.
+The current public server and CLI build is **v1.1.0-beta.11**. It is a beta of
+the new modular architecture and its release manifest is marked
+`development-unqualified`: the published Python artifacts are tested, but this
+release does not claim a complete cross-platform updater chain.
 
 All new product downloads come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Core and
@@ -11,11 +11,10 @@ Tools remain independently versioned libraries.
 
 ## Desktop app
 
-<ReleaseDownloads target="desktop" />
-
-The current desktop beta is signed, notarized and stapled for **macOS on Apple
-Silicon**. Windows, Linux and Intel macOS installers will appear here only after
-those exact artifacts have completed their release gates.
+The latest signed, notarized and stapled desktop beta for **macOS on Apple
+Silicon** is [v1.1.0-beta.10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.10).
+The v1.1.0-beta.11 release currently contains Python wheels only. Windows,
+Linux and Intel macOS installers will appear after their release gates.
 
 ## Standalone server
 

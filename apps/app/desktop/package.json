@@ -1,7 +1,7 @@
 {
   "name": "openagent-desktop",
   "description": "Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.",
-  "version": "1.1.0-beta.11",
+  "version": "1.1.0-beta.12",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -95,6 +95,7 @@
     "mac": {
       "artifactName": "openagent-app-${version}-macos-${arch}.${ext}",
       "forceCodeSigning": true,
+      "sign": "scripts/sign-with-timestamp-retry.js",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "buildResources/entitlements.mac.plist",
