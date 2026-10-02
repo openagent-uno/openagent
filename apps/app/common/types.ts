@@ -1248,6 +1248,7 @@ export type ModelFramework = 'api-based' | 'litellm';
 // audio synthesis providers (ElevenLabs in v1). The LLM dispatcher
 // filters to ``kind='llm'`` so a TTS row never gets handed a turn.
 export type ProviderKind = 'llm' | 'tts' | 'stt';
+export type ModelKind = ProviderKind | 'image';
 
 export interface ProviderConfig {
   id: number;
@@ -1390,9 +1391,9 @@ export interface ModelEntry {
   provider_name: string;
   framework: ModelFramework;
   // Capability discriminator. ``llm`` rows go through the router;
-  // ``tts`` / ``stt`` rows are picked by the audio resolvers and
-  // dispatched via LiteLLM.
-  kind: ProviderKind;
+  // ``tts`` / ``stt`` rows are picked by the audio resolvers; ``image``
+  // rows power the image generation tool. Only ``llm`` enters the router.
+  kind: ModelKind;
   runtime_id: string;
   model: string;
   display_name?: string | null;
@@ -1468,7 +1469,7 @@ export interface AvailableModel {
   // Inferred by ``discovery.py`` from the model id (``tts-1`` → tts,
   // ``whisper-1`` → stt). The Add Model flow forwards this to
   // /api/models so the row lands with the correct ``kind``.
-  kind?: ProviderKind;
+  kind?: ModelKind;
 }
 
 // Source-of-truth yaml fields. Providers, models, MCPs, and scheduled

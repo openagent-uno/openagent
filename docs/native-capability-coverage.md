@@ -14,7 +14,7 @@ names are not copied from Codex when OpenAgent already has a domain contract.
 | Inspect the screen and control desktop apps | `computer`, `computer_list_displays`, `computer_list_windows`, `computer_capture_window` | Device sidecar registered by App/CLI for the verified interactive turn. Exact display targeting enters device-tools `1.0.0b3`; installed App bundles remain on their published lock until rebuilt and signed. |
 | Navigate/inspect browser tabs, page text, forms, console, network | `agent-in-chrome` | Device sidecar registered by App/CLI for the verified interactive turn. |
 | Search the web and read a page | `full-web-search`, `get-web-search-summaries`, `get-single-web-page-content` | Independent `openagent-web-search-mcp`, installed and registered explicitly by the host; its browser runtime is provisioned separately. |
-| Generate an image or video | `generate_image`, `generate_video` | Standalone `media-gen` capability using configured providers; provider availability determines whether calls succeed. |
+| Generate an image or video | `generate_image`, `generate_video` | Standalone `media-gen`; image models are configured in App, CLI or server and images are delivered as typed attachments when the agent includes the tool's send marker. |
 | View an attached image | Attachments module / filesystem media read | Core module for turn attachments; filesystem capability for an authorized local path. |
 | Discover/call tools, inspect results | Tool Discovery and the unified `ToolRef` dispatcher | Optional Core module; all sources use the same authorization and result envelope. |
 | Python pipelines over authorized tools | PTC `run_python` | Optional Core module with host-supplied isolated executor. |

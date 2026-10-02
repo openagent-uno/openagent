@@ -175,7 +175,7 @@ async def handle_list_db(request: web.Request) -> web.Response:
       - ``provider_id`` (int) — filter to a single provider row
       - ``framework`` (``api-based``) — filter by framework
       - ``enabled_only`` (bool) — skip disabled model rows
-      - ``kind`` (``llm``|``tts``|``stt``) — filter by model kind (e.g. the
+      - ``kind`` (``llm``|``tts``|``stt``|``image``) — filter by model kind (e.g. the
         chat model picker asks for ``llm`` only)
 
     When Piper is importable AND no kind='tts' row exists yet, a
@@ -256,8 +256,8 @@ async def handle_create_db(request: web.Request) -> web.Response:
     except (TypeError, ValueError):
         return _web.json_response({"error": "provider_id must be an integer"}, status=400)
     kind = (body.get("kind") or "llm").strip()
-    if kind not in ("llm", "tts", "stt"):
-        return _web.json_response({"error": "kind must be llm/tts/stt"}, status=400)
+    if kind not in ("llm", "tts", "stt", "image"):
+        return _web.json_response({"error": "kind must be llm/tts/stt/image"}, status=400)
     raw_metadata = body.get("metadata")
     if raw_metadata is not None and not isinstance(raw_metadata, dict):
         return _web.json_response({"error": "metadata must be an object"}, status=400)

@@ -1226,7 +1226,7 @@ export async function listDbModels(opts?: {
   providerId?: number;
   framework?: 'api-based';
   enabledOnly?: boolean;
-  kind?: 'llm' | 'tts' | 'stt';
+  kind?: 'llm' | 'tts' | 'stt' | 'image';
 }): Promise<ModelEntry[]> {
   const params = new URLSearchParams();
   if (opts?.providerId) params.set('provider_id', String(opts.providerId));
@@ -1248,7 +1248,7 @@ export async function createDbModel(entry: {
   metadata?: Record<string, unknown>;
   // ``llm`` (default) goes to the router; ``tts`` / ``stt`` rows
   // are picked by the audio resolvers and dispatched via LiteLLM.
-  kind?: 'llm' | 'tts' | 'stt';
+  kind?: 'llm' | 'tts' | 'stt' | 'image';
 }): Promise<ModelEntry> {
   const data = await post<{ model: ModelEntry }>('/api/models', entry);
   return normalizeModel(data.model);

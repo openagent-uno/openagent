@@ -23,12 +23,14 @@ from types import SimpleNamespace
 from ._framework import TestContext, test
 
 _ROWS = [
-    {"id": 1, "runtime_id": "vendor:model-a", "enabled": 1,
+    {"id": 1, "runtime_id": "vendor:model-a", "kind": "llm", "enabled": 1,
      "provider_enabled": 1, "provider_name": "vendor"},
-    {"id": 2, "runtime_id": "vendor:model-off", "enabled": 0,
+    {"id": 2, "runtime_id": "vendor:model-off", "kind": "llm", "enabled": 0,
      "provider_enabled": 1, "provider_name": "vendor"},
-    {"id": 3, "runtime_id": "dead:model-c", "enabled": 1,
+    {"id": 3, "runtime_id": "dead:model-c", "kind": "llm", "enabled": 1,
      "provider_enabled": 0, "provider_name": "dead"},
+    {"id": 4, "runtime_id": "vendor:draw", "kind": "image", "enabled": 1,
+     "provider_enabled": 1, "provider_name": "vendor"},
 ]
 
 
@@ -96,6 +98,7 @@ class _FakeRequest(dict):
             capabilities=[],
         )
         super().__init__(
+            auth_kind="device_cert",
             device_cert=cert,
             network_id="test-network",
             user_handle="alice",
@@ -154,6 +157,9 @@ async def t_pin_refusals(ctx: TestContext) -> None:
     # strand the session on a model the dispatcher skips.
     status, body = await _pin(db, {"runtime_id": "dead:model-c"})
     assert status == 400 and "provider" in body["error"]
+
+    status, body = await _pin(db, {"runtime_id": "vendor:draw"})
+    assert status == 400 and "language" in body["error"].lower()
 
     status, _ = await _pin(db, {})
     assert status == 400

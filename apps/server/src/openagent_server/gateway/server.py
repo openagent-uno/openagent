@@ -2602,8 +2602,7 @@ class Gateway:
                 text = "No active session to compact."
             else:
                 try:
-                    from openagent_core.core import compaction as _compaction
-                    from openagent_core.core.compaction import compact as _compact
+                    from openagent_core.session_control import SessionControl
                     from openagent_core.media import parse_compaction_status
                     from openagent_core.stream.events import SessionCompacted
                     from openagent_core.stream.events import now_ms as _compact_now_ms
@@ -2630,26 +2629,9 @@ class Gateway:
                             tokens_after=comp["tokens_after"],
                         )))
 
-                    # keep=0 → Claude-Code-style manual compaction: fold the
-                    # WHOLE conversation into one recap and continue from it,
-                    # rather than only folding turns older than the automatic
-                    # keep window (which no-ops on short chats). The automatic
-                    # context-pressure path keeps its default keep window.
-                    #
-                    # Under the per-session compaction lock so a hand-typed
-                    # /compact can't race the proactive background pass
-                    # (compaction.compact_after_turn) rewriting the same
-                    # sessions.runs row — both rewrite it, and the lock is the
-                    # single mutex that serialises every compaction for a
-                    # session. See src/core/compaction.py.
-                    async with _compaction.session_lock(session_id):
-                        result = await _compact(
-                            session_id,
-                            self.agent.model,
-                            self.agent,
-                            on_status=_compact_status,
-                            keep=0,
-                        )
+                    result = await SessionControl(self.agent).compact(
+                        session_id, on_status=_compact_status,
+                    )
                     if result is None:
                         text = "Nothing to compact — the conversation is empty or already compacted."
                     else:
@@ -2680,6 +2662,8 @@ class Gateway:
                 except Exception as exc:  # noqa: BLE001
                     text = f"Compaction failed: {exc}"
         elif name == "model":
+            from openagent_core.session_control import SessionControl
+            session_control = SessionControl(self.agent)
             if not session_id:
                 text = "No active session — cannot read or change model pin."
             else:
@@ -2695,10 +2679,8 @@ class Gateway:
                     # picker would show only "Auto". ``kind='llm'`` also drops
                     # TTS/STT rows that share the table.
                     try:
-                        models = await db.list_models_enriched(
-                            enabled_only=True, kind="llm",
-                        )
-                        current_pin = await db.get_session_pin(session_id)
+                        models = await session_control.available_models()
+                        current_pin = await session_control.model_pin(session_id)
                         if not models:
                             text = "No models configured."
                         else:
@@ -2740,7 +2722,7 @@ class Gateway:
                         text = f"Failed to list models: {exc}"
                 elif arg.strip().lower() in ("default", "none", "reset"):
                     try:
-                        await db.unpin_session_model(session_id)
+                        await session_control.clear_model_pin(session_id)
                         text = "Model pin cleared — back to Auto (best model picked automatically)."
                     except Exception as exc:  # noqa: BLE001
                         text = f"Failed to clear model pin: {exc}"
@@ -2759,7 +2741,7 @@ class Gateway:
                         elif not model_row.get("enabled"):
                             text = f"Model {runtime_id!r} is disabled — enable it first."
                         else:
-                            await db.pin_session_model(session_id, runtime_id)
+                            await session_control.pin_model(session_id, runtime_id)
                             disp = model_row.get("display_name") or model_row.get("model") or runtime_id
                             text = f"Switched to {disp} ({runtime_id}) for this session."
                     except ValueError as exc:

@@ -3318,6 +3318,7 @@ async def _models_menu(client: GatewayClient, active_session: str | None = None)
         table.add_column("Framework", style="dim")
         table.add_column("Provider", style="dim")
         table.add_column("Model", style="cyan")
+        table.add_column("Kind", style="dim")
         table.add_column("Status")
         table.add_column("Router")
         table.add_column("Tier hint", style="dim")
@@ -3343,7 +3344,7 @@ async def _models_menu(client: GatewayClient, active_session: str | None = None)
             table.add_row(
                 str(i + 1), str(m.get("id", "")), fw,
                 str(m.get("provider_name", "")),
-                model_cell, status, router, tier, cost,
+                model_cell, str(m.get("kind") or "llm"), status, router, tier, cost,
             )
         console.print(table)
 
@@ -3388,34 +3389,43 @@ async def _models_menu(client: GatewayClient, active_session: str | None = None)
             except Exception as e:
                 console.print(f"[red]{e}[/red]")
                 continue
-            if not avail:
-                console.print(f"[yellow]No models available from {provider_row['name']}.[/yellow]")
+            if avail:
+                atable = Table(title=f"Available from {provider_row['name']} ({provider_row['framework']})")
+                atable.add_column("#", width=3)
+                atable.add_column("Model", style="cyan")
+                atable.add_column("Kind", style="dim")
+                atable.add_column("Display", style="dim")
+                atable.add_column("Added?")
+                for i, m in enumerate(avail):
+                    atable.add_row(
+                        str(i + 1), str(m.get("id", "")),
+                        str(m.get("kind") or "llm"), str(m.get("display_name", "")),
+                        "[green]yes[/green]" if m.get("added") else "",
+                    )
+                console.print(atable)
+            pick = Prompt.ask("Pick model #, m for manual id, or q", default="q").strip().lower()
+            if pick == "q":
                 continue
-            atable = Table(title=f"Available from {provider_row['name']} ({provider_row['framework']})")
-            atable.add_column("#", width=3)
-            atable.add_column("Model", style="cyan")
-            atable.add_column("Display", style="dim")
-            atable.add_column("Added?")
-            for i, m in enumerate(avail):
-                atable.add_row(
-                    str(i + 1), str(m.get("id", "")),
-                    str(m.get("display_name", "")),
-                    "[green]yes[/green]" if m.get("added") else "",
-                )
-            console.print(atable)
-            pick = Prompt.ask("Pick model # (or q to cancel)", default="q").strip().lower()
-            if pick == "q" or not pick.isdigit():
+            if pick == "m":
+                manual_id = Prompt.ask("Model id").strip()
+                if not manual_id:
+                    continue
+                kind = Prompt.ask("Kind (llm/image/tts/stt)", default="image").strip().lower()
+                if kind not in {"llm", "image", "tts", "stt"}:
+                    console.print("[red]Invalid model kind.[/red]")
+                    continue
+                picked = {"id": manual_id, "display_name": manual_id, "kind": kind}
+            elif pick.isdigit() and 0 <= int(pick) - 1 < len(avail):
+                picked = avail[int(pick) - 1]
+            else:
                 continue
-            idx = int(pick) - 1
-            if not (0 <= idx < len(avail)):
-                continue
-            picked = avail[idx]
             tier_hint = Prompt.ask("tier hint (blank to skip)", default="").strip()
             name = Prompt.ask("name (blank for default)", default="").strip()
             payload = {
                 "provider_id": provider_row["id"],
                 "model": picked.get("id"),
                 "display_name": picked.get("display_name"),
+                "kind": picked.get("kind") or "llm",
             }
             if tier_hint:
                 payload["tier_hint"] = tier_hint

@@ -116,6 +116,7 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
   // picker in Team-as-router. Reset when the dialog closes.
   const [addName, setAddName] = useState('');
   const [addTierHint, setAddTierHint] = useState('');
+  const [addManualKind, setAddManualKind] = useState<'llm' | 'image' | 'tts' | 'stt'>('llm');
 
   // Per-row edit panel — only one row's display_name/tier_hint is open at
   // a time. ``editingModelId`` is the row id; the two draft strings hold
@@ -593,6 +594,8 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
                             </Text>
                           ) : m.kind === 'stt' ? (
                             <Text style={styles.rowMeta}>transcription</Text>
+                          ) : m.kind === 'image' ? (
+                            <Text style={styles.rowMeta}>image generation</Text>
                           ) : (m.input_cost_per_million || m.output_cost_per_million) ? (
                             <Text style={styles.rowMeta}>
                               ${m.input_cost_per_million ?? '-'} / ${m.output_cost_per_million ?? '-'} per M
@@ -776,6 +779,19 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
                   </View>
                 )}
                 <Text style={styles.label}>Or enter a model id</Text>
+                <View style={styles.chipRow}>
+                  {(['llm', 'image', 'tts', 'stt'] as const).map((kind) => (
+                    <TouchableOpacity
+                      key={kind}
+                      style={[styles.chip, addManualKind === kind && styles.chipActive]}
+                      onPress={() => setAddManualKind(kind)}
+                    >
+                      <Text style={[styles.chipText, addManualKind === kind && styles.chipTextActive]}>
+                        {kind === 'image' ? 'Image generation' : kind.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
                 <View style={styles.manualRow}>
                   <TextInput
                     style={[styles.input, styles.manualInput]}
@@ -794,9 +810,7 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
                     onPress={() => {
                       const id = addManualId.trim();
                       if (!id) return;
-                      // Typed ids are always llm: the tts/stt inference is a
-                      // property of discovery's naming, not of a free string.
-                      void registerModel({ id, display_name: '', kind: 'llm' });
+                      void registerModel({ id, display_name: '', kind: addManualKind });
                       setAddManualId('');
                     }}
                   />

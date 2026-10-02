@@ -4,6 +4,8 @@
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)
 - [Native capability coverage](native-capability-coverage.md)
+- [Image model configuration and delivery](image-generation.md)
+- [Beta 11 image model release receipt](releases/v1.1.0-beta.11.md)
 - [Beta 10 product and native capability release receipt](releases/v1.1.0-beta.10.md)
 - [Beta 9 Python artifact qualification](releases/v1.1.0-beta.9.md)
 - [Runtime, automation, and verification gates](runtime-and-verification.md)

@@ -2,6 +2,14 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.11
+
+- Image models can be configured in App, CLI and server settings; the agent can
+  generate an image and send it as a typed attachment through the current
+  channel. Core beta 6 supplies the shared image transport and session API.
+- The standalone session commands now use the same public Core controls as
+  embedders.
+
 ## v1.1.0-beta.10
 
 - The desktop App and CLI now pin the independently published host-tools

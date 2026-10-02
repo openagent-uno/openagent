@@ -1011,7 +1011,8 @@ async def handle_get(request):
     )
     if problem is not None:
         return problem
-    pin = await db.get_session_pin(session_id)
+    from openagent_core.session_control import SessionControl
+    pin = await SessionControl(request.app["gateway"].agent).model_pin(session_id)
     return web.json_response({
         "session_id": session_id,
         # ``side`` was the legacy per-session framework lock; the v0.14
@@ -1058,6 +1059,10 @@ async def handle_pin(request):
             {"error": f"model {runtime_id!r} is not registered"},
             status=404,
         )
+    if model.get("kind", "llm") != "llm":
+        return web.json_response(
+            {"error": "Only language models can be pinned to a session"}, status=400,
+        )
     if not model.get("enabled"):
         return web.json_response(
             {"error": f"model {runtime_id!r} is disabled — enable it before pinning"},
@@ -1070,8 +1075,9 @@ async def handle_pin(request):
             {"error": f"provider {model.get('provider_name')!r} is disabled — enable it before pinning"},
             status=400,
         )
+    from openagent_core.session_control import SessionControl
     try:
-        await db.pin_session_model(session_id, runtime_id)
+        await SessionControl(request.app["gateway"].agent).pin_model(session_id, runtime_id)
     except ValueError as e:
         # Cross-framework pin attempt (surfaces a human-readable message).
         return web.json_response({"error": str(e)}, status=409)
@@ -1098,7 +1104,8 @@ async def handle_unpin(request):
     guarded = guard_mutation(request, session_id)
     if guarded is not None:
         return guarded
-    await db.unpin_session_model(session_id)
+    from openagent_core.session_control import SessionControl
+    await SessionControl(request.app["gateway"].agent).clear_model_pin(session_id)
     return web.json_response({
         "session_id": session_id,
         "pinned": False,
