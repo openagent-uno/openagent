@@ -2,6 +2,14 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.12
+
+- The Apple Silicon desktop App is signed and notarized with the image model
+  settings and generated-image attachment path. The server and CLI wheels are
+  rebuilt from the same source commit.
+- macOS signing retries transient Apple timestamp-service failures without
+  removing the Developer ID or notarization gates.
+
 ## v1.1.0-beta.11
 
 - Image models can be configured in App, CLI and server settings; the agent can

@@ -1,9 +1,9 @@
 # Download OpenAgent
 
-The current public server and CLI build is **v1.1.0-beta.11**. It is a beta of
-the new modular architecture and its release manifest is marked
-`development-unqualified`: the published Python artifacts are tested, but this
-release does not claim a complete cross-platform updater chain.
+The current public build is **v1.1.0-beta.12**. It is a beta of the new modular
+architecture and its release manifest is marked `development-unqualified`:
+the published artifacts are tested, but this release does not claim a complete
+cross-platform updater chain.
 
 All new product downloads come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Core and
@@ -11,10 +11,11 @@ Tools remain independently versioned libraries.
 
 ## Desktop app
 
-The latest signed, notarized and stapled desktop beta for **macOS on Apple
-Silicon** is [v1.1.0-beta.10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.10).
-The v1.1.0-beta.11 release currently contains Python wheels only. Windows,
-Linux and Intel macOS installers will appear after their release gates.
+<ReleaseDownloads target="desktop" />
+
+The current desktop beta is signed, notarized and stapled for **macOS on Apple
+Silicon**. Windows, Linux and Intel macOS installers will appear after their
+release gates.
 
 ## Standalone server
 
@@ -48,7 +49,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b4](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b4)
   — six platform bundles consumed through the App and CLI release lock.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.11/product-release-manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.12/product-release-manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
