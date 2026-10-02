@@ -5,6 +5,7 @@
 - [App capability registration](app-capabilities-v1.md)
 - [Native capability coverage](native-capability-coverage.md)
 - [Image model configuration and delivery](image-generation.md)
+- [Beta 13 subscription image integration receipt](releases/v1.1.0-beta.13.md)
 - [Beta 12 App, server and CLI release receipt](releases/v1.1.0-beta.12.md)
 - [Beta 11 image model release receipt](releases/v1.1.0-beta.11.md)
 - [Beta 10 product and native capability release receipt](releases/v1.1.0-beta.10.md)

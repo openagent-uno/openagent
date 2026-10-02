@@ -16,6 +16,14 @@ Discord and WhatsApp bridges. Channel-specific upload limits and recipient
 authorization remain in each bridge. A model call alone does not send an image
 until the agent chooses to attach it.
 
+A chat model may also advertise `metadata.capabilities=["image_generation"]`.
+When its catalog name is qualified, `metadata.image_model_id` records the bare
+model ID expected by the image endpoint. The Codex subscription proxy exposes
+this route; its advertised capability can be registered on a chat model.
+The Claude subscription proxy supplies chat only: an agent talking through
+Claude can still call the image tool when an independent image provider is
+configured in the same OpenAgent installation.
+
 The server also accepts explicit `OPENAGENT_IMAGE_BASE_URL`,
 `OPENAGENT_IMAGE_API_KEY` and `OPENAGENT_IMAGE_MODEL` overrides for deployments
 that configure providers outside the catalog. The shared Core transport
