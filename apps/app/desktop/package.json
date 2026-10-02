@@ -101,9 +101,9 @@
       "entitlementsInherit": "buildResources/entitlements.mac.inherit.plist",
       "notarize": true,
       "signIgnore": [
-        "host-tools/darwin-(arm64|x64)/openagent-host-tools$",
-        "host-tools/darwin-(arm64|x64)/node$",
-        "host-tools/darwin-(arm64|x64)/openagent-computer-control\\.app(/.*)?$"
+        "Contents/Resources/host-tools/",
+        "Contents/Resources/web-build/",
+        "Contents/Frameworks/Electron Framework\\.framework/.*/Resources/"
       ],
       "extendInfo": {
         "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
