@@ -529,7 +529,7 @@ const OrderedParts = memo(function OrderedParts({
             <AttachmentBlock
               key={`attachment-${attachmentKey(part.attachment)}-${index}`}
               attachments={[part.attachment]}
-              downloadable={assistant}
+              downloadable
             />
           );
         }

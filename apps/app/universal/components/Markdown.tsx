@@ -453,7 +453,7 @@ const HIGHLIGHT_CACHE_MAX = 300;
 // line block would otherwise block the main thread when it lands.
 const MAX_HIGHLIGHT_CHARS = 20000;
 
-function CodeBlock({ lang, code }: { lang: string; code: string }) {
+export function CodeBlock({ lang, code }: { lang: string; code: string }) {
   const [copied, setCopied] = useState(false);
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
   const resolvedLang = normaliseLang(lang);

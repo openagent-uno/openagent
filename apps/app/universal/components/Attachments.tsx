@@ -29,6 +29,7 @@ import type { Attachment } from '../../common/types';
 import { attachmentKey } from '../../common/attachments';
 import { attachmentUrl, downloadAttachment } from '../services/api';
 import { colors, font, radius } from '../theme';
+import { CodeBlock } from './Markdown';
 
 const isWeb = Platform.OS === 'web';
 
@@ -52,12 +53,12 @@ type PreviewKind = 'image' | 'video' | 'audio' | 'pdf' | 'text' | 'none';
 
 /** Which viewer the preview lightbox should use for an attachment. */
 function previewKindFor(att: Attachment): PreviewKind {
-  if (att.type === 'image') return 'image';
-  if (att.type === 'video') return 'video';
-  if (att.type === 'voice') return 'audio';
+  if (att.type === 'image' || att.mime_type?.startsWith('image/')) return 'image';
+  if (att.type === 'video' || att.mime_type?.startsWith('video/')) return 'video';
+  if (att.type === 'voice' || att.mime_type?.startsWith('audio/')) return 'audio';
   const ext = extOf(att.filename);
-  if (ext === 'pdf') return 'pdf';
-  if (TEXT_EXTS.has(ext)) return 'text';
+  if (ext === 'pdf' || att.mime_type === 'application/pdf') return 'pdf';
+  if (TEXT_EXTS.has(ext) || att.mime_type?.startsWith('text/')) return 'text';
   return 'none';
 }
 
@@ -88,7 +89,7 @@ async function doDownload(att: Attachment) {
 
 export interface AttachmentBlockProps {
   attachments?: Attachment[];
-  /** Show download affordances (assistant messages). User echoes omit them. */
+  /** Show download affordances on both user and assistant messages. */
   downloadable?: boolean;
 }
 
@@ -96,11 +97,11 @@ export interface AttachmentBlockProps {
  * Render a message's attachments: full-width media (image/video/voice) stacked
  * first, then a wrap-row of file badges. Owns the single shared preview modal.
  */
-export default function AttachmentBlock({ attachments, downloadable = false }: AttachmentBlockProps) {
+export default function AttachmentBlock({ attachments, downloadable = true }: AttachmentBlockProps) {
   const [preview, setPreview] = useState<Attachment | null>(null);
   if (!attachments || attachments.length === 0) return null;
 
-  const isMedia = (a: Attachment) => a.type === 'image' || a.type === 'video' || a.type === 'voice';
+  const isMedia = (a: Attachment) => ['image', 'video', 'audio'].includes(previewKindFor(a));
   const media = attachments.filter(isMedia);
   const files = attachments.filter((a) => !isMedia(a));
 
@@ -136,14 +137,14 @@ export default function AttachmentBlock({ attachments, downloadable = false }: A
 function MediaItem({ attachment, downloadable, onPreview }: {
   attachment: Attachment; downloadable: boolean; onPreview: () => void;
 }) {
-  if (attachment.type === 'image') {
+  if (previewKindFor(attachment) === 'image') {
     return <MediaImage attachment={attachment} downloadable={downloadable} onPreview={onPreview} />;
   }
-  if (attachment.type === 'video' && isWeb) {
-    return <MediaVideo attachment={attachment} downloadable={downloadable} />;
+  if (previewKindFor(attachment) === 'video' && isWeb) {
+    return <MediaVideo attachment={attachment} downloadable={downloadable} onPreview={onPreview} />;
   }
-  if (attachment.type === 'voice' && isWeb) {
-    return <MediaAudio attachment={attachment} downloadable={downloadable} />;
+  if (previewKindFor(attachment) === 'audio' && isWeb) {
+    return <MediaAudio attachment={attachment} downloadable={downloadable} onPreview={onPreview} />;
   }
   // Native (no player) → downloadable badge that still opens the preview.
   return (
@@ -154,10 +155,13 @@ function MediaItem({ attachment, downloadable, onPreview }: {
 }
 
 /** A caption row shown under inline media: filename + optional download. */
-function MediaFooter({ attachment, downloadable }: { attachment: Attachment; downloadable: boolean }) {
+function MediaFooter({ attachment, downloadable, onPreview }: { attachment: Attachment; downloadable: boolean; onPreview: () => void }) {
   return (
     <View style={styles.mediaFooter}>
       <Text style={styles.mediaName} numberOfLines={1}>{attachment.filename}</Text>
+      <TouchableOpacity onPress={onPreview} accessibilityLabel={`Expand ${attachment.filename}`} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Feather name="maximize-2" size={13} color={colors.textSecondary} />
+      </TouchableOpacity>
       {downloadable && isWeb && (
         <TouchableOpacity
           onPress={() => doDownload(attachment)}
@@ -195,12 +199,12 @@ function MediaImage({ attachment, downloadable, onPreview }: {
           resizeMode="contain"
         />
       </TouchableOpacity>
-      <MediaFooter attachment={attachment} downloadable={downloadable} />
+      <MediaFooter attachment={attachment} downloadable={downloadable} onPreview={onPreview} />
     </View>
   );
 }
 
-function MediaVideo({ attachment, downloadable }: { attachment: Attachment; downloadable: boolean }) {
+function MediaVideo({ attachment, downloadable, onPreview }: { attachment: Attachment; downloadable: boolean; onPreview: () => void }) {
   // Real <video> via React DOM (RNW/Electron). Content-Disposition:attachment
   // on the content endpoint is ignored for a media subresource, so it streams inline.
   const el = createElement('video', {
@@ -216,12 +220,12 @@ function MediaVideo({ attachment, downloadable }: { attachment: Attachment; down
   return (
     <View style={styles.mediaWrap}>
       {el}
-      <MediaFooter attachment={attachment} downloadable={downloadable} />
+      <MediaFooter attachment={attachment} downloadable={downloadable} onPreview={onPreview} />
     </View>
   );
 }
 
-function MediaAudio({ attachment, downloadable }: { attachment: Attachment; downloadable: boolean }) {
+function MediaAudio({ attachment, downloadable, onPreview }: { attachment: Attachment; downloadable: boolean; onPreview: () => void }) {
   const el = createElement('audio', {
     src: attachmentUrl(attachment),
     controls: true,
@@ -233,6 +237,7 @@ function MediaAudio({ attachment, downloadable }: { attachment: Attachment; down
       <View style={styles.audioHead}>
         <Feather name="mic" size={12} color={colors.textSecondary} />
         <Text style={styles.mediaName} numberOfLines={1}>{attachment.filename}</Text>
+        <TouchableOpacity onPress={onPreview} accessibilityLabel={`Expand ${attachment.filename}`}><Feather name="maximize-2" size={13} color={colors.textSecondary} /></TouchableOpacity>
         {downloadable && isWeb && (
           <TouchableOpacity onPress={() => doDownload(attachment)} accessibilityLabel="Download voice note">
             <Feather name="download" size={13} color={colors.primary} />
@@ -292,7 +297,7 @@ function AttachmentPreview({ attachment, onClose }: {
   // relying on percentage/viewport-unit heights, which RNW's StyleSheet does
   // not resolve reliably. The body then flexes to fill and viewers use 100%.
   const { height: winH } = useWindowDimensions();
-  const panelH = Math.max(280, Math.min(Math.round(winH * 0.86), winH - 64));
+  const panelH = Math.max(280, winH - 24);
   return (
     <Modal
       animationType="fade"
@@ -365,7 +370,7 @@ function PreviewViewer({ attachment }: { attachment: Attachment }) {
     );
   }
   if (kind === 'pdf') return <PdfPreview uri={uri} filename={attachment.filename} />;
-  if (kind === 'text') return <TextPreview uri={uri} />;
+  if (kind === 'text') return <TextPreview uri={uri} filename={attachment.filename} />;
   return <PreviewFallback attachment={attachment} note="No inline preview for this file type." />;
 }
 
@@ -392,7 +397,7 @@ function PdfPreview({ uri, filename }: { uri: string; filename: string }) {
 }
 
 /** Plain-text / code preview — fetched and shown in a scrollable mono block. */
-function TextPreview({ uri }: { uri: string }) {
+function TextPreview({ uri, filename }: { uri: string; filename: string }) {
   const [text, setText] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -407,7 +412,9 @@ function TextPreview({ uri }: { uri: string }) {
   if (text === null) return <Loading />;
   return (
     <ScrollView style={styles.textScroll} contentContainerStyle={styles.textContent}>
-      <Text style={styles.textBody} selectable>{text}</Text>
+      {TEXT_EXTS.has(extOf(filename)) && !['txt', 'log', 'csv', 'tsv'].includes(extOf(filename))
+        ? <CodeBlock lang={extOf(filename)} code={text} />
+        : <Text style={styles.textBody} selectable>{text}</Text>}
     </ScrollView>
   );
 }
@@ -481,13 +488,13 @@ const styles = StyleSheet.create({
 
   // Preview lightbox
   previewOverlay: {
-    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24,
+    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 12,
     backgroundColor: 'rgba(2, 4, 10, 0.82)',
   },
   previewPanel: {
     // Height is injected as a concrete px value at render (see AttachmentPreview)
     // so the body/viewers get a definite box to fill on both RNW and native.
-    width: '92%', maxWidth: 960,
+    width: '100%', maxWidth: 1800,
     borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border,
     backgroundColor: colors.surfaceElevated ?? colors.surface,
     overflow: 'hidden',
