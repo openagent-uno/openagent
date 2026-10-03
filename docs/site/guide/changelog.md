@@ -2,6 +2,16 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.16
+
+- Telegram voice notes and audio files are transcribed before the shared
+  stream; the original audio remains in the session while a text-only chat
+  model receives the transcript.
+- Core beta 8 applies the same STT handoff to every channel. The server pins
+  PyAV below 19 until `faster-whisper` supports the removed PyAV argument.
+- This release updates Python server and CLI wheels; the desktop App remains
+  at beta 14.
+
 ## v1.1.0-beta.12
 
 - The Apple Silicon desktop App is signed and notarized with the image model

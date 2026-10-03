@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b15"
+version = "1.1.0b16"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,15 +14,15 @@ dependencies = [
     "openagent-storage-sqlite==1.1.0b8",
     "openagent-modules==1.1.0b2",
     "openagent-execution==1.0.0b2",
-    "openagent-client-transport==1.1.0b15",
+    "openagent-client-transport==1.1.0b16",
     "openagent-core==1.1.0b8",
-    "openagent-identity==1.1.0b15",
-    "openagent-dashboards==1.1.0b15",
-    "openagent-product-config==1.1.0b15",
-    "openagent-support-integration==1.1.0b15",
+    "openagent-identity==1.1.0b16",
+    "openagent-dashboards==1.1.0b16",
+    "openagent-product-config==1.1.0b16",
+    "openagent-support-integration==1.1.0b16",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.0b15",
+    "openagent-mcp==1.1.0b16",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -87,6 +87,10 @@ dependencies = [
     # so that one platform keeps the existing cloud STT path but cannot
     # advertise a local Whisper runtime that cannot be installed.
     "faster-whisper>=1.0.0; platform_system != 'Windows' or platform_machine != 'ARM64'",
+    # faster-whisper 1.2.1 still passes metadata_errors to av.open(), but
+    # PyAV 19 removed that argument. Without this bound every voice note
+    # silently falls through STT on a fresh installation.
+    "av<19; platform_system != 'Windows' or platform_machine != 'ARM64'",
     # Local TTS fallback (Piper). Same rationale as faster-whisper:
     # the bundled Python release ships voice-out working out of the
     # box. First synth call downloads the voice (~25 MB) into
