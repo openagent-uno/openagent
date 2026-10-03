@@ -15,6 +15,13 @@ History search intersects every recipient's ACL before pagination. Vault and
 vault quality diagnostics are private to the registered agent owner unless
 `runtime_tool_audiences.vault: installation` explicitly shares that agent's
 corpus with current network members; this setting does not merge agent vaults.
+For an owner speaking through the Telegram bridge, the bridge certificate has
+its own principal. To grant only a specific private Telegram session access to
+that agent's vault, configure both `channels.telegram.allowed_users` and
+`runtime_tool_audiences.vault_owner_channels.telegram` with the same numeric
+sender ID. This does not grant vault access to WhatsApp or other Telegram users.
+The bridge grant applies to live private turns only; shared and deferred turns
+remain outside it.
 
 App dashboard capabilities require the authenticated WebSocket registration
 and the exact `app_connection_id` on a collaboration turn. Device tools also

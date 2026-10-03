@@ -89,6 +89,11 @@ class NativeMemoryAccess:
             action == "memory.publish" and set(recipients) != set(context.audience)
         ):
             return False
+        if action in {"memory.read", "memory.publish"} and resource.kind == "vault-note":
+            from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+
+            if owner_bridge_vault_turn(context, self.service.agent.config):
+                return True
         try:
             accesses = [await self.access(principal) for principal in recipients]
         except (PermissionError, ValueError):

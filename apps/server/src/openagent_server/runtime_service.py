@@ -624,6 +624,11 @@ class NativeRuntimeService:
                 ]
             )
         if domain in {"vault", "skills"}:
+            if domain == "vault":
+                from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+
+                if owner_bridge_vault_turn(context, self.agent.config):
+                    return True
             owner = await self.directory.owner_handle()
             return bool(
                 owner
