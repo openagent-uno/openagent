@@ -190,6 +190,41 @@ async def t_telegram_extract_structured(ctx: TestContext) -> None:
         assert len({item["path"] for item in extracted.attachments}) == 2
 
 
+@test("channel_attachments", "Telegram audio files use STT while retaining the original attachment")
+async def t_telegram_audio_transcript(ctx: TestContext) -> None:
+    from openagent_server.bridges.telegram import TelegramBridge
+
+    class _Audio:
+        file_unique_id = "audio-id"
+        file_name = "voice.mp3"
+        mime_type = "audio/mpeg"
+        file_size = 5
+
+        async def get_file(self):
+            return self
+
+        async def download_to_drive(self, path):
+            Path(path).write_bytes(b"audio")
+
+    class _Message:
+        photo = voice = document = video = video_note = None
+        audio = _Audio()
+
+    bridge = TelegramBridge.__new__(TelegramBridge)
+    bridge.name = "telegram"
+    async def _transcribe(path):
+        assert Path(path).read_bytes() == b"audio"
+        return "Please summarize this"
+    bridge.transcribe_with_fallback = _transcribe  # type: ignore[method-assign]
+
+    with tempfile.TemporaryDirectory(prefix="oa-tg-audio-") as raw:
+        extracted = await bridge._extract_files(_Message(), raw)
+        assert extracted.voice_detected is True
+        assert extracted.text_addition == "Please summarize this"
+        assert extracted.attachments[0]["mime_type"] == "audio/mpeg"
+        assert extracted.files_info == []
+
+
 @test("channel_attachments", "Telegram PDF and JSON captions reach durable CAS refs, not path text")
 async def t_telegram_documents_reach_cas(ctx: TestContext) -> None:
     from openagent_server.bridges.telegram import TelegramBridge

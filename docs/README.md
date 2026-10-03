@@ -5,6 +5,7 @@
 - [App capability registration](app-capabilities-v1.md)
 - [Native capability coverage](native-capability-coverage.md)
 - [Image model configuration and delivery](image-generation.md)
+- [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
 - [Beta 13 subscription image integration receipt](releases/v1.1.0-beta.13.md)
 - [Beta 12 App, server and CLI release receipt](releases/v1.1.0-beta.12.md)

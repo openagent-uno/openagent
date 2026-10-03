@@ -1101,10 +1101,9 @@ class TelegramBridge(BaseBridge):
                 mime_type=getattr(audio, "mime_type", None),
             )
             if ref:
+                out.voice_detected = True
                 out.attachments.append(ref)
-                out.files_info.append(
-                    f"- audio: {ref['filename']} — local path: {ref['path']}"
-                )
+                out.text_addition = await self.transcribe_with_fallback(ref["path"])
 
         if getattr(msg, "document", None):
             document = msg.document
