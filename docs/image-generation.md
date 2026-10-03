@@ -29,3 +29,13 @@ The server also accepts explicit `OPENAGENT_IMAGE_BASE_URL`,
 that configure providers outside the catalog. The shared Core transport
 currently supports text-to-image on compatible APIs; editing an existing image
 is a separate capability.
+
+Receiving an image is a separate chat-model capability from generating one.
+For recognised Claude model IDs behind an OpenAI-compatible subscription
+proxy, Core infers `text`, `image` and `file` input when a model is first
+registered, regardless of the custom provider name. An explicit
+`models.metadata.input_modalities` declaration always wins. Existing rows
+that a previous release persisted as `text` only need a verified, targeted
+metadata update; OpenAgent does not silently replace an operator's explicit
+text-only choice. A channel image test must include the actual inbound photo,
+model interpretation, and reply on the same channel.

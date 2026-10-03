@@ -9,6 +9,7 @@
 - [Attachment preview in the App](attachment-preview.md)
 - [Beta 16 Telegram voice repair and live acceptance](releases/v1.1.0-beta.16.md)
 - [Beta 17 Friday Telegram vault access](releases/v1.1.0-beta.17.md)
+- [Beta 18 Telegram image input and proxy capability repair](releases/v1.1.0-beta.18.md)
 - [Beta 13 subscription image integration receipt](releases/v1.1.0-beta.13.md)
 - [Beta 12 App, server and CLI release receipt](releases/v1.1.0-beta.12.md)
 - [Beta 11 image model release receipt](releases/v1.1.0-beta.11.md)
