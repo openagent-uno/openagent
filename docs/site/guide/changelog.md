@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.18
+
+- Core beta 9 recognizes Claude image input behind custom provider names while
+  preserving explicit model capability settings. This repairs Telegram image
+  handling for verified Claude subscription proxy models.
+- Friday and Mixout were upgraded and each answered an image question through
+  Telegram after release. Friday's audio transcription path also completed a
+  post-upgrade Telegram check. See the
+  [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.18.md)
+  for the exact evidence.
+
 ## v1.1.0-beta.16
 
 - Telegram voice notes and audio files are transcribed before the shared
