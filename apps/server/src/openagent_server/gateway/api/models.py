@@ -25,6 +25,23 @@ if TYPE_CHECKING:
 from openagent_server.gateway.api._common import gateway_db as _db
 
 
+def _with_discovered_capabilities(
+    metadata: dict[str, Any], model: str, discovered: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Seed an LLM row from its exact provider catalog without overriding input."""
+    out = dict(metadata)
+    entry = next((item for item in discovered if item.get("id") == model), None)
+    if entry is None:
+        return out
+    for key in ("input_modalities", "capabilities"):
+        value = entry.get(key)
+        if key not in out and isinstance(value, list) and all(isinstance(item, str) for item in value):
+            out[key] = value
+    if "image_generation" in out.get("capabilities", []) and "image_model_id" not in out:
+        out["image_model_id"] = entry.get("image_model_id") or model
+    return out
+
+
 async def handle_available_providers(request: web.Request) -> web.Response:
     """GET /api/models/providers — provider catalog exposed by OpenAgent."""
     from aiohttp import web as _web
@@ -264,6 +281,22 @@ async def handle_create_db(request: web.Request) -> web.Response:
     metadata = dict(raw_metadata or {})
     if "input_modalities" in body:
         metadata["input_modalities"] = body.get("input_modalities")
+    if kind == "llm" and ("input_modalities" not in metadata or "capabilities" not in metadata):
+        provider_row = await db.get_provider(provider_id)
+        if provider_row and provider_row.get("base_url"):
+            import asyncio
+            from openagent_core.models.discovery import list_provider_models
+            try:
+                discovered = await asyncio.wait_for(list_provider_models(
+                    provider_row["name"],
+                    api_key=provider_row.get("api_key"),
+                    base_url=provider_row["base_url"],
+                ), timeout=5)
+                metadata = _with_discovered_capabilities(metadata, model, discovered)
+            except (TimeoutError, OSError, ValueError):
+                # A disconnected proxy may still be configured. Registration
+                # keeps Core's conservative default; no capability is guessed.
+                pass
     try:
         from openagent_server.provider_management import for_request
         admin,context=await for_request(request)

@@ -42,6 +42,25 @@ def _providers(*, include_image: bool = True) -> list[dict[str, Any]]:
     return rows
 
 
+@test("model_media_capabilities", "proxy catalog seeds image input and generation without claiming unsupported media")
+async def t_proxy_catalog_registration_defaults(_ctx: TestContext) -> None:
+    from openagent_server.gateway.api.models import _with_discovered_capabilities
+
+    catalog = [
+        {"id": "claude-opus-4-8", "input_modalities": ["text", "image", "file"],
+         "capabilities": ["chat", "vision", "file"]},
+        {"id": "gpt-5.6-sol", "input_modalities": ["text", "image"],
+         "capabilities": ["chat", "vision", "image_generation"]},
+    ]
+    claude = _with_discovered_capabilities({}, "claude-opus-4-8", catalog)
+    assert claude["input_modalities"] == ["text", "image", "file"]
+    assert "image_model_id" not in claude
+    codex = _with_discovered_capabilities({}, "gpt-5.6-sol", catalog)
+    assert codex["input_modalities"] == ["text", "image"]
+    assert codex["image_model_id"] == "gpt-5.6-sol"
+    assert _with_discovered_capabilities({"input_modalities": ["text"]}, "gpt-5.6-sol", catalog)["input_modalities"] == ["text"]
+
+
 class _CaptureModel:
     def __init__(self, runtime_id: str):
         self.runtime_id = runtime_id
