@@ -17,6 +17,7 @@
 - [Beta 10 product and native capability release receipt](releases/v1.1.0-beta.10.md)
 - [Beta 9 Python artifact qualification](releases/v1.1.0-beta.9.md)
 - [Runtime, automation, and verification gates](runtime-and-verification.md)
+- [Server browser dependencies for custom MCPs](server-browser-mcps.md)
 - [Build and release contracts](build-and-release.md)
 - [Repository and updater transition](repository-transition.md)
 - [Frozen server qualification](frozen-server-qualification.md)
