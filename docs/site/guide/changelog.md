@@ -2,6 +2,13 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.21
+
+- The Python CLI now requires Host Tools b5, matching the server package.
+  A full server plus CLI installation passes the package dependency check.
+- Signed desktop bundles retain their previously qualified Host Tools b4
+  payload; beta 21 ships Python wheels for server deployments.
+
 ## v1.1.0-beta.20
 
 - Standalone servers can opt in to their own Agent in Chrome and computer

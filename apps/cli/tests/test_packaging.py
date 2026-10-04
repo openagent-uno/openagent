@@ -395,7 +395,9 @@ def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     }
     wheel = lock["python_wheel"]
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"openagent-host-tools==1.0.0b4"' in pyproject
+    # The legacy frozen bundle remains on b4; the Python CLI now pairs with
+    # server-owned browser builds through the b5 package dependency.
+    assert '"openagent-host-tools==1.0.0b5"' in pyproject
     assert "openagent-host-tools @" not in pyproject
     assert "[tool.uv.sources]" not in pyproject
     assert "../openagent-host-tools" not in pyproject
