@@ -103,6 +103,31 @@ server_host_tools:
   tools: [filesystem, editor, shell]
 ```
 
+To let channel and scheduled runs control a browser or graphical desktop on
+the agent host, add `agent-in-chrome` and/or `computer-control` to that list.
+These tools use the same OpenAgent Tools sidecars as App and CLI, but run on the
+server with their own persistent browser profile and exact host destination.
+The browser requires an installed Chrome/Chromium and Node sidecar runtime;
+desktop control requires a graphical session and the native sidecar. For a
+dedicated, already provisioned browser profile:
+
+```yaml
+server_host_tools:
+  tools: [filesystem, editor, shell, agent-in-chrome, computer-control]
+  browser:
+    profile_dir: /srv/openagent/agent/agent-in-chrome/server-profile
+    cdp_port: 18802
+    chrome_binary: /usr/bin/google-chrome-stable
+    # Set only when a separate service owns this exact profile and CDP port.
+    external_supervisor: true
+```
+
+The operator must provision the sidecars and display on the host. These tools
+can inspect screenshots and interact with page controls, including controls
+that are absent from the page's ordinary DOM. Sites may still require a person
+to complete an interactive verification; browser control does not guarantee
+access through every site challenge.
+
 Set `server_host_tools: false` to run a session-only server, or list only the
 tools the deployment should expose. The shell subprocess receives runtime safety
 and sandbox policy but does not inherit channel or provider credentials.

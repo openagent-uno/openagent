@@ -21,12 +21,13 @@ OpenAgent App and CLI continue to register dashboard, filesystem, editor, shell,
 computer-control and agent-in-chrome capabilities from the authenticated client.
 These are temporary capability sources for that exact device turn; channels and
 durable automations do not inherit them. The standalone full profile separately
-registers filesystem, editor and shell for the server workspace. Those durable
-product capabilities operate on the agent host, have distinct references from a
-client device and can be restricted or disabled with `server_host_tools`. The
-server never promotes computer-control, agent-in-chrome or dashboard tools to a
-channel. The server's dashboard persistence does not globally advertise
-dashboard tools.
+registers filesystem, editor and shell for the server workspace. An operator
+may also enable the server's own computer-control and agent-in-chrome sidecars
+with `server_host_tools`. These durable capabilities operate on the agent host,
+have distinct references from a connected client device, and are available to
+channels and automation when enabled. The server never promotes a connected
+client's computer or dashboard tools to a channel. The server's dashboard
+persistence does not globally advertise dashboard tools.
 
 The product system prompt is composed after mandatory kernel and active-module
 blocks. Removing Vault removes its tools, hooks, reminders and prompt rules.

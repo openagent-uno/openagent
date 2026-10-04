@@ -26,7 +26,10 @@ class NativeCatalogService:
         names.update(
             entry.get("name") or entry.get("builtin") for entry in DEFAULT_MCPS
         )
-        names.update({"vault", "agent-manager", "agent-federation", "ui-manager"})
+        names.update({
+            "vault", "agent-manager", "agent-federation", "ui-manager",
+            "computer-control", "agent-in-chrome",
+        })
         names.update(
             entry.get("name") or entry.get("builtin")
             for entry in (agent.config.get("mcp") or [])

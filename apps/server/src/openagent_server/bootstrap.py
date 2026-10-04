@@ -7,6 +7,7 @@ This module is called only by the standalone server's start operation.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -31,6 +32,7 @@ async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     # but must not spawn MCPs or initialize a provider runtime.
     if config.get("_local_e2e") is True:
         return
+    await ensure_server_computer_rows(db, config)
     # Optional OpenAgent modules own their native capabilities. The engine pool
     # contains only the uniform discovery gateway; the MCP module builds and
     # owns protocol connections from the persisted external-server catalog.
@@ -80,18 +82,56 @@ async def start_stream(session: Any, gateway: Any) -> None:
     await session.start(stt_factory=stt, tts_factory=tts)
 
 
+_SERVER_HOST_DEFAULTS = frozenset({"filesystem", "editor", "shell"})
+_SERVER_COMPUTER_TOOLS = frozenset({"computer-control", "agent-in-chrome"})
+
+
+def _server_host_selection(config: dict[str, Any]) -> frozenset[str]:
+    settings = config.get("server_host_tools", {})
+    if settings is False:
+        return frozenset()
+    if settings is None:
+        settings = {}
+    if not isinstance(settings, dict):
+        raise ValueError("server_host_tools must be an object or false")
+    if settings.get("enabled", True) is False:
+        return frozenset()
+    selected = settings.get("tools", sorted(_SERVER_HOST_DEFAULTS))
+    if not isinstance(selected, (list, tuple, set, frozenset)):
+        raise ValueError("server_host_tools.tools must be a list")
+    names = frozenset(str(item).strip() for item in selected)
+    unknown = names - _SERVER_HOST_DEFAULTS - _SERVER_COMPUTER_TOOLS
+    if unknown:
+        raise ValueError(f"unsupported server host tools: {', '.join(sorted(unknown))}")
+    return names
+
+
+async def ensure_server_computer_rows(db: Any, config: dict[str, Any]) -> None:
+    """Register opted-in, product-owned host tools without changing existing rows."""
+    selected = _server_host_selection(config) & _SERVER_COMPUTER_TOOLS
+    if not selected:
+        return
+    existing = {row["name"]: row for row in await db.list_mcps()}
+    for name in sorted(selected):
+        row = existing.get(name)
+        if row is not None:
+            if row.get("kind") != "default" or row.get("builtin_name") != name:
+                raise ValueError(f"{name} is reserved for the server host capability")
+            continue
+        await db.upsert_mcp(name, kind="default", builtin_name=name,
+                            enabled=True, source="standalone-server-host")
+
+
 def standalone_spec_resolver(config, *, environment=None):
     """Trusted product composition; persisted row fields cannot replace modules."""
     from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, resolve_builtin_entry
     product = {"agent-manager": "openagent_product_config.tools.agent_manager.adapters",
                "agent-federation": "openagent_mcp.federation.adapters",
                "messaging": "openagent_server.messaging_tools.adapters"}
-    # Dashboard and physical-computer tools belong to an originating App/CLI.
-    # The standalone server may separately expose its own workspace filesystem,
-    # editor and shell. Those are durable product capabilities with a distinct
-    # destination; they never grant access to a connected user's computer.
-    client_only = frozenset({"ui-manager", "computer-control", "agent-in-chrome"})
-    server_host_tools = frozenset({"filesystem", "editor", "shell"})
+    # These server-owned sources use the agent host. They never grant access to
+    # an App/CLI device, whose contextual capability has a separate ToolRef.
+    client_only = frozenset({"ui-manager"})
+    server_host_tools = _SERVER_HOST_DEFAULTS | _SERVER_COMPUTER_TOOLS
     module_native = frozenset({
         "tool-search", "vault", "vault-gate", "attachments", "logs",
         "memory-search", "scheduler", "mcp-manager", "model-manager",
@@ -99,20 +139,7 @@ def standalone_spec_resolver(config, *, environment=None):
         "skill-data", "delegation", "ptc",
     })
 
-    def server_tool_enabled(name: str) -> bool:
-        settings = config.get("server_host_tools", {})
-        if settings is False:
-            return False
-        if settings is None:
-            settings = {}
-        if not isinstance(settings, dict):
-            raise ValueError("server_host_tools must be an object or false")
-        if settings.get("enabled", True) is False:
-            return False
-        selected = settings.get("tools", sorted(server_host_tools))
-        if not isinstance(selected, (list, tuple, set, frozenset)):
-            raise ValueError("server_host_tools.tools must be a list")
-        return name in {str(item).strip() for item in selected}
+    selected_tools = _server_host_selection(config)
 
     def server_tool_environment() -> dict[str, str]:
         """Pass runtime policy and ordinary process settings, never secrets."""
@@ -120,6 +147,8 @@ def standalone_spec_resolver(config, *, environment=None):
         exact = {
             "HOME", "LANG", "LC_ALL", "LOGNAME", "PATH", "SHELL", "TMPDIR",
             "USER", "OPENAGENT_MAX_TOOL_RESULT_CHARS",
+            "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR",
+            "DBUS_SESSION_BUS_ADDRESS", "OPENAGENT_CHROME_BINARY",
         }
         prefixes = (
             "LC_", "OPENAGENT_SAFETY_", "OPENAGENT_SANDBOX_",
@@ -137,9 +166,53 @@ def standalone_spec_resolver(config, *, environment=None):
     def resolve(row, db_path):
         name = row['name']
         if name in server_host_tools:
-            if not server_tool_enabled(name):
+            if name not in selected_tools:
+                return False
+            if name in _SERVER_COMPUTER_TOOLS and (
+                row.get("kind") != "default" or row.get("builtin_name") != name
+            ):
                 return False
             workspace = Path(db_path).resolve().parent if db_path else Path.cwd().resolve()
+            if name in _SERVER_COMPUTER_TOOLS:
+                from openagent_host_tools.sidecars import discover_sidecars
+                candidate = next(item for item in discover_sidecars() if item.name == name)
+                if candidate.command is None and name == "agent-in-chrome":
+                    # Python wheel installs keep the versioned JS source under
+                    # openagent-device-tools, outside the client bundle layout.
+                    from openagent_device_tools.sources import sidecar_source
+                    import shutil
+                    script = sidecar_source(name) / "host" / "mcp-server.js"
+                    node = shutil.which("node", path=(environment or os.environ).get("PATH"))
+                    if node and script.is_file() and (script.parent / "node_modules").is_dir():
+                        command = [node, str(script)]
+                    else:
+                        command = None
+                else:
+                    command = list(candidate.command) if candidate.command else None
+                if command is None:
+                    raise RuntimeError(f"{name} is enabled but unavailable: {candidate.reason}")
+                env = server_tool_environment()
+                if name == "agent-in-chrome":
+                    settings = config.get("server_host_tools") or {}
+                    browser = settings.get("browser") or {}
+                    if not isinstance(browser, dict):
+                        raise ValueError("server_host_tools.browser must be an object")
+                    port = browser.get("cdp_port")
+                    if port is None:
+                        port = 20000 + int(hashlib.sha256(str(workspace).encode()).hexdigest()[:8], 16) % 30000
+                    port = int(port)
+                    if not 1024 <= port <= 65535:
+                        raise ValueError("server_host_tools.browser.cdp_port is out of range")
+                    profile = Path(browser.get("profile_dir") or workspace / "agent-in-chrome" / "server-profile").expanduser().resolve()
+                    env.update(OPENAGENT_CHROME_CDP_PORT=str(port),
+                               OPENAGENT_CHROME_PROFILE_DIR=str(profile),
+                               OPENAGENT_BROWSER_LOCATION="server")
+                    if browser.get("external_supervisor") is True:
+                        env["OPENAGENT_BROWSER_EXTERNAL"] = "1"
+                    if browser.get("chrome_binary"):
+                        env["OPENAGENT_CHROME_BINARY"] = str(Path(browser["chrome_binary"]).expanduser().resolve())
+                return {"name": name, "command": command,
+                        "env": env, "_cwd": str(workspace)}
             return {
                 "name": name,
                 "command": [

@@ -34,6 +34,11 @@ resource manifest still points to the previously signed bundle; a new signed
 multi-platform bundle and installer lock are required before installed app
 users receive these tools.
 
+The `1.0.0b5` Python adapter composes device-tools `1.0.0b4` for standalone
+server hosts. It supports the server-owned browser's externally supervised
+shutdown contract. App and CLI installations continue using their existing
+signed native bundle until a separately qualified bundle update is published.
+
 # OpenAgent Host Tools
 
 `openagent-host-tools` is the local capability host shared by OpenAgent's

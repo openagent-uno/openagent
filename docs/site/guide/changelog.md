@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.20
+
+- Standalone servers can opt in to their own Agent in Chrome and computer
+  control sidecars. Telegram and scheduled runs can use that server computer
+  through exact host-bound tool references, while App/CLI device tools remain
+  tied to their originating client.
+- An independently supervised browser remains running when its MCP disconnects.
+  Host operators can keep a persistent profile and a graphical display for
+  browser and desktop tool calls.
+- Friday used both tools from Telegram for read-only screenshots. Chrono24
+  still required interactive verification at login.
+
 ## v1.1.0-beta.18
 
 - Core beta 9 recognizes Claude image input behind custom provider names while

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import asyncio
 
 import pytest
 
@@ -58,3 +59,70 @@ def test_physical_client_tools_remain_contextual(name, tmp_path) -> None:
     from openagent_server.bootstrap import standalone_spec_resolver
 
     assert standalone_spec_resolver({})(_row(name), str(tmp_path / "db")) is False
+
+
+@pytest.mark.parametrize("name,command_key", (
+    ("computer-control", "OPENAGENT_COMPUTER_CONTROL_COMMAND"),
+    ("agent-in-chrome", "OPENAGENT_AGENT_IN_CHROME_COMMAND"),
+))
+def test_opted_in_server_computer_tools_use_host_destination(
+    name, command_key, tmp_path, monkeypatch,
+) -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    monkeypatch.setenv(command_key, '["/opt/verified/sidecar"]')
+    db = tmp_path / "agent" / "openagent.db"
+    db.parent.mkdir()
+    config = {"server_host_tools": {
+        "tools": [name],
+        "browser": {"cdp_port": 28911, "profile_dir": str(tmp_path / "profile"),
+                    "external_supervisor": True},
+    }}
+    resolver = standalone_spec_resolver(config, environment={
+        "PATH": "/usr/bin", "DISPLAY": ":101", "XAUTHORITY": "/tmp/auth",
+        "TELEGRAM_BOT_TOKEN": "must-not-leak",
+    })
+    spec = resolver(_row(name), str(db))
+
+    assert spec["command"] == ["/opt/verified/sidecar"]
+    assert spec["_cwd"] == str(db.parent.resolve())
+    assert spec["env"]["DISPLAY"] == ":101"
+    assert "TELEGRAM_BOT_TOKEN" not in spec["env"]
+    if name == "agent-in-chrome":
+        assert spec["env"]["OPENAGENT_CHROME_CDP_PORT"] == "28911"
+        assert spec["env"]["OPENAGENT_CHROME_PROFILE_DIR"] == str(tmp_path / "profile")
+        assert spec["env"]["OPENAGENT_BROWSER_LOCATION"] == "server"
+        assert spec["env"]["OPENAGENT_BROWSER_EXTERNAL"] == "1"
+    assert resolver({**_row(name), "kind": "custom", "builtin_name": None}, str(db)) is False
+
+
+def test_opted_in_server_computer_rows_preserve_user_disabled_state() -> None:
+    from openagent_server.bootstrap import ensure_server_computer_rows
+
+    class FakeDB:
+        def __init__(self):
+            self.rows = []
+            self.inserted = []
+
+        async def list_mcps(self):
+            return self.rows
+
+        async def upsert_mcp(self, name, **kwargs):
+            self.inserted.append((name, kwargs))
+            self.rows.append({"name": name, **kwargs})
+
+    db = FakeDB()
+    config = {"server_host_tools": {"tools": ["agent-in-chrome", "computer-control"]}}
+    asyncio.run(ensure_server_computer_rows(db, config))
+    assert {name for name, _ in db.inserted} == {"agent-in-chrome", "computer-control"}
+    db.rows[0]["enabled"] = False
+    asyncio.run(ensure_server_computer_rows(db, config))
+    assert len(db.inserted) == 2
+    assert db.rows[0]["enabled"] is False
+
+
+def test_server_host_tools_reject_unknown_names() -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    with pytest.raises(ValueError, match="unsupported server host tools"):
+        standalone_spec_resolver({"server_host_tools": {"tools": ["ui-manager"]}})

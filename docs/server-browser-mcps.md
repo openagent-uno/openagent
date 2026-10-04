@@ -1,10 +1,12 @@
 # Server browser dependencies for custom MCPs
 
 The standalone server does not lend an App or CLI device's `agent-in-chrome`
-capability to Telegram, another channel, or a scheduled run. A separately
-registered server MCP may depend on a browser running on the agent host. The
-host must provision and supervise that browser explicitly; an enabled MCP row
-does not start its external dependencies.
+capability to Telegram, another channel, or a scheduled run. It can register
+its **own** `agent-in-chrome` and `computer-control` sidecars by listing them in
+`server_host_tools.tools`; those have a distinct host destination and are
+available to channels and automation. A separately registered server MCP may
+also depend on a browser running on the agent host. The host must provision
+its graphical session and sidecar dependencies explicitly.
 
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its
@@ -14,6 +16,16 @@ can preserve the browser's normal rendering behavior. Keep the profile across
 service restarts to retain cookies; do not delete or replace it as part of a
 health repair. The browser service is a durable dependency, not a diagnostic
 process to clean up after a test.
+
+For `agent-in-chrome` attached to an external Chrome service, set
+`server_host_tools.browser.external_supervisor: true`. The service must record
+the exact `DevToolsActivePort` marker after each Chrome start; the sidecar
+checks the marker's port and WebSocket path before attaching. The product's
+`apps/server/scripts/record-browser-ownership.py` verifies the same-user Chrome
+process, profile and loopback CDP endpoint before writing that marker. Keep a
+fixed display number and Xauthority file when `computer-control` shares the
+service's Xvfb display. Stopping the browser MCP then leaves the supervised
+Chrome process alive, including a human verification handoff.
 
 Verify in order:
 
@@ -51,7 +63,23 @@ browser and returned HTTP `403`. On 2026-10-04, the login tab was inspected
 through an SSH-protected screen sharing session and displayed a Cloudflare
 Turnstile checkbox. The collection API separately returned `401`. The custom
 MCP now reports `state: verification_required` in `chrono24_status`, and its
-collection/watch tools distinguish this from an expired login. The person
-using the account must complete the displayed challenge before authentication
-and a full Telegram collection read can be verified. This is a host service
-and custom MCP repair, not a change to an OpenAgent runtime package.
+collection/watch tools distinguish this from an expired login. The manual
+checkbox attempt in the original profile returned to the same challenge.
+Testing on the same host showed that Google Chrome Stable with a fresh,
+separate profile displayed the login form, while Chrome Stable with a copy of
+the old profile still displayed the challenge. Removing Chrono24 site data
+from that disposable copy did not change the result. Friday now runs a second,
+resource-limited Chrome service on loopback CDP port `18801` for this MCP; the
+original browser and its other site sessions remain intact. A Telegram
+`chrono24_status` call through Friday returned `state: login_required` and
+`verification_required: false` on the new profile. When Friday submitted the
+form directly from a clean profile, Chrono24 displayed a visible Cloudflare
+"Conferma" checkbox over the login page. The widget was not exposed through
+the page's ordinary iframe and input selectors, so the MCP initially misread
+the page as `login_required`. It now detects the visible prompt, and a live
+status check returns `state: verification_required`, `logged_in: false`. The
+MCP also retries a transient CDP target replacement during navigation. The
+Telegram collection read did not succeed; authentication and collection
+access remain unverified until the site's interactive check is completed.
+This is a host service and custom MCP repair, not a change to an OpenAgent
+runtime package.
