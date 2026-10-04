@@ -83,3 +83,12 @@ Telegram collection read did not succeed; authentication and collection
 access remain unverified until the site's interactive check is completed.
 This is a host service and custom MCP repair, not a change to an OpenAgent
 runtime package.
+
+The follow-up diagnosis for beta 22 found that the model's assertion of a
+"black Xvfb screenshot" was false. Friday's stored `computer_control_computer`
+result and a direct MCP capture both show the browser and verification widget
+on display `:101`; the running sidecar's `DISPLAY` and `XAUTHORITY` match the
+Chrome service. Core and Claude sub proxy had been passing the image as text
+instead of pixels. Do not restart or replace the display to address that
+model-side interpretation error, and do not request exported session cookies.
+See [beta 22](releases/v1.1.0-beta.22.md) for the model-visible repair.

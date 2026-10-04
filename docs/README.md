@@ -12,6 +12,7 @@
 - [Beta 18 Telegram image input and proxy capability repair](releases/v1.1.0-beta.18.md)
 - [Beta 19 subscription proxy capability discovery](releases/v1.1.0-beta.19.md)
 - [Beta 21 compatible server and CLI release](releases/v1.1.0-beta.21.md)
+- [Beta 22 visual tool result repair](releases/v1.1.0-beta.22.md)
 - [Beta 20 server computer and browser capability](releases/v1.1.0-beta.20.md)
 - [Beta 13 subscription image integration receipt](releases/v1.1.0-beta.13.md)
 - [Beta 12 App, server and CLI release receipt](releases/v1.1.0-beta.12.md)
