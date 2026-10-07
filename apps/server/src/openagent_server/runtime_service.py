@@ -578,12 +578,21 @@ class NativeRuntimeService:
                 return result
         if action.startswith("catalog.") or action.startswith("automation."):
             binding = await self.authorizer._binding(context)
-            return bool(
+            if (
                 binding is not None
                 and binding.identity.auth_kind == "device_cert"
                 and context.initiator.kind == "user"
                 and context.initiator.subject_id == await self.directory.owner_handle()
-            )
+            ):
+                return True
+            # An allowlisted Telegram bridge turn authenticates as its own
+            # principal, not the owner handle. It is already trusted for the
+            # owner vault via the same policy; extend that exact trust to
+            # catalog and automation management so scheduler/workflow/event
+            # tools work from the bridge too.
+            from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+
+            return owner_bridge_vault_turn(context, self.agent.config)
         if action in {"model.list", "model.use"}:
             from openagent_core.contracts import ResourceRef
 
