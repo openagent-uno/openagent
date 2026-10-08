@@ -1559,7 +1559,18 @@ class AgentServer:
         agent = _build_agent(config)
         server = cls(agent=agent, config=config)
         memory_cfg = config.get("memory", {}) or {}
-        server._gateway_vault_path = memory_cfg.get("vault_path")
+        # The runtime and the gateway must expose the same vault.  Most agents
+        # intentionally omit ``memory.vault_path`` and use the canonical
+        # ``<agent-dir>/memories`` default resolved by Agent.  Reading only the
+        # raw YAML here left the runtime vault healthy while every App vault
+        # endpoint returned 503.  The local E2E profile deliberately omits the
+        # Vault module, so preserve its not-ready surface unless a fixture
+        # explicitly supplies a path.
+        server._gateway_vault_path = (
+            agent._resolve_vault_path()
+            if memory_cfg.get("vault_path") or config.get("_local_e2e") is not True
+            else None
+        )
         server._gateway_config_path = config.get("_config_path")
         server._network_state = None
         server._only_channels = only_channels

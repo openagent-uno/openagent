@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from openagent_core import Runtime, RuntimeServices, RuntimeSettings
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
@@ -88,3 +88,30 @@ class VaultAdapterTests(unittest.IsolatedAsyncioTestCase):
         self.active = False
         revoked = await vault.handle_stats(Request(self.gateway))
         self.assertEqual(revoked.status, 403)
+
+    def test_gateway_uses_the_agent_default_vault_without_a_yaml_override(self):
+        from openagent_server import server as server_module
+
+        expected = str((self.root / 'agent' / 'memories').resolve())
+        resolver = Mock(return_value=expected)
+        agent = SimpleNamespace(_resolve_vault_path=resolver)
+        with patch.object(server_module, '_build_agent', return_value=agent):
+            product = server_module.AgentServer.from_config({'name': 'Friday', 'memory': {}})
+
+        self.assertEqual(product._gateway_vault_path, expected)
+        resolver.assert_called_once_with()
+
+    def test_gateway_keeps_vault_absent_from_the_minimal_local_e2e_profile(self):
+        from openagent_server import server as server_module
+
+        resolver = Mock(return_value=str((self.root / 'memories').resolve()))
+        agent = SimpleNamespace(_resolve_vault_path=resolver)
+        with patch.object(server_module, '_build_agent', return_value=agent):
+            product = server_module.AgentServer.from_config({
+                'name': 'fixture',
+                'memory': {},
+                '_local_e2e': True,
+            })
+
+        self.assertIsNone(product._gateway_vault_path)
+        resolver.assert_not_called()
