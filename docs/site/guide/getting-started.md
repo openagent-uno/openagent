@@ -1,7 +1,7 @@
 # Getting Started
 
 OpenAgent can be used as the complete standalone product or embedded as a
-library. The current server and CLI build is **v1.1.0-beta.26**; the latest desktop App is **v1.1.0-beta.15**. See the
+library. The current server and CLI build is **v1.1.0-beta.27**; the latest desktop App is **v1.1.0-beta.15**. See the
 [downloads page](../downloads) for its qualification status and available
 platforms.
 
@@ -42,9 +42,9 @@ refuses to overwrite an unrelated command. The equivalent manual procedure is:
 ```bash
 mkdir openagent-1.1-beta && cd openagent-1.1-beta
 
-gh release download v1.1.0-beta.26 \
+gh release download v1.1.0-beta.27 \
   --repo openagent-uno/openagent --pattern '*.whl'
-gh release download v1.1.0-beta.13 \
+gh release download v1.1.0-beta.14 \
   --repo openagent-uno/openagent-core --pattern '*.whl'
 gh release download v1.0.0-beta.4 \
   --repo openagent-uno/openagent-tools --pattern '*.whl'
@@ -52,13 +52,13 @@ gh release download v1.0.0-beta.4 \
 python3.11 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install --pre --find-links . \
-  openagent-framework==1.1.0b26 openagent-cli==1.1.0b26
+  openagent-framework==1.1.0b27 openagent-cli==1.1.0b27
 ```
 
 The release manifests publish the expected SHA-256 for every first-party wheel:
 
-- [product manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.26/manifest.json)
-- [Core manifest](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.13/manifest.json)
+- [product manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.27/manifest.json)
+- [Core manifest](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.14/manifest.json)
 - [Tools manifest](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/manifest.json)
 
 Start a standalone agent from any folder:

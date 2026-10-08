@@ -2,6 +2,16 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.27
+
+- Workflow `mcp-tool` blocks now validate and dispatch through the authorized
+  Runtime capability catalog used by the gateway and interactive turns.
+- This fixes tools that were visible and callable in chat, including the
+  independent `web-search` MCP, but appeared unloaded inside workflows.
+- Missing capabilities remain denied by the catalog and cannot fall through to
+  the legacy Agent pool. Product beta 27 pairs with Core beta 14 and Tools beta
+  4; the signed desktop App remains beta 15.
+
 ## v1.1.0-beta.26
 
 - Legacy managed `web-search` catalog rows now resolve to the independently

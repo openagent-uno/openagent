@@ -7,6 +7,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 27 unified workflow capability dispatch](releases/v1.1.0-beta.27.md)
 - [Beta 26 independent web-search compatibility](releases/v1.1.0-beta.26.md)
 - [Beta 25 one-shot child authorization repair](releases/v1.1.0-beta.25.md)
 - [Beta 24 scheduler responsiveness and bootstrap ownership repair](releases/v1.1.0-beta.24.md)
