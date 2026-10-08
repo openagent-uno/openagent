@@ -1,6 +1,6 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.24**. The latest desktop App
+The current server and CLI build is **v1.1.0-beta.25**. The latest desktop App
 is **v1.1.0-beta.15**. These are betas of the modular architecture; the
 published artifacts do not claim a complete cross-platform updater chain.
 
@@ -48,7 +48,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b4](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b4)
   — six platform bundles consumed through the App and CLI release lock.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.24/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.25/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints

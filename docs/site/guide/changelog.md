@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.25
+
+- An approved one-shot scheduled task now retains its exact durable authority
+  while its real child chat and any nested sub-agents finish. Runtime ancestry
+  is verified from persisted parent-run records; unrelated disabled revisions
+  remain blocked.
+- A production canary exposed the gap left by the earlier stubbed test. The new
+  regression drives the real child Runtime boundary and proves the one-shot
+  executes once, reaches success, revokes its grant, and stays disabled.
+- Server deployments pair Product beta 25 with Core beta 13. The signed desktop
+  App remains beta 15 because its native and renderer payloads did not change.
+
 ## v1.1.0-beta.24
 
 - Large operational-search index integrity scans no longer block the asyncio
