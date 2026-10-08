@@ -126,3 +126,46 @@ def test_server_host_tools_reject_unknown_names() -> None:
 
     with pytest.raises(ValueError, match="unsupported server host tools"):
         standalone_spec_resolver({"server_host_tools": {"tools": ["ui-manager"]}})
+
+
+def test_legacy_web_search_row_resolves_independent_package(tmp_path) -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    binary = tmp_path / "bin" / "openagent-web-search-mcp"
+    binary.parent.mkdir()
+    binary.write_text("#!/bin/sh\nexit 0\n")
+    binary.chmod(0o755)
+    db = tmp_path / "agent" / "openagent.db"
+    db.parent.mkdir()
+    resolver = standalone_spec_resolver({}, environment={
+        "PATH": str(binary.parent),
+        "HOME": "/home/agent",
+        "BROWSER_HEADLESS": "true",
+        "RELEVANCE_THRESHOLD": "0.4",
+        "OPENAI_API_KEY": "must-not-leak",
+    })
+
+    spec = resolver(_row("web-search"), str(db))
+
+    assert spec["command"] == [str(binary)]
+    assert spec["_cwd"] == str(db.parent.resolve())
+    assert spec["env"]["BROWSER_HEADLESS"] == "true"
+    assert spec["env"]["RELEVANCE_THRESHOLD"] == "0.4"
+    assert "OPENAI_API_KEY" not in spec["env"]
+    assert resolver({
+        "name": "web-search",
+        "kind": "custom",
+        "builtin_name": None,
+    }, str(db)) is None
+
+
+def test_legacy_web_search_row_explains_missing_independent_package(tmp_path) -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    resolver = standalone_spec_resolver({}, environment={
+        "PATH": str(tmp_path / "empty"),
+        "HOME": "/home/agent",
+    })
+
+    with pytest.raises(RuntimeError, match="openagent-web-search-mcp is not installed"):
+        resolver(_row("web-search"), str(tmp_path / "openagent.db"))

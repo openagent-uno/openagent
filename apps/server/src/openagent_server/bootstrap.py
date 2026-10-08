@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import os
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -84,6 +85,16 @@ async def start_stream(session: Any, gateway: Any) -> None:
 
 _SERVER_HOST_DEFAULTS = frozenset({"filesystem", "editor", "shell"})
 _SERVER_COMPUTER_TOOLS = frozenset({"computer-control", "agent-in-chrome"})
+_WEB_SEARCH_RUNTIME_ENV = frozenset({
+    "BROWSER_HEADLESS",
+    "BROWSER_TYPES",
+    "DEBUG_BING_SEARCH",
+    "DEBUG_BROWSER_LIFECYCLE",
+    "ENABLE_RELEVANCE_CHECKING",
+    "FORCE_MULTI_ENGINE_SEARCH",
+    "MAX_BROWSERS",
+    "RELEVANCE_THRESHOLD",
+})
 
 
 def _server_host_selection(config: dict[str, Any]) -> frozenset[str]:
@@ -165,6 +176,41 @@ def standalone_spec_resolver(config, *, environment=None):
 
     def resolve(row, db_path):
         name = row['name']
+        if (
+            name == "web-search"
+            and row.get("kind") in {"default", "builtin"}
+            and row.get("builtin_name") == "web-search"
+        ):
+            # Core no longer vendors this browser-backed server.  Older agents
+            # nevertheless have a managed default row for it in their durable
+            # catalog.  Resolve that exact legacy row to the independently
+            # installed openagent-tools package, while leaving fresh installs
+            # and user-owned custom rows explicit as required by the product
+            # boundary.
+            source = dict(environment or os.environ)
+            configured = source.get("OPENAGENT_WEB_SEARCH_MCP_COMMAND", "").strip()
+            executable = shutil.which(
+                configured or "openagent-web-search-mcp",
+                path=source.get("PATH"),
+            )
+            if executable is None:
+                raise RuntimeError(
+                    "web-search is enabled but openagent-web-search-mcp is not installed; "
+                    "install the independent openagent-tools package or disable the row"
+                )
+            env = server_tool_environment()
+            env.update({
+                key: source[key]
+                for key in _WEB_SEARCH_RUNTIME_ENV
+                if key in source
+            })
+            workspace = Path(db_path).resolve().parent if db_path else Path.cwd().resolve()
+            return {
+                "name": name,
+                "command": [executable],
+                "env": env,
+                "_cwd": str(workspace),
+            }
         if name in server_host_tools:
             if name not in selected_tools:
                 return False
@@ -180,7 +226,6 @@ def standalone_spec_resolver(config, *, environment=None):
                     # Python wheel installs keep the versioned JS source under
                     # openagent-device-tools, outside the client bundle layout.
                     from openagent_device_tools.sources import sidecar_source
-                    import shutil
                     script = sidecar_source(name) / "host" / "mcp-server.js"
                     node = shutil.which("node", path=(environment or os.environ).get("PATH"))
                     if node and script.is_file() and (script.parent / "node_modules").is_dir():
