@@ -183,10 +183,15 @@ async def _stand_up_coordinator(ctx: TestContext, network_name: str = "e2e-net")
     # the RPC (which requires a cert), since the first invite is what
     # boots the first user who can later mint their own admin cert.
     # For these tests every invite is created directly via the store.
-    async def mint_invite(role: str = "user", *, bind_to: str | None = None) -> str:
+    async def mint_invite(
+        role: str = "user",
+        *,
+        bind_to: str | None = None,
+        created_by: str = "system",
+    ) -> str:
         invite = await store.create_invitation(
             role=role,
-            created_by="system",
+            created_by=created_by,
             ttl_seconds=3600,
             uses=1,
             bind_to_handle=bind_to,
@@ -219,6 +224,44 @@ async def _stand_up_coordinator(ctx: TestContext, network_name: str = "e2e-net")
 
 
 # ── Tests ────────────────────────────────────────────────────────────
+
+
+@test(
+    "coord_e2e_multi_user",
+    "first auto-bootstrap user atomically claims the local agent owner",
+)
+async def t_auto_bootstrap_user_claims_agent_owner(ctx: TestContext) -> None:
+    from openagent_identity.identity import Identity
+
+    env = await _stand_up_coordinator(ctx)
+    try:
+        first_invite = await env["mint_invite"](
+            created_by="auto-bootstrap",
+        )
+        await _do_register_and_login(
+            env["conn"],
+            handle="alessandro",
+            password="passw0rd-owner",
+            invite_code=first_invite,
+            device_pubkey=Identity.generate().public_bytes,
+        )
+        agents = await env["store"].list_agents()
+        assert agents[0].owner_handle == "alessandro"
+
+        # A later ordinary invite creates another user but cannot transfer the
+        # ownership established by the explicit bootstrap redemption.
+        second_invite = await env["mint_invite"](created_by="cli")
+        await _do_register_and_login(
+            env["conn"],
+            handle="marco",
+            password="passw0rd-member",
+            invite_code=second_invite,
+            device_pubkey=Identity.generate().public_bytes,
+        )
+        agents = await env["store"].list_agents()
+        assert agents[0].owner_handle == "alessandro"
+    finally:
+        await env["teardown"]()
 
 
 @test("coord_e2e_multi_user", "member device-status RPC observes revocation on the wire")

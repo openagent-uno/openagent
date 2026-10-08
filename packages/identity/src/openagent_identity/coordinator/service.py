@@ -252,10 +252,23 @@ class CoordinatorService:
         if existing is not None:
             raise _CoordinatorRpcError("conflict", f"handle '{handle}' already taken")
 
-        validated = self._pake.register_finalize(handle, record)
-        await self._store.create_user(
-            handle=handle, pake_record=validated, pake_algo=self._pake.algo,
+        # The auto-bootstrap ticket exists only while the coordinator has no
+        # users.  Redeeming that exact host-created ticket is the explicit
+        # first-owner action; ordinary/open invitations never infer or
+        # transfer agent ownership.
+        claim_bootstrap_owner = (
+            invite.created_by == "auto-bootstrap"
+            and not await self._store.list_users()
         )
+        validated = self._pake.register_finalize(handle, record)
+        owner_claimed = await self._store.create_user(
+            handle=handle,
+            pake_record=validated,
+            pake_algo=self._pake.algo,
+            claim_bootstrap_agent_owner=claim_bootstrap_owner,
+        )
+        if owner_claimed:
+            elog("coord.bootstrap_owner_claimed", handle=handle)
         return {"ok": True, "handle": handle}
 
     async def _m_login_init(self, params: dict, *, peer_node_id: str) -> dict:

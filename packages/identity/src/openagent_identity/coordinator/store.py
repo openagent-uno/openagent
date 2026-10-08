@@ -159,13 +159,43 @@ class CoordinatorStore:
             return None
         return UserRow(**dict(row))
 
-    async def create_user(self, *, handle: str, pake_record: bytes, pake_algo: str) -> None:
-        await self._conn.execute(
-            "INSERT INTO network_users (handle, pake_record, pake_algo, status, created_at) "
-            "VALUES (?, ?, ?, 'active', ?)",
-            (handle, pake_record, pake_algo, time.time()),
-        )
-        await self._conn.commit()
+    async def create_user(
+        self,
+        *,
+        handle: str,
+        pake_record: bytes,
+        pake_algo: str,
+        claim_bootstrap_agent_owner: bool = False,
+    ) -> bool:
+        """Create a user and optionally claim an unowned local agent.
+
+        The claim is reserved for redemption of the host-created first-user
+        invitation.  It is conditional on the coordinator's own agent still
+        carrying the explicit ``system`` placeholder, so a stale bootstrap
+        invite can never transfer an already-owned agent.  User creation and
+        the claim commit atomically.
+        """
+        try:
+            await self._conn.execute(
+                "INSERT INTO network_users (handle, pake_record, pake_algo, status, created_at) "
+                "VALUES (?, ?, ?, 'active', ?)",
+                (handle, pake_record, pake_algo, time.time()),
+            )
+            claimed = False
+            if claim_bootstrap_agent_owner:
+                cursor = await self._conn.execute(
+                    "UPDATE network_agents SET owner_handle=? "
+                    "WHERE owner_handle='system' AND node_id=("
+                    "SELECT coordinator_node_id FROM network WHERE singleton=1"
+                    ")",
+                    (handle,),
+                )
+                claimed = bool(cursor.rowcount)
+            await self._conn.commit()
+            return claimed
+        except Exception:
+            await self._conn.rollback()
+            raise
 
     async def runtime_directory(self) -> dict:
         """Current authorization recipients, with no authentication material."""
