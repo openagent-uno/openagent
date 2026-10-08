@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.24
+
+- Large operational-search index integrity scans no longer block the asyncio
+  event loop, so gateway requests, chat, channels, and scheduled work remain
+  responsive while a mature SQLite/FTS index is checked.
+- Redeeming the exact first-user auto-bootstrap invitation atomically assigns
+  the local agent to that authenticated owner. Later ordinary invitations
+  cannot transfer ownership.
+- Server deployments pair Product beta 24 with Core beta 13. The signed desktop
+  App remains beta 15 because its payload did not change.
+
 ## v1.1.0-beta.23
 
 - Historical scheduled tasks, workflows, and events now expose an explicit
