@@ -1663,6 +1663,9 @@ export interface ScheduledTask {
    *  mid-``cancelling``). Drives the tile's Run-now ↔ Stop control. Only set
    *  on list / get responses; create/update responses omit it (default false). */
   running?: boolean;
+  /** True when this enabled historical revision is deliberately paused until
+   *  an authenticated owner reviews and approves its exact digest. */
+  authorization_required?: boolean;
 }
 
 export interface CreateScheduledTaskInput {
@@ -1761,6 +1764,22 @@ export interface AgentEvent {
   webhook_url?: string | null;
   /** Returned ONCE, inline, on create + rotate-secret. Never on a read. */
   secret?: string;
+  authorization_required?: boolean;
+}
+
+export type AutomationKind = 'scheduled_task' | 'workflow' | 'event';
+
+export interface AutomationAuthorization<T = Record<string, unknown>> {
+  definition: T;
+  digest: string;
+  authorized: boolean;
+}
+
+export interface AutomationAuthorizationApproval {
+  delegation_id: string;
+  digest: string;
+  authorized: true;
+  schedules_reconciled: number;
 }
 
 export interface CreateEventInput {
@@ -1921,6 +1940,7 @@ export interface WorkflowTask {
   // serializes. ``N>1`` admits up to N simultaneous runs; the rest
   // queue on the executor's per-workflow semaphore.
   max_concurrent_runs?: number | null;
+  authorization_required?: boolean;
 }
 
 export interface CreateWorkflowInput {

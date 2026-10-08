@@ -28,6 +28,7 @@ import type { ModelEntry } from '../../../../common/types';
 import { goBack } from '../../../services/windows';
 import CronPicker from '../../../components/CronPicker';
 import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
+import AutomationAuthorizationBanner from '../../../components/AutomationAuthorizationBanner';
 
 interface TaskForm {
   name: string;
@@ -54,6 +55,7 @@ export default function TaskEditScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [authorizationRequired, setAuthorizationRequired] = useState(false);
   // Enabled LLM catalog for the optional per-task model pin. Loaded once so
   // the user picks from configured models instead of typing a runtime_id.
   const [models, setModels] = useState<ModelEntry[]>([]);
@@ -81,6 +83,7 @@ export default function TaskEditScreen() {
             prompt: t.prompt,
             model: t.model ?? null,
           });
+          setAuthorizationRequired(Boolean(t.authorization_required));
         }
       } catch (e: any) {
         if (!cancelled) setLoadError(e?.message ?? String(e));
@@ -182,6 +185,14 @@ export default function TaskEditScreen() {
         </View>
       ) : (
         <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+          {!isNew ? (
+            <AutomationAuthorizationBanner
+              kind="scheduled_task"
+              id={id}
+              required={authorizationRequired}
+              onAuthorized={() => setAuthorizationRequired(false)}
+            />
+          ) : null}
           <Text style={styles.label}>Name</Text>
           <TextInput
             ref={nameRef}

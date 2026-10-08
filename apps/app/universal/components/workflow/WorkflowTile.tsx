@@ -54,9 +54,10 @@ export default function WorkflowTile({
 }: Props) {
   const [busy, setBusy] = useState(false);
   const isRunning = running;
+  const authorizationRequired = !!workflow.authorization_required;
 
   const handleRun = async () => {
-    if (busy || isRunning) return;
+    if (busy || isRunning || authorizationRequired) return;
     setBusy(true);
     try {
       await onRun();
@@ -146,6 +147,12 @@ export default function WorkflowTile({
               <Text style={[styles.badgeText, styles.runningBadgeText]}>running</Text>
             </View>
           )}
+          {authorizationRequired && (
+            <View style={[styles.badge, styles.authorizationBadge]}>
+              <Feather name="shield" size={10} color={colors.warning} />
+              <Text style={[styles.badgeText, styles.authorizationBadgeText]}>review required</Text>
+            </View>
+          )}
         </View>
 
         {meta ? <Text style={styles.meta} numberOfLines={1}>{meta}</Text> : null}
@@ -178,14 +185,24 @@ export default function WorkflowTile({
             ) : (
               <TouchableOpacity
                 onPress={handleRun}
-                style={styles.runBtn}
+                disabled={authorizationRequired}
+                style={[styles.runBtn, authorizationRequired && styles.disabledAction]}
                 hitSlop={8}
                 testID={`run-${workflow.name}`}
                 accessibilityRole="button"
                 accessibilityLabel={`Run ${workflow.name} now`}
               >
-                <Feather name="play" size={12} color={colors.primary} />
-                <Text style={styles.runText}>Run now</Text>
+                <Feather
+                  name={authorizationRequired ? 'shield' : 'play'}
+                  size={12}
+                  color={authorizationRequired ? colors.warning : colors.primary}
+                />
+                <Text style={[
+                  styles.runText,
+                  authorizationRequired && styles.authorizationBadgeText,
+                ]}>
+                  {authorizationRequired ? 'Review first' : 'Run now'}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -259,6 +276,9 @@ const styles = StyleSheet.create({
   },
   runningBadge: { backgroundColor: colors.successSoft },
   runningBadgeText: { color: colors.success },
+  authorizationBadge: { backgroundColor: colors.mutedSoft, borderColor: colors.warning },
+  authorizationBadgeText: { color: colors.warning },
+  disabledAction: { opacity: 0.8 },
   meta: { fontSize: 10.5, color: colors.textMuted, fontFamily: font.mono },
   footRow: {
     flexDirection: 'row',

@@ -19,6 +19,7 @@ import type {
   LogEntry, QualityReport, GatewayCommandSpec,
   SkillSummary, SkillDetail, SkillWriteResult, CreateSkillInput,
   ProviderAccounts, AgentEvent, CreateEventInput, UpdateEventInput, EventDelivery, EventTypeSpec,
+  AutomationKind, AutomationAuthorization, AutomationAuthorizationApproval,
 } from '../../common/types';
 import type {
   ActivityItem,
@@ -475,6 +476,26 @@ export async function getGraph(): Promise<GraphData> {
 }
 
 // ── Scheduled Tasks API ──
+
+export async function getAutomationAuthorization<T = Record<string, unknown>>(
+  kind: AutomationKind,
+  id: string,
+): Promise<AutomationAuthorization<T>> {
+  return get<AutomationAuthorization<T>>(
+    `/api/automations/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/authorization`,
+  );
+}
+
+export async function approveAutomationAuthorization(
+  kind: AutomationKind,
+  id: string,
+  digest: string,
+): Promise<AutomationAuthorizationApproval> {
+  return post<AutomationAuthorizationApproval>(
+    `/api/automations/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/authorization`,
+    { digest },
+  );
+}
 
 export async function getScheduledTasks(
   enabledOnly: boolean = false,

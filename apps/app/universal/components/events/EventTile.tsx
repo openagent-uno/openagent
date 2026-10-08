@@ -40,9 +40,10 @@ export default function EventTile({
   event, onToggle, onEdit, onHistory, onRemove, onTest,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  const authorizationRequired = !!event.authorization_required;
 
   const handleTest = async () => {
-    if (busy) return;
+    if (busy || authorizationRequired) return;
     setBusy(true);
     try {
       await onTest();
@@ -103,6 +104,12 @@ export default function EventTile({
               </Text>
             </View>
           ) : null}
+          {authorizationRequired ? (
+            <View style={[styles.badge, styles.authorizationBadge]}>
+              <Feather name="shield" size={10} color={colors.warning} />
+              <Text style={[styles.badgeText, styles.authorizationBadgeText]}>review required</Text>
+            </View>
+          ) : null}
         </View>
 
         <Text style={styles.meta} numberOfLines={1}>
@@ -117,8 +124,8 @@ export default function EventTile({
           <View style={styles.footRight}>
             <TouchableOpacity
               onPress={handleTest}
-              disabled={busy}
-              style={styles.runBtn}
+              disabled={busy || authorizationRequired}
+              style={[styles.runBtn, authorizationRequired && styles.disabledAction]}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={`Send a test delivery to ${event.name}`}
@@ -126,9 +133,18 @@ export default function EventTile({
               {busy ? (
                 <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Feather name="play" size={12} color={colors.primary} />
+                <Feather
+                  name={authorizationRequired ? 'shield' : 'play'}
+                  size={12}
+                  color={authorizationRequired ? colors.warning : colors.primary}
+                />
               )}
-              <Text style={styles.runText}>{busy ? 'Sending…' : 'Test'}</Text>
+              <Text style={[
+                styles.runText,
+                authorizationRequired && styles.authorizationBadgeText,
+              ]}>
+                {busy ? 'Sending…' : authorizationRequired ? 'Review first' : 'Test'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onHistory}
@@ -199,6 +215,9 @@ const styles = StyleSheet.create({
     fontFamily: font.mono,
     letterSpacing: 0.3,
   },
+  authorizationBadge: { backgroundColor: colors.mutedSoft, borderColor: colors.warning },
+  authorizationBadgeText: { color: colors.warning },
+  disabledAction: { opacity: 0.8 },
   meta: { fontSize: 10.5, color: colors.textMuted, fontFamily: font.mono },
   footRow: {
     flexDirection: 'row',

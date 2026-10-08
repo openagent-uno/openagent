@@ -32,6 +32,7 @@ import type {
 import { goBack } from '../../../services/windows';
 import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import ThemedSwitch from '../../../components/ThemedSwitch';
+import AutomationAuthorizationBanner from '../../../components/AutomationAuthorizationBanner';
 
 const ACTION_KINDS: { key: EventActionKind; label: string; icon: keyof typeof Feather.glyphMap }[] = [
   { key: 'prompt', label: 'Chat prompt', icon: 'message-circle' },
@@ -252,6 +253,14 @@ export default function EventEditScreen() {
     <View style={[styles.screen, { paddingTop: headerInset }]}>
       <SharedPresence kind="event" id={id} />
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+        {existing ? (
+          <AutomationAuthorizationBanner
+            kind="event"
+            id={existing.id}
+            required={Boolean(existing.authorization_required)}
+            onAuthorized={() => setExisting({ ...existing, authorization_required: false })}
+          />
+        ) : null}
         {/* Name */}
         <Text style={styles.label}>Name</Text>
         <TextInput

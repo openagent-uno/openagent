@@ -22,6 +22,7 @@ import { useConnection } from '../../../stores/connection';
 import { setBaseUrl, getWorkflow } from '../../../services/api';
 import { goBack } from '../../../services/windows';
 import type { WorkflowTask } from '../../../../common/types';
+import AutomationAuthorizationBanner from '../../../components/AutomationAuthorizationBanner';
 
 export default function WorkflowEditorScreen() {
   const { id, node, field } = useLocalSearchParams<{ id: string; node?: string; field?: string }>();
@@ -75,6 +76,14 @@ export default function WorkflowEditorScreen() {
   return (
     <View style={{ flex: 1 }}>
     <SharedPresence kind="workflow" id={id} />
+    <View style={styles.authorizationWrap}>
+      <AutomationAuthorizationBanner
+        kind="workflow"
+        id={id}
+        required={Boolean(workflow.authorization_required)}
+        onAuthorized={() => setWorkflow({ ...workflow, authorization_required: false })}
+      />
+    </View>
     <WorkflowEditor
       workflow={workflow}
       onBack={backToList}
@@ -87,6 +96,7 @@ export default function WorkflowEditorScreen() {
 }
 
 const styles = StyleSheet.create({
+  authorizationWrap: { paddingHorizontal: 16, paddingTop: 12 },
   status: {
     flex: 1,
     alignItems: 'center',

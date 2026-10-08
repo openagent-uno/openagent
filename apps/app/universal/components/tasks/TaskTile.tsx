@@ -36,10 +36,11 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
   // local guard while a run/stop request is in flight so the button can't be
   // double-fired and shows a spinner.
   const isRunning = !!task.running;
+  const authorizationRequired = !!task.authorization_required;
   const [busy, setBusy] = useState(false);
 
   const handleRun = async () => {
-    if (busy || isRunning) return;
+    if (busy || isRunning || authorizationRequired) return;
     setBusy(true);
     try {
       await onRun();
@@ -100,6 +101,12 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
               <Text style={[styles.badgeText, styles.runningBadgeText]}>running</Text>
             </View>
           )}
+          {authorizationRequired && (
+            <View style={[styles.badge, styles.authorizationBadge]}>
+              <Feather name="shield" size={10} color={colors.warning} />
+              <Text style={[styles.badgeText, styles.authorizationBadgeText]}>review required</Text>
+            </View>
+          )}
         </View>
 
         {task.next_run_iso && task.enabled ? (
@@ -133,8 +140,8 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
             ) : (
               <TouchableOpacity
                 onPress={handleRun}
-                disabled={busy}
-                style={styles.runBtn}
+                disabled={busy || authorizationRequired}
+                style={[styles.runBtn, authorizationRequired && styles.disabledAction]}
                 hitSlop={8}
                 accessibilityRole="button"
                 accessibilityLabel={`Run ${task.name} now`}
@@ -142,9 +149,18 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
                 {busy ? (
                   <ActivityIndicator size="small" color={colors.primary} />
                 ) : (
-                  <Feather name="play" size={12} color={colors.primary} />
+                  <Feather
+                    name={authorizationRequired ? 'shield' : 'play'}
+                    size={12}
+                    color={authorizationRequired ? colors.warning : colors.primary}
+                  />
                 )}
-                <Text style={styles.runText}>{busy ? 'Running…' : 'Run now'}</Text>
+                <Text style={[
+                  styles.runText,
+                  authorizationRequired && styles.authorizationBadgeText,
+                ]}>
+                  {busy ? 'Running…' : authorizationRequired ? 'Review first' : 'Run now'}
+                </Text>
               </TouchableOpacity>
             )}
             <TouchableOpacity
@@ -227,6 +243,9 @@ const styles = StyleSheet.create({
   },
   runningBadge: { backgroundColor: colors.successSoft },
   runningBadgeText: { color: colors.success },
+  authorizationBadge: { backgroundColor: colors.mutedSoft, borderColor: colors.warning },
+  authorizationBadgeText: { color: colors.warning },
+  disabledAction: { opacity: 0.8 },
   meta: {
     fontSize: 10.5,
     color: colors.textMuted,
