@@ -222,3 +222,6 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(calls),1)
         self.assertEqual(len(runs),1)
         self.assertEqual(runs[0]['status'],'success')
+        self.assertFalse(
+            await self.execution.definition_authorized('task',task),
+        )
