@@ -2,6 +2,15 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.28
+
+- Terminal Agent and Team streaming errors now close the current turn instead
+  of being mistaken for an empty successful stream and re-running the prompt.
+- This prevents a provider failure from issuing a duplicate model call and
+  leaving a scheduled-task run in `running` while the fallback retries.
+- Product beta 28 pairs with Core beta 15 and Tools beta 4. The signed desktop
+  App remains beta 15 because this repair changes the server runtime only.
+
 ## v1.1.0-beta.27
 
 - Workflow `mcp-tool` blocks now validate and dispatch through the authorized
