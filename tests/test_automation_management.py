@@ -225,3 +225,42 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(
             await self.execution.definition_authorized('task',task),
         )
+
+    async def test_approved_one_shot_real_child_keeps_delegation_until_publish(self):
+        """The durable child run is part of the already-admitted occurrence.
+
+        A one-shot is disabled atomically when its task_runs row is claimed.
+        Its child session therefore has to prove ancestry back to that claimed
+        occurrence instead of relying on the now-disabled definition.  The
+        simpler test above replaces the child executor and cannot cover this
+        second Runtime admission boundary.
+        """
+        from openagent_core.core.scheduler import Scheduler
+
+        identifier=await self.db.add_task(
+            'One shot with child','@once:1','hello',next_run=1,
+        )
+        review=await self.management.review_authorization(
+            'scheduled_task',identifier,self.context,
+        )
+        await self.management.approve_authorization(
+            'scheduled_task',identifier,review['digest'],self.context,
+        )
+
+        scheduler=Scheduler(
+            self.db,self.service.agent,execution_service=self.execution,
+        )
+        await scheduler._check_and_run()
+        if scheduler._workflow_tasks:
+            await asyncio.gather(
+                *tuple(scheduler._workflow_tasks), return_exceptions=True,
+            )
+
+        task=await self.db.get_task(identifier)
+        runs=await self.db.list_task_runs(identifier)
+        self.assertFalse(task['enabled'])
+        self.assertEqual(len(runs),1)
+        self.assertEqual(runs[0]['status'],'success',runs[0].get('error'))
+        self.assertFalse(
+            await self.execution.definition_authorized('task',task),
+        )

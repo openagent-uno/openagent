@@ -294,9 +294,9 @@ class NativeAutomationAuthority:
         if not is_one_shot_expression(definition.get("cron_expression")):
             return False
         prefix = f"automation:task:{definition['id']}:"
-        if not context.session_id.startswith(prefix):
-            return False
-        occurrence_id = context.session_id[len(prefix):]
+        occurrence_id = await self._claimed_occurrence_id(
+            grant, context, prefix,
+        )
         if not occurrence_id:
             return False
         async with aiosqlite.connect(self.db.db_path) as conn:
@@ -317,6 +317,55 @@ class NativeAutomationAuthority:
         # turn a completed one-shot into a permanently reusable delegation.
         finished_at = row[1]
         return bool(finished_at and float(finished_at) >= time.time() - 300)
+
+    async def _claimed_occurrence_id(self, grant, context, prefix):
+        """Resolve a claimed occurrence through its durable Runtime ancestry.
+
+        The outer automation operation uses an ``automation:task:...``
+        session, but a real scheduled firing immediately spawns a durable
+        child chat.  ``ExecutionContext.child`` intentionally gives that run
+        the child session id while retaining the exact delegation and records
+        the outer run as ``parent_run_id``.  Requiring the prefix on every
+        descendant therefore rejected the real child after the scheduler had
+        atomically disabled the one-shot definition.
+
+        Walk only persisted, same-delegation parent requests.  This does not
+        trust a caller-supplied session name and it lets nested sub-agents
+        finish without making any other disabled definition executable.
+        """
+        if context.session_id.startswith(prefix):
+            return context.session_id[len(prefix):]
+        parent_run_id = context.parent_run_id
+        if not parent_run_id:
+            return None
+        runtime = getattr(self.service, "runtime", None)
+        services = getattr(runtime, "services", None)
+        store = getattr(services, "store", None)
+        accepted_request = getattr(store, "accepted_request", None)
+        if not callable(accepted_request):
+            return None
+        seen = set()
+        for _ in range(32):
+            if not parent_run_id or parent_run_id in seen:
+                return None
+            seen.add(parent_run_id)
+            try:
+                accepted = await accepted_request(parent_run_id)
+            except (LookupError, ValueError):
+                return None
+            if (
+                accepted.delegation_id != grant["id"]
+                or accepted.authority != context.authority
+                or accepted.initiator != context.initiator
+                or tuple(accepted.audience) != context.audience
+                or not set(context.scopes).issubset(accepted.scopes)
+            ):
+                return None
+            session_id = accepted.request.session_id
+            if session_id.startswith(prefix):
+                return session_id[len(prefix):]
+            parent_run_id = accepted.parent_run_id
+        return None
 
     async def complete_occurrence(self, context):
         """Retire a one-shot delegation after its accepted occurrence ends."""
