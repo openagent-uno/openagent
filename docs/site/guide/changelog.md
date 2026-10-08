@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.26
+
+- Legacy managed `web-search` catalog rows now resolve to the independently
+  installed `openagent-web-search-mcp` package instead of naming a retired Core
+  built-in and silently disappearing from tool discovery.
+- Fresh installations still require explicit package installation and
+  registration, and user-owned custom rows remain untouched. Only safe browser
+  runtime settings are forwarded to the MCP subprocess.
+- Server deployments pair Product beta 26 with Core beta 13 and Tools beta 4.
+  The signed desktop App remains beta 15 because its payload did not change.
+
 ## v1.1.0-beta.25
 
 - An approved one-shot scheduled task now retains its exact durable authority
