@@ -5,6 +5,7 @@ import asyncio
 from dataclasses import replace
 from uuid import NAMESPACE_URL, uuid4, uuid5
 from openagent_core.contracts import RunRequest, canonical_json
+from openagent_core.core.logging import elog
 from openagent_core.runtime import current_run_id
 from openagent_server.automation_authority import definition_digest
 
@@ -21,6 +22,11 @@ class NativeAutomationExecution:
     def __init__(self, service):
         self.service = service
         self.task_hooks = {}
+        # The scheduler checks authorization on every tick. Keep the warning
+        # useful without flooding logs every few seconds for the same pending
+        # historical revision. A successful review/approval clears the key so
+        # a later unauthorized edit is visible again.
+        self._pending_authorization_logged: set[tuple[str, str]] = set()
 
     def register_task_hook(self, name, hook):
         if hook is None:
@@ -29,13 +35,23 @@ class NativeAutomationExecution:
             self.task_hooks[name] = hook
 
     async def definition_authorized(self, kind, definition):
+        key = (kind, str(definition["id"]))
         try:
             current = await self.service.automations.definition(kind, definition["id"])
             await self.service.automations.resolve(
                 kind, current, "authorization-check", "authorization-check"
             )
+            self._pending_authorization_logged.discard(key)
             return True
         except (LookupError, PermissionError):
+            if key not in self._pending_authorization_logged:
+                self._pending_authorization_logged.add(key)
+                elog(
+                    "automation.authorization_required",
+                    level="warning",
+                    kind=kind,
+                    definition_id=key[1],
+                )
             return False
 
     async def authorized_definition_ids(self, kind):
@@ -85,13 +101,30 @@ class NativeAutomationExecution:
             ),
             deadline_seconds=timeout,
         )
-        await self.service.runtime.execute_operation(
-            request, context, _Operation(operation)
-        )
-        record = await self.service.runtime.wait(identifier, context)
-        if record.status != "success":
-            raise RuntimeError(f"Automation run ended with status {record.status}")
-        return record.output
+        submitted = False
+        try:
+            await self.service.runtime.execute_operation(
+                request, context, _Operation(operation)
+            )
+            submitted = True
+            record = await self.service.runtime.wait(identifier, context)
+            if record.status != "success":
+                raise RuntimeError(f"Automation run ended with status {record.status}")
+            return record.output
+        finally:
+            if submitted and kind == "task":
+                from openagent_core.memory.schedule import is_one_shot_expression
+
+                if is_one_shot_expression(canonical.get("cron_expression")):
+                    try:
+                        await self.service.automations.complete_occurrence(context)
+                    except Exception as error:  # noqa: BLE001 - bounded fallback expires
+                        elog(
+                            "automation.one_shot_grant_cleanup_failed",
+                            level="warning",
+                            definition_id=canonical["id"],
+                            error_type=type(error).__name__,
+                        )
 
     async def run_task(self, scheduler, task, *, trigger, request_id, payload, execute):
         occurrence = (

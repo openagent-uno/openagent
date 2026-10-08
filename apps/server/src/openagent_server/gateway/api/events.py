@@ -63,11 +63,20 @@ def _public_url(request) -> str | None:
     return base.rstrip("/") or None
 
 
-def _serialize_event(request, ev: dict) -> dict:
+def _serialize_event(
+    request,
+    ev: dict,
+    *,
+    authorized_ids: set[str] | None = None,
+) -> dict:
     out = dict(ev)
     base = _public_url(request)
     out["webhook_path"] = f"/hooks/{ev.get('slug')}"
     out["webhook_url"] = f"{base}/hooks/{ev.get('slug')}" if base else None
+    if authorized_ids is not None:
+        out["authorization_required"] = bool(
+            out.get("enabled") and out["id"] not in authorized_ids
+        )
     return out
 
 
@@ -89,7 +98,13 @@ async def handle_list(request):
         return err
     enabled_only = request.query.get("enabled_only", "").lower() in ("1", "true", "yes")
     rows = await db.list_events(enabled_only=enabled_only)
-    return web.json_response({"events": [_serialize_event(request, r) for r in rows]})
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "event")
+    return web.json_response({
+        "events": [
+            _serialize_event(request, r, authorized_ids=authorized) for r in rows
+        ]
+    })
 
 
 async def handle_get(request):
@@ -100,7 +115,11 @@ async def handle_get(request):
     ev = await db.get_event(request.match_info["id"])
     if ev is None:
         return web.json_response({"error": "Event not found"}, status=404)
-    return web.json_response(_serialize_event(request, ev))
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "event")
+    return web.json_response(_serialize_event(
+        request, ev, authorized_ids=authorized,
+    ))
 
 
 def _validate_action(body) -> tuple[str, str | None, str | None, str | None]:

@@ -272,11 +272,11 @@ class Gateway:
 
         # Per-section live-reaction hooks, populated by AgentServer when it
         # spins up the scheduler. ``config.handle_patch`` calls
-        # ``on_config_change(section, patch)`` after writing the yaml so
+        # ``on_config_change(section, patch, context=...)`` after writing the yaml so
         # toggles (dream_mode, auto_update) take effect
         # without a restart. Keyed by config section name.
         self._config_change_callbacks: dict[
-            str, Callable[[dict], Awaitable[None]]
+            str, Callable[[dict, object | None], Awaitable[None]]
         ] = {}
 
         # Coordinator revocation is live: close every chat/capability socket
@@ -844,7 +844,13 @@ class Gateway:
             return
         loop.create_task(self.broadcast_resource(resource, action, id))
 
-    async def on_config_change(self, section: str, patch: dict) -> None:
+    async def on_config_change(
+        self,
+        section: str,
+        patch: dict,
+        *,
+        context=None,
+    ) -> None:
         """Notify a registered side-effect that a yaml section changed.
 
         ``AgentServer`` registers closures here for ``dream_mode``
@@ -855,7 +861,7 @@ class Gateway:
         if cb is None:
             return
         try:
-            await cb(patch)
+            await cb(patch, context)
         except Exception as e:  # noqa: BLE001
             logger.warning("config-change callback for %r failed: %s", section, e)
 

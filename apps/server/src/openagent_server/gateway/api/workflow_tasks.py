@@ -117,7 +117,12 @@ def _decorate_schedule(row: dict) -> dict:
     return out
 
 
-async def _decorate_workflow(db, row: dict) -> dict:
+async def _decorate_workflow(
+    db,
+    row: dict,
+    *,
+    authorized_ids: set[str] | None = None,
+) -> dict:
     """Shape a DB row for JSON: parse graph_json, add ISO timestamps,
     fold in the per-block ``schedules[]`` array + derived
     ``trigger_types[]``. Drops legacy row-level columns
@@ -142,6 +147,10 @@ async def _decorate_workflow(db, row: dict) -> dict:
     out["trigger_types"] = trigger_types_from_graph(out.get("graph"))
     schedules = await db.list_schedules(workflow_id=out["id"])
     out["schedules"] = [_decorate_schedule(s) for s in schedules]
+    if authorized_ids is not None:
+        out["authorization_required"] = bool(
+            out.get("enabled") and out["id"] not in authorized_ids
+        )
     return out
 
 
@@ -172,7 +181,11 @@ async def handle_list(request):
     enabled_only = request.query.get("enabled_only", "").lower() in ("1", "true", "yes")
     has_trigger = request.query.get("has_trigger_type") or None
     rows = await db.list_workflows(enabled_only=enabled_only)
-    decorated = [await _decorate_workflow(db, r) for r in rows]
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "workflow")
+    decorated = [
+        await _decorate_workflow(db, r, authorized_ids=authorized) for r in rows
+    ]
     if has_trigger:
         decorated = [w for w in decorated if has_trigger in w["trigger_types"]]
     return web.json_response({"workflows": decorated})
@@ -191,7 +204,11 @@ async def handle_get(request):
             {"error": f"Workflow {request.match_info['id']!r} not found"},
             status=404,
         )
-    return web.json_response(await _decorate_workflow(db, row))
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "workflow")
+    return web.json_response(await _decorate_workflow(
+        db, row, authorized_ids=authorized,
+    ))
 
 
 async def handle_create(request):

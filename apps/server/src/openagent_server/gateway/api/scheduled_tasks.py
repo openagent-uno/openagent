@@ -100,13 +100,22 @@ async def _reject_if_builtin(scheduler, task_id: str):
     return row, None
 
 
-def _serialize(row: dict, *, running: bool = False) -> dict:
+def _serialize(
+    row: dict,
+    *,
+    running: bool = False,
+    authorized_ids: set[str] | None = None,
+) -> dict:
     out = decorate_scheduled_task(row)
     # Whether a firing of this task is in flight right now (``running`` or
     # ``cancelling``). Drives the tile's Run-now ↔ Stop control. Defaults
     # false so callers that don't pass it (e.g. create/update responses,
     # which can't be mid-firing) keep the same shape.
     out["running"] = running
+    if authorized_ids is not None:
+        out["authorization_required"] = bool(
+            out.get("enabled") and row["id"] not in authorized_ids
+        )
     return out
 
 
@@ -143,8 +152,17 @@ async def handle_list(request):
     # flight (so it can show a Stop control instead of Run now).
     scheduler = getattr(request.app["gateway"], "_scheduler", None)
     running = await db.running_task_ids() if scheduler is not None else set()
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "scheduled_task")
     return web.json_response(
-        {"tasks": [_serialize(r, running=r["id"] in running) for r in rows]}
+        {"tasks": [
+            _serialize(
+                r,
+                running=r["id"] in running,
+                authorized_ids=authorized,
+            )
+            for r in rows
+        ]}
     )
 
 
@@ -164,7 +182,13 @@ async def handle_get(request):
     # (mutations 403 via ``_reject_if_builtin``).
     scheduler = getattr(request.app["gateway"], "_scheduler", None)
     running = await db.running_task_ids() if scheduler is not None else set()
-    return web.json_response(_serialize(row, running=row["id"] in running))
+    from openagent_server.automation_management import authorized_definition_ids
+    authorized = await authorized_definition_ids(request, "scheduled_task")
+    return web.json_response(_serialize(
+        row,
+        running=row["id"] in running,
+        authorized_ids=authorized,
+    ))
 
 
 async def handle_runs_list(request):

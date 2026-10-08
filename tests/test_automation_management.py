@@ -1,13 +1,18 @@
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
+import time
 import unittest
 from openagent_core import Runtime, RuntimeServices, RuntimeSettings
 from openagent_core.contracts import ExecutionContext, PrincipalRef
 from openagent_core.engine import MemoryDB
 from openagent_storage_sqlite import SqliteRuntimeStore
 from openagent_server.automation_authority import NativeAutomationAuthority
-from openagent_server.automation_management import NativeAutomationManagement
+from openagent_server.automation_management import (
+    AutomationRevisionChanged,
+    NativeAutomationManagement,
+)
 from openagent_server.automation_execution import NativeAutomationExecution
 
 
@@ -40,6 +45,8 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         self.service.runtime=self.runtime
         self.management=NativeAutomationManagement(self.service)
         self.execution=NativeAutomationExecution(self.service)
+        self.service.automation_management=self.management
+        self.service.automation_execution=self.execution
         await self.runtime.start()
         p=PrincipalRef('openagent','network','alice')
         self.context=ExecutionContext(p,p,p,'session','agent',(p,),ingress_id='trusted')
@@ -105,3 +112,113 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         await scheduler._check_and_run()
         self.assertEqual((await self.db.get_task(identifier))['next_run'],1)
         self.assertEqual(await self.db.list_task_runs(identifier),[])
+
+    async def test_historical_task_requires_exact_review_and_resumes_in_future(self):
+        identifier=await self.db.add_task('Pending','* * * * *','hello',next_run=1)
+
+        review=await self.management.review_authorization(
+            'scheduled_task',identifier,self.context,
+        )
+        self.assertFalse(review['authorized'])
+        self.assertEqual(review['definition']['id'],identifier)
+        with self.assertRaises(AutomationRevisionChanged):
+            await self.management.approve_authorization(
+                'scheduled_task',identifier,'0'*64,self.context,
+            )
+
+        before=time.time()
+        result=await self.management.approve_authorization(
+            'scheduled_task',identifier,review['digest'],self.context,
+        )
+        self.assertTrue(result['authorized'])
+        self.assertEqual(result['schedules_reconciled'],1)
+        self.assertGreater((await self.db.get_task(identifier))['next_run'],before)
+        approved=await self.management.review_authorization(
+            'scheduled_task',identifier,self.context,
+        )
+        self.assertTrue(approved['authorized'])
+
+    async def test_historical_workflow_and_event_can_be_reviewed_and_approved(self):
+        workflow_id=await self.db.add_workflow(name='Historical workflow')
+        event_id=await self.db.add_event(
+            name='Historical event',slug='historical-event',action_kind='prompt',
+            prompt_template='hello',secret_enc='encrypted-placeholder',
+        )
+
+        for kind,identifier in (
+            ('workflow',workflow_id),
+            ('event',event_id),
+        ):
+            review=await self.management.review_authorization(
+                kind,identifier,self.context,
+            )
+            self.assertFalse(review['authorized'])
+            self.assertNotIn('secret_enc',review['definition'])
+            result=await self.management.approve_authorization(
+                kind,identifier,review['digest'],self.context,
+            )
+            self.assertTrue(result['authorized'])
+            self.assertTrue((await self.management.review_authorization(
+                kind,identifier,self.context,
+            ))['authorized'])
+
+    async def test_explicit_config_action_captures_and_revokes_builtin_revision(self):
+        identifier=await self.db.add_task('dream-mode','* * * * *','dream',next_run=1)
+
+        captured=await self.management.capture_current_authorizations(
+            'scheduled_task',[identifier],self.context,
+        )
+        self.assertTrue(captured[0]['authorized'])
+        self.assertEqual(captured[0]['schedules_reconciled'],1)
+        definition=await self.authority.definition('task',identifier)
+        delegated=await self.authority.resolve(
+            'task',definition,'occurrence','child',
+        )
+        self.assertTrue(await self.authority.validate(delegated))
+
+        await self.db.update_task(identifier,enabled=0,next_run=None)
+        revoked=await self.management.capture_current_authorizations(
+            'scheduled_task',[identifier],self.context,
+        )
+        self.assertFalse(revoked[0]['authorized'])
+        self.assertFalse(await self.authority.validate(delegated))
+
+    async def test_approved_one_shot_executes_end_to_end_exactly_once(self):
+        from openagent_core.core.scheduler import Scheduler
+
+        identifier=await self.db.add_task(
+            'One shot','@once:1','hello',next_run=1,
+        )
+        review=await self.management.review_authorization(
+            'scheduled_task',identifier,self.context,
+        )
+        approved=await self.management.approve_authorization(
+            'scheduled_task',identifier,review['digest'],self.context,
+        )
+        self.assertEqual(approved['schedules_reconciled'],0)
+
+        calls=[]
+        scheduler=Scheduler(
+            self.db,self.service.agent,execution_service=self.execution,
+        )
+
+        async def perform(task,**_kwargs):
+            calls.append(task['_runtime_run_id'])
+            await self.db.update_task_run(
+                task['_runtime_run_id'],status='success',output='done',
+                finished_at=time.time(),
+            )
+
+        scheduler._execute_task=perform
+        await scheduler._check_and_run()
+        if scheduler._workflow_tasks:
+            await asyncio.gather(*tuple(scheduler._workflow_tasks))
+        await scheduler._check_and_run()
+
+        task=await self.db.get_task(identifier)
+        runs=await self.db.list_task_runs(identifier)
+        self.assertFalse(task['enabled'])
+        self.assertIsNone(task['next_run'])
+        self.assertEqual(len(calls),1)
+        self.assertEqual(len(runs),1)
+        self.assertEqual(runs[0]['status'],'success')

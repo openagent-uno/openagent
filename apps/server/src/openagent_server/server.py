@@ -2169,17 +2169,31 @@ class AgentServer:
         if gw is None:
             return
 
-        async def _dream(patch: dict) -> None:
+        async def _capture(names, context) -> None:
+            if context is None:
+                return
+            tasks = await self.agent._db.get_tasks()
+            identifiers = [
+                task["id"] for task in tasks if task["name"] in names
+            ]
+            if identifiers:
+                await gw.runtime_service.automation_management.capture_current_authorizations(
+                    "scheduled_task", identifiers, context,
+                )
+
+        async def _dream(patch: dict, context=None) -> None:
             self.config["dream_mode"] = patch or {}
             await self._sync_dream_mode(scheduler)
+            await _capture({DREAM_MODE_TASK_NAME}, context)
             gw.broadcast_resource_sync("scheduled_task", "updated")
 
-        async def _autoupdate(patch: dict) -> None:
+        async def _autoupdate(patch: dict, context=None) -> None:
             self.config["auto_update"] = patch or {}
             await self._sync_auto_update(scheduler)
+            await _capture({AUTO_UPDATE_TASK_NAME}, context)
             gw.broadcast_resource_sync("scheduled_task", "updated")
 
-        async def _skills(patch: dict) -> None:
+        async def _skills(patch: dict, context=None) -> None:
             # The ``skills`` section carries BOTH the curator toggle
             # (``skills.curator_enabled``) and the distiller toggle
             # (``skills.distiller_enabled``); re-sync both scheduled tasks so a
@@ -2189,9 +2203,12 @@ class AgentServer:
             self.config["skills"] = patch or {}
             await self._sync_skill_curator(scheduler)
             await self._sync_skill_distiller(scheduler)
+            await _capture(
+                {SKILL_CURATOR_TASK_NAME, SKILL_DISTILLER_TASK_NAME}, context,
+            )
             gw.broadcast_resource_sync("scheduled_task", "updated")
 
-        async def _self_improvement(patch: dict) -> None:
+        async def _self_improvement(patch: dict, context=None) -> None:
             # The ``self_improvement`` section carries the master ``enabled``
             # switch plus the per-task ``scorer_enabled`` / ``digest_enabled``
             # gates and optional schedule overrides; re-sync both built-in
@@ -2203,6 +2220,15 @@ class AgentServer:
             await self._sync_quality_digest(scheduler)
             await self._sync_cost_observability(scheduler)
             await self._sync_escalation_audit(scheduler)
+            await _capture(
+                {
+                    QUALITY_SCORER_TASK_NAME,
+                    QUALITY_DIGEST_TASK_NAME,
+                    COST_OBSERVABILITY_TASK_NAME,
+                    ESCALATION_AUDIT_TASK_NAME,
+                },
+                context,
+            )
             gw.broadcast_resource_sync("scheduled_task", "updated")
 
         gw._config_change_callbacks["dream_mode"] = _dream

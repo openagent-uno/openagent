@@ -188,7 +188,13 @@ async def handle_patch(request):
     gw = request.app.get("gateway")
     handled_live = False
     if gw is not None and section in getattr(gw, "_config_change_callbacks", {}):
-        await gw.on_config_change(section, merged)
+        service = getattr(gw, "runtime_service", None)
+        context = (
+            await service.context(request, "__automation_management__")
+            if service is not None
+            else None
+        )
+        await gw.on_config_change(section, merged, context=context)
         handled_live = True
     # Other resource screens may want to refresh derived values.
     if gw is not None:

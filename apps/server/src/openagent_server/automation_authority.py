@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict
 import hashlib
 import json
+import time
 import uuid
 import aiosqlite
 from openagent_core.contracts import (
@@ -266,11 +267,67 @@ class NativeAutomationAuthority:
             current = await self.definition(grant["kind"], grant["definition_id"])
         except LookupError:
             return False
+        enabled_for_occurrence = bool(current.get("enabled", True))
+        if not enabled_for_occurrence:
+            enabled_for_occurrence = await self._claimed_one_shot_is_active(
+                grant, current, context,
+            )
         return (
-            bool(current.get("enabled", True))
+            enabled_for_occurrence
             and definition_digest(grant["kind"], current) == grant["digest"]
             and await self.principal_active(principal)
         )
+
+    async def _claimed_one_shot_is_active(self, grant, definition, context):
+        """Keep one atomically claimed one-shot authorized until it finishes.
+
+        The scheduler disables a one-shot in the same transaction that opens
+        its durable ``task_runs`` row. That prevents a second tick or manual
+        request from launching it again, but the already-admitted occurrence
+        must remain valid while its row is ``running``. No other disabled
+        definition receives this exception.
+        """
+        if grant["kind"] != "task":
+            return False
+        from openagent_core.memory.schedule import is_one_shot_expression
+
+        if not is_one_shot_expression(definition.get("cron_expression")):
+            return False
+        prefix = f"automation:task:{definition['id']}:"
+        if not context.session_id.startswith(prefix):
+            return False
+        occurrence_id = context.session_id[len(prefix):]
+        if not occurrence_id:
+            return False
+        async with aiosqlite.connect(self.db.db_path) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT status,finished_at FROM task_runs WHERE id=? AND task_id=? "
+                    "AND trigger='schedule'",
+                    (occurrence_id, definition["id"]),
+                )
+            ).fetchone()
+        if row is None:
+            return False
+        if row[0] == "running":
+            return True
+        # The task projection becomes terminal inside the host operation,
+        # immediately before the outer durable Runtime publishes and observes
+        # its own terminal record. Keep that tiny hand-off valid, but never
+        # turn a completed one-shot into a permanently reusable delegation.
+        finished_at = row[1]
+        return bool(finished_at and float(finished_at) >= time.time() - 300)
+
+    async def complete_occurrence(self, context):
+        """Retire a one-shot delegation after its accepted occurrence ends."""
+        if not context.delegation_id:
+            return
+        async with aiosqlite.connect(self.db.db_path) as conn:
+            await conn.execute(
+                "UPDATE standalone_automation_grants SET revoked=1 WHERE id=?",
+                (context.delegation_id,),
+            )
+            await conn.commit()
 
     def identity(self, context):
         principal = context.authority
