@@ -54,9 +54,9 @@ test('macOS packaging preserves and re-verifies upstream host-tool signatures', 
   assert.equal(pkg.build.afterSign, 'scripts/after-sign-host-tools.js');
   assert.equal(pkg.build.mac.forceCodeSigning, true);
   const ignored = pkg.build.mac.signIgnore.join('\n');
-  assert.match(ignored, /openagent-host-tools/);
-  assert.match(ignored, /\/node\$/);
-  assert.match(ignored, /openagent-computer-control/);
+  assert.match(ignored, /Contents\/Resources\/host-tools\//);
+  assert.match(ignored, /Contents\/Resources\/web-build\//);
+  assert.doesNotMatch(ignored, /openagent-host-tools\$/);
   const hook = fs.readFileSync(path.join(desktop, 'scripts', 'after-sign-host-tools.js'), 'utf8');
   assert.match(hook, /bundle_manifest_sha256/);
   assert.match(hook, /TeamIdentifier/);
