@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.23
+
+- Historical scheduled tasks, workflows, and events now expose an explicit
+  exact-revision review and approval path instead of being silently skipped by
+  the standalone authorization gate.
+- Recurring schedules resume at their next future occurrence after approval,
+  avoiding a burst of every missed run. One-shot tasks consume and revoke
+  their approval after exactly one completed occurrence.
+- The App identifies definitions that need review, shows their SHA-256 digest,
+  and disables manual Run or Test until the owner approves that exact revision.
+
 ## v1.1.0-beta.21
 
 - The Python CLI now requires Host Tools b5, matching the server package.

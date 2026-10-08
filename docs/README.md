@@ -7,6 +7,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 23 standalone automation authorization repair](releases/v1.1.0-beta.23.md)
 - [Beta 16 Telegram voice repair and live acceptance](releases/v1.1.0-beta.16.md)
 - [Beta 17 Friday Telegram vault access](releases/v1.1.0-beta.17.md)
 - [Beta 18 Telegram image input and proxy capability repair](releases/v1.1.0-beta.18.md)
