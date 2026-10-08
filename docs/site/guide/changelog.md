@@ -2,6 +2,15 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.29
+
+- The standalone Gateway now resolves the Agent's canonical default Vault path
+  when `memory.vault_path` is omitted from configuration.
+- This repairs App Vault requests that returned 503 while the real Markdown
+  notes and runtime Vault remained healthy.
+- Product beta 29 pairs with Core beta 15 and Tools beta 4. The signed desktop
+  App remains beta 15 because this repair changes the server runtime only.
+
 ## v1.1.0-beta.28
 
 - Terminal Agent and Team streaming errors now close the current turn instead
