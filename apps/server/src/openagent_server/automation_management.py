@@ -118,12 +118,30 @@ class NativeAutomationManagement:
         if kind not in _KIND:
             raise ValueError("Unknown automation kind")
         mutation = name in _MUTATIONS[kind]
-        await require_authorized(
-            self.service.authorizer,
-            context,
-            "automation.manage" if mutation else "automation.read",
-            ResourceRef("automation", context.tenant_id, kind),
+        execution = {
+            "run_scheduled_task_now": ("get_scheduled_task", "task_id"),
+            "run_workflow": ("get_workflow", "id_or_name"),
+            "trigger_event": ("get_event", "id_or_slug"),
+            "trigger_events": ("get_event", "id_or_slug"),
+        }.get(name)
+        delegated_execution = bool(
+            execution is not None and context.deferred and context.delegation_id
         )
+        if delegated_execution:
+            # A durable automation does not inherit the owner's broad
+            # automation.read permission. It may still compose with another
+            # exact, separately approved automation. Validate both grants and
+            # their principal boundary below instead of opening the whole
+            # management catalog to the unattended run.
+            if not await self.service.automations.validate(context):
+                raise PermissionError("Automation delegation is revoked")
+        else:
+            await require_authorized(
+                self.service.authorizer,
+                context,
+                "automation.manage" if mutation else "automation.read",
+                ResourceRef("automation", context.tenant_id, kind),
+            )
         if (
             current_execution_context() is not None
             and current_execution_context() != context
@@ -138,12 +156,6 @@ class NativeAutomationManagement:
         )
         with scope:
             if not mutation:
-                execution = {
-                    "run_scheduled_task_now": ("get_scheduled_task", "task_id"),
-                    "run_workflow": ("get_workflow", "id_or_name"),
-                    "trigger_event": ("get_event", "id_or_slug"),
-                    "trigger_events": ("get_event", "id_or_slug"),
-                }.get(name)
                 if execution is not None:
                     getter, key = execution
                     row = await self.repository.call(
@@ -152,9 +164,17 @@ class NativeAutomationManagement:
                     definition = await self.service.automations.definition(
                         _KIND[kind], row["id"]
                     )
-                    await self.service.automations.resolve(
+                    admitted = await self.service.automations.resolve(
                         _KIND[kind], definition, "manual-admission", context.session_id
                     )
+                    if delegated_execution and (
+                        admitted.authority != context.authority
+                        or admitted.initiator != context.initiator
+                        or admitted.audience != context.audience
+                    ):
+                        raise PermissionError(
+                            "Automation target belongs to another principal boundary"
+                        )
                 # Original enqueue/stop functions commit before waiting for a
                 # scheduler writer. They must not hold a write transaction
                 # while waiting for that same writer to acknowledge the work.

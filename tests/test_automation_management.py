@@ -20,6 +20,8 @@ from openagent_server.automation_execution import _runtime_deadline_seconds
 class Policy:
     deny_capture=False
     async def authorize(self,context,action,resource,*,audience=()):
+        if context.deferred and action.startswith('automation.'):
+            return False
         return not (self.deny_capture and action=='automation.manage' and '/' in resource.resource_id)
 
 
@@ -138,6 +140,44 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
                 {'task_id':identifier,'wait':False},self.context)
         count=await (await self.db._conn.execute('SELECT COUNT(*) FROM task_run_requests')).fetchone()
         self.assertEqual(count[0],0)
+
+    async def test_delegated_task_can_run_separately_authorized_workflow(self):
+        workflow=await self.management.call('workflow','create_workflow',
+            {'name':'Approved gate'},self.context)
+        task=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Pipeline','cron_expression':'0 9 * * *','prompt':'Run gate'},self.context)
+        delegated=await self.authority.resolve(
+            'task',await self.authority.definition('task',task['id']),
+            'task-occurrence','automation:task:occurrence',
+        )
+        original=self.management.repository.call
+
+        async def call(kind,name,arguments,context,atomic=True):
+            if name=='run_workflow':
+                return {'run_id':'workflow-run','status':'running'}
+            return await original(kind,name,arguments,context,atomic=atomic)
+
+        self.management.repository.call=call
+        result=await self.management.call('workflow','run_workflow',
+            {'id_or_name':workflow['id'],'inputs':{},'wait':False,'timeout_s':300},delegated)
+        self.assertEqual(result['run_id'],'workflow-run')
+
+    async def test_delegated_task_cannot_run_another_principals_workflow(self):
+        workflow=await self.management.call('workflow','create_workflow',
+            {'name':'Alice gate'},self.context)
+        bob=PrincipalRef('openagent','network','bob')
+        bob_context=ExecutionContext(
+            bob,bob,bob,'bob-session','agent',(bob,),ingress_id='trusted-bob',
+        )
+        task=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Bob pipeline','cron_expression':'0 9 * * *','prompt':'Run gate'},bob_context)
+        delegated=await self.authority.resolve(
+            'task',await self.authority.definition('task',task['id']),
+            'task-occurrence','automation:task:occurrence',
+        )
+        with self.assertRaisesRegex(PermissionError,'another principal boundary'):
+            await self.management.call('workflow','run_workflow',
+                {'id_or_name':workflow['id'],'inputs':{},'wait':False,'timeout_s':300},delegated)
 
     async def test_unknown_definition_remains_due_and_unexecuted(self):
         from openagent_core.core.scheduler import Scheduler
