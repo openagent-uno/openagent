@@ -7,6 +7,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 33 authorized automation composition and resilient domain search](releases/v1.1.0-beta.33.md)
 - [Beta 32 long-running automation deadline repair](releases/v1.1.0-beta.32.md)
 - [Beta 31 catalog-aware fallback and resilient scheduled-task delivery](releases/v1.1.0-beta.31.md)
 - [Beta 30 resilient scheduled-task delivery](releases/v1.1.0-beta.30.md)

@@ -2,6 +2,16 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.33
+
+- Authorized scheduled tasks and workflows can compose with another exact,
+  independently authorized automation owned by the same principal and audience.
+- Internal federated search keeps results from healthy domains when another
+  domain is unauthorized or unavailable, and no longer presents itself as
+  public web search.
+- Product beta 33 pairs with Core beta 18 and Tools beta 4. The signed desktop
+  App remains beta 15 because the repair is server-side.
+
 ## v1.1.0-beta.32
 
 - Explicit scheduled-task and event execution timeouts now extend the outer
