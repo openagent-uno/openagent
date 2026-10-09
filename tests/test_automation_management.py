@@ -14,6 +14,7 @@ from openagent_server.automation_management import (
     NativeAutomationManagement,
 )
 from openagent_server.automation_execution import NativeAutomationExecution
+from openagent_server.automation_execution import _runtime_deadline_seconds
 
 
 class Policy:
@@ -93,6 +94,42 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         for _ in range(2):
             await self.execution.run_task(scheduler,row,trigger='manual',request_id='same-request',payload=None,execute=perform)
         self.assertEqual(len(calls),1)
+
+    async def test_task_policy_timeout_outlives_inner_execution_budget(self):
+        self.service.agent.config={'automation': {'deadline_seconds': 960}}
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Long pipeline','cron_expression':'0 9 * * *','prompt':'Publish',
+             'execution_policy': {'timeout_seconds': 3600}},self.context)
+        requests=[]
+        execute_operation=self.runtime.execute_operation
+
+        async def capture(request,context,operation):
+            requests.append(request)
+            return await execute_operation(request,context,operation)
+
+        self.runtime.execute_operation=capture
+        scheduler=SimpleNamespace(db=self.db)
+
+        async def perform(task,**kwargs):
+            await self.db.add_task_run(task_id=task['id'],trigger=kwargs['trigger'],run_id=task['_runtime_run_id'])
+            await self.db.update_task_run(task['_runtime_run_id'],status='success')
+
+        await self.execution.run_task(
+            scheduler,row,trigger='manual',request_id='long-request',payload=None,
+            execute=perform,
+        )
+
+        self.assertEqual(len(requests),1)
+        self.assertEqual(requests[0].deadline_seconds,3630)
+
+    def test_event_policy_timeout_uses_the_same_outer_deadline_rule(self):
+        self.assertEqual(
+            _runtime_deadline_seconds(
+                {},'event',{'execution_policy': {'timeout_seconds': 1800}},
+            ),
+            1830,
+        )
+        self.assertEqual(_runtime_deadline_seconds({},'workflow',{}),960)
 
     async def test_unapproved_manual_request_fails_before_enqueue(self):
         identifier=await self.db.add_task('Pending','* * * * *','hello',next_run=1)

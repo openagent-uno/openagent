@@ -10,6 +10,37 @@ from openagent_core.runtime import current_run_id
 from openagent_server.automation_authority import definition_digest
 
 
+_AUTOMATION_FINALIZE_GRACE_SECONDS = 30.0
+
+
+def _runtime_deadline_seconds(config, kind, definition):
+    """Keep the outer Runtime alive for the definition's full budget.
+
+    Task and event execution policies are enforced inside their respective
+    executors.  The Runtime deadline starts slightly earlier and also covers
+    final projection writes, so using the same value for both lets the outer
+    wrapper cancel an otherwise valid long-running automation first.
+    """
+    configured = float((config.get("automation") or {}).get("deadline_seconds", 960))
+    if kind == "task":
+        from openagent_core.core.execution_policy import task_execution_policy
+
+        policy = task_execution_policy(definition)
+    elif kind == "event":
+        from openagent_core.core.execution_policy import event_execution_policy
+
+        policy = event_execution_policy(definition)
+    else:
+        policy = {}
+    operation_timeout = policy.get("timeout_seconds")
+    if operation_timeout is None:
+        return configured
+    return max(
+        configured,
+        float(operation_timeout) + _AUTOMATION_FINALIZE_GRACE_SECONDS,
+    )
+
+
 class _Operation:
     def __init__(self, operation):
         self.operation = operation
@@ -81,10 +112,10 @@ class NativeAutomationExecution:
         if parent:
             context = replace(context, parent_run_id=parent)
         # Deadline remains explicit and separate from delivery/accept timeouts.
-        timeout = float(
-            (self.service.agent.config.get("automation") or {}).get(
-                "deadline_seconds", 960
-            )
+        timeout = _runtime_deadline_seconds(
+            self.service.agent.config,
+            kind,
+            canonical,
         )
         request = RunRequest(
             identifier,
