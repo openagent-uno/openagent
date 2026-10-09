@@ -7,6 +7,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 30 resilient scheduled-task delivery](releases/v1.1.0-beta.30.md)
 - [Beta 29 default Vault path repair](releases/v1.1.0-beta.29.md)
 - [Beta 28 terminal automation-run repair](releases/v1.1.0-beta.28.md)
 - [Beta 27 unified workflow capability dispatch](releases/v1.1.0-beta.27.md)

@@ -2,6 +2,16 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.30
+
+- Recurring scheduled tasks now retry transient model rate limits, overloads,
+  unavailable capacity, and timeouts through the durable request queue.
+- Retries are delayed and bounded, retain the original provider error, and are
+  suppressed after any tool activity to avoid duplicate email, social, or
+  mutation side effects.
+- Product beta 30 pairs with Core beta 16 and Tools beta 4. The signed desktop
+  App remains beta 15 because this repair changes only the server runtime.
+
 ## v1.1.0-beta.29
 
 - The standalone Gateway now resolves the Agent's canonical default Vault path
