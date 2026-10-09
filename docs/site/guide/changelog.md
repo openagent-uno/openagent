@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.31
+
+- Model fallback references now resolve through the live provider catalog,
+  including custom OpenAI-compatible providers, their credentials, base URLs,
+  and model sampling metadata.
+- Catalog reloads and credential rotation rebuild the fallback chain without a
+  server restart, while legacy built-in references remain compatible.
+- This release includes the bounded, durable scheduled-task retries introduced
+  in beta 30 and pairs Product beta 31 with Core beta 17 and Tools beta 4. The
+  signed desktop App remains beta 15 because the repair is server-side.
+
 ## v1.1.0-beta.30
 
 - Recurring scheduled tasks now retry transient model rate limits, overloads,
