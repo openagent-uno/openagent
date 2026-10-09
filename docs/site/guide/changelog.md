@@ -2,6 +2,16 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.32
+
+- Explicit scheduled-task and event execution timeouts now extend the outer
+  durable Runtime deadline instead of being cancelled by its 960-second
+  default first.
+- A bounded finalization window lets the inner policy record the correct
+  terminal state without making the automation unbounded.
+- Product beta 32 pairs with Core beta 17 and Tools beta 4. The signed desktop
+  App remains beta 15 because the repair is server-side.
+
 ## v1.1.0-beta.31
 
 - Model fallback references now resolve through the live provider catalog,
