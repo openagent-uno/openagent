@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.34
+
+- Memory authorization failures may only be reported when the same turn has a
+  matching tool-error receipt; an ungrounded claim is replaced with a truthful
+  correction instead of being presented as a real server denial.
+- Recovery projection now uses a detached SQLite transaction after the journal
+  commit, preventing active statements from deferring session continuity with
+  `cannot open savepoint - SQL statements in progress`.
+- Product beta 34 pairs with Core beta 19 and Tools beta 4. The signed desktop
+  App remains beta 15 because the repair is server-side.
+
 ## v1.1.0-beta.33
 
 - Authorized scheduled tasks and workflows can compose with another exact,
