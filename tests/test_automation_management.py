@@ -97,6 +97,70 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             await self.execution.run_task(scheduler,row,trigger='manual',request_id='same-request',payload=None,execute=perform)
         self.assertEqual(len(calls),1)
 
+    async def test_successful_replacement_hook_finalizes_before_runtime_publish(self):
+        from openagent_core.core.scheduler import Scheduler
+        calls=[]
+        async def hook(task,next_call):
+            calls.append(task['id'])
+        self.execution.register_task_hook('replacement',hook)
+        for trigger in ('schedule','manual'):
+            with self.subTest(trigger=trigger):
+                row=await self.management.call('scheduled_task','create_scheduled_task',
+                    {'name':'Replacement '+trigger,'cron_expression':'* * * * *',
+                     'prompt':'Hook-owned operation'},self.context)
+                scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+                async def forbidden_base(*args,**kwargs):
+                    self.fail('A replacement hook must not call the standard executor')
+                scheduler._execute_task=forbidden_base
+                if trigger=='schedule':
+                    await self.db.update_task(row['id'],next_run=1)
+                    await scheduler._check_and_run()
+                    await asyncio.gather(*tuple(scheduler._workflow_tasks))
+                else:
+                    for _ in range(2):
+                        await scheduler.run_task(row,trigger='manual',request_id='replacement-manual')
+                runs=await self.db.list_task_runs(row['id'])
+                self.assertEqual(len(runs),1)
+                self.assertEqual(runs[0]['status'],'success')
+                self.assertIsNotNone(runs[0]['finished_at'])
+                self.assertEqual(calls.count(row['id']),1)
+                records=await (await self.db._conn.execute(
+                    'SELECT status FROM session_runs WHERE session_id LIKE ?',
+                    ('automation:task:'+row['id']+':%',))).fetchall()
+                self.assertEqual([r[0] for r in records],['success'])
+
+    async def test_replacement_hook_exception_stays_failed(self):
+        from openagent_core.core.scheduler import Scheduler
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Broken hook','cron_expression':'* * * * *','prompt':'Work'},self.context)
+        async def hook(task,next_call):
+            raise RuntimeError('Hook failed before completion')
+        self.execution.register_task_hook('replacement',hook)
+        scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+        await self.db.update_task(row['id'],next_run=1)
+        await scheduler._check_and_run()
+        await asyncio.gather(*tuple(scheduler._workflow_tasks))
+        runs=await self.db.list_task_runs(row['id'])
+        self.assertEqual(len(runs),1)
+        self.assertEqual(runs[0]['status'],'failed')
+
+    async def test_delegated_executor_missing_finalize_is_not_hook_success(self):
+        from openagent_core.core.scheduler import Scheduler
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Missing finalize','cron_expression':'* * * * *','prompt':'Work'},self.context)
+        async def hook(task,next_call):
+            return await next_call(task)
+        self.execution.register_task_hook('delegating',hook)
+        scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+        async def unfinished(task,**kwargs):
+            pass
+        scheduler._execute_task=unfinished
+        await self.db.update_task(row['id'],next_run=1)
+        await scheduler._check_and_run()
+        await asyncio.gather(*tuple(scheduler._workflow_tasks))
+        runs=await self.db.list_task_runs(row['id'])
+        self.assertEqual(runs[0]['status'],'failed')
+
     async def test_task_policy_timeout_outlives_inner_execution_budget(self):
         self.service.agent.config={'automation': {'deadline_seconds': 960}}
         row=await self.management.call('scheduled_task','create_scheduled_task',

@@ -190,7 +190,10 @@ class NativeAutomationExecution:
         selected = {**task, "_runtime_run_id": run_id}
 
         async def operation():
+            base_called = False
             async def base(value):
+                nonlocal base_called
+                base_called = True
                 return await execute(
                     value, trigger=trigger, request_id=request_id, context=payload
                 )
@@ -205,6 +208,23 @@ class NativeAutomationExecution:
                 chain = wrapped
             result = await chain(selected)
             projection = await scheduler.db.get_task_run(run_id)
+            if not base_called:
+                # Replacement hooks (notably auto-update) do not enter the
+                # Core executor. Finalize their successful occurrence here,
+                # before Runtime publication validates the task projection.
+                # A delegated executor's missing/failed finalize must still
+                # fail the check below, rather than being called successful.
+                if projection is None:
+                    await scheduler.db.add_task_run(
+                        task_id=task["id"], trigger=trigger, run_id=run_id,
+                    )
+                    projection = await scheduler.db.get_task_run(run_id)
+                if projection.get("status") == "running":
+                    await scheduler._record_task_finish(
+                        run_id, selected, status="success",
+                        output="Completed by scheduled-task execution hook",
+                    )
+                    projection = await scheduler.db.get_task_run(run_id)
             if projection and projection.get("status") not in {
                 "success",
                 "completed",
