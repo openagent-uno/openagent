@@ -13,6 +13,9 @@ hero:
       text: Download v1.1 beta
       link: /downloads
     - theme: alt
+      text: Official connectors
+      link: /guide/connectors
+    - theme: alt
       text: View source
       link: https://github.com/openagent-uno/openagent
 
@@ -25,4 +28,10 @@ features:
     details: Sessions, Vault, MCP, Workflows, Scheduler, Events and Search use the same module contract and can be enabled independently.
   - title: Uniform capabilities
     details: Native, MCP, product and connected-device tools share one catalog with opaque references, exact destinations and per-turn authorization.
+  - title: Official connectors
+    details: One shared library for OpenAgent, GlassPalace, ICS and other products. Your receiving server stores credentials and calls provider APIs directly. Common OAuth apps are being qualified.
+    link: /guide/connectors
+  - title: Privacy & contact
+    details: Read how authorization, local storage and configured model providers handle connected data. OpenAgent connector service contact — AI Agent, geroale2000@gmail.com.
+    link: /privacy
 ---

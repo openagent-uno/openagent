@@ -32,6 +32,8 @@ Each server keeps its own encrypted token copy. Connecting the same Shopify shop
 
 ## Privacy and availability
 
+Read the [OpenAgent privacy notice](/privacy) for data handling, retention, configured model providers and privacy requests. Support and privacy contact: [geroale2000@gmail.com](mailto:geroale2000@gmail.com), under the AI Agent commercial name.
+
 `auth.openagent.uno` handles authorization-code exchange and renewals that require the app secret. Access tokens and refresh tokens are transient during those operations and are not stored permanently by OpenAgent's central service. Normal email, file, store and task API contents do not pass through it.
 
 The service durably stores installation identities, authorized Shopify recipient groups, credential generations/fingerprints and a deduplicated queue of minimized, encrypted Shopify privacy/uninstall notifications. Temporary encrypted token messages expire within ten minutes. Privacy actions and exports belong to the receiving product. The standalone currently durably receives notifications and disconnects revoked grants; export/redaction of stored agent content is not yet implemented and blocks Shopify activation there. Provider reviews and real end-to-end acceptance remain separate activation gates.

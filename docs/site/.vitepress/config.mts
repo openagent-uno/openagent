@@ -88,6 +88,7 @@ export default withMermaid(defineConfig({
       { text: "Home", link: "/" },
       { text: "Download", link: "/downloads" },
       { text: "Connectors", link: "/guide/connectors" },
+      { text: "Privacy", link: "/privacy" },
       { text: "Docs", link: "/guide/" },
       { text: "Changelog", link: "/guide/changelog" },
     ],
@@ -104,7 +105,7 @@ export default withMermaid(defineConfig({
       text: "Edit this page on GitHub",
     },
     footer: {
-      message: "MIT Licensed",
+      message: 'MIT Licensed · <a href="/privacy">Privacy</a> · <a href="mailto:geroale2000@gmail.com">Contact</a>',
       copyright: "Copyright 2026 OpenAgent",
     },
   },
