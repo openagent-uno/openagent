@@ -131,7 +131,95 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             ),
             1830,
         )
-        self.assertEqual(_runtime_deadline_seconds({},'workflow',{}),960)
+        for kind in ('task','event','workflow'):
+            self.assertIsNone(_runtime_deadline_seconds({},kind,{}))
+            self.assertEqual(_runtime_deadline_seconds(
+                {'automation': {'deadline_seconds': 120}},kind,{}),120)
+
+    async def test_unbounded_task_has_no_implicit_runtime_deadline(self):
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Unbounded','cron_expression':'0 9 * * *','prompt':'Work'},self.context)
+        requests=[]
+        execute_operation=self.runtime.execute_operation
+        async def capture(request,context,operation):
+            requests.append(request)
+            return await execute_operation(request,context,operation)
+        self.runtime.execute_operation=capture
+        async def perform(task,**kwargs):
+            await self.db.add_task_run(task_id=task['id'],trigger=kwargs['trigger'],run_id=task['_runtime_run_id'])
+            await asyncio.sleep(0.06)
+            await self.db.update_task_run(task['_runtime_run_id'],status='success')
+        await self.execution.run_task(SimpleNamespace(db=self.db),row,
+            trigger='manual',request_id='unbounded',payload=None,execute=perform)
+        self.assertIsNone(requests[0].deadline_seconds)
+
+    async def _cancelled_projection(self, *, deadline):
+        self.service.agent.config={'automation': {'deadline_seconds': deadline}}
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Cancellation','cron_expression':'0 9 * * *','prompt':'Work'},self.context)
+        started=asyncio.Event()
+        captured=[]
+        execute_operation=self.runtime.execute_operation
+        async def capture(request,context,operation):
+            captured.append((request,context))
+            return await execute_operation(request,context,operation)
+        self.runtime.execute_operation=capture
+        projection_ids=[]
+        async def perform(task,**kwargs):
+            identifier=task['_runtime_run_id']
+            projection_ids.append(identifier)
+            await self.db.add_task_run(task_id=task['id'],trigger=kwargs['trigger'],run_id=identifier)
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                await self.db.update_task_run(identifier,status='cancelled',error='Stopped by user')
+                raise
+        future=asyncio.create_task(self.execution.run_task(SimpleNamespace(db=self.db),row,
+            trigger='manual',request_id='cancel-case',payload=None,execute=perform))
+        await asyncio.wait_for(started.wait(),2)
+        if deadline is None:
+            request,context=captured[0]
+            await self.runtime.cancel(request.run_id,context)
+        with self.assertRaisesRegex(RuntimeError,'timed_out' if deadline else 'cancelled'):
+            await asyncio.wait_for(future,2)
+        request,context=captured[0]
+        canonical=await self.runtime.get_run(request.run_id,context)
+        return canonical,await self.db.get_task_run(projection_ids[0])
+
+    async def test_runtime_timeout_projection_is_not_a_user_stop(self):
+        canonical,projection=await self._cancelled_projection(deadline=0.1)
+        self.assertEqual(canonical.status,'timed_out')
+        self.assertEqual(projection['status'],'timed_out')
+        self.assertEqual(projection['error'],'Automation runtime deadline exceeded')
+        self.assertIsNotNone(projection['finished_at'])
+
+    async def test_actual_user_stop_remains_cancelled(self):
+        canonical,projection=await self._cancelled_projection(deadline=None)
+        self.assertEqual(canonical.status,'cancelled')
+        self.assertEqual(projection['status'],'cancelled')
+        self.assertEqual(projection['error'],'Stopped by user')
+
+    async def test_workflow_runtime_timeout_projection_is_not_a_user_stop(self):
+        self.service.agent.config={'automation': {'deadline_seconds': 0.1}}
+        row=await self.management.call('workflow','create_workflow',
+            {'name':'Bounded workflow'},self.context)
+        identifier='deadline-workflow'
+        async def perform(workflow,**kwargs):
+            await self.db.add_workflow_run(workflow_id=workflow['id'],
+                trigger=kwargs['trigger'],run_id=kwargs['run_id'])
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                await self.db.update_workflow_run(identifier,status='cancelled',error='Stopped by user')
+                raise
+        with self.assertRaisesRegex(RuntimeError,'timed_out'):
+            await asyncio.wait_for(self.execution.run_workflow(
+                SimpleNamespace(db=self.db),row,trigger='manual',inputs={},
+                request_id=None,entry_node_id=None,run_id=identifier,execute=perform),2)
+        projection=await self.db.get_workflow_run(identifier)
+        self.assertEqual(projection['status'],'timed_out')
+        self.assertEqual(projection['error'],'Automation runtime deadline exceeded')
 
     async def test_unapproved_manual_request_fails_before_enqueue(self):
         identifier=await self.db.add_task('Pending','* * * * *','hello',next_run=1)
