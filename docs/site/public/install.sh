@@ -61,7 +61,7 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.35", "manifest.json"),
+    ("openagent-uno/openagent", "v1.1.0-beta.36", "manifest.json"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.20", "manifest.json"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json"),
 )
@@ -135,10 +135,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b35"
+    DIST="openagent-framework==1.1.0b36"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b35"
+    DIST="openagent-cli==1.1.0b36"
     COMMAND="openagent-cli"
 fi
 
