@@ -174,11 +174,8 @@ async def handle_mint_invitation(request: "web.Request") -> "web.Response":
     """
     from aiohttp import web
 
-    from openagent_core.core import paths as core_paths
+    import asyncio
     from openagent_identity.cli_commands import resolve_invite_intent
-    from openagent_identity.coordinator_addr_cache import read_cache
-    from openagent_identity.identity import load_or_create_identity
-    from openagent_identity.iroh_node import _node_id_from_secret
     from openagent_identity.ticket import InviteTicket
 
     result = await _store_or_404(request)
@@ -219,6 +216,20 @@ async def handle_mint_invitation(request: "web.Request") -> "web.Response":
         store, handle=handle, role=role,
     )
 
+    # Bind tickets to this live coordinator. A process-global workspace or
+    # cached address can belong to another runtime or a previous listener.
+    state = getattr(request.app["gateway"], "_network_state", None)
+    node = getattr(state, "iroh_node", None)
+    if node is None:
+        return web.json_response({"error": "coordinator transport unavailable"}, status=503)
+    try:
+        coordinator_id = await asyncio.wait_for(node.node_id(), timeout=3)
+        relay_url, addresses = await asyncio.wait_for(node.local_node_addr(), timeout=3)
+    except Exception:
+        return web.json_response({"error": "coordinator transport unavailable"}, status=503)
+    if coordinator_id != row["coordinator_node_id"] or not (relay_url or addresses):
+        return web.json_response({"error": "coordinator transport unavailable"}, status=503)
+
     minted_by = request.get("user_handle") or "gateway"
     invite = await store.create_invitation(
         role=resolved_role,
@@ -228,22 +239,9 @@ async def handle_mint_invitation(request: "web.Request") -> "web.Response":
         bind_to_handle=bind_to,
     )
 
-    # Tickets need the coordinator's NodeId + optional address hints.
-    # ``get_agent_dir`` is set early at serve-time, so this is a cheap
-    # read (no FS scan).
-    agent_dir = core_paths.get_agent_dir()
-    if agent_dir is None:
-        # Shouldn't happen for a running coordinator gateway, but if
-        # something's mis-wired we still want a useful response.
-        return web.json_response(
-            {"error": "no agent_dir active — server mis-wired"},
-            status=500,
-        )
-    identity = load_or_create_identity(agent_dir / "identity.key")
-    relay_url, addresses = read_cache(agent_dir)
     ticket = InviteTicket(
         code=invite.code,
-        coordinator_node_id=_node_id_from_secret(identity.secret_bytes),
+        coordinator_node_id=coordinator_id,
         network_name=row["name"],
         network_id=row["network_id"],
         role=invite.role,

@@ -20,6 +20,7 @@ import time
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 from aiohttp.test_utils import make_mocked_request
 
@@ -49,7 +50,10 @@ def _make_request(memory_db, *, method: str = "GET", path: str = "/x",
     fake_app = {
         "gateway": SimpleNamespace(
             agent=SimpleNamespace(memory_db=memory_db),
-            _network_state=SimpleNamespace(auth_state=auth_state),
+            _network_state=SimpleNamespace(auth_state=auth_state, iroh_node=SimpleNamespace(
+                node_id=AsyncMock(return_value="cb" + "0" * 62),
+                local_node_addr=AsyncMock(return_value=(None, ("127.0.0.1:12345",))),
+            )),
         ),
     }
 
@@ -88,7 +92,6 @@ async def _seed_coord(db_path: Path, *, users: list[str] | None = None,
                      network_name: str = "lyra-agent"):
     """Spin up a coordinator-mode network row + optional users/agents/invites."""
     from openagent_identity.coordinator.store import CoordinatorStore
-    from openagent_core.core import paths as core_paths
 
     db = await _open_db(db_path)
     try:
@@ -116,10 +119,6 @@ async def _seed_coord(db_path: Path, *, users: list[str] | None = None,
     finally:
         await db.close()
 
-    # The mint handler needs ``get_agent_dir`` set so it can find the
-    # identity.key for the ticket's NodeId. Seed it now.
-    agent_dir = db_path.parent
-    core_paths.set_agent_dir(agent_dir)
 
 
 @test("gateway_network", "GET /users returns the registered handles")
