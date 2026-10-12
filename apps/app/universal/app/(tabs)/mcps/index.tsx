@@ -1,3 +1,4 @@
+import OfficialConnectorsPane from "../../../components/mcps/OfficialConnectorsPane";
 /**
  * MCPs — dashboard grid.
  *
@@ -42,7 +43,7 @@ import McpTile from '../../../components/mcps/McpTile';
 import MarketplaceTile from '../../../components/mcps/MarketplaceTile';
 import McpConfigForm, { type McpSubmitPayload } from '../../../components/mcps/McpConfigForm';
 
-type Mode = 'builtin' | 'custom' | 'browse' | 'new';
+type Mode = 'official' | 'builtin' | 'custom' | 'browse' | 'new';
 
 const MARKETPLACE_SOURCE_PREFIX = 'marketplace:registry.modelcontextprotocol.io/';
 const SEARCH_DEBOUNCE_MS = 300;
@@ -79,7 +80,7 @@ export default function McpsScreen() {
   const config = useConnection((s) => s.config);
   const confirm = useConfirm();
 
-  const [mode, setMode] = useState<Mode>('builtin');
+  const [mode, setMode] = useState<Mode>('official');
 
   // Unified "create" control in the navigator header (same position as
   // Workflows / Scheduled) — jumps to the "New" connector form.
@@ -277,6 +278,7 @@ export default function McpsScreen() {
     <View style={[styles.root, { paddingTop: headerInset }]}>
       <SectionTabs<Mode>
         tabs={[
+          { id: 'official', label: 'Official', icon: 'check-circle' },
           { id: 'builtin', label: `Builtin · ${builtinRows.length}`, icon: 'package' },
           { id: 'custom', label: `Custom · ${customRows.length}`, icon: 'sliders' },
           { id: 'browse', label: 'Browse', icon: 'compass' },
@@ -297,6 +299,7 @@ export default function McpsScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
+        {mode === 'official' && <OfficialConnectorsPane />}
         {mode === 'builtin' && (
           <InstalledPane
             kind="builtin"

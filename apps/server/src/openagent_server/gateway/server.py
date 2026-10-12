@@ -31,6 +31,7 @@ from openagent_server.gateway.capabilities import (
     CapabilityRegistry,
     ClientCapabilityError,
 )
+from openagent_server.gateway.api import official_connectors as official_connectors_api
 from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, quality as quality_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
 from openagent_identity import peers as peers_api
 from openagent_identity.auth.middleware import make_auth_middleware
@@ -1534,6 +1535,13 @@ class Gateway:
             # Introspectable slash-command registry (for client autocomplete).
             ("GET", "/api/commands", commands_api.handle_list),
             # DB-backed MCP registry.
+            ("GET", "/api/connectors/catalog", official_connectors_api.catalog),
+            ("GET", "/api/connectors", official_connectors_api.connections),
+            ("POST", "/api/connectors", official_connectors_api.create),
+            ("POST", "/api/connectors/{connection_id}/connect", official_connectors_api.connect),
+            ("POST", "/api/connectors/{connection_id}/poll", official_connectors_api.poll),
+            ("PUT", "/api/connectors/{connection_id}", official_connectors_api.update),
+            ("DELETE", "/api/connectors/{connection_id}", official_connectors_api.disconnect),
             ("GET", "/api/mcps", mcps.handle_list),
             ("POST", "/api/mcps", mcps.handle_create),
             ("GET", "/api/mcps/{name}", mcps.handle_get),

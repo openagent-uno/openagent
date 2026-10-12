@@ -69,6 +69,8 @@ block_cipher = None
 # These packages use dynamic imports that PyInstaller can't detect statically.
 
 hiddenimports = [
+    "openagent_connectors",
+    "openagent_connectors.runner",
     "openagent_core.audio_worker",
     "openagent_core.audio_stream",
     # litellm dynamically imports provider modules
@@ -250,6 +252,31 @@ if not _node_binary.is_file():
 # The vault resolver checks the frozen extraction root, so the standalone
 # server remains usable on a computer without a separate Node installation.
 binaries.append((str(_node_binary), "."))
+
+# Shared connector execution stays in the local standalone server. The release
+# job supplies an extracted, checksummed bundle for exactly this target.
+_connector_bundle = os.environ.get("OPENAGENT_CONNECTORS_BUNDLE", "").strip()
+if _release_build and not _connector_bundle:
+    raise RuntimeError("OPENAGENT_CONNECTORS_BUNDLE is required for a release server build")
+if _connector_bundle:
+    import hashlib
+    import json
+    import platform
+    _connector_root = Path(_connector_bundle).resolve()
+    _connector_lock = json.loads((Path(SPECPATH) / "connectors.lock.json").read_text())
+    _connector_manifest = json.loads((_connector_root / "manifest.json").read_text())
+    _connector_arch = "arm64" if platform.machine().lower() in {"arm64", "aarch64"} else "x64"
+    _connector_target = f"{sys.platform}-{_connector_arch}"
+    if hashlib.sha256((_connector_root / "manifest.json").read_bytes()).hexdigest() != _connector_lock["platforms"][_connector_target]["manifest_sha256"] or _connector_manifest.get("source_commit") != _connector_lock["source_commit"]:
+        raise RuntimeError("Connector bundle does not match the consumer source lock")
+    if _connector_manifest.get("version") != "0.1.0" or _connector_manifest.get("platform") != f"{sys.platform}-{_connector_arch}" or (_release_build and _connector_manifest.get("dirty_snapshot")):
+        raise RuntimeError("Connector bundle version, source or target does not match the server")
+    _connector_name = "openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner"
+    _connector_binary = _connector_root / "bin" / _connector_name
+    if hashlib.sha256(_connector_binary.read_bytes()).hexdigest() != _connector_manifest["files"][f"bin/{_connector_name}"]["sha256"]:
+        raise RuntimeError("Connector runner checksum mismatch")
+    binaries.append((str(_connector_binary), "."))
+
 
 datas = []
 datas += _numpy_all[0]  # numpy data files (from collect_all)

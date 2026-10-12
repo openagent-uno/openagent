@@ -15,6 +15,7 @@ const guideSidebar = [
       { text: "Invitation System & Networking", link: "/guide/invitation-system" },
       { text: "Models", link: "/guide/models" },
       { text: "MCP Tools", link: "/guide/mcp" },
+      { text: "Official Connectors", link: "/guide/connectors" },
       { text: "Client Computer Tools", link: "/guide/client-capabilities" },
       { text: "Phone & SMS MCP", link: "/guide/phone-mcp" },
       { text: "Gateway", link: "/guide/gateway" },
@@ -86,6 +87,7 @@ export default withMermaid(defineConfig({
     nav: [
       { text: "Home", link: "/" },
       { text: "Download", link: "/downloads" },
+      { text: "Connectors", link: "/guide/connectors" },
       { text: "Docs", link: "/guide/" },
       { text: "Changelog", link: "/guide/changelog" },
     ],

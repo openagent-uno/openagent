@@ -23,6 +23,11 @@ for distribution in (
     if version(distribution) != "1.0.0b1":
         raise SystemExit(f"Unexpected installed version for {distribution}")
 module_assets("vault")
+if version("openagent-connectors") != "0.1.0":
+    raise SystemExit("Unexpected installed connector adapter version")
+connector_bundle = os.environ.get("OPENAGENT_CONNECTORS_BUNDLE", "")
+if not connector_bundle or not Path(connector_bundle).is_dir():
+    raise SystemExit("OPENAGENT_CONNECTORS_BUNDLE must name the verified connector bundle")
 bundle = os.environ.get("OPENAGENT_HOST_TOOLS_BUNDLE", "")
 if not bundle or not Path(bundle).is_dir():
     raise SystemExit("OPENAGENT_HOST_TOOLS_BUNDLE must name the verified prebuilt device bundle")

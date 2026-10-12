@@ -180,6 +180,8 @@ class NativeRuntimeService:
         from openagent_server.catalog_service import NativeCatalogService
 
         self.catalog_management = NativeCatalogService(agent, self.authorizer)
+        from openagent_server.official_connectors import OfficialConnectors
+        self.official_connectors = OfficialConnectors(self)
         self.store = SqliteRuntimeStore(agent.memory_db.db_path)
         self.runtime = None
         self.prepared_runs: dict[str, PreparedRun] = {}
@@ -373,6 +375,7 @@ class NativeRuntimeService:
         from openagent_core.memory_access import MemoryAccess
 
         await self.catalog_management.start()
+        await self.official_connectors.start()
         await self.automations.start()
         executor = AgentExecutor(self.agent, owns_agent=False)
         environment = dict(getattr(self.agent, "product_environment", os.environ))
@@ -477,6 +480,7 @@ class NativeRuntimeService:
             set_quick_commands(self.agent.config.get("quick_commands") or {})
             set_hooks(self.agent.config.get("hooks") or {})
         await self.runtime.start()
+        await self.official_connectors.attach_sources()
         mcp_service = self.runtime.service("mcp.service")
         if mcp_service is not None and mcp_service.pool is not None:
             mcp_service.pool.bind_gateway_runtime(self.gateway)
@@ -498,6 +502,7 @@ class NativeRuntimeService:
         )
 
     async def close(self):
+        await self.official_connectors.close()
         try:
             if self.runtime is not None:
                 await self.runtime.close()
@@ -576,6 +581,10 @@ class NativeRuntimeService:
             )
             if result is not None:
                 return result
+        if action in {"tool.discover", "tool.call", "tool.publish"}:
+            official = await self.official_connectors.authorize_source(context, resource)
+            if official is not None:
+                return official
         if action.startswith("catalog.") or action.startswith("automation."):
             binding = await self.authorizer._binding(context)
             if (
