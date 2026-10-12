@@ -2954,7 +2954,9 @@ async def _do_auto_update(
     except Exception as exc:
         logger.error("Auto-update check failed: %s", exc)
         elog("update.error", level="warning", error=str(exc) or type(exc).__name__)
-        return
+        # The scheduled replacement hook must not publish a failed check as
+        # a successful occurrence merely because the error was logged.
+        raise
 
     if old_ver == new_ver:
         logger.info("openagent-framework is up-to-date (%s)", old_ver)

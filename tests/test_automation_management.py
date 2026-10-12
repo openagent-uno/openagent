@@ -144,6 +144,14 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(runs),1)
         self.assertEqual(runs[0]['status'],'failed')
 
+    async def test_auto_update_check_error_reaches_the_runtime(self):
+        from unittest.mock import patch
+        from openagent_server.server import _do_auto_update
+        with patch('openagent_server.server.run_upgrade',
+                   side_effect=RuntimeError('Check unavailable')):
+            with self.assertRaisesRegex(RuntimeError,'Check unavailable'):
+                await _do_auto_update(self.service.agent,'auto')
+
     async def test_delegated_executor_missing_finalize_is_not_hook_success(self):
         from openagent_core.core.scheduler import Scheduler
         row=await self.management.call('scheduled_task','create_scheduled_task',
