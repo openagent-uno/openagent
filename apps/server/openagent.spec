@@ -269,7 +269,7 @@ if _connector_bundle:
     _connector_target = f"{sys.platform}-{_connector_arch}"
     if hashlib.sha256((_connector_root / "manifest.json").read_bytes()).hexdigest() != _connector_lock["platforms"][_connector_target]["manifest_sha256"] or _connector_manifest.get("source_commit") != _connector_lock["source_commit"]:
         raise RuntimeError("Connector bundle does not match the consumer source lock")
-    if _connector_manifest.get("version") != "0.1.0" or _connector_manifest.get("platform") != f"{sys.platform}-{_connector_arch}" or (_release_build and _connector_manifest.get("dirty_snapshot")):
+    if _connector_manifest.get("version") != _connector_lock["version"] or _connector_manifest.get("platform") != _connector_target or (_release_build and _connector_manifest.get("dirty_snapshot")):
         raise RuntimeError("Connector bundle version, source or target does not match the server")
     _connector_name = "openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner"
     _connector_binary = _connector_root / "bin" / _connector_name
