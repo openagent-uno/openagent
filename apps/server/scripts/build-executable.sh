@@ -12,6 +12,7 @@ python - <<'CHECK'
 from importlib.metadata import version
 from pathlib import Path
 import os
+import json
 import PyInstaller
 from openagent_modules import module_assets
 for distribution in (
@@ -23,7 +24,8 @@ for distribution in (
     if version(distribution) != "1.0.0b1":
         raise SystemExit(f"Unexpected installed version for {distribution}")
 module_assets("vault")
-if version("openagent-connectors") != "0.1.0":
+connector_lock = json.loads(Path("connectors.lock.json").read_text())
+if version("openagent-connectors") != connector_lock["version"]:
     raise SystemExit("Unexpected installed connector adapter version")
 connector_bundle = os.environ.get("OPENAGENT_CONNECTORS_BUNDLE", "")
 if not connector_bundle or not Path(connector_bundle).is_dir():
