@@ -30,3 +30,5 @@ export OPENAGENT_CONNECTORS_BUNDLE="$PWD/build/connectors"
 ```
 
 Use `darwin-x64`, `linux-arm64`, `linux-x64`, `win32-arm64` or `win32-x64` for the matching target. `apps/server/connectors.lock.json` pins archive, wheel and source checksums; `--assets` allows the same checks against an offline release directory. Acquisition never installs or runs downloaded software.
+
+New common-app consents are disabled unless the server explicitly lists providers in `connectors.official_providers` or `OPENAGENT_CONNECTOR_AUTH_PROVIDERS`. Own-app files enable their configured providers. Existing credentials continue to work independently of this enrollment setting. Shopify enrollment in the standalone is additionally disabled until privacy export/redaction of stored agent content is implemented.

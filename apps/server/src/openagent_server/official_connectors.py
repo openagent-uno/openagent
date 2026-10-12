@@ -65,6 +65,18 @@ class OfficialConnectors:
         self.db_path = Path(self.agent.memory_db.db_path)
         config = self.agent.config.get("connectors") or {}
         environment = dict(getattr(self.agent, "product_environment", os.environ))
+        enabled = config.get("official_providers", environment.get("OPENAGENT_CONNECTOR_AUTH_PROVIDERS", "").split(","))
+        self.official_providers = {value.strip() for value in enabled if value.strip()} if isinstance(enabled, list) and all(isinstance(value, str) for value in enabled) else set()
+        self.own_providers = set()
+        if config.get("oauth_providers_file"):
+            try:
+                path = Path(config["oauth_providers_file"])
+                if path.stat().st_size <= 512 * 1024:
+                    providers = json.loads(path.read_text())
+                    if isinstance(providers, list):
+                        self.own_providers = {entry["id"] for entry in providers if isinstance(entry, dict) and isinstance(entry.get("id"), str)}
+            except (OSError, ValueError, TypeError):
+                pass
         bundled = Path(getattr(sys,"_MEIPASS",Path(__file__).parent)) / ("openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner")
         executable = config.get("runner_path") or environment.get("OPENAGENT_CONNECTOR_RUNNER") or (str(bundled) if getattr(sys,"frozen",False) and bundled.is_file() else None) or shutil.which("openagent-connector-runner")
         self.runner = runner
@@ -173,7 +185,24 @@ class OfficialConnectors:
         await self.check(context)
         if not self.runner:
             return {"available": False, "connectors": []}
-        return {"available": True, "connectors": [item for item in await self.runner.call("catalog") if not item.get("nativeKind")]}
+        items = []
+        for original in await self.runner.call("catalog"):
+            if original.get("nativeKind"):
+                continue
+            item = dict(original)
+            if item["available"] and item["auth"] == "oauth" and not self.authorization_available(item["provider"]):
+                item["available"] = False
+                item["unavailableReason"] = "Authorization is not enabled on this server."
+            items.append(item)
+        return {"available": True, "connectors": items}
+
+    def authorization_available(self, provider):
+        # The standalone currently has durable receipt, but no processor for
+        # privacy export/redaction of derived agent content. Do not enroll a
+        # Shopify recipient until that host implementation is complete.
+        if provider == "shopify":
+            return False
+        return provider in self.official_providers or provider in self.own_providers
 
     async def owned(self, context, connection_id):
         await self.check(context, write=True)
@@ -192,6 +221,8 @@ class OfficialConnectors:
         item = catalog.get(payload.get("catalog_id"))
         if not item or not item["available"] or item.get("nativeKind"):
             raise ValueError("Connector is unavailable")
+        if item["auth"] == "oauth" and not self.authorization_available(item["provider"]):
+            raise PermissionError("Connector authorization is not enabled")
         connection_id = uuid.uuid4().hex
         name = payload.get("display_name") or item["name"]
         if not isinstance(name, str) or not name.strip() or len(name) > 120:
@@ -199,6 +230,23 @@ class OfficialConnectors:
         config = payload.get("config") or {}
         if not isinstance(config, dict) or len(json.dumps(config)) > 16384 or any("token" in key.lower() or "password" in key.lower() or "secret" in key.lower() for key in config):
             raise ValueError("Connector configuration cannot contain credentials")
+        token = payload.get("token")
+        if item["auth"] == "credentials":
+            credentials = payload.get("credentials")
+            if not isinstance(credentials, dict) or set(credentials) != {"imap_password", "smtp_password"} or any(not isinstance(v, str) or not v or len(v)>16384 or any(c in v for c in "\r\n\x00") for v in credentials.values()):
+                raise ValueError("Invalid mail credentials")
+            token = "gp_imap_v1." + base64.urlsafe_b64encode(json.dumps(credentials).encode()).decode().rstrip("=")
+
+        if item["auth"] != "oauth" and (not isinstance(token, str) or not token or len(token) > 65536 or any(ord(c) < 33 or ord(c) > 126 for c in token)):
+            raise ValueError("Invalid connector token")
+        if item["provider"] == "replio" and not re.fullmatch(r"rpl_[A-Za-z0-9_-]{32,128}", token):
+            raise ValueError("Invalid Replio token")
+        if item["provider"] == "billingbear" and (not re.fullmatch(r"sk_[A-Za-z0-9_-]{16,256}", token) or token.lower().startswith("sk_admin_")):
+            raise ValueError("Invalid BillingBear token")
+        self.validate_config(item, config)
+        if item["auth"] == "oauth" and (payload.get("token") is not None or payload.get("credentials") is not None):
+            raise ValueError("OAuth credentials must come from verified consent")
+        await self.check(context, write=True)
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("INSERT INTO official_connector_connections(id,tenant_id,owner_key,catalog_id,provider,capability,display_name,allow_write,status,config,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                              (connection_id, context.tenant_id, context.initiator.key, item["id"], item["provider"], item["capability"], name,
@@ -207,27 +255,53 @@ class OfficialConnectors:
         row = await self.record(connection_id)
         if item["auth"] == "oauth":
             return await self.connect(context, connection_id)
-        token = payload.get("token")
-        if item["auth"] == "credentials":
-            credentials = payload.get("credentials")
-            if not isinstance(credentials, dict) or set(credentials) != {"imap_password", "smtp_password"} or any(not isinstance(v, str) or not v or len(v)>16384 or any(c in v for c in "\r\n\x00") for v in credentials.values()):
-                raise ValueError("Invalid mail credentials")
-            token = "gp_imap_v1." + base64.urlsafe_b64encode(json.dumps(credentials).encode()).decode().rstrip("=")
-
-        if not isinstance(token, str) or not token or len(token) > 65536 or any(ord(c) < 33 or ord(c) > 126 for c in token):
-            raise ValueError("Invalid connector token")
-        if item["provider"] == "replio" and not re.fullmatch(r"rpl_[A-Za-z0-9_-]{32,128}", token):
-            raise ValueError("Invalid Replio token")
-        if item["provider"] == "billingbear" and not re.fullmatch(r"sk_[A-Za-z0-9_-]{16,256}", token):
-            raise ValueError("Invalid BillingBear token")
+        await self.owned(context, connection_id)
         await self.save(row, {"access_token": token, "scopes": [], "app_id": "personal-token"})
         return {"connection": self.public(await self.record(connection_id))}
+
+    @staticmethod
+    def validate_config(item, config):
+        # Host setup accepts only reviewed public connection fields. Unknown or
+        # nested metadata must never become an accidental plaintext secret store.
+        provider = item["provider"]
+        if item["auth"] == "oauth":
+            valid = not config
+        elif provider == "replio":
+            valid = set(config) == {"organization_id"} and isinstance(config["organization_id"], str) and bool(re.fullmatch(r"[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}", config["organization_id"]))
+        elif provider == "billingbear":
+            valid = set(config) == {"project_id"} and isinstance(config["project_id"], str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{1,128}", config["project_id"]))
+        elif provider == "pipeboard":
+            valid = set(config) == {"ads_provider"} and isinstance(config["ads_provider"], str) and config["ads_provider"] in {"meta_ads", "google_ads"}
+        elif provider == "imap_smtp":
+            required = {"imap_host", "imap_port", "username", "mailbox", "tls_mode", "smtp_host", "smtp_port", "smtp_tls_mode", "smtp_from"}
+            valid = set(config) == required and all(isinstance(config[key], str) for key in required - {"imap_port", "smtp_port"})
+            if valid:
+                for key in ("imap_host", "smtp_host"):
+                    host = config[key]
+                    valid = valid and len(host) <= 253 and bool(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+", host)) and not host.endswith((".local", ".internal", ".localhost", ".svc", ".svc.cluster.local"))
+                    try:
+                        import ipaddress
+                        ipaddress.ip_address(host)
+                    except ValueError:
+                        pass
+                    else:
+                        valid = False
+                valid = valid and type(config["imap_port"]) is int and (config["imap_port"], config["tls_mode"]) in {(993, "implicit_tls"), (143, "starttls")}
+                valid = valid and type(config["smtp_port"]) is int and (config["smtp_port"], config["smtp_tls_mode"]) in {(465, "implicit_tls"), (587, "starttls")}
+                valid = valid and 0 < len(config["username"]) <= 320 and 0 < len(config["mailbox"]) <= 512 and all(config[key] == config[key].strip() and not any(char in config[key] for char in "\r\n\x00") for key in ("username", "mailbox"))
+                valid = valid and len(config["smtp_from"]) <= 254 and bool(re.fullmatch(r"[^<>\s@]+@[^<>\s@]+", config["smtp_from"]))
+        else:
+            valid = False
+        if not valid:
+            raise ValueError("Invalid public connector configuration")
 
     async def connect(self, context, connection_id):
         row = await self.owned(context, connection_id)
         item = next(item for item in await self.runner.call("catalog") if item["id"] == row["catalog_id"])
         if item["auth"] != "oauth":
             raise ValueError("Connector does not use OAuth")
+        if not self.authorization_available(item["provider"]):
+            raise PermissionError("Connector authorization is not enabled")
         await self.runner.call("auth.register")
         transaction = await self.runner.call("auth.start", {"provider": item["provider"]})
         await self.check(context, write=True)
@@ -241,6 +315,8 @@ class OfficialConnectors:
     async def poll(self, context, connection_id):
         async with self.lock:
             row = await self.owned(context, connection_id)
+            if not self.authorization_available(row["provider"]):
+                raise PermissionError("Connector authorization is not enabled")
             if not row["transaction_id"]:
                 return {"status": row["status"]}
             transaction = await self.runner.call("auth.poll", {"id": row["transaction_id"]})

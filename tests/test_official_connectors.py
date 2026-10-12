@@ -22,6 +22,7 @@ class Runner:
     def __init__(self):
         self.calls = []
         self.after_redeem = None
+        self.after_catalog = None
 
     async def close(self):
         pass
@@ -29,7 +30,10 @@ class Runner:
     async def call(self, method, params=None):
         self.calls.append((method, params))
         if method == "catalog":
+            if self.after_catalog:
+                self.after_catalog()
             return [{"id": "replio", "name": "Replio", "auth": "token", "available": True, "provider": "replio", "capability": "outreach"},
+                    {"id": "billingbear", "name": "BillingBear", "auth": "token", "available": True, "provider": "billingbear", "capability": "commerce"},
                     {"id": "clickup", "name": "ClickUp", "auth": "oauth", "available": True, "provider": "clickup", "capability": "files"}]
         if method == "auth.start":
             return {"id": "t" * 43, "expires_at": "2099-01-01T00:00:00Z", "authorization_url": "https://auth.openagent.uno/authorize/" + "t" * 43}
@@ -50,7 +54,7 @@ class Runner:
 async def fixture(tmp_path):
     authorizer = Allow()
     catalog = CapabilityCatalog(authorizer, allow_dynamic=True)
-    runtime = SimpleNamespace(agent=SimpleNamespace(name="Test", config={}, memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite")),
+    runtime = SimpleNamespace(agent=SimpleNamespace(name="Test", config={"connectors": {"official_providers": ["clickup"]}}, memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite")),
                               authorizer=authorizer, runtime=SimpleNamespace(capabilities=catalog))
     runner = Runner()
     service = OfficialConnectors(runtime, runner=runner)
@@ -71,7 +75,7 @@ async def fixture(tmp_path):
 async def test_token_is_encrypted_and_never_returned_by_management(fixture):
     service, context, runner, _ = fixture
     token = "rpl_" + "a" * 40
-    result = await service.create(context, {"catalog_id": "replio", "token": token, "config": {"organization_id": "org"}})
+    result = await service.create(context, {"catalog_id": "replio", "token": token, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     row = await service.record(connection_id)
     assert service.decrypt(row)["access_token"] == token
@@ -87,7 +91,7 @@ async def test_token_is_encrypted_and_never_returned_by_management(fixture):
 @pytest.mark.asyncio
 async def test_connection_cannot_be_used_by_another_principal_or_audience(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40})
+    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     other = PrincipalRef("openagent", "tenant", "other")
     other_context = SimpleNamespace(tenant_id="tenant", initiator=other, audience=(other,))
@@ -112,7 +116,7 @@ async def test_authorization_revoked_during_exchange_prevents_token_persistence(
 @pytest.mark.asyncio
 async def test_disconnect_immediately_revokes_source_and_clears_local_token(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40})
+    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     source = OfficialConnectorSource(service, connection_id)
     await service.disconnect(context, connection_id)
@@ -124,7 +128,7 @@ async def test_disconnect_immediately_revokes_source_and_clears_local_token(fixt
 @pytest.mark.asyncio
 async def test_credential_encryption_binds_connection_and_owner(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40})
+    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     row = await service.record(result["connection"]["id"])
     row["owner_key"] = "another-owner"
     with pytest.raises(Exception):
@@ -177,3 +181,61 @@ async def test_superseded_consent_cannot_save_credentials(fixture):
         await service.save(row, {"access_token": "superseded-token", "app_id": "test-app", "scopes": []},
                            authorization_transaction=row["transaction_id"])
     assert (await service.record(row["id"]))["credential"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('payload', [
+    {'catalog_id': 'billingbear', 'token': 'sk_admin_' + 'a' * 32, 'config': {'project_id': 'project'}},
+    {'catalog_id': 'billingbear', 'token': 'sk_' + 'a' * 32, 'config': {'project_id': 'project', 'metadata': {'private_key': 'must-not-store'}}},
+    {'catalog_id': 'replio', 'token': 'rpl_' + 'a' * 40, 'config': {'organization_id': 'invalid-org'}},
+    {'catalog_id': 'replio', 'token': 'invalid-token', 'config': {'organization_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}},
+])
+async def test_invalid_credential_setup_never_creates_a_connection(fixture, payload):
+    service, context, _, _ = fixture
+    with pytest.raises(ValueError):
+        await service.create(context, payload)
+    assert (await service.list(context))['connections'] == []
+
+
+@pytest.mark.asyncio
+async def test_role_revocation_during_token_setup_prevents_persistence(fixture):
+    service, context, runner, authorizer = fixture
+    runner.after_catalog = lambda: setattr(authorizer, 'allowed', False)
+    with pytest.raises(PermissionError):
+        await service.create(context, {'catalog_id': 'replio', 'token': 'rpl_' + 'a' * 40,
+                                       'config': {'organization_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}})
+    async with aiosqlite.connect(service.db_path) as db:
+        count = await (await db.execute('SELECT COUNT(*) FROM official_connector_connections')).fetchone()
+    assert count[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_common_consent_requires_host_opt_in(fixture):
+    service, context, runner, _ = fixture
+    service.official_providers.clear()
+    catalog = await service.catalog(context)
+    clickup = next(item for item in catalog['connectors'] if item['id'] == 'clickup')
+    assert clickup['available'] is False
+    with pytest.raises(PermissionError):
+        await service.create(context, {'catalog_id': 'clickup'})
+    assert not any(method == 'auth.start' for method, _ in runner.calls)
+    assert (await service.list(context))['connections'] == []
+
+
+@pytest.mark.asyncio
+async def test_disabling_enrollment_does_not_disable_valid_stored_tokens(fixture):
+    service, context, runner, _ = fixture
+    setup = await service.create(context, {'catalog_id': 'clickup'})
+    await service.poll(context, setup['connection']['id'])
+    service.official_providers.clear()
+    source = OfficialConnectorSource(service, setup['connection']['id'])
+    assert await source.call_tool('files.clickup.user.get', {}, context) == {'ok': True}
+    with pytest.raises(PermissionError):
+        await service.connect(context, setup['connection']['id'])
+
+
+@pytest.mark.asyncio
+async def test_shopify_enrollment_waits_for_standalone_privacy_processing(fixture):
+    service, _, _, _ = fixture
+    service.official_providers.add('shopify')
+    assert not service.authorization_available('shopify')

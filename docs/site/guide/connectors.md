@@ -2,7 +2,7 @@
 
 OpenAgent provides one shared connector implementation for the standalone server, GlassPalace, ICS and other products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
-The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance. Existing GlassPalace/ICS own-app connections continue to use their original registration until you explicitly authorize a new one.
+The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing GlassPalace/ICS own-app connections continue to use their original registration until you explicitly authorize a new one.
 
 ## Connector library
 
