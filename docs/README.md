@@ -36,6 +36,7 @@
 - [Build and release contracts](build-and-release.md)
 - [Repository and updater transition](repository-transition.md)
 - [Frozen server qualification](frozen-server-qualification.md)
+- [Official marketplace qualification](connectors-qualification.md)
 - [OpenAgent vision](site/vision.md)
 - [Product guide and documentation site](site/index.md)
 - [Source history manifest](../packaging/source-history.json)

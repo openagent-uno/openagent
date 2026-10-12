@@ -3,8 +3,18 @@ import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Switch, Te
 import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup } from '../../services/api';
 import { colors, radius } from '../../theme';
 import Feather from '@expo/vector-icons/Feather';
+import { useConnection } from '../../stores/connection';
+
+function currentTarget() {
+  const { config, activeAccountId } = useConnection.getState();
+  return config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
+}
 
 export default function OfficialConnectorsPane({ query = '', showConnections = true }: { query?: string; showConnections?: boolean }) {
+  const config = useConnection(s => s.config);
+  const activeAccountId = useConnection(s => s.activeAccountId);
+  const target = config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
+  const boundTarget = useRef('');
   const [catalog, setCatalog] = useState<OfficialConnector[]>([]);
   const [connections, setConnections] = useState<OfficialConnection[]>([]);
   const [available, setAvailable] = useState(true);
@@ -15,15 +25,29 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
   const [allowWrite, setAllowWrite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [pending, setPending] = useState<OfficialConnectorSetup | null>(null);
   const generation = useRef(0);
-  useEffect(() => { void refresh(); return () => { generation.current++; }; }, []);
+  useEffect(() => {
+    generation.current++; boundTarget.current = target;
+    setSelected(null); setToken(''); setMail({ mailbox: 'INBOX' }); setPending(null); setBusy(false);
+    setCatalog([]); setConnections([]); setError(''); setNotice('');
+    if (target) void refresh();
+    return () => { generation.current++; boundTarget.current = ''; };
+  }, [target]);
   async function refresh() {
-    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); setCatalog(c.connectors); setConnections(i.connections); setAvailable(c.available && i.available); }
-    catch { setError('The server could not load connectors. Try again.'); }
+    const expected = boundTarget.current;
+    if (!expected || expected !== currentTarget()) return;
+    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); if (expected !== currentTarget() || expected !== boundTarget.current) return; setCatalog(c.connectors); setConnections(i.connections); setAvailable(c.available && i.available); setError(''); }
+    catch { if (expected === currentTarget() && expected === boundTarget.current) setError('The server could not load connectors. Try again.'); }
   }
-  async function authorize(setup: OfficialConnectorSetup) {
-    if (!setup.authorization_url || !setup.expires_at) { await refresh(); setSelected(null); return; }
+  async function authorize(setup: OfficialConnectorSetup, expected = boundTarget.current) {
+    if (!expected || expected !== currentTarget() || expected !== boundTarget.current) return;
+    if (!setup.authorization_url) {
+      if (setup.connection?.status !== 'connected') throw new Error('Connection not completed');
+      await refresh(); setSelected(null); setNotice(`${setup.connection.display_name} connection saved on this server.`); return;
+    }
+    if (!setup.expires_at || !Number.isFinite(Date.parse(setup.expires_at)) || Date.parse(setup.expires_at) <= Date.now()) throw new Error('Invalid authorization expiry');
     const url = new URL(setup.authorization_url);
     if (url.protocol !== "https:" || url.hash || url.username || url.password || (setup.authorization_mode === "own-app" ? !["https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com"].includes(url.origin) : url.origin !== (setup.authorization_origin || "https://auth.openagent.uno") || !/^\/authorize\/[A-Za-z0-9_-]{43}$/.test(url.pathname) || !!url.search)) throw new Error('Invalid authorization link');
     setPending(setup);
@@ -32,15 +56,17 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
     const current = ++generation.current;
     while (current === generation.current && Date.now() < Date.parse(setup.expires_at)) {
       const status = await api.poll(setup.connection.id);
-      if (status.status === 'connected') { setPending(null); setSelected(null); await refresh(); return; }
+      if (current !== generation.current || expected !== currentTarget()) return;
+      if (status.status === 'connected') { setPending(null); setSelected(null); setNotice(`${setup.connection.display_name} connected to this server.`); await refresh(); return; }
       if (status.status === 'cancelled') { setPending(null); throw new Error('Authorization cancelled'); }
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
     if (current === generation.current) { setPending(null); throw new Error('Authorization expired. Connect again.'); }
   }
   async function connect() {
-    if (!selected) return;
-    setBusy(true); setError('');
+    const expected = boundTarget.current;
+    if (!selected || !expected || expected !== currentTarget()) return;
+    setBusy(true); setError(''); setNotice('');
     try {
       const config: Record<string, string | number> = {};
       if (selected.id === 'replio') config.organization_id = account.trim();
@@ -53,27 +79,29 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
         body.credentials = { imap_password: mail.password, smtp_password: mail.smtp_password || mail.password };
       }
       const setup = await api.create(body);
+      if (expected !== currentTarget() || expected !== boundTarget.current) return;
       setToken(''); setMail({ mailbox: 'INBOX' });
-      await authorize(setup);
-    } catch (e) { setError(e instanceof Error && e.message === 'Authorization cancelled' ? e.message : 'Could not connect. Check your account details or try authorization again.'); }
-    finally { setBusy(false); }
+      await authorize(setup, expected);
+    } catch (e) { if (expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError(e instanceof Error && e.message === 'Authorization cancelled' ? e.message : 'Could not connect. Check your account details or try authorization again.'); } }
+    finally { if (expected === currentTarget() && expected === boundTarget.current) setBusy(false); }
   }
-  async function action(operation: () => Promise<unknown>) { setError(''); try { await operation(); await refresh(); } catch { setError('The server could not update this connection. Try again.'); } }
+  async function action(operation: (expected: string) => Promise<unknown>) { const expected = boundTarget.current; if (!expected || expected !== currentTarget()) return; setError(''); setNotice(''); try { await operation(expected); if (expected === currentTarget()) await refresh(); } catch { if (expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError('The server could not update this connection. Try again.'); } } }
   return <View style={styles.root}>
     <Text style={styles.title}>Official connectors</Text>
     <Text style={styles.subtitle}>OpenAgent provides the integration. Your server stores credentials and connects directly to the service.</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
+    {!!notice && <Text accessibilityRole="alert" style={styles.subtitle}>{notice}{!showConnections ? ' Manage it in Official.' : ''}</Text>}
     {!available && <Text style={styles.subtitle}>Official connectors are not available on this server yet.</Text>}
     {showConnections && !selected && connections.filter(c => c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
       <Text style={styles.name}>{c.display_name}</Text><Text style={styles.subtitle}>{c.status}</Text>
       <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} value={!!c.enabled} onValueChange={enabled => void action(() => api.update(c.id, { enabled }))} /></View>
       <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} value={!!c.allow_write} onValueChange={allow_write => void action(() => api.update(c.id, { allow_write }))} /></View>
-      <View style={styles.row}>{catalog.find(item => item.id === c.catalog_id)?.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !catalog.find(item => item.id === c.catalog_id)?.available ? 0.45 : 1 }} disabled={busy || !catalog.find(item => item.id === c.catalog_id)?.available} onPress={() => void action(async () => { setBusy(true); try { await authorize(await api.connect(c.id)); } finally { setBusy(false); } })}><Text style={styles.link}>Reconnect</Text></Pressable>}
+      <View style={styles.row}>{catalog.find(item => item.id === c.catalog_id)?.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !catalog.find(item => item.id === c.catalog_id)?.available ? 0.45 : 1 }} disabled={busy || !catalog.find(item => item.id === c.catalog_id)?.available} onPress={() => void action(async expected => { setBusy(true); try { await authorize(await api.connect(c.id), expected); } finally { if (expected === currentTarget()) setBusy(false); } })}><Text style={styles.link}>Reconnect</Text></Pressable>}
         <Pressable accessibilityRole="button" onPress={() => void action(() => api.disconnect(c.id))}><Text style={styles.link}>Disconnect from this server</Text></Pressable></View>
       <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>
     </View>)}
     {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
-    {!selected && <View style={styles.grid}>{catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.toLowerCase())).map(item => <Pressable accessibilityRole="button" accessibilityLabel={`Connect ${item.name}`} key={item.id} disabled={!item.available || busy} style={[styles.card, styles.tile]} onPress={() => { setSelected(item); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); }}>
+    {!selected && <View style={styles.grid}>{catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.toLowerCase())).map(item => <Pressable accessibilityRole="button" accessibilityLabel={`Connect ${item.name}`} key={item.id} disabled={!item.available || busy} style={[styles.card, styles.tile]} onPress={() => { setSelected(item); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice(''); }}>
       <View style={styles.row}><Feather name={(['mail', 'hard-drive', 'shopping-bag', 'check-square', 'share-2', 'bar-chart-2', 'credit-card', 'message-square', 'message-circle', 'trending-up', 'inbox', 'github'].includes(item.icon || '') ? item.icon : 'link') as React.ComponentProps<typeof Feather>['name']} size={26} color={colors.accent} /><Text style={styles.badge}>OpenAgent · Official</Text></View>
       <Text style={styles.name}>{item.name}</Text><Text style={styles.subtitle}>{item.description}</Text><Text style={styles.subtitle}>{item.available ? item.auth === 'oauth' ? 'Connect account' : item.auth === 'token' ? 'Connect with API token' : 'Configure account' : item.unavailableReason || 'Not available yet'}</Text>
     </Pressable>)}</View>}
