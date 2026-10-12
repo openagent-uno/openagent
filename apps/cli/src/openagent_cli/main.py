@@ -3131,13 +3131,17 @@ async def _mcps_menu(client: GatewayClient):
 
         console.print(
             "[cyan]t<#>[/cyan] toggle, [cyan]a[/cyan]dd builtin, [cyan]c[/cyan]ustom, "
-            "[cyan]r<#>[/cyan] remove, [cyan]q[/cyan]uit"
+            "[cyan]r<#>[/cyan] remove, [cyan]o[/cyan]fficial marketplace, [cyan]q[/cyan]uit"
         )
         action = Prompt.ask("Action", default="q").strip().lower()
         if action in ("q", ""):
             return
 
-        if action.startswith("t") and action[1:].isdigit():
+        if action == "o":
+            from .connectors import official_menu
+            await official_menu(client, console)
+
+        elif action.startswith("t") and action[1:].isdigit():
             idx = int(action[1:]) - 1
             if 0 <= idx < len(rows):
                 name = rows[idx].get("name")
@@ -3830,6 +3834,10 @@ async def _send_files(client: GatewayClient, filepaths: list[str], session_id: s
         session_id,
         attachments=uploaded,
     )
+
+
+from .connectors import register as _register_connectors
+_register_connectors(cli, _open_gateway_for_rest, _disconnect_remote, console)
 
 
 def main():

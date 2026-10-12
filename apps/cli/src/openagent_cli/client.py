@@ -1101,22 +1101,27 @@ class GatewayClient:
 
     async def rest_get(self, path: str) -> dict:
         async with self._session.get(f"{self.base_url}{path}") as r:
+            r.raise_for_status()
             return await r.json()
 
     async def rest_patch(self, path: str, data) -> dict:
         async with self._session.patch(f"{self.base_url}{path}", json=data) as r:
+            r.raise_for_status()
             return await r.json()
 
     async def rest_put(self, path: str, data) -> dict:
         async with self._session.put(f"{self.base_url}{path}", json=data) as r:
+            r.raise_for_status()
             return await r.json()
 
     async def rest_post(self, path: str, data=None) -> dict:
         async with self._session.post(f"{self.base_url}{path}", json=data if data is not None else {}) as r:
+            r.raise_for_status()
             return await r.json()
 
     async def rest_delete(self, path: str) -> dict:
         async with self._session.delete(f"{self.base_url}{path}") as r:
+            r.raise_for_status()
             try:
                 return await r.json()
             except Exception:

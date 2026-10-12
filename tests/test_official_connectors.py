@@ -89,6 +89,21 @@ async def test_token_is_encrypted_and_never_returned_by_management(fixture):
 
 
 @pytest.mark.asyncio
+async def test_missing_runner_keeps_official_catalog_visible_without_enrollment(fixture):
+    service, context, _, authorizer = fixture
+    service.runner = None
+    result = await service.catalog(context)
+    assert result["available"] is False
+    assert {"gmail", "shopify", "clickup", "replio", "google-drive", "imap_smtp"} <= {item["id"] for item in result["connectors"]}
+    assert all(item["available"] is False for item in result["connectors"])
+    with pytest.raises(RuntimeError, match="runner"):
+        await service.create(context, {"catalog_id": "replio"})
+    authorizer.allowed = False
+    with pytest.raises(PermissionError):
+        await service.catalog(context)
+
+
+@pytest.mark.asyncio
 async def test_connection_cannot_be_used_by_another_principal_or_audience(fixture):
     service, context, _, _ = fixture
     result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})

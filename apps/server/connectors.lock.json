@@ -1,62 +1,62 @@
 {
   "format": 1,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "source_repository": "openagent-uno/openagent-tools",
-  "source_ref": "connectors-v0.1.0",
-  "source_commit": "cd40539756144419e6d86d235855d8b92d86596e",
-  "manifest_sha256": "55e9e5768c4521af68022e1fd13e54b83d39a85612cb57f25f6c031403d73642",
+  "source_ref": "connectors-v0.1.1",
+  "source_commit": "8a0f004323cb0f5166c5d6b7f512bcc141a9e983",
+  "manifest_sha256": "ee688cd813a21450b393915e161cb01202ea5bcb85554efb605096af1e22d7e8",
   "assets": {
     "catalog.json": {
       "sha256": "1d9b37d6d94231a1d7c2066f6fb907f9ed8ac0a23234293be73cbe6a1fedef8c",
       "bytes": 9745
     },
-    "openagent-connectors-0.1.0-darwin-arm64.tar.gz": {
-      "sha256": "78377da8c61ffab9e6634b3b122f524a771096a22c8f7f599636ca8b4362dec1",
-      "bytes": 6637197
+    "openagent-connectors-0.1.1-darwin-arm64.tar.gz": {
+      "sha256": "b70a39796bbfd3316ee792658e902d3d431d7d7716de9d0b7ef06c6f17b2c334",
+      "bytes": 6648201
     },
-    "openagent-connectors-0.1.0-darwin-x64.tar.gz": {
-      "sha256": "9e02d6f1769d8f7301e0a58761c459fd35c99305665695516bbd19a3ee0ee678",
-      "bytes": 7207581
+    "openagent-connectors-0.1.1-darwin-x64.tar.gz": {
+      "sha256": "7f5d683d5331744eeac4b49fc9d793ee35c888c586b9b0d2ba009648dc3d1b58",
+      "bytes": 7219447
     },
-    "openagent-connectors-0.1.0-linux-arm64.tar.gz": {
-      "sha256": "9148f59d2db6132276c11e040c884112888f9f1f3e772657ae6f09adf9f29cae",
-      "bytes": 6397214
+    "openagent-connectors-0.1.1-linux-arm64.tar.gz": {
+      "sha256": "f487c10e1cd8e7ce44b4e591cfd171083d4b6eb1e068aba8baa5f15ba82aedc3",
+      "bytes": 6405673
     },
-    "openagent-connectors-0.1.0-linux-x64.tar.gz": {
-      "sha256": "db15a3ec7ed87356edcc2e7a6a788a1151425332b8e331597c33e9031d6a5546",
-      "bytes": 7099849
+    "openagent-connectors-0.1.1-linux-x64.tar.gz": {
+      "sha256": "9166e01d2e51dc6546026700abd64e5b5396f4ce85fa9ea5718bb02a6f804ca4",
+      "bytes": 7108180
     },
-    "openagent-connectors-0.1.0-win32-arm64.tar.gz": {
-      "sha256": "9e3fb0267b582a897897ac40c2db1daf40ee3df24254c6499adc607a275885cc",
-      "bytes": 6459008
+    "openagent-connectors-0.1.1-win32-arm64.tar.gz": {
+      "sha256": "c96bdd1b2b0345d6c3dc3d52f169dc300602bc275037f372f37a6a48a9a2893f",
+      "bytes": 6470411
     },
-    "openagent-connectors-0.1.0-win32-x64.tar.gz": {
-      "sha256": "905c05c9da43eda33428233e074d6f36fc25ca2390f16a85ed73b736dd963880",
-      "bytes": 7247763
+    "openagent-connectors-0.1.1-win32-x64.tar.gz": {
+      "sha256": "f54a8e0c391ed0f770e0d6cb858cc2ed0fec3b394347f44773ee2f6221efbad1",
+      "bytes": 7257940
     },
-    "openagent_connectors-0.1.0-py3-none-any.whl": {
-      "sha256": "45384f923d4a02a3ba5a6065ba2bf7aa7af1e188b78d8fa8fb83c9f2009fc9dc",
-      "bytes": 2966
+    "openagent_connectors-0.1.1-py3-none-any.whl": {
+      "sha256": "1988a009cc3bca456c3be483be450412f7b9379801e95d0165fd5870a9c80a26",
+      "bytes": 5658
     }
   },
   "platforms": {
-    "darwin-arm64": {
-      "manifest_sha256": "aa95d614a5cc94856c4cc5bbdcc8489fdb922864aac1efa78c704af833b1c7bb"
-    },
     "darwin-x64": {
-      "manifest_sha256": "b109667f65fdbd290240c353709899479fcec432a29cbb49420e51f72d85a8a2"
+      "manifest_sha256": "99c7e8a6cc3d4406742d3feff6d90089d12427a59d45146b4caedfecf9dd67cd"
     },
-    "linux-arm64": {
-      "manifest_sha256": "74557a03c695890173c3a6fbfa78b56b3d57e87bca7a2f33312378d476d0a3c3"
-    },
-    "linux-x64": {
-      "manifest_sha256": "379858b3cd8ba8f53071a37af291b50bcbad73cba4eeb30df456b4757210e67b"
+    "darwin-arm64": {
+      "manifest_sha256": "a54ce4824860d163795ac4f8cf9ef54fe9592d15a68c2620d7f328885ff65083"
     },
     "win32-arm64": {
-      "manifest_sha256": "c9df55088e188120ec7d66bef37cd1012a544615729718e24cc5a1f7ff50735c"
+      "manifest_sha256": "48d7066d794ac43bd11f6b36a5a6394ac6bd8a678c6a950d3bfe0e32ebe527b6"
+    },
+    "linux-arm64": {
+      "manifest_sha256": "566f2d0e2bb8ae5d8231953cd57b6ba9f07bc1e1293973af332c66a6939484d8"
+    },
+    "linux-x64": {
+      "manifest_sha256": "2989f25df1ce46de90c951e60d1beb5975460e037a23421ce4d103e1b6db67a8"
     },
     "win32-x64": {
-      "manifest_sha256": "ff6e1c75668a124b614d0175afdd9bc2545034fbd291267326ace762145fe4e7"
+      "manifest_sha256": "13a8c4235216573feeebe0e396f711e9160fb7b0c1cbef7b591b215282deea5f"
     }
   }
 }

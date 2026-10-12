@@ -1914,11 +1914,11 @@ export async function listServingAccounts(): Promise<ProviderAccounts[]> {
 }
 
 
-export interface OfficialConnector { id: string; name: string; description: string; auth: string; category: string; provider: string; capability: string; available: boolean; unavailableReason?: string; readTools: string[]; agentTools: string[] }
+export interface OfficialConnector { id: string; name: string; description: string; auth: string; category: string; provider: string; capability: string; icon?: string; available: boolean; unavailableReason?: string; readTools: string[]; agentTools: string[] }
 export interface OfficialConnection { id: string; catalog_id: string; display_name: string; enabled: boolean; allow_write: boolean; status: string; app_id?: string; created_at: string }
 export interface OfficialConnectorSetup { connection: OfficialConnection; authorization_url?: string; expires_at?: string; authorization_mode?: string; authorization_origin?: string }
 export const officialConnectorsAPI = {
- catalog: () => get<{ available: boolean; connectors: OfficialConnector[] }>('/api/connectors/catalog'),
+ catalog: () => get<{ available: boolean; connectors: OfficialConnector[] }>('/api/marketplace/official'),
  list: () => get<{ available: boolean; connections: OfficialConnection[] }>('/api/connectors'),
  create: (body: object) => post<OfficialConnectorSetup>('/api/connectors', body),
  connect: (id: string) => post<OfficialConnectorSetup>(`/api/connectors/${encodeURIComponent(id)}/connect`),

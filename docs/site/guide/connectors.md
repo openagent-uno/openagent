@@ -2,7 +2,7 @@
 
 OpenAgent provides one shared connector implementation for the standalone server, GlassPalace, ICS and other products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
-The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing GlassPalace/ICS own-app connections continue to use their original registration until you explicitly authorize a new one.
+The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback once enabled.
 
 ## Connector library
 
@@ -24,7 +24,25 @@ Custom MCP servers remain available alongside official connectors. Embedding pro
 
 ## Connect and disconnect
 
-In the standalone client, open **MCPs → Official**, select the connector, and authorize in the browser or enter the required account credentials. OAuth disclosure identifies the product and the particular receiving installation. Third-party products may use the shared protocol; an operator-supplied name does not mean OpenAgent has approved that product.
+In the standalone client, open **MCPs → Official**, or the official section in **Browse**, select the connector, and authorize in the browser or enter the required account credentials. GlassPalace and ICS display these integrations in their **MCP marketplace** alongside custom MCP endpoints. OAuth disclosure identifies the product and the particular receiving installation. Third-party products may use the shared protocol; an operator-supplied name does not mean OpenAgent has approved that product.
+
+The server exposes the authenticated catalog at `GET /api/marketplace/official`; `GET /api/connectors/catalog` remains compatible. Unavailable entries include their reason; neither response contains credentials.
+
+The CLI uses the same authenticated server and permissions:
+
+```sh
+openagent-cli marketplace official
+openagent-cli marketplace official gmail --json
+openagent-cli marketplace search filesystem
+openagent-cli connectors list
+openagent-cli connectors connect replio
+openagent-cli connectors reconnect <connection-id>
+openagent-cli connectors configure <connection-id> --read-only
+openagent-cli connectors configure <connection-id> --disabled
+openagent-cli connectors disconnect <connection-id>
+```
+
+Select a saved membership with `--network`, `--agent` and `--handle`. Tokens/account passwords use hidden interactive input, rather than command arguments. OAuth opens the browser and polls through the authenticated outgoing connection. The interactive `/mcps` menu also offers the official marketplace.
 
 Each server keeps its own encrypted token copy. Connecting the same Shopify shop to another server requires a fresh verified Shopify consent and explicit authorization of that recipient. Token rotation is serialized per app/shop and synchronized in temporary encrypted messages. A server that missed a message can request a current peer copy; if none is available it needs a new consent.
 
@@ -42,4 +60,4 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.0/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/codex/shared-official-connectors/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.1/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/codex/shared-official-connectors/deploy/connector-auth) describes provider registration and activation gates.

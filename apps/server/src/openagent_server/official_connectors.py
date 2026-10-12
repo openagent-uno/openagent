@@ -184,7 +184,13 @@ class OfficialConnectors:
     async def catalog(self, context):
         await self.check(context)
         if not self.runner:
-            return {"available": False, "connectors": []}
+            from openagent_connectors.catalog import bundled_catalog
+            items = bundled_catalog()
+            for item in items:
+                if item["available"]:
+                    item["available"] = False
+                    item["unavailableReason"] = "The connector runner is not installed on this server."
+            return {"available": False, "connectors": items}
         items = []
         for original in await self.runner.call("catalog"):
             if original.get("nativeKind"):

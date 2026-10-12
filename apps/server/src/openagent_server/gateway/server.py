@@ -1536,6 +1536,7 @@ class Gateway:
             ("GET", "/api/commands", commands_api.handle_list),
             # DB-backed MCP registry.
             ("GET", "/api/connectors/catalog", official_connectors_api.catalog),
+            ("GET", "/api/marketplace/official", official_connectors_api.catalog),
             ("GET", "/api/connectors", official_connectors_api.connections),
             ("POST", "/api/connectors", official_connectors_api.create),
             ("POST", "/api/connectors/{connection_id}/connect", official_connectors_api.connect),

@@ -327,6 +327,13 @@ export default function McpsScreen() {
           />
         )}
         {mode === 'browse' && (
+          <View style={{ gap: 24 }}>
+          <View style={[styles.searchBox, styles.searchBoxLarge]}>
+            <Feather name="search" size={15} color={colors.textMuted} />
+            <TextInput accessibilityLabel="Search official connectors and MCP registry" value={mktQuery} onChangeText={setMktQuery} placeholder="Search official connectors and MCP registry" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={[styles.searchInput, { fontSize: 14 }]} />
+            {mktLoading && <ActivityIndicator size="small" color={colors.primary} />}
+          </View>
+          <OfficialConnectorsPane query={mktQuery} showConnections={false} />
           <MarketplacePane
             query={mktQuery}
             setQuery={setMktQuery}
@@ -339,6 +346,7 @@ export default function McpsScreen() {
             onInstallClick={onInstallClick}
             onLoadMore={() => runSearch(mktQuery.trim(), mktCursor, true)}
           />
+          </View>
         )}
         {mode === 'new' && (
           <NewPane
@@ -488,25 +496,11 @@ interface MarketplacePaneProps {
 }
 
 function MarketplacePane({
-  query, setQuery, loading, error, results, cursor, cols,
+  query, loading, error, results, cursor, cols,
   installedNames, onInstallClick, onLoadMore,
 }: MarketplacePaneProps) {
   return (
     <View style={{ gap: 14 }}>
-      <View style={[styles.searchBox, styles.searchBoxLarge]}>
-        <Feather name="search" size={15} color={colors.textMuted} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search the MCP registry — try 'github', 'sqlite', 'browser'"
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={[styles.searchInput, { fontSize: 14 }]}
-        />
-        {loading && <ActivityIndicator size="small" color={colors.primary} />}
-      </View>
-
       <View style={styles.previewRibbon}>
         <Feather name="info" size={10} color={colors.textMuted} />
         <Text style={styles.previewRibbonText}>

@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup } from '../../services/api';
 import { colors, radius } from '../../theme';
+import Feather from '@expo/vector-icons/Feather';
 
-export default function OfficialConnectorsPane() {
+export default function OfficialConnectorsPane({ query = '', showConnections = true }: { query?: string; showConnections?: boolean }) {
   const [catalog, setCatalog] = useState<OfficialConnector[]>([]);
   const [connections, setConnections] = useState<OfficialConnection[]>([]);
   const [available, setAvailable] = useState(true);
@@ -63,7 +64,7 @@ export default function OfficialConnectorsPane() {
     <Text style={styles.subtitle}>OpenAgent provides the integration. Your server stores credentials and connects directly to the service.</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     {!available && <Text style={styles.subtitle}>Official connectors are not available on this server yet.</Text>}
-    {!selected && connections.filter(c => c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
+    {showConnections && !selected && connections.filter(c => c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
       <Text style={styles.name}>{c.display_name}</Text><Text style={styles.subtitle}>{c.status}</Text>
       <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} value={!!c.enabled} onValueChange={enabled => void action(() => api.update(c.id, { enabled }))} /></View>
       <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} value={!!c.allow_write} onValueChange={allow_write => void action(() => api.update(c.id, { allow_write }))} /></View>
@@ -72,8 +73,9 @@ export default function OfficialConnectorsPane() {
       <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>
     </View>)}
     {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
-    {!selected && <View style={styles.grid}>{catalog.map(item => <Pressable accessibilityRole="button" accessibilityLabel={`Connect ${item.name}`} key={item.id} disabled={!item.available || busy} style={[styles.card, styles.tile, !item.available && { opacity: 0.5 }]} onPress={() => { setSelected(item); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); }}>
-      <Text style={styles.name}>{item.name}</Text><Text style={styles.subtitle}>{item.description}</Text>{!item.available && <Text style={styles.subtitle}>{item.unavailableReason || 'Not available yet'}</Text>}
+    {!selected && <View style={styles.grid}>{catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.toLowerCase())).map(item => <Pressable accessibilityRole="button" accessibilityLabel={`Connect ${item.name}`} key={item.id} disabled={!item.available || busy} style={[styles.card, styles.tile]} onPress={() => { setSelected(item); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); }}>
+      <View style={styles.row}><Feather name={(['mail', 'hard-drive', 'shopping-bag', 'check-square', 'share-2', 'bar-chart-2', 'credit-card', 'message-square', 'message-circle', 'trending-up', 'inbox', 'github'].includes(item.icon || '') ? item.icon : 'link') as React.ComponentProps<typeof Feather>['name']} size={26} color={colors.accent} /><Text style={styles.badge}>OpenAgent · Official</Text></View>
+      <Text style={styles.name}>{item.name}</Text><Text style={styles.subtitle}>{item.description}</Text><Text style={styles.subtitle}>{item.available ? item.auth === 'oauth' ? 'Connect account' : item.auth === 'token' ? 'Connect with API token' : 'Configure account' : item.unavailableReason || 'Not available yet'}</Text>
     </Pressable>)}</View>}
     {selected && !pending && <View style={styles.card}>
       <Text style={styles.name}>Connect {selected.name}</Text>
@@ -98,4 +100,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, color: colors.text },
   link: { color: colors.accent, paddingVertical: 8, fontWeight: '600' },
+  badge: { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
 });
