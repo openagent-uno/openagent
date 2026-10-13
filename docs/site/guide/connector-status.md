@@ -59,9 +59,17 @@ save, Manage, disable and disconnect passed; fixture credentials were removed.
 
 ICS native development acceptance used a new local account, workspace and
 server, not the user's installation. The encrypted Replio fixture persisted
-a renderer reload. Both Go products' focused frontend suites passed 53 checks.
+a renderer reload. Local removal then revoked the fixture and cleared its
+credential/nonce. After a complete private-server restart, the native client
+kept its authenticated workspace and showed the catalog with no installed
+connections. Both Go products' focused frontend suites passed 53 checks.
 These checks do not establish real OAuth access, signed installed releases,
 Windows/Linux native acceptance or completion of privacy actions.
+
+Nineteen focused standalone storage/authorization checks also passed with the
+verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
+privacy-event cases preserve encrypted records; restoring the original key
+allows the credential to be read after restart.
 
 ## Remaining implementation and activation gates
 
