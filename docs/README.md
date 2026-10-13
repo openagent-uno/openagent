@@ -55,3 +55,9 @@ The canonical website source and GitHub Pages workflow live under `docs/site`
 and `.github/workflows/docs-pages.yml`. The historical `openagent-docs`
 repository retains its deployment history and a source mirror, but no longer
 owns the public domain.
+
+The host-tools NDJSON producer writes explicit UTF-8 bytes independently of
+Windows locale and frozen-interpreter environment handling. The three encoding
+regressions live in `packages/host-tools/tests/test_stdio_encoding.py`; the
+compatibility 0.1.3 build for existing consumers retains its independent release
+and does not change this product's host-tools version or dependency closure.
