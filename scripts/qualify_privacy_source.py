@@ -16,7 +16,7 @@ import sys
 import tomllib
 import urllib.request
 
-CORE_SOURCE = 'be25452dfce12deea166949b5e9df349d3eac2ef'
+CORE_SOURCE = '9d9603f76999e77f13c6d7f2024aa061891dcd8f'
 PRODUCT_BASE = 'be8647fa247389feeb7df3499732f49b2e020a73'
 SDK_SOURCE = 'a5f81d65a0d7939473b30759276fa719272fda4a'
 BASES = {
