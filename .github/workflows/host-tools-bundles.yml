@@ -241,6 +241,14 @@ jobs:
           test -s dist/release-index.json
       - uses: actions/upload-artifact@v4
         with:
+          name: host-tools-candidate-metadata
+          path: |
+            dist/release-index.json
+            dist/openagent_host_tools-*.whl
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
           name: host-tools-${{ inputs.signing_mode }}-candidate
           path: |
             dist/openagent-host-tools-*.tar.gz
