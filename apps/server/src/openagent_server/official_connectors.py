@@ -21,9 +21,14 @@ from openagent_core.contracts import ResourceRef, require_authorized
 
 
 class OfficialConnectorSource:
-    def __init__(self, service, connection_id):
+    def __init__(self, service, connection_id, *, registered=False):
         self.service, self.connection_id = service, connection_id
+        self.registered = registered
         self.privacy = None
+
+    def require_current_registration(self):
+        if self.registered and self.service.sources.get(self.connection_id) is not self:
+            raise PermissionError("Connector source registration was replaced")
 
     async def discover(self, context):
         row = await self.service.record(self.connection_id)
@@ -36,7 +41,9 @@ class OfficialConnectorSource:
                      for tool in tools)
 
     async def call_tool(self, name, arguments, context):
+        self.require_current_registration()
         row = await self.service.record(self.connection_id)
+        self.require_current_registration()
         if not self.service.can_use(context, row):
             raise PermissionError("Connector binding is unavailable")
         admitted = row
@@ -52,6 +59,7 @@ class OfficialConnectorSource:
         call_id = uuid.uuid4().hex
         await self.service.audit(row, name, call_id, "admitted")
         try:
+            self.require_current_registration()
             result = await self.service.runner.call("invoke", {
                 "binding": self.service.binding(row, token), "tool": name,
                 "arguments": dict(arguments), "invocation_id": call_id,
@@ -95,6 +103,7 @@ class OfficialConnectors:
                                           oauth_providers=config.get("oauth_providers_file"))
         self.key = None
         self.lock = asyncio.Lock()
+        self.sources = {}
         self.task = None
 
     @property
@@ -371,11 +380,15 @@ class OfficialConnectors:
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
         return json.loads(AESGCM(self.key).decrypt(row["nonce"], row["credential"], aad))
 
-    @staticmethod
-    def source_snapshot(row):
+    def source_snapshot(self, row):
+        token = self.decrypt(row)
+        authorized_at = token.get("authorized_at")
+        if authorized_at is not None:
+            authorized_at = datetime.fromisoformat(authorized_at.replace("Z", "+00:00"))
         return tuple(row[key] for key in (
             "id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
-            "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id"))
+            "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id")) + (
+                authorized_at, token.get("external_id"), tuple(token.get("scopes", ())))
 
     def same_consent(self, row, token):
         previous = self.decrypt(row)
@@ -428,7 +441,8 @@ class OfficialConnectors:
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog and self.runner:
             catalog.revoke(self.source_id(connection_id))
-            source = OfficialConnectorSource(self, connection_id)
+            self.sources.pop(connection_id, None)
+            source = OfficialConnectorSource(self, connection_id, registered=True)
             options = {}
             publisher = getattr(self.privacy_processor,'publisher',None)
             if publisher is not None:
@@ -443,6 +457,7 @@ class OfficialConnectors:
                     source.privacy=OfficialConnectorProvenance(self,connection_id,publisher)
                     options.update(invocation_provenance=source.privacy.invocation,result_provenance=source.privacy.result)
                     options['privacy_fenced']['commerce.shopify.customers.update']=True
+            self.sources[connection_id] = source
             catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector", **options)
 
     async def attach_sources(self):
@@ -462,6 +477,7 @@ class OfficialConnectors:
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog:
             catalog.revoke(self.source_id(connection_id))
+        self.sources.pop(connection_id, None)
         if (await self.record(connection_id))["enabled"]:
             await self.register_source(connection_id)
         return self.public(await self.record(connection_id))
@@ -476,6 +492,7 @@ class OfficialConnectors:
             catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
             if catalog:
                 catalog.revoke(self.source_id(connection_id))
+            self.sources.pop(connection_id, None)
             if group and self.runner:
                 try:
                     await self.runner.call("sync.disconnect", {"group": group})
@@ -502,9 +519,12 @@ class OfficialConnectors:
 
     async def current_token(self, row, *, context=None):
         async with self.lock:
+            admitted = row
             row = await self.record(row["id"])
             if context is not None and not self.can_use(context, row):
                 raise PermissionError("Connector binding is unavailable")
+            if context is not None and self.source_snapshot(admitted) != self.source_snapshot(row):
+                raise PermissionError("Connector consent or permissions changed before authentication")
             token = self.decrypt(row)
             expiry = token.get("expires_at")
             if expiry and datetime.fromisoformat(expiry.replace("Z", "+00:00")).timestamp() < datetime.now(timezone.utc).timestamp() + 120:

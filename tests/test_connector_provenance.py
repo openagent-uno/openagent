@@ -189,3 +189,43 @@ async def test_late_renewal_cannot_restore_a_disconnected_connection(tmp_path):
         assert await server.runtime.capabilities.discover(server.context) == ()
     finally:
         await server.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('legacy', [False, True])
+async def test_new_consent_before_token_lock_cannot_use_old_reference_for_provider_io(tmp_path, legacy):
+    server = await owned_server(tmp_path/'owned', 'tenant')
+    runner = RenewingProviderFixture()
+    server.service.runner = runner
+    try:
+        async with aiosqlite.connect(server.service.db_path) as db:
+            await db.execute("UPDATE official_connector_connections SET status='pending' WHERE id='connection'")
+            await db.commit()
+        original = {'access_token':'synthetic-held', 'app_id':'app', 'group':'' if legacy else 'group',
+                    'expires_at':'2099-01-01T00:00:00Z', 'version':1}
+        if not legacy:
+            original['authorized_at'] = '2026-10-13T10:00:00Z'
+        await server.service.save(await server.service.record('connection'), original)
+        context = replace(server.context, session_id='lock-race-session')
+        await server.canonical.accept(RunRequest('lock-race-run', context.session_id, 'lock-race-key', 'READ'), context)
+        await server.canonical.transition('lock-race-run', 'running')
+        reference = (await server.runtime.capabilities.discover(context))[0].tool_ref
+        current_token = server.service.current_token
+        async def replace_before_lock(row, *, context=None):
+            async with aiosqlite.connect(server.service.db_path) as db:
+                await db.execute("UPDATE official_connector_connections SET transaction_id='new-grant' WHERE id='connection'")
+                await db.commit()
+            replacement = {**original, 'access_token':'synthetic-new-grant'}
+            if not legacy:
+                replacement['authorized_at'] = '2026-10-13T11:00:00Z'
+            await server.service.save(await server.service.record('connection'), replacement,
+                                      authorization_transaction='new-grant')
+            return await current_token(row, context=context)
+        server.service.current_token = replace_before_lock
+        with execution_scope(server.runtime, context, 'lock-race-run'):
+            with pytest.raises(PermissionError):
+                await server.runtime.capabilities.call_tool(reference, {'id':'gid://shopify/Customer/23'}, context)
+        assert runner.invocations == [] and runner.refreshes == 0
+        assert server.service.decrypt(await server.service.record('connection'))['access_token'] == 'synthetic-new-grant'
+    finally:
+        await server.close()
