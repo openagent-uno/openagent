@@ -56,6 +56,20 @@ and `.github/workflows/docs-pages.yml`. The historical `openagent-docs`
 repository retains its deployment history and a source mirror, but no longer
 owns the public domain.
 
+The candidate privacy job bridge in `openagent_server.connector_privacy` maps
+immutable authenticated connector receipts into upstream Core privacy requests.
+Occurrence timestamps fence original consent generations; customer/order IDs are
+provider-validated numeric selectors. Durable receipt ACK and local processing
+status remain separate. Processing retries across restarts and broker outages;
+historical payload-only receipts remain blocked pending authenticated redelivery.
+The candidate normal startup installs the tracker through strict opt-in before
+runtime recovery and source registration. No runtime currently injects a fully
+covered processor, and the published Core
+pins do not yet contain these candidate APIs. Shopify enrollment remains closed
+until canonical content writer coverage, sink completion, protected export
+delivery and consumer qualification are complete. Tests using Core source candidates
+are source qualification, never installed-wheel or product-release acceptance.
+
 The host-tools NDJSON producer writes explicit UTF-8 bytes independently of
 Windows locale and frozen-interpreter environment handling. The three encoding
 regressions live in `packages/host-tools/tests/test_stdio_encoding.py`; the

@@ -21,8 +21,14 @@ from openagent_core.contracts import ResourceRef, require_authorized
 
 
 class OfficialConnectorSource:
-    def __init__(self, service, connection_id):
+    def __init__(self, service, connection_id, *, registered=False):
         self.service, self.connection_id = service, connection_id
+        self.registered = registered
+        self.privacy = None
+
+    def require_current_registration(self):
+        if self.registered and self.service.sources.get(self.connection_id) is not self:
+            raise PermissionError("Connector source registration was replaced")
 
     async def discover(self, context):
         row = await self.service.record(self.connection_id)
@@ -35,18 +41,25 @@ class OfficialConnectorSource:
                      for tool in tools)
 
     async def call_tool(self, name, arguments, context):
+        self.require_current_registration()
         row = await self.service.record(self.connection_id)
+        self.require_current_registration()
         if not self.service.can_use(context, row):
             raise PermissionError("Connector binding is unavailable")
-        token = await self.service.current_token(row)
+        admitted = row
+        token = await self.service.current_token(row, context=context)
         # Revalidate after authentication IO: disconnecting a connection can
         # never resurrect its tools or persist credentials into another owner.
         row = await self.service.record(self.connection_id)
-        if not self.service.can_use(context, row):
+        if (not self.service.can_use(context, row)
+                or self.service.source_snapshot(admitted) != self.service.source_snapshot(row)):
             raise PermissionError("Connector binding is unavailable")
+        if self.privacy is not None:
+            await self.privacy.before_io(name,context)
         call_id = uuid.uuid4().hex
         await self.service.audit(row, name, call_id, "admitted")
         try:
+            self.require_current_registration()
             result = await self.service.runner.call("invoke", {
                 "binding": self.service.binding(row, token), "tool": name,
                 "arguments": dict(arguments), "invocation_id": call_id,
@@ -60,8 +73,9 @@ class OfficialConnectorSource:
 
 
 class OfficialConnectors:
-    def __init__(self, runtime, *, runner=None):
+    def __init__(self, runtime, *, runner=None, privacy_processor=None):
         self.runtime, self.agent = runtime, runtime.agent
+        self.privacy_processor = privacy_processor
         self.db_path = Path(self.agent.memory_db.db_path)
         config = self.agent.config.get("connectors") or {}
         environment = dict(getattr(self.agent, "product_environment", os.environ))
@@ -89,11 +103,21 @@ class OfficialConnectors:
                                           oauth_providers=config.get("oauth_providers_file"))
         self.key = None
         self.lock = asyncio.Lock()
+        self.sources = {}
         self.task = None
 
     @property
     def available(self):
         return self.runner is not None
+
+    def privacy_enabled(self):
+        """Explicit tracker opt-in; configuration cannot attest sink coverage."""
+        value = (self.agent.config.get('connectors') or {}).get('privacy')
+        if value is None:
+            return False
+        if not isinstance(value, dict) or set(value) != {'enabled'} or type(value['enabled']) is not bool:
+            raise ValueError('Connector privacy accepts only an explicit enabled boolean')
+        return value['enabled']
 
     async def start(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -356,31 +380,91 @@ class OfficialConnectors:
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
         return json.loads(AESGCM(self.key).decrypt(row["nonce"], row["credential"], aad))
 
-    async def save(self, row, token, *, authorization_transaction=None):
+    def source_snapshot(self, row):
+        token = self.decrypt(row)
+        authorized_at = token.get("authorized_at")
+        if authorized_at is not None:
+            authorized_at = datetime.fromisoformat(authorized_at.replace("Z", "+00:00"))
+        return tuple(row[key] for key in (
+            "id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
+            "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id")) + (
+                authorized_at, token.get("external_id"), tuple(token.get("scopes", ())))
+
+    def same_consent(self, row, token):
+        previous = self.decrypt(row)
+        if any(previous.get(key) != token.get(key) for key in ("app_id", "external_id", "scopes")):
+            return False
+        if previous.get("group", "") != token.get("group", ""):
+            return False
+        old, new = previous.get("authorized_at"), token.get("authorized_at")
+        # Older product-owned apps lack a consent timestamp. Only a renewal
+        # of their exact held credential may preserve this legacy registration.
+        if old is None or new is None:
+            return old is None and new is None and not token.get("group")
+        try:
+            old = datetime.fromisoformat(old.replace("Z", "+00:00"))
+            new = datetime.fromisoformat(new.replace("Z", "+00:00"))
+        except (AttributeError, ValueError):
+            return False
+        return old.tzinfo is not None and new.tzinfo is not None and old == new
+
+    async def save(self, row, token, *, authorization_transaction=None, renewal=False):
+        if renewal and (authorization_transaction is not None or not self.same_consent(row, token)):
+            raise PermissionError("Renewal changed the connector consent or permissions")
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
         nonce = os.urandom(12)
         ciphertext = AESGCM(self.key).encrypt(nonce, json.dumps(token).encode(), aad)
         async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute("UPDATE official_connector_connections SET credential=?,nonce=?,app_id=?,group_id=?,token_version=?,status='connected',transaction_id=NULL WHERE id=? AND owner_key=? AND status!='disconnected' AND ((? IS NOT NULL AND transaction_id=?) OR (? IS NULL AND (app_id IS NULL OR app_id=?) AND token_version<=?))",
+            if renewal:
+                # Compare the credential and complete local binding atomically.
+                # Neither a new grant nor an ACL edit during authentication IO
+                # can be overwritten by this response.
+                keys = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
+                        "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
+                        "credential", "nonce", "token_version", "transaction_id")
+                cursor = await db.execute(
+                    "UPDATE official_connector_connections SET credential=?,nonce=?,token_version=? WHERE "
+                    + " AND ".join(key + " IS ?" for key in keys)
+                    + " AND status='connected' AND enabled=1 AND token_version<=?",
+                    (ciphertext, nonce, token.get("version", 0), *(row[key] for key in keys), token.get("version", 0)))
+            else:
+                cursor = await db.execute("UPDATE official_connector_connections SET credential=?,nonce=?,app_id=?,group_id=?,token_version=?,status='connected',transaction_id=NULL WHERE id=? AND owner_key=? AND status!='disconnected' AND ((? IS NOT NULL AND transaction_id=?) OR (? IS NULL AND (app_id IS NULL OR app_id=?) AND token_version<=?))",
                                      (ciphertext, nonce, token["app_id"], token.get("group", ""), token.get("version", 0),
                                       row["id"], row["owner_key"], authorization_transaction, authorization_transaction, authorization_transaction, token["app_id"], token.get("version", 0)))
             if cursor.rowcount != 1:
                 raise PermissionError("Connector was disconnected or credential generation changed")
             await db.commit()
-        self.register_source(row["id"])
+        if not renewal:
+            await self.register_source(row["id"])
 
-    def register_source(self, connection_id):
+    async def register_source(self, connection_id):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog and self.runner:
             catalog.revoke(self.source_id(connection_id))
-            source = OfficialConnectorSource(self, connection_id)
-            catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector")
+            self.sources.pop(connection_id, None)
+            source = OfficialConnectorSource(self, connection_id, registered=True)
+            options = {}
+            publisher = getattr(self.privacy_processor,'publisher',None)
+            if publisher is not None:
+                from .connector_provenance import OfficialConnectorProvenance, independent_result
+                row=await self.record(connection_id)
+                definitions=await self.runner.call('tools',self.binding(row,self.decrypt(row)))
+                # These declarations come from the verified local official
+                # runner, never custom MCP metadata or model annotations.
+                options['privacy_fenced']={tool['name']:tool['risk']=='read' for tool in definitions}
+                options['result_provenance']=independent_result
+                if row['provider']=='shopify' and row.get('group_id'):
+                    source.privacy=OfficialConnectorProvenance(self,connection_id,publisher)
+                    options.update(invocation_provenance=source.privacy.invocation,result_provenance=source.privacy.result)
+                    options['privacy_fenced']['commerce.shopify.customers.update']=True
+            self.sources[connection_id] = source
+            catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector", **options)
 
     async def attach_sources(self):
         async with aiosqlite.connect(self.db_path) as db:
             rows = await (await db.execute("SELECT id FROM official_connector_connections WHERE enabled=1 AND status='connected'")).fetchall()
         for row in rows:
-            self.register_source(row[0])
+            await self.register_source(row[0])
 
     async def update(self, context, connection_id, payload):
         row = await self.owned(context, connection_id)
@@ -393,8 +477,9 @@ class OfficialConnectors:
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog:
             catalog.revoke(self.source_id(connection_id))
+        self.sources.pop(connection_id, None)
         if (await self.record(connection_id))["enabled"]:
-            self.register_source(connection_id)
+            await self.register_source(connection_id)
         return self.public(await self.record(connection_id))
 
     async def disconnect(self, context, connection_id):
@@ -407,6 +492,7 @@ class OfficialConnectors:
             catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
             if catalog:
                 catalog.revoke(self.source_id(connection_id))
+            self.sources.pop(connection_id, None)
             if group and self.runner:
                 try:
                     await self.runner.call("sync.disconnect", {"group": group})
@@ -431,9 +517,14 @@ class OfficialConnectors:
                 "scheme": "" if row["catalog_id"] in {"shopify", "imap_smtp", "postiz"} else "Bearer",
                 "version": str(token.get("version", 0)), "expires_at": token.get("expires_at")}
 
-    async def current_token(self, row):
+    async def current_token(self, row, *, context=None):
         async with self.lock:
+            admitted = row
             row = await self.record(row["id"])
+            if context is not None and not self.can_use(context, row):
+                raise PermissionError("Connector binding is unavailable")
+            if context is not None and self.source_snapshot(admitted) != self.source_snapshot(row):
+                raise PermissionError("Connector consent or permissions changed before authentication")
             token = self.decrypt(row)
             expiry = token.get("expires_at")
             if expiry and datetime.fromisoformat(expiry.replace("Z", "+00:00")).timestamp() < datetime.now(timezone.utc).timestamp() + 120:
@@ -447,7 +538,7 @@ class OfficialConnectors:
                 token = rotation["token"]
                 token["group"] = rotation.get("group", "")
                 token["recipients"] = rotation.get("recipients", [])
-                await self.save(row, token)
+                await self.save(row, token, renewal=True)
                 if token["group"]:
                     await self.runner.call("auth.publish", rotation)
             return token
@@ -474,7 +565,7 @@ class OfficialConnectors:
             for row in rows:
                 if row["group_id"] == envelope["group"] and row["app_id"] == token["app_id"] and token.get("version") == envelope["version"] and token["version"] > row["token_version"] and token.get("external_id") == self.decrypt(row).get("external_id"):
                     token["group"] = row["group_id"]
-                    await self.save(row, token)
+                    await self.save(row, token, renewal=True)
                     await self.runner.call("sync.commit", {"group": row["group_id"], "version": token["version"]})
         for request in mail.get("recoveries", []):
             for row in rows:
@@ -491,6 +582,60 @@ class OfficialConnectors:
         for event in await self.runner.call("events"):
             await self.receive_event(event)
             await self.runner.call("events.ack", {"id": event["id"]})
+        await self.process_privacy_events()
+
+    async def process_privacy_events(self):
+        """Resume local work independently of broker delivery acknowledgements.
+
+        No configured processor means receipt remains pending. Old payload-only
+        rows remain blocked until authenticated redelivery restores occurrence
+        metadata. The Shopify admission gate remains separately closed.
+        """
+        if self.privacy_processor is None:
+            return
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            events = [dict(row) for row in await (await db.execute(
+                "SELECT * FROM official_connector_events WHERE status IN ('pending','blocked') ORDER BY received_at LIMIT 32")).fetchall()]
+            connections = [dict(row) for row in await (await db.execute(
+                "SELECT tenant_id,provider,app_id,group_id FROM official_connector_connections")).fetchall()]
+        for event in events:
+            status = 'blocked'
+            if event['receipt_format'] == 2:
+                try:
+                    receipt = json.loads(AESGCM(self.key).decrypt(event['nonce'],event['ciphertext'],event['id'].encode()))
+                    status = await self.privacy_processor.process(receipt,connections)
+                    if status not in {'complete','blocked','credential_revoked'}:
+                        status = 'blocked'
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    # Retries preserve origin metadata; no payload or exception
+                    # message enters receipts/logs after a sink failure.
+                    status = 'blocked'
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("UPDATE official_connector_events SET status=? WHERE id=? AND status IN ('pending','blocked')", (status,event['id']))
+                await db.commit()
+
+    async def privacy_export(self, context, request_id):
+        await self.check(context)
+        exports = getattr(self.privacy_processor, 'exports', None)
+        if exports is None:
+            raise RuntimeError('Local privacy export service is unavailable')
+        bundle = await exports.download(request_id, context)
+        return {'request_id': request_id, 'bundle': json.loads(bundle.payload),
+                'delivery_token': bundle.delivery_token}
+
+    async def privacy_export_ack(self, context, request_id, payload):
+        await self.check(context, write=True)
+        if not isinstance(payload, dict) or set(payload) != {'delivery_token'}:
+            raise ValueError('An exact export delivery receipt is required')
+        exports = getattr(self.privacy_processor, 'exports', None)
+        if exports is None:
+            raise RuntimeError('Local privacy export service is unavailable')
+        await exports.acknowledge(request_id, context, payload['delivery_token'])
+        await self.process_privacy_events()
+        return {'ok': True}
 
     async def receive_event(self, event):
         """Commit the complete verified broker receipt before delivery ACK.
@@ -555,4 +700,11 @@ class OfficialConnectors:
             except Exception:
                 # Errors never contain credentials; the next authenticated cycle
                 # resumes delivery, and current tokens remain usable.
-                continue
+                pass
+            try:
+                # Local privacy work must progress during broker outages too.
+                await self.process_privacy_events()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass

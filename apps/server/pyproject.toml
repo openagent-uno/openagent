@@ -4,26 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b38"
+version = "1.1.0b39"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-connectors==0.1.2",
-    "openagent-storage-sqlite==1.1.0b21",
+    "openagent-connectors==0.1.3",
+    "openagent-storage-sqlite==1.1.0b22",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b2",
-    "openagent-client-transport==1.1.0b38",
-    "openagent-core==1.1.0b21",
-    "openagent-identity==1.1.0b38",
-    "openagent-dashboards==1.1.0b38",
+    "openagent-client-transport==1.1.0b39",
+    "openagent-core==1.1.0b22",
+    "openagent-identity==1.1.0b39",
+    "openagent-dashboards==1.1.0b39",
     "openagent-product-config==1.1.0b18",
-    "openagent-support-integration==1.1.0b38",
+    "openagent-support-integration==1.1.0b39",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.0b38",
+    "openagent-mcp==1.1.0b39",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -162,7 +162,7 @@ dependencies = [
     "email-validator>=2.0",
     # Shared, versioned filesystem/editor implementation used by both the
     # server MCPPool adapters and client capability hosts.
-    "openagent-host-tools==1.0.0b5",
+    "openagent-host-tools==1.0.0b6",
 ]
 
 [project.optional-dependencies]
