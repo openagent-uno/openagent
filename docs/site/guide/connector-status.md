@@ -10,11 +10,11 @@ installed client already includes the candidate UI.
 
 | Surface | Confirmed | Still required |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.2`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
+| Shared Go connector module | Published `0.1.3`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
 | Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
 | Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
-| Common authentication service | Auth-only `0.1.4` published and deployed on the authentication infrastructure from source `54fecfbdb0e8dc1a1f6778fabedefaec197da7cc`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
+| Common authentication service | Auth-only `0.1.5` published and deployed from source `a5f81d65a0d7939473b30759276fa719272fda4a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
 
 Host products qualify their own deployments and client distributions. Their
@@ -23,11 +23,12 @@ those operators; they are not part of the standalone product's release proof.
 Common OAuth remains closed to the public, and actual ClickUp browser consent
 is still blocked as described below.
 
-The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
+The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
 is distinct from [standalone product downloads](../downloads.md).
-The [Tools qualification PR](https://github.com/openagent-uno/openagent-tools/pull/4)
-is merged. The published `qualification.json` records contract qualification,
-macOS runner smoke checks and cross-compilation for the other targets; it does
+The [remote qualification workflow](https://github.com/openagent-uno/openagent-tools/actions/runs/38450067001)
+passed. The published `qualification.json` records race/vet and vulnerability
+checks, normal isolated Python-wheel installation, nine provider-privacy schema
+checks, macOS ARM64 runner/broker smoke and cross-compilation for the other targets; it does
 not claim real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
@@ -49,9 +50,9 @@ historical App repository; its payload comes from canonical source
 `721e90feb0e4ae3bb719e23cf5983e064464f782`. The historical repository is archived
 again and existing updater identities are preserved.
 
-[Auth service 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4)
+[Auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
 is a separate deployment release. It does not replace connector module/runner
-0.1.2 or activate public enrollment. No candidate Core privacy API, product
+versions in already installed products or activate public enrollment. No candidate Core privacy API, product
 privacy-job integration or related migration has been rolled into production.
 
 ## Provider registration checkpoint
@@ -64,10 +65,10 @@ privacy-job integration or related migration has been rolled into production.
   was removed at the operator's request; ClickUp saved the common auth origin.
   The actual callback path still needs a real round-trip test. A disposable
   standalone server has started a recipient-bound transaction through its
-  authenticated product API. Auth-only 0.1.4 is published and deployed, but
-  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. Reopening
-  the same transaction showed its disclosure form: the POST had not reached
-  the service, so no provider grant or token exchange occurred. This verified
+  authenticated product API. Auth-only 0.1.5 is published and deployed, but
+  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. A read-only
+  check showed the initial disclosure form and a pending transaction: approval
+  was not recorded, and no provider grant or token exchange occurred. This verified
   fail-closed behavior, not a successful OAuth round trip. The disposable
   product connection is disconnected and disabled; public enrollment remains
   closed. Existing tokens were not revoked by this configuration change.
@@ -75,9 +76,12 @@ privacy-job integration or related migration has been rolled into production.
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
   This records the existing app's configuration, not a new review approval.
-- **Postiz:** the common registration has not yet been verified against the
-  production inventory. The existing registration must be reused once identified;
-  a placeholder in one configuration does not establish that no app exists.
+- **Postiz:** the authorized account setup is complete without a paid subscription.
+  Its Developers screen initially contained no app. An **OpenAgent** registration
+  now uses the common callback; credentials are staged in encrypted production
+  Secret storage. Credential validation and rotation remain required before
+  activation. The provider remains disabled and
+  has no authorized product connections.
 - **Token/account connectors:** no common OAuth app is needed. Product-local
   configuration is implemented; dummy-token tests do not validate a real account.
 
