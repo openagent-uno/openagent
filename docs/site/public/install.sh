@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the current OpenAgent v1.1 beta server or CLI from the three
+# Install the current OpenAgent v1.1 beta server or CLI from the four
 # canonical, independently versioned GitHub releases.
 set -eu
 
@@ -61,9 +61,10 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.37", "manifest.json"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.20", "manifest.json"),
+    ("openagent-uno/openagent", "v1.1.0-beta.38", "manifest.json"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.21", "manifest.json"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json"),
+    ("openagent-uno/openagent-tools", "connectors-v0.1.2", "manifest.json"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -135,10 +136,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b37"
+    DIST="openagent-framework==1.1.0b38"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b37"
+    DIST="openagent-cli==1.1.0b38"
     COMMAND="openagent-cli"
 fi
 
@@ -157,6 +158,42 @@ EOF
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
 "$VENV/bin/python" -m pip install --disable-pip-version-check \
     --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
+
+if [ "$PRODUCT" = "server" ]; then
+    # Reuse the same manifest/archive verifier used by frozen server builds.
+    # The wheel owns this lock and helper; no source checkout or local Go build.
+    "$VENV/bin/python" - "$INSTALL_ROOT" "$WHEELHOUSE" <<'PY'
+import json
+import os
+from pathlib import Path
+import platform
+import sys
+import openagent_server.connector_acquisition as acquisition
+
+lock_path = Path(acquisition.__file__).with_name("connectors.lock.json")
+lock = json.loads(lock_path.read_text())
+machine = platform.machine().lower()
+architecture = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64"}.get(machine)
+target = f"{sys.platform}-{architecture}"
+if target not in acquisition.PLATFORMS:
+    raise SystemExit(f"No qualified connector runner for {target}")
+bundle = Path(sys.argv[1]).resolve() / "connectors" / lock["version"] / target
+if bundle.exists():
+    acquisition.verify_bundle(lock, target, bundle)
+else:
+    acquisition.acquire(lock_path, target, bundle, Path(sys.argv[2]))
+name = "openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner"
+destination = Path(sys.executable).parent / name
+if destination.exists() and not destination.is_symlink():
+    raise SystemExit("Refusing to replace an existing non-symlink connector executable")
+temporary = destination.with_name(destination.name + ".new")
+if temporary.exists() or temporary.is_symlink():
+    raise SystemExit("An unfinished connector executable link already exists")
+temporary.symlink_to(bundle / "bin" / name)
+os.replace(temporary, destination)
+print(f"Installed verified connector runner {lock['version']} ({target}).")
+PY
+fi
 
 if [ -z "$PREFIX" ]; then
     PREFIX="$HOME/.local/bin"
