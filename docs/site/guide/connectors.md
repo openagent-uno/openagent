@@ -1,9 +1,12 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-App beta 16, server/CLI beta 38 and shared library/runner 0.1.3 are published.
-Auth-only 0.1.5 is separately deployed. The installed beta 38 server still pins
-runner 0.1.2; publishing a library does not update an installed product.
+As of 14 October 2026, App beta 16, server/CLI beta 39, Core beta 22,
+Host Tools B6 and shared library/runner 0.1.3 are published.
+Auth-only 0.1.5 is separately deployed. Beta 39 pins connector 0.1.3 and B6;
+an existing beta 38 installation still pins runner 0.1.2 until explicitly
+updated. App beta 17 is not yet published. Publishing a component does not
+update an installed product.
 Common OAuth enrollment remains closed
 to the public; ClickUp qualification is limited to allowlisted QA servers.
 Shopify remains disabled; Google verification and real provider qualification
@@ -14,7 +17,7 @@ activation. See
 
 OpenAgent provides one shared connector implementation for the standalone server, independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
-The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback once enabled.
+The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled: the published opt-in privacy processor covers a fresh canonical text-history cohort, with additional storage and real-provider acceptance gates still required. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback once enabled.
 
 ## Shared components
 
@@ -106,7 +109,7 @@ Read the [OpenAgent privacy notice](/privacy) for data handling, retention, conf
 
 `auth.openagent.uno` handles authorization-code exchange and renewals that require the app secret. Access tokens and refresh tokens are transient during those operations and are not stored permanently by OpenAgent's central service. Normal email, file, store and task API contents do not pass through it.
 
-The service durably stores installation identities, authorized Shopify recipient groups, credential generations/fingerprints and a deduplicated queue of minimized, encrypted Shopify privacy/uninstall notifications. Temporary encrypted token messages expire within ten minutes. Privacy actions and exports belong to the receiving product. The standalone currently durably receives notifications and disconnects revoked grants; export/redaction of stored agent content is not yet implemented and blocks Shopify activation there. Provider reviews and real end-to-end acceptance remain separate activation gates.
+The service durably stores installation identities, authorized Shopify recipient groups, credential generations/fingerprints and a deduplicated queue of minimized, encrypted Shopify privacy/uninstall notifications. Temporary encrypted token messages expire within ten minutes. Privacy actions and exports belong to the receiving product. Standalone beta 39 publishes strict opt-in processing via `connectors.privacy.enabled=true` for a fresh canonical text-history cohort; coverage is computed before startup, not declared in configuration. Historical content, media, Vault/files and unqualified callbacks keep jobs blocked. This does not activate Shopify; provider reviews and real end-to-end acceptance remain separate gates. See the [coverage and release checkpoint](./connector-status.md).
 
 A central outage prevents new common-app consents and secret-dependent renewals. Locally valid tokens and other local/MCP capabilities continue to work. Hosts can retain their own OAuth registrations instead of opting into common apps. Standalone servers can configure `connectors.oauth_providers_file` for Google, ClickUp or Postiz, with registered loopback callbacks and local secret files; Shopify own apps use a separately configured broker to retain shared-store coordination. Google restricted scopes still require applicable verification/security assessment.
 

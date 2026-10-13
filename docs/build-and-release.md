@@ -51,7 +51,10 @@ version → transition → new distribution → next update chain before retirin
 old development. User identity keys, application IDs and consent files retain
 their existing paths throughout.
 
-## Local macOS qualification
+## Local macOS qualification reference
+
+This local developer route is separate from the current B6 remote CI release
+procedure recorded below; it is not required to consume the published bundles.
 
 Use the existing Developer ID identity and entitlements. The host bundle must
 be signed and notarized before staging into Electron. Set `CSC_NAME` to an
@@ -84,7 +87,32 @@ See [runtime qualification](runtime-and-verification.md) and
 [frozen server qualification](frozen-server-qualification.md) for evidence and
 remaining distribution gates.
 
-## Native bundle release after Python beta 9
+## Current native bundle release: Host Tools B6 (14 October 2026)
+
+[Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
+is published from canonical source `aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0`,
+with 16 asset digests/sizes verified against the qualified output. The consumer
+release-index SHA-256 is
+`a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
+The [canonical native workflow](https://github.com/openagent-uno/openagent/actions/runs/38457527270)
+built six targets remotely with matrix parallelism one and bounded native
+workers two. The [versioned signing bridge](https://github.com/openagent-uno/openagent-app/actions/runs/38467343111)
+reused the existing Apple credentials in their original executor repository;
+no secret copying or export to the monorepo was needed. Both Mac native
+signature/notary/archive gates passed. [Final assembly](https://github.com/openagent-uno/openagent-app/actions/runs/38471673047)
+reused those exact signatures, preserving the four other native archives and
+Python wheel byte-for-byte. `qualification.json`, `release-index.json` and
+`SHA256SUMS` in the public release record source and executor provenance.
+Windows Authenticode is not claimed; Linux ARM64 browser navigation was not
+exercised. App beta 17 is staged separately and is not a published native App
+release. Subsequent product builds consume this public lock; they do not inherit
+provider OAuth or host storage acceptance from the component checks.
+
+## Historical native bundle procedure: Python beta 9 / App and CLI beta 10
+
+The following procedure and receipts describe the earlier beta 9/10 rollout,
+including its local signing option and then-proposed secret configuration.
+They are retained as history, not the current B6 remote signing instructions.
 
 The root `Host tools native bundles` workflow is an explicit manual gate. It
 checks out the exact selected `main` commit, downloads the Core beta 5,

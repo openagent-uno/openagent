@@ -33,6 +33,16 @@ as [auth-only 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/t
 This does not change the version pinned by an installed product or enable public provider enrollment;
 ClickUp is restricted to allowlisted QA installation identities.
 
+The standalone [server/CLI beta 39](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
+assembles public Core beta 22, connector 0.1.3 and
+[Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6).
+B6 has six qualified native targets and signed/notarized macOS bundles; its
+release-index SHA-256 is
+`a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
+Each host owns its locked dependency assembly, installation, enabled storage
+surfaces and release qualification. A public component release never silently
+updates another host or attests its data-processing coverage.
+
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
 must update its catalog entry, schemas, operation implementation and tests;
 each product then consumes an explicitly pinned version. A catalog placeholder
@@ -164,8 +174,10 @@ deduplication, acknowledgments and retry. Products perform their own export and
 redaction. Acknowledging durable receipt is not proof that local privacy work
 has finished. The compatibility outbox can relay notifications to a legacy
 host processor during migration, but that relay has not been activated
-in production. The standalone's content export/redaction worker is unfinished
-and blocks its Shopify enrollment. See [release gates](./connector-status.md).
+in production. Standalone beta 39 qualifies an opt-in worker for a fresh
+canonical text-history cohort; historical content and other enabled storage
+surfaces still require qualification. Common Shopify enrollment remains
+disabled. See [release gates](./connector-status.md).
 
 Existing credentials keep their issuing OAuth app. They are not silently
 reassigned. Shopify can retire credentials during a later acquisition or
@@ -181,7 +193,7 @@ compacted history, delegated sessions, Vault notes, attachments and generated
 files. Provenance must remain bound to the authorized tenant and provider
 account; model-supplied labels cannot authorize a privacy action.
 
-The candidate inbox persists the complete broker receipt encrypted, including
+The beta 39 inbox persists the complete broker receipt encrypted, including
 group/topic and occurrence timestamps, before acknowledging delivery. This
 preserves the generation fence across restart and duplicate delivery. Historical
 payload-only receipts retain an explicit older format; missing metadata is
@@ -200,6 +212,17 @@ startup. Unqualified historical content, backups, media, Vault/files or custom
 callbacks keep processing blocked. Publishing Core does not qualify a host
 adapter or migrate existing data. Clearing a token or acknowledging a webhook
 cannot substitute for completing local privacy jobs.
+
+Standalone processing requires the strict boolean opt-in
+`connectors.privacy.enabled=true`. Coverage is computed from the actual
+NativeProvider/ModelDispatcher, exact canonical dashboard content validator,
+baseline history audit and public sinks registered before startup/recovery and
+connector publication. A `covered_surfaces` configuration field is rejected;
+an operator or model cannot declare an unsupported callback or storage surface
+qualified. The published API exposes provenance, fences and processing jobs;
+provider event mapping, authorized export destinations and the runtime/storage
+assembly remain host-owned. Text-only qualification does not enable common
+Shopify or establish real-provider consent and two-server rotation acceptance.
 
 ## Shared code and product UI
 

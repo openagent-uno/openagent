@@ -1,6 +1,6 @@
 # Connector release and qualification status
 
-Status recorded on **13 October 2026**. This page distinguishes implemented
+Status recorded on **14 October 2026**. This page distinguishes implemented
 code, published artifacts, deployed services and real provider acceptance.
 A visible card or a passing health check alone does not make a connector ready
 for production. It is a qualification checkpoint, not a promise that an older
@@ -12,7 +12,9 @@ installed client already includes the candidate UI.
 | --- | --- | --- |
 | Shared Go connector module | Published `0.1.3`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
-| Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
+| Standalone server/CLI | Published `1.1.0-beta.39`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.3` and Host Tools B6; catalog fixture verifies 12 official entries plus one custom MCP | Real provider consent and API operations; receiving hosts qualify their own rollout |
+| Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
+| Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
 | Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
 | Common authentication service | Auth-only `0.1.5` published and deployed from source `a5f81d65a0d7939473b30759276fa719272fda4a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
@@ -33,10 +35,12 @@ not claim real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 
-The [standalone server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.38)
-includes installed-wheel qualification and checksums. Its tested dependency
-closure uses [public Core beta 21](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.21)
-through public APIs. The server installer and service environment use a
+The [standalone server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
+publishes 14 assets from source `7a4c7954566b443537248ef1627af79bfca09eba`.
+All asset API digests/sizes and anonymous downloads were verified. Its manifest
+SHA-256 is `772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97`.
+Its normal installed dependency closure uses public Core beta 22, connector
+runner/adapter 0.1.3 and Host Tools B6 through public APIs. The server installer and service environment use a
 product-local runner; users do not need a Go compiler or a manually configured
 runner path. The connector release remains independently pinned and verified.
 These packaging checks do not establish provider consent, API access or privacy
@@ -48,13 +52,27 @@ packaged launches, macOS signing/notarization, Intel ZIP/DMG launches and exact
 post-upload checksum verification. The signing/updater executor remains the
 historical App repository; its payload comes from canonical source
 `721e90feb0e4ae3bb719e23cf5983e064464f782`. Existing updater identities are
-preserved. The historical repository is temporarily available for the next
+preserved. App beta 17 remains a source/package candidate, not a published App
+release. The recorded native visual acceptance still uses App beta 16 and
+server beta 38. The historical repository is temporarily available for the next
 bounded signing/publishing run; canonical product source remains in this repository.
+
+[Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
+publishes 16 verified assets from source `aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0`.
+Its release-index SHA-256 is
+`a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
+The [six-target native run](https://github.com/openagent-uno/openagent/actions/runs/38457527270),
+both successful [Mac signing/archive gates](https://github.com/openagent-uno/openagent-app/actions/runs/38467343111)
+and [final assembly](https://github.com/openagent-uno/openagent-app/actions/runs/38471673047)
+are recorded separately. Assembly reused the qualified signatures; the four
+other native archives and Python wheel stayed byte-identical. No provider grant
+or user-profile acceptance is inferred from publication.
 
 [Auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
 is a separate deployment release. It does not replace connector module/runner
-versions in already installed products or activate public enrollment. No candidate Core privacy API, product
-privacy-job integration or related migration has been rolled into production.
+versions in already installed products or activate public enrollment. Publishing
+Core beta 22 and server/CLI beta 39 does not migrate a receiving host or attest
+its production privacy processing.
 
 ## Provider registration checkpoint
 
@@ -122,22 +140,29 @@ verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
 privacy-event cases preserve encrypted records; restoring the original key
 allows the credential to be read after restart.
 
-The next standalone candidate retains complete encrypted privacy receipts,
+Server/CLI beta 39 retains complete encrypted privacy receipts,
 rejects conflicting duplicates and commits before delivery ACK. Late uninstall
 notifications preserve credentials minted by a newer consent. Historical
 payload-only receipts remain explicitly marked until matching broker redelivery;
 startup does not invent missing occurrence metadata. The expanded 35-check
 authorization/acquisition/receipt suite passed against published Core/SQLite
-beta 20 and connector adapter 0.1.2. Content export/redaction remains unfinished.
+beta 20 and connector adapter 0.1.2. Those earlier checks did not qualify
+historical content, Vault/files or media export/redaction.
 
 [Core beta 22](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.22)
 is published with 23 wheels and verified manifests/checksums. It tracks provider
 origins before API execution, selective customer records in tool results,
 derived session history, compaction and child sessions. The installed-wheel
-qualification covers a fresh canonical text-history cohort. The standalone
-beta 39 candidate also passed installed-product privacy tests and an exact
-catalog follow-up against public runner 0.1.3: 12 official entries plus custom
-MCP. This is candidate qualification, not a published product or host rollout.
+qualification covers a fresh canonical text-history cohort. Published standalone
+beta 39 passed normal installed-product privacy tests and an exact catalog
+follow-up against public runner 0.1.3: 12 official entries plus one custom MCP.
+Privacy is strict opt-in via `connectors.privacy.enabled=true`. Coverage is
+computed from the admitted canonical engine/provider, canonical dashboard
+content validator, baseline history audit and public sinks installed before
+startup/recovery/source registration; configuration cannot assert
+`covered_surfaces`. Historical content, media, Vault/files and unqualified
+callbacks remain blocked. These public APIs and product checks do not establish
+real-provider consent, two-server Shopify acceptance or a receiving host rollout.
 Host bridges and durable runtime privacy jobs require each receiving product's
 own qualification. Unverified historical content, backups or enabled surfaces
 with no qualified processor keep requests blocked. Receiving a webhook,
@@ -156,10 +181,11 @@ and privacy backlog load remain separate qualification.
 
 ## Remaining implementation and activation gates
 
-1. Complete the standalone privacy-content processor: provenance of connected
-   data, product-local export/redaction of derived history/Vault/files as
-   applicable, durable processing/retry and completion receipts. Shopify remains
-   blocked there until this is implemented and qualified.
+1. Extend and qualify privacy coverage for each receiving host's enabled
+   surfaces beyond the fresh canonical text-history cohort, including historical
+   content, Vault/files, media and custom callbacks. Unqualified surfaces keep
+   processing blocked. Common Shopify remains disabled until real acceptance
+   and the host's processing gates pass.
 2. Finish provider exchange/rotation/privacy capacity qualification and the
    production request budget beyond the verified bootstrap mailbox quota.
    Encrypted production app-secret storage and matching backups are now
