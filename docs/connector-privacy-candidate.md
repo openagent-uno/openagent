@@ -1,38 +1,52 @@
 # Local connector privacy candidate
 
-The candidate server can explicitly install its public Core privacy services
-during normal startup:
+The server can explicitly install its public Core privacy services during normal
+startup:
 
 ```json
 {"connectors":{"privacy":{"enabled":true}}}
 ```
 
-This installs the provenance publisher and canonical history, state, journal,
-search and encrypted export adapters before runtime recovery and connector
-registration. It requires compatible published Core, SQLite and connector SDK
-packages. Missing APIs fail startup for an opted-in server rather than silently
-omitting attribution. With no opt-in the existing startup remains unchanged.
+Services are installed before recovery and connector registration. Without this
+opt-in the normal startup is unchanged. Missing public APIs fail opted-in startup;
+installation never mutates or overlays Core source.
 
-This setting does not attest historical data, enable Shopify, approve external
-writers or declare sink coverage. The normal bootstrap currently leaves coverage
-empty and common Shopify enrollment disabled. Coverage comes from qualified host
-assembly and baseline reconciliation, never model arguments or saved config.
+Coverage is computed from the known canonical text assembly, shipped native
+providers, empty engine extensions and a durable new-history baseline. Existing
+unknown history or backups remain blocked and preserved. A config field cannot
+claim coverage. Custom providers/extensions and unqualified copies require their
+own reviewed host integration.
 
-Privacy exports are accessed through the authenticated product routes:
+This first opt-in assembly delivers authorized text through the ordinary app/CLI
+sender and retains canonical history for reconnect. It tracks pending output,
+checks delivery attempts, purges exact revoked frames and preserves human and
+other-customer frames. Mixed or in-flight copies block completion. Unattested live
+replay-cache copies and TTS copies are not produced for this text cohort; protected
+media, Vault/files/attachments and unqualified MCP writers are fenced. Custom MCPs
+remain available for normal unprotected runs.
 
-- `POST /api/connectors/privacy/{request_id}/export` returns a local bundle and
-  delivery token only after current connection and every source session ACL pass.
-- `POST /api/connectors/privacy/{request_id}/ack` with `delivery_token` records
-  delivery after rechecking access and source revocation fences. Until this ACK,
-  encrypted staging is not completed delivery.
+A token rotation preserves existing opaque tool references only for the same
+verified grant, issuer, store and permissions. Credential persistence compares the
+previous encrypted credential and exact local identity/config/permission snapshot.
+New consent, disconnection or permission edits during renewal cannot be overwritten
+or cause a revoked source to make provider calls.
 
-The token is a local receipt, not a provider credential. The host retains the
-encrypted staging file and its matching credential key; restoring one without
-the other cannot recover plaintext. Another owner of the same store has no
-implicit right to private sessions. Unknown copies or one denied bundle part
-block the whole export rather than silently dropping data.
+Privacy exports use authenticated product routes:
 
-New bootstrap/provenance/ACL tests are written but have not run during the Mac
-resource pause. Public dependency closure, actual provider acceptance and
-two-server recovery remain release gates. This document does not mark those
-gates complete or recommend activating Shopify on an unqualified server.
+- `POST /api/connectors/privacy/{request_id}/export` returns an encrypted-local
+  bundle and delivery token only after current connection and every source
+  session ACL pass.
+- `POST /api/connectors/privacy/{request_id}/ack` records delivery after checking
+  the token, current access and source revocation again.
+
+Staging is not delivery. The product receipt stays pending until all selected
+local actions and export delivery succeed. Another owner of the same store has no
+implicit right to private sessions. The local receipt is not a provider token;
+restoring encrypted data without its original matching key cannot recover it.
+
+Source fixtures qualify actual public catalog/read/same-customer update paths and
+two isolated product export/redaction routes. They do not qualify live provider
+consent or two real Shopify recipients. Installed beta 22/beta 39 package closure,
+provider approvals and real multi-server acceptance remain release gates.
+Common Shopify enrollment is still disabled; this document does not authorize
+activation on an unqualified server.
