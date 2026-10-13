@@ -72,7 +72,7 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 ## Pinning the shared implementation
 
 A Go host consumes
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.1`; its
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.2`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
@@ -93,7 +93,7 @@ The shared Python package exposes `ConnectorRunner` and the optional
 `openagent_connectors.mcp.serve_connector` surface. An embedding host supplies
 an authorizing connector factory and credential/connection context. Do not
 publish the raw runner protocol or credentials as a model-controlled MCP
-endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.1/packages/connectors).
+endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors).
 
 ## Authenticated standalone management API
 
@@ -116,7 +116,7 @@ clients must not substitute another connection, installation or principal.
 The broker has a separate signed `/v1` contract for installation registration,
 transactions, redemption, refresh/revoke, group commits/recovery, temporary
 mail and durable events. Its contract is
-[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.1/packages/connectors).
+[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors).
 
 ## Own provider apps
 
