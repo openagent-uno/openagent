@@ -40,3 +40,10 @@ restore must recover the matching key; the failure leaves encrypted records
 unchanged. Nineteen focused storage/authorization tests passed with the verified
 0.1.1 adapter, including missing-key credential/event cases and restart after
 restoring the original key. This does not complete Shopify content processing.
+
+The branch now includes canonical main through the beta 37 product changes and
+the published documentation updates. A separate clean environment consumed
+checksum-verified published Core/SQLite `1.1.0b20`, connector `0.1.1` and Tools
+protocol wheels. All 25 connector storage/authorization and acquisition checks
+passed against those artifacts, without a Core source overlay. The earlier
+native development acceptance is not relabeled as a new signed product release.
