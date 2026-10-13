@@ -2,7 +2,7 @@
 
 The standalone OpenAgent product: desktop app, CLI, server and MCP bridge.
 The product consumes independently versioned OpenAgent Core and OpenAgent
-Tools packages. GlassPalace and other applications consume the same libraries
+Tools packages. Independent host applications consume the same libraries
 through their public contracts and own their own deployments.
 
 Start with [the documentation index](docs/README.md). Repository paths and

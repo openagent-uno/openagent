@@ -36,6 +36,19 @@ Use this shorter form only when the selected version and every pinned
 first-party dependency are available from the same configured package index.
 For the current beta, use the verified wheelhouse above.
 
+## Operator-managed container recipes
+
+The retained builder and runtime Dockerfiles are legacy, unqualified deployment
+recipes. They require an explicit `OPENAGENT_BASE_IMAGE` supplied by the operator;
+OpenAgent does not select a third-party registry or base image for a host. The
+operator must qualify the base image, Python/native-library compatibility,
+process supervision and current artifact layout before using either recipe.
+Their historical copy paths do not establish a working canonical container
+build. No published container release is implied.
+
+For standalone installation, use the verified product distributions described
+above. These Dockerfiles are not the prescribed installation path.
+
 ## Doctor & Setup
 
 ```bash
@@ -199,11 +212,11 @@ Install ollama, pull the model, and expose it on the tailnet as a boot-persisten
 ```bash
 brew install ollama
 # LaunchDaemon (runs at boot, no login needed) bound to all interfaces:
-sudo tee /Library/LaunchDaemons/com.esound.ollama.plist >/dev/null <<'PLIST'
+sudo tee /Library/LaunchDaemons/com.openagent.ollama.plist >/dev/null <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>com.esound.ollama</string>
+  <key>Label</key><string>com.openagent.ollama</string>
   <key>UserName</key><string>development</string>
   <key>ProgramArguments</key>
   <array><string>/opt/homebrew/opt/ollama/bin/ollama</string><string>serve</string></array>
@@ -215,7 +228,7 @@ sudo tee /Library/LaunchDaemons/com.esound.ollama.plist >/dev/null <<'PLIST'
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 PLIST
-sudo launchctl bootstrap system /Library/LaunchDaemons/com.esound.ollama.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.openagent.ollama.plist
 ollama pull nomic-embed-text
 # verify from another tailnet host:
 curl http://<tailscale-ip>:11434/api/tags

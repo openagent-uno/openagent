@@ -143,7 +143,7 @@ Notable changes, newest first.
 - An independently supervised browser remains running when its MCP disconnects.
   Host operators can keep a persistent profile and a graphical display for
   browser and desktop tool calls.
-- Friday used both tools from Telegram for read-only screenshots. Chrono24
+- Installation A used both tools from Telegram for read-only screenshots. Chrono24
   still required interactive verification at login.
 
 ## v1.1.0-beta.18
@@ -151,8 +151,8 @@ Notable changes, newest first.
 - Core beta 9 recognizes Claude image input behind custom provider names while
   preserving explicit model capability settings. This repairs Telegram image
   handling for verified Claude subscription proxy models.
-- Friday and Mixout were upgraded and each answered an image question through
-  Telegram after release. Friday's audio transcription path also completed a
+- Two standalone installations were upgraded and each answered an image question through
+  Telegram after release. Installation A's audio transcription path also completed a
   post-upgrade Telegram check. See the
   [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.18.md)
   for the exact evidence.
@@ -250,7 +250,7 @@ Notable changes, newest first.
 - Audience, delegation, Vault ownership, temporary-device leases and immediate
   revocation remain independently enforced after registration is verified.
 - The release adds regressions for native source discovery and unregistered or
-  revoked sources, plus live Telegram qualification on the Performa fleet.
+  revoked sources, plus live Telegram qualification on the installed standalone server fleet.
 
 ## v1.1.0-beta.5
 

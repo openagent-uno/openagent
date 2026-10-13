@@ -38,7 +38,7 @@ transition; they are not the source repository for new development.
 
 ## Architecture
 
-Following the Mixout-Client monorepo pattern:
+The standalone monorepo keeps the App sources together:
 
 ```
 apps/app/
@@ -64,7 +64,7 @@ apps/app/
 
 The candidate connector release combines provider integrations and registry
 MCP cards in **Connectors → Browse**, using the same responsive card/grid and
-the provider logos used by GlassPalace/ICS. It adds no dedicated Official tab,
+the official provider logos. It adds no dedicated Official tab,
 badge or separator. Setup and local enable/reconnect/disconnect controls open
 from the card; custom MCP registration remains available.
 

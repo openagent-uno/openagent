@@ -1,9 +1,9 @@
 # Shared components and connector architecture
 
 OpenAgent shares implementations across products while each product owns its
-accounts, authorization and persistent data. An installation of GlassPalace,
-ICS or the standalone does not become an account on a central OpenAgent agent
-server. The common OAuth service is an optional dependency for common provider
+accounts, authorization and persistent data. Each standalone or independently
+embedded installation keeps its own accounts; it does not become an account on
+a central OpenAgent agent server. The common OAuth service is an optional dependency for common provider
 apps; it is not the authority for the agent network or product users.
 
 For the current qualification and remaining work, see
@@ -16,7 +16,7 @@ For the current qualification and remaining work, see
 | --- | --- | --- |
 | Runtime, sessions, runs, module services and uniform capability contracts | OpenAgent Core | Standalone and embedding products |
 | Filesystem, editor, shell, web search, computer and browser implementations | OpenAgent Tools | Server or authenticated client capability hosts |
-| Official connector catalog, operation schemas, provider adapters, scope checks, pagination and permitted retry logic | OpenAgent Tools `packages/connectors` | GlassPalace and ICS as a Go dependency; standalone through a local runner |
+| Official connector catalog, operation schemas, provider adapters, scope checks, pagination and permitted retry logic | OpenAgent Tools `packages/connectors` | Go embedding hosts as a dependency; standalone through a local runner |
 | Local connector runner and Python/MCP transport adapter | OpenAgent Tools | Python hosts and products exposing a connector through MCP |
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
@@ -61,24 +61,21 @@ operator-supplied product name is not an OpenAgent endorsement.
 flowchart TB
   Core[OpenAgent Core public capability APIs]
   Shared[Shared catalog, schemas and provider adapters]
-  GP[GlassPalace Go gateway]
-  ICS[ICS Go gateway]
+  Host[Independent Go host gateway]
   Runner[Local Go runner]
   Python[Standalone Python host adapter]
   MCP[Optional host-authorized MCP surface]
   API[Provider API]
-  Shared --> GP
-  Shared --> ICS
+  Shared --> Host
   Shared --> Runner
   Runner --> Python
   Runner --> MCP
   Python --> Core
-  GP --> API
-  ICS --> API
+  Host --> API
   Runner --> API
 ```
 
-GlassPalace and ICS supply their own identity and workspace/project policy.
+Embedding hosts supply their own identity and workspace/project policy.
 The standalone supplies a verified network/device principal and registers
 `OfficialConnectorSource` through Core's public catalog API. Core does not
 import provider app secrets, product accounts or the broker implementation.
@@ -94,7 +91,7 @@ read/write gates and provider-specific request rules. A model argument cannot
 select another installation, owner, token or computer.
 
 In the standalone, connector tools are bound to the initiating principal,
-tenant and permitted result audience. In GlassPalace and ICS, existing
+tenant and permitted result audience. In embedded host products, existing
 membership, connection/installation identity, project scope and agent grants
 remain authoritative. Sharing code never merges those permission systems.
 
@@ -165,8 +162,8 @@ fresh consent rather than reusing an uncertain credential.
 Privacy and uninstall notifications enter a durable queue with verification,
 deduplication, acknowledgments and retry. Products perform their own export and
 redaction. Acknowledging durable receipt is not proof that local privacy work
-has finished. The compatibility outbox can relay notifications to the legacy
-GlassPalace processor during migration, but that relay has not been activated
+has finished. The compatibility outbox can relay notifications to a legacy
+host processor during migration, but that relay has not been activated
 in production. The standalone's content export/redaction worker is unfinished
 and blocks its Shopify enrollment. See [release gates](./connector-status.md).
 
@@ -201,8 +198,8 @@ Clearing a token or acknowledging a webhook cannot substitute for it.
 ## Shared code and product UI
 
 The standalone marketplace uses one card component and one responsive grid for
-provider integrations and registry MCPs. Official entries have the provider
-marks used in GlassPalace/ICS, without a dedicated tab, heading, label or
+provider integrations and registry MCPs. Official entries have the official provider
+marks, without a dedicated tab, heading, label or
 divider. The original logo assets and their source hashes are bundled locally.
 They are currently packaged by each client, rather than fetched from a central
 runtime UI service.

@@ -1,12 +1,13 @@
+<!-- Installation names and paths are anonymized operator labels; original deployment records are retained in the protected audit. -->
 # Server Beta 4 candidate evidence and preparation
 
 Status: replacement source pre-tag verified; intent frozen; Beta 4 tag and
 GitHub Release absent
 
-The published `v0.20.0-beta.3` package reached the Friday dogfood gate and was
+The published `v0.20.0-beta.3` package reached the Dogfood installation dogfood gate and was
 stopped because two legacy sessions could not be projected. The immutable
 result is recorded in
-[`unified-history-beta-3-friday-failure.yaml`](./unified-history-beta-3-friday-failure.yaml).
+[`unified-history-beta-3-dogfood-failure.yaml`](./unified-history-beta-3-dogfood-failure.yaml).
 This page separates the accepted replacement evidence from the rejected source
 record. The canonical freeze record is
 [`unified-history-beta-4-intent.yaml`](./unified-history-beta-4-intent.yaml).
@@ -28,7 +29,7 @@ Exact-source gates are green:
   `731e3f59c9cebe9893b1faa5471e5cf62d2239a25ec26f984dedf87f9e26c2f1`;
 - branch Tests `32982520288`, job `98222391421`: success;
 - Supply chain `32982520375`, job `98222392469`: success;
-- exact-source Friday rehearsal: complete, search ready and SQLite checks clean.
+- exact-source Dogfood installation rehearsal: complete, search ready and SQLite checks clean.
 
 The tag `v0.20.0-beta.4` remains unused and the GitHub Release is absent.
 
@@ -81,7 +82,7 @@ gates.
 ## Projection-repair evidence
 
 The accepted source preserves the storage behavior below through its full suite
-and exact-source Friday rehearsal:
+and exact-source Dogfood installation rehearsal:
 
 - two invocations with the same provider `tool_call_id` in different
   `session_run_id` contexts are distinct canonical invocations and both project;
@@ -104,8 +105,8 @@ and exact-source Friday rehearsal:
 
 ## Exact Beta 3 database rehearsal
 
-Source `b9d8ab5…` was run against a fresh SQLite Backup API copy of Friday's
-current stable database, on Friday and without copying user content into docs
+Source `b9d8ab5…` was run against a fresh SQLite Backup API copy of Dogfood installation's
+current stable database, on Dogfood installation and without copying user content into docs
 or CI logs. The source database digest remained
 `526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd`
 before and after rehearsal.
@@ -119,7 +120,7 @@ SQLite quick/foreign-key checks were clean.
 The synthetic canary is removed by its exact recorded identifier only after its
 projection and searchability have been proved. Never use a broad delete.
 
-## Remaining release and Friday gate
+## Remaining release and Dogfood installation gate
 
 After review of the frozen intent:
 
@@ -127,7 +128,7 @@ After review of the frozen intent:
 2. require the full native package matrix, exact asset-set verifier,
    attestations, hidden-draft digest check, `prerelease=true`, and
    `make_latest=false`;
-3. download the exact published Linux asset on Friday and verify its sibling
+3. download the exact published Linux asset on Dogfood installation and verify its sibling
    checksum plus authenticated GitHub asset digest;
 4. stop the named service and prove its cgroup is empty before replacing the
    executable and sidecar;
@@ -137,12 +138,12 @@ After review of the frozen intent:
    principal and sanitized evidence;
 7. repeat the stable binary downgrade/write/re-upgrade reconciliation drill;
 8. clean the temporary principal, device, ticket, synthetic resources, and the
-   exact legacy canary, then leave Friday on the successor beta only if every
+   exact legacy canary, then leave Dogfood installation on the successor beta only if every
    gate remains green.
 
 App tag `v0.17.0-beta.1` and CLI tag `v0.16.0-beta.1` were dispatched in
 parallel after the intent freeze; runs `32983788693` and `32983586871` are in
 progress and no app/CLI release is published at this snapshot. Installation,
-live E2E and train promotion remain subordinate to the server Friday gate. Beta
+live E2E and train promotion remain subordinate to the server Dogfood installation gate. Beta
 3 stays immutable and non-promotable; it is not repaired by moving its tag or
 replacing any release asset.

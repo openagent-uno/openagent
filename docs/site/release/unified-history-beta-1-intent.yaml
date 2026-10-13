@@ -1,3 +1,4 @@
+# Installation names and paths are anonymized operator labels; original records remain in the protected audit.
 schema: 1
 train_id: unified-history-beta.1
 channel: beta
@@ -96,7 +97,7 @@ compatibility:
   old_clients_supported: true
   new_clients_fallback_to_old_server: true
   legacy_storage_retained: true
-  friday_seed: manual_exact_digest
+  dogfood_seed: manual_exact_digest
 
 pretag_gates:
   server:
@@ -144,10 +145,10 @@ stable_latest_baseline:
     release_id: 353353856
     tag: v0.15.1
 
-friday_preflight:
-  host: friday.mooby.tech
+dogfood_preflight:
+  host: dogfood.mooby.tech
   installed_server_version: 0.19.16
-  verified_backup: /srv/friday/backups/beta-unified-history-20260826T122809Z
+  verified_backup: /srv/dogfood/backups/beta-unified-history-20260826T122809Z
   quick_check: pass
   foreign_key_check: pass
   restore_rehearsal: pass

@@ -47,9 +47,9 @@ missing credential key, recover the matching key from the protected backup
 before starting the host. Do not clear records or create a new key to bypass
 the recovery error.
 
-## GlassPalace and ICS opt-in
+## Embedding host opt-in
 
-Both Go products import the same versioned connector module. They retain their
+Go embedding hosts import the same versioned connector module. They retain their
 existing credential store, membership checks, installation IDs and agent grants.
 An operator explicitly configures:
 
@@ -60,12 +60,12 @@ OPENAGENT_CONNECTOR_AUTH_PROVIDERS=<qualified provider IDs, comma-separated>
 ```
 
 Do not set the allowlist until provider and product acceptance gates pass.
-The ICS native supervisor passes only these public configuration values to its
+A native host supervisor passes only these public configuration values to its
 API process, and only when an identity path is supplied. It does not inherit
 app secrets or all environment variables into that child. New credentials still
 require the product's local authority check before their storage transaction.
 
-ICS remains a local server/client product: customer accounts, database, files
+A local host product remains a server/client product: customer accounts, database, files
 and agents are on that installation. Its public site is presentation/download
 hosting. Enabling common OAuth does not turn it into a cloud account service.
 
@@ -129,7 +129,7 @@ ports. Product-local own-app credentials stay local.
 
 Shopify own apps serving several servers need their own configured broker
 instance, so acquisition/refresh can be coordinated per app and shop. Existing
-GlassPalace/ICS registrations retain their existing compatible own-app paths.
+Embedding hosts' registrations retain their existing compatible own-app paths.
 A connection's issuer remains the app that minted its credentials; swapping a
 client ID or copying a secret is not a credential migration.
 
@@ -149,7 +149,7 @@ it in artifacts or logs. Temporary encrypted token messages are expected to be
 lost across broker restart; recipients recover from a current peer or consent
 again.
 
-On 13 October 2026 the approved Mixout control-plane maintenance enabled and
+On 13 October 2026 the approved authentication-service control-plane maintenance enabled and
 rotated Kubernetes secrets-at-rest encryption. Live status and a final restart
 were verified, with unchanged broker Secret values and a protected consistent
 post-rotation backup. A cluster restore must preserve its matching server token,

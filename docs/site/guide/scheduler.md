@@ -34,8 +34,8 @@ explicitly pause those schedules; nothing is deleted automatically.
 
 Dream Mode belongs to `openagent-module-vault`. It starts a real child session
 that consolidates notes, repairs links, records provenance and writes a durable
-receipt. The standalone and initial GlassPalace profiles preserve the existing
-default cadence and reminder behavior.
+receipt. The standalone profile preserves the existing default cadence and reminder
+behavior; embedding hosts choose their own module configuration.
 
 ```yaml
 dream_mode:

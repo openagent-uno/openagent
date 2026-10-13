@@ -1,3 +1,4 @@
+# Installation names and paths are anonymized operator labels; original records remain in the protected audit.
 schema: 1
 train_id: unified-history-beta.1
 component: server
@@ -20,8 +21,8 @@ github_release:
   linux_asset: openagent-0.20.0-beta.3-linux-x64.tar.gz
   linux_sha256: 0c03cb93beda0e1f538d1d5af24c034d1c4108196ce15410e8fa5820da68775a
 
-friday_dogfood:
-  environment_alias: Friday
+dogfood_dogfood:
+  environment_alias: Dogfood installation
   hosting_alias: Bluehost
   installation_method: exact_published_linux_asset
   installed_version: 0.20.0-beta.3
