@@ -102,7 +102,7 @@ def main():
         # Copy only tests, never any first-party implementation/source package.
         core_tests = fixture/'core'; core_tests.mkdir()
         for path in (core/'tests/public').glob('test_*.py'):
-            if 'privacy' in path.name or path.name == 'test_provider_tool_provenance.py':
+            if 'privacy' in path.name or path.name in {'test_provider_tool_provenance.py','test_reply_grounding.py'}:
                 shutil.copyfile(path,core_tests/path.name)
         product_tests = fixture/'product'; product_tests.mkdir()
         names = ('test_connector_privacy_bootstrap.py','test_connector_privacy_api.py','test_connector_provenance.py',
@@ -117,6 +117,8 @@ def main():
         environment.pop('PYTHONPATH',None)
         command([installed,'-I','-m','unittest','discover','-s',core_tests,'-q'],
                 cwd=fixture,environment=environment,output=evidence/'installed-core-tests.log')
+        command([installed,'-I','-m','pytest','-q',core_tests/'test_reply_grounding.py'],
+                cwd=fixture,environment=environment,output=evidence/'installed-reply-grounding.log')
         command([installed,'-I','-m','pytest','--asyncio-mode=auto','-q',product_tests],
                 cwd=fixture,environment=environment,output=evidence/'installed-product-tests.log')
         receipt['stages'].append('normal-installed-pipcheck-import-prefix-core-and-product-fixtures-pass')

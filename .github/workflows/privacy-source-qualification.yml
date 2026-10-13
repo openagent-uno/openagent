@@ -47,7 +47,7 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           repository: openagent-uno/openagent-core
-          ref: 9d9603f76999e77f13c6d7f2024aa061891dcd8f
+          ref: 5d6e482c39fb3685a0e565eac1da69c4eabb95e5
           path: core
           persist-credentials: false
       - name: Python

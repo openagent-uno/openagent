@@ -16,7 +16,7 @@ import sys
 import tomllib
 import urllib.request
 
-CORE_SOURCE = '9d9603f76999e77f13c6d7f2024aa061891dcd8f'
+CORE_SOURCE = '5d6e482c39fb3685a0e565eac1da69c4eabb95e5'
 PRODUCT_BASE = 'be8647fa247389feeb7df3499732f49b2e020a73'
 SDK_SOURCE = 'a5f81d65a0d7939473b30759276fa719272fda4a'
 BASES = {
@@ -134,6 +134,8 @@ def main():
         environment = dict(os.environ, OPENBLAS_NUM_THREADS='1', OMP_NUM_THREADS='1')
         environment['PYTHONPATH'] = os.pathsep.join(str(path) for path in (core/'packages/runtime/src',core/'packages/storage-sqlite/src'))
         command([unit,'-m','unittest','discover','-s','tests/public','-q'], cwd=core, environment=environment, output=evidence/'core-source-units.log')
+        command([unit,'-m','pytest','-q','tests/public/test_reply_grounding.py'], cwd=core,
+                environment=environment, output=evidence/'core-source-reply-grounding.log')
         receipt['stages'].append('core-source-public-units-pass')
         save()
         environment['PYTHONPATH'] += os.pathsep + os.pathsep.join(str(path) for path in (
