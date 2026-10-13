@@ -1,1 +1,1 @@
-"""Optional product support integration; never imported by OpenAgent Core."""
+"""Optional generic host support integration; no business profile is implicit."""
