@@ -14,7 +14,7 @@ installed client already includes the candidate UI.
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
 | Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
 | Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
-| GlassPalace | Shared module `0.1.2` deployed in production; three control-plane replicas Ready; authenticated marketplace UI verified; existing ClickUp connection preserved | Native `0.1.82` delivery/signing qualification in progress, including its existing Windows certificate gate; real common-provider acceptance |
+| GlassPalace | Shared module `0.1.2` deployed in production; three product deployments Ready; authenticated marketplace UI verified; existing ClickUp connection preserved | Native `0.1.82` delivery/signing qualification in progress, including its existing Windows certificate gate; real common-provider acceptance |
 | ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Windows Vault/Git NUL-handle fix and final package qualification before updated public server/client delivery; real provider acceptance |
 | Common authentication service | Auth-only `0.1.3` published and deployed on Mixout from source `523d17efeb1de049ca20cf90b87c29f641879216`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | ClickUp enabled only for two named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
@@ -105,6 +105,8 @@ kept its authenticated workspace and showed the catalog with no installed
 connections. Both Go products' focused frontend suites passed 53 checks.
 These ICS development checks do not establish real OAuth access, signed installed releases,
 Windows/Linux native acceptance or completion of privacy actions.
+The pending ICS package cut must qualify its own exact source; development
+screenshots from an earlier UI/runtime combination are not final release proof.
 
 Nineteen focused standalone storage/authorization checks also passed with the
 verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
