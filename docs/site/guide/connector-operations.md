@@ -41,6 +41,12 @@ agent-writable workspace. Preserve these files and database state during an
 upgrade. Tokens are not app settings or CLI arguments and must not be written
 into a prompt, source repository or logs.
 
+The candidate host refuses to create a replacement key when encrypted
+credentials or privacy notifications already exist. If a restore reports a
+missing credential key, recover the matching key from the protected backup
+before starting the host. Do not clear records or create a new key to bypass
+the recovery error.
+
 ## GlassPalace and ICS opt-in
 
 Both Go products import the same versioned connector module. They retain their

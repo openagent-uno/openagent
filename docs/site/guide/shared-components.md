@@ -171,6 +171,21 @@ migration, so the rollout must coordinate remaining legacy token issuers and
 recipient reconnection; old tokens are not promised indefinite validity.
 See [Shopify's migration requirements](https://shopify.dev/docs/apps/build/authentication-authorization/migrate-to-expiring-offline-access-tokens).
 
+## Privacy processing still required
+
+The current standalone inbox is only the delivery boundary. Completing privacy
+processing requires trusted lineage from a connection/result into transcripts,
+compacted history, delegated sessions, Vault notes, attachments and generated
+files. Provenance must remain bound to the authorized tenant and provider
+account; model-supplied labels cannot authorize a privacy action.
+
+The host needs durable, idempotent jobs for the verified provider request,
+bounded export/redaction, admission fences while affected work is running,
+and completion receipts. Reusable content/provenance contracts belong upstream
+in Core's public services; Shopify event interpretation and customer/store
+selection belong to the receiving product. This integration is unfinished.
+Clearing a token or acknowledging a webhook cannot substitute for it.
+
 ## Shared code and product UI
 
 The standalone marketplace uses one card component and one responsive grid for
