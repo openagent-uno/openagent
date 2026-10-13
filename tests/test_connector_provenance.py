@@ -48,6 +48,8 @@ class RenewingProviderFixture(ProviderFixture):
                 'expires_at':'2099-01-01T00:00:00Z'}}
         if method == 'auth.publish':
             return {'ok':True}
+        if method == 'sync.disconnect':
+            return {'ok':True}
         return await super().call(method, params)
 
 
@@ -106,10 +108,84 @@ async def test_actual_catalog_expired_token_refresh_keeps_same_consent_invocatio
         with execution_scope(server.runtime, context, 'refresh-run'):
             result = await server.runtime.capabilities.call_tool(tools['commerce.shopify.customers.get'],
                 {'id':'gid://shopify/Customer/23'}, context)
+            again = await server.runtime.capabilities.call_tool(tools['commerce.shopify.customers.get'],
+                {'id':'gid://shopify/Customer/23'}, context)
         assert result['data']['customer']['id'] == 'gid://shopify/Customer/23'
+        assert again == result
         assert runner.refreshes == 1
-        assert runner.invocations == ['commerce.shopify.customers.get']
+        assert runner.invocations == ['commerce.shopify.customers.get'] * 2
         current = server.service.decrypt(await server.service.record('connection'))
         assert current['version'] == 2 and current['authorized_at'] == '2026-10-13T10:00:00Z'
+    finally:
+        await server.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('change', ['disable', 'write_permission', 'new_consent'])
+async def test_refresh_cannot_overwrite_concurrent_authority_change(tmp_path, change):
+    server = await owned_server(tmp_path/'owned', 'tenant')
+    runner = RenewingProviderFixture()
+    server.service.runner = runner
+    try:
+        async with aiosqlite.connect(server.service.db_path) as db:
+            await db.execute("UPDATE official_connector_connections SET status='pending' WHERE id='connection'")
+            await db.commit()
+        original = {'access_token':'synthetic-expired', 'app_id':'app', 'group':'group',
+                    'authorized_at':'2026-10-13T10:00:00Z', 'expires_at':'2020-01-01T00:00:00Z', 'version':1}
+        await server.service.save(await server.service.record('connection'), original)
+        async def concurrent_change():
+            if change == 'new_consent':
+                # A separately verified new authorization transaction, with
+                # the same app/store and version, must still win over renewal.
+                async with aiosqlite.connect(server.service.db_path) as db:
+                    await db.execute("UPDATE official_connector_connections SET transaction_id='new-grant' WHERE id='connection'")
+                    await db.commit()
+                await server.service.save(await server.service.record('connection'),
+                    {**original, 'access_token':'synthetic-new-consent', 'authorized_at':'2026-10-13T11:00:00Z',
+                     'expires_at':'2099-01-01T00:00:00Z'}, authorization_transaction='new-grant')
+            else:
+                await server.service.update(server.context, 'connection',
+                    {'enabled':False} if change == 'disable' else {'allow_write':True})
+        runner.after_refresh = concurrent_change
+        context = replace(server.context, session_id='race-session')
+        await server.canonical.accept(RunRequest('race-run', context.session_id, 'race-key', 'READ'), context)
+        await server.canonical.transition('race-run', 'running')
+        reference = (await server.runtime.capabilities.discover(context))[0].tool_ref
+        with execution_scope(server.runtime, context, 'race-run'):
+            with pytest.raises(PermissionError):
+                await server.runtime.capabilities.call_tool(reference, {'id':'gid://shopify/Customer/23'}, context)
+        assert runner.refreshes == 1 and runner.invocations == []
+        row = await server.service.record('connection')
+        token = server.service.decrypt(row)
+        assert token['version'] == 1
+        if change == 'new_consent':
+            assert token['access_token'] == 'synthetic-new-consent'
+            assert token['authorized_at'] == '2026-10-13T11:00:00Z'
+        else:
+            assert token['access_token'] == 'synthetic-expired'
+            assert row['enabled'] == (0 if change == 'disable' else 1)
+            assert row['allow_write'] == (1 if change == 'write_permission' else 0)
+    finally:
+        await server.close()
+
+
+@pytest.mark.asyncio
+async def test_late_renewal_cannot_restore_a_disconnected_connection(tmp_path):
+    server = await owned_server(tmp_path/'owned', 'tenant')
+    server.service.runner = RenewingProviderFixture()
+    try:
+        async with aiosqlite.connect(server.service.db_path) as db:
+            await db.execute("UPDATE official_connector_connections SET status='pending' WHERE id='connection'")
+            await db.commit()
+        token = {'access_token':'synthetic-held', 'app_id':'app', 'group':'group',
+                 'authorized_at':'2026-10-13T10:00:00Z', 'version':1}
+        await server.service.save(await server.service.record('connection'), token)
+        snapshot = await server.service.record('connection')
+        await server.service.disconnect(server.context, 'connection')
+        with pytest.raises(PermissionError):
+            await server.service.save(snapshot, {**token, 'version':2, 'access_token':'synthetic-late'}, renewal=True)
+        current = await server.service.record('connection')
+        assert current['status'] == 'disconnected' and current['credential'] is None and current['enabled'] == 0
+        assert await server.runtime.capabilities.discover(server.context) == ()
     finally:
         await server.close()

@@ -39,11 +39,13 @@ class OfficialConnectorSource:
         row = await self.service.record(self.connection_id)
         if not self.service.can_use(context, row):
             raise PermissionError("Connector binding is unavailable")
-        token = await self.service.current_token(row)
+        admitted = row
+        token = await self.service.current_token(row, context=context)
         # Revalidate after authentication IO: disconnecting a connection can
         # never resurrect its tools or persist credentials into another owner.
         row = await self.service.record(self.connection_id)
-        if not self.service.can_use(context, row):
+        if (not self.service.can_use(context, row)
+                or self.service.source_snapshot(admitted) != self.service.source_snapshot(row)):
             raise PermissionError("Connector binding is unavailable")
         if self.privacy is not None:
             await self.privacy.before_io(name,context)
@@ -369,18 +371,58 @@ class OfficialConnectors:
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
         return json.loads(AESGCM(self.key).decrypt(row["nonce"], row["credential"], aad))
 
-    async def save(self, row, token, *, authorization_transaction=None):
+    @staticmethod
+    def source_snapshot(row):
+        return tuple(row[key] for key in (
+            "id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
+            "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id"))
+
+    def same_consent(self, row, token):
+        previous = self.decrypt(row)
+        if any(previous.get(key) != token.get(key) for key in ("app_id", "external_id", "scopes")):
+            return False
+        if previous.get("group", "") != token.get("group", ""):
+            return False
+        old, new = previous.get("authorized_at"), token.get("authorized_at")
+        # Older product-owned apps lack a consent timestamp. Only a renewal
+        # of their exact held credential may preserve this legacy registration.
+        if old is None or new is None:
+            return old is None and new is None and not token.get("group")
+        try:
+            old = datetime.fromisoformat(old.replace("Z", "+00:00"))
+            new = datetime.fromisoformat(new.replace("Z", "+00:00"))
+        except (AttributeError, ValueError):
+            return False
+        return old.tzinfo is not None and new.tzinfo is not None and old == new
+
+    async def save(self, row, token, *, authorization_transaction=None, renewal=False):
+        if renewal and (authorization_transaction is not None or not self.same_consent(row, token)):
+            raise PermissionError("Renewal changed the connector consent or permissions")
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
         nonce = os.urandom(12)
         ciphertext = AESGCM(self.key).encrypt(nonce, json.dumps(token).encode(), aad)
         async with aiosqlite.connect(self.db_path) as db:
-            cursor = await db.execute("UPDATE official_connector_connections SET credential=?,nonce=?,app_id=?,group_id=?,token_version=?,status='connected',transaction_id=NULL WHERE id=? AND owner_key=? AND status!='disconnected' AND ((? IS NOT NULL AND transaction_id=?) OR (? IS NULL AND (app_id IS NULL OR app_id=?) AND token_version<=?))",
+            if renewal:
+                # Compare the credential and complete local binding atomically.
+                # Neither a new grant nor an ACL edit during authentication IO
+                # can be overwritten by this response.
+                keys = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
+                        "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
+                        "credential", "nonce", "token_version", "transaction_id")
+                cursor = await db.execute(
+                    "UPDATE official_connector_connections SET credential=?,nonce=?,token_version=? WHERE "
+                    + " AND ".join(key + " IS ?" for key in keys)
+                    + " AND status='connected' AND enabled=1 AND token_version<=?",
+                    (ciphertext, nonce, token.get("version", 0), *(row[key] for key in keys), token.get("version", 0)))
+            else:
+                cursor = await db.execute("UPDATE official_connector_connections SET credential=?,nonce=?,app_id=?,group_id=?,token_version=?,status='connected',transaction_id=NULL WHERE id=? AND owner_key=? AND status!='disconnected' AND ((? IS NOT NULL AND transaction_id=?) OR (? IS NULL AND (app_id IS NULL OR app_id=?) AND token_version<=?))",
                                      (ciphertext, nonce, token["app_id"], token.get("group", ""), token.get("version", 0),
                                       row["id"], row["owner_key"], authorization_transaction, authorization_transaction, authorization_transaction, token["app_id"], token.get("version", 0)))
             if cursor.rowcount != 1:
                 raise PermissionError("Connector was disconnected or credential generation changed")
             await db.commit()
-        await self.register_source(row["id"])
+        if not renewal:
+            await self.register_source(row["id"])
 
     async def register_source(self, connection_id):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
@@ -458,9 +500,11 @@ class OfficialConnectors:
                 "scheme": "" if row["catalog_id"] in {"shopify", "imap_smtp", "postiz"} else "Bearer",
                 "version": str(token.get("version", 0)), "expires_at": token.get("expires_at")}
 
-    async def current_token(self, row):
+    async def current_token(self, row, *, context=None):
         async with self.lock:
             row = await self.record(row["id"])
+            if context is not None and not self.can_use(context, row):
+                raise PermissionError("Connector binding is unavailable")
             token = self.decrypt(row)
             expiry = token.get("expires_at")
             if expiry and datetime.fromisoformat(expiry.replace("Z", "+00:00")).timestamp() < datetime.now(timezone.utc).timestamp() + 120:
@@ -474,7 +518,7 @@ class OfficialConnectors:
                 token = rotation["token"]
                 token["group"] = rotation.get("group", "")
                 token["recipients"] = rotation.get("recipients", [])
-                await self.save(row, token)
+                await self.save(row, token, renewal=True)
                 if token["group"]:
                     await self.runner.call("auth.publish", rotation)
             return token
@@ -501,7 +545,7 @@ class OfficialConnectors:
             for row in rows:
                 if row["group_id"] == envelope["group"] and row["app_id"] == token["app_id"] and token.get("version") == envelope["version"] and token["version"] > row["token_version"] and token.get("external_id") == self.decrypt(row).get("external_id"):
                     token["group"] = row["group_id"]
-                    await self.save(row, token)
+                    await self.save(row, token, renewal=True)
                     await self.runner.call("sync.commit", {"group": row["group_id"], "version": token["version"]})
         for request in mail.get("recoveries", []):
             for row in rows:
