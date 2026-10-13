@@ -77,7 +77,7 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                 reference = tools['commerce.shopify.customers.get']
                 with execution_scope(service.runtime,context,'managed-run'):
                     result = await service.runtime.capabilities.call_tool(reference,{'id':'gid://shopify/Customer/23'},context)
-                    await stream._publish(OutTextFinal(text=result['data']['customer']['name']))
+                    await stream._publish(OutTextFinal(session_id='managed', text=result['data']['customer']['name']))
                 await channel.start()
                 await asyncio.wait_for(sent.wait(), 2)
                 self.assertTrue(any(frame.get('text')=='PROVIDER CUSTOMER' for frame in delivered))
@@ -87,8 +87,8 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                 channel._pump_task.cancel()
                 await channel._pump_task
                 with execution_scope(service.runtime,context,'managed-run'):
-                    await stream._publish(OutTextDelta(text='PENDING PRIVATE REPLY'))
-                await stream._publish(OutTextDelta(text='UNRELATED HUMAN FRAME'))
+                    await stream._publish(OutTextDelta(session_id='managed', text='PENDING PRIVATE REPLY'))
+                await stream._publish(OutTextDelta(session_id='managed', text='UNRELATED HUMAN FRAME'))
                 request = PrivacyRequest('actual-redact',context.tenant_id,'shopify/app','group',
                     grant_generation('2026-10-13T10:00:00Z'),'redact',('customer:23',))
                 await processor.store.enqueue(request)
@@ -96,7 +96,7 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(stream.outbound.qsize(), 1)
                 self.assertEqual((await stream.outbound.get()).text, 'UNRELATED HUMAN FRAME')
                 with execution_scope(service.runtime,context,'managed-run'), self.assertRaises(PrivacyFence):
-                    await stream._publish(OutTextDelta(text='LATE PRIVATE REPLY'))
+                    await stream._publish(OutTextDelta(session_id='managed', text='LATE PRIVATE REPLY'))
                 progress = await processor.store.process(request.request_id,processor.sinks,
                                                          covered_surfaces=processor.covered_surfaces)
                 self.assertEqual(progress.status, 'complete')
