@@ -61,20 +61,23 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.38", "manifest.json"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.21", "manifest.json"),
-    ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json"),
-    ("openagent-uno/openagent-tools", "connectors-v0.1.2", "manifest.json"),
+    ("openagent-uno/openagent", "v1.1.0-beta.39", "manifest.json", "772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.22", "manifest.json", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
+    ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
+    ("openagent-uno/openagent-tools", "connectors-v0.1.3", "manifest.json", "03684b84d9738ea7c14073a43110a4fc46744af6bd7ba3438c3059e682af127f"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
 
-def fetch(url: str) -> bytes:
+def fetch(url: str, *, max_bytes: int = 64 << 20) -> bytes:
     attempts = 5
     for attempt in range(attempts):
         try:
             with urlopen(Request(url, headers=headers), timeout=60) as response:
-                return response.read()
+                payload = response.read(max_bytes + 1)
+                if len(payload) > max_bytes:
+                    raise RuntimeError(f"Download exceeds the size limit: {url}")
+                return payload
         except HTTPError as error:
             if error.code not in (429, 500, 502, 503, 504) or attempt == attempts - 1:
                 raise RuntimeError(f"Could not download {url}: HTTP {error.code}") from error
@@ -86,14 +89,17 @@ def fetch(url: str) -> bytes:
 
 
 verified = 0
-for repository, tag, manifest_name in releases:
+for repository, tag, manifest_name, manifest_digest in releases:
     api = f"https://api.github.com/repos/{repository}/releases/tags/{tag}"
-    release = json.loads(fetch(api))
+    release = json.loads(fetch(api, max_bytes=1 << 20))
     assets = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
     if manifest_name not in assets:
         raise SystemExit(f"{repository} {tag}: missing {manifest_name}")
 
-    manifest = json.loads(fetch(assets[manifest_name]))
+    manifest_bytes = fetch(assets[manifest_name], max_bytes=1 << 20)
+    if hashlib.sha256(manifest_bytes).hexdigest() != manifest_digest:
+        raise SystemExit(f"{repository} {tag}: pinned manifest checksum mismatch")
+    manifest = json.loads(manifest_bytes)
     if "artifacts" in manifest:
         expected = {item["path"]: item["sha256"] for item in manifest["artifacts"]}
     elif "wheels" in manifest:
@@ -136,10 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b38"
+    DIST="openagent-framework==1.1.0b39"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b38"
+    DIST="openagent-cli==1.1.0b39"
     COMMAND="openagent-cli"
 fi
 
@@ -148,16 +154,26 @@ fi
 # These are the versions qualified by the product wheel test environment.
 CONSTRAINTS="$TMP_DIR/constraints.txt"
 cat >"$CONSTRAINTS" <<'EOF'
-hf-xet==1.6.0
-litellm==1.102.0
-pydantic==2.13.5
-pydantic-core==2.46.5
-SQLAlchemy==2.0.54
+hf-xet==1.7.0
+litellm==1.105.0
+pydantic==2.14.1
+pydantic-core==2.50.1
+SQLAlchemy==2.1.4
+PyJWT==2.14.0
+urllib3==2.8.0
 EOF
 
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
-"$VENV/bin/python" -m pip install --disable-pip-version-check \
-    --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
+if [ "$PRODUCT" = "server" ]; then
+    # The standalone's NativeProvider needs async ORM support. Require Core's
+    # engine extras explicitly, matching the verified normal installed closure.
+    "$VENV/bin/python" -m pip install --disable-pip-version-check \
+        --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
+        "openagent-core[engine,providers,modules]==1.1.0b22"
+else
+    "$VENV/bin/python" -m pip install --disable-pip-version-check \
+        --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
+fi
 
 if [ "$PRODUCT" = "server" ]; then
     # Reuse the same manifest/archive verifier used by frozen server builds.

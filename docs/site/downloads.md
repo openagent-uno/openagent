@@ -1,6 +1,6 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.38**. The latest desktop App
+The current server and CLI build is **v1.1.0-beta.39**. The latest desktop App
 is **v1.1.0-beta.16**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
@@ -33,6 +33,11 @@ standalone product pins independently released Core and Tools packages.
 curl -fsSL https://openagent.uno/install.sh | sh
 ```
 
+The server installer selects `openagent-core[engine,providers,modules]==1.1.0b22`,
+including SQLAlchemy async support. When assembling directly from release wheels,
+install those extras too: the bare Framework wheel is not the qualified
+`NativeProvider` dependency closure. The CLI remains a thin remote client.
+
 ## CLI
 
 <ReleaseDownloads target="cli" />
@@ -46,19 +51,19 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
 
 ## Libraries
 
-- [OpenAgent Core v1.1.0-beta.21](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.21)
+- [OpenAgent Core v1.1.0-beta.22](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.22)
   — kernel, SDK, storage and optional module wheels.
 - [OpenAgent Tools v1.0.0-beta.4](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.4)
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
-- [OpenAgent host-tools v1.0.0b4](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b4)
-  — six platform bundles pinned by the App release lock. Standalone beta 38
-  also publishes the host-tools `1.0.0b5` wheel for local runner acquisition.
-- [Shared connector module/runner 0.1.2](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
+- [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 39.
+  The current desktop App beta 16 retains its own release lock.
+- [Shared connector module/runner 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
   — shared provider adapters, Python/MCP transport, platform manifests and checksums.
-- [Connector auth service 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4)
+- [Connector auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
   — separate operator deployment release; public provider enrollment remains disabled.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.38/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.39/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
