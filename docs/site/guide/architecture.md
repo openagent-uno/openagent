@@ -10,7 +10,7 @@ sources.
 | Repository | Responsibility |
 | --- | --- |
 | [`openagent-core`](https://github.com/openagent-uno/openagent-core) | Kernel, contracts, SDK, SQLite storage, gateway and optional module wheels |
-| [`openagent-tools`](https://github.com/openagent-uno/openagent-tools) | Standalone filesystem, editor, shell, web-search and device tools |
+| [`openagent-tools`](https://github.com/openagent-uno/openagent-tools) | Standalone filesystem, editor, shell, web-search, device tools and shared provider connectors |
 | [`openagent`](https://github.com/openagent-uno/openagent) | Standalone app, CLI, server, MCP bridge, identity, dashboards and distribution |
 
 The dependency direction is one-way: the product consumes Core and Tools;
@@ -177,10 +177,24 @@ silently deleted.
 - **OpenAgent standalone** enables the full module set, dynamic MCP management
   and configurable PTC, then accepts temporary App or CLI capabilities.
 - **GlassPalace** uses federated Sessions, Vault and automation modules, a
-  product-managed MCP catalog, GlassPalace connectors and authorized Computers.
+  product-managed MCP catalog, shared OpenAgent connector adapters with GlassPalace policy and authorized Computers.
 - **Replio reference** uses Sessions and fixed native capabilities without
   dynamic MCP, Vault or automation unless its host opts in.
 
 This makes `kernel + Sessions`, `Sessions + Vault`, Scheduler without
 Workflows, MCP without an agent manager, native tools without MCP and the full
 standalone product ordinary configurations of the same runtime.
+
+## Shared provider integrations
+
+The [shared components guide](./shared-components.md) maps the versioned Go
+connector library, local runner, Python/MCP surfaces and optional OAuth broker.
+GlassPalace and ICS link the adapters directly; the standalone registers local
+capability sources through Core's public APIs. Every product retains accounts,
+credential storage, permission controls and local privacy actions.
+
+The [release checkpoint](./connector-status.md) separates implemented contracts
+and published prerelease artifacts from common-app activation, native product
+delivery, real provider acceptance and remaining privacy processing. Sharing a
+provider app does not require a shared agent server, engine fork or remote
+content proxy.
