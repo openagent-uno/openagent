@@ -1,0 +1,79 @@
+[
+  {
+    "id": "replio",
+    "file": "replio.png",
+    "source": "https://replio.to/replio-icon-192.png",
+    "retrieved": "2026-09-08",
+    "sha256": "d83b4f02c9a28b98fcd92f4cf23200d9a0241dad46a16b0e7679b2fedd30c657"
+  },
+  {
+    "id": "billingbear",
+    "file": "billingbear.png",
+    "source": "https://billingbear.io/apple-icon.png?apple-icon.0_w7u3t8fs1es.png",
+    "retrieved": "2026-09-08",
+    "sha256": "ea725566a4d657cd62ba436b63c56509791977c1d66bddf8b3346ae5bd0b86cb"
+  },
+  {
+    "id": "pipeboard",
+    "file": "pipeboard.png",
+    "source": "https://pipeboard.co/favicon/apple-touch-icon.png",
+    "retrieved": "2026-09-08",
+    "sha256": "b451481826aad1e5619f1dcbb0c011f58fe67c6d434ce7d687f6ffb532bcfec4"
+  },
+  {
+    "id": "github",
+    "file": "github.png",
+    "source": "https://github.com/fluidicon.png",
+    "retrieved": "2026-09-08",
+    "sha256": "1bedd6a1948971f07970414717012503805309f25af0b2c542dbc3524b5880e9"
+  },
+  {
+    "id": "slack-import",
+    "file": "slack-import.png",
+    "source": "https://a.slack-edge.com/9cc0056/img/icons/favicon-32.png",
+    "retrieved": "2026-09-08",
+    "sha256": "ca3872d0fb85ff9858bcbdc529d6e1db32c029c681c6e723e4f2ecb1c7defea6"
+  },
+  {
+    "id": "shopify",
+    "file": "shopify.png",
+    "source": "https://cdn.shopify.com/b/shopify-brochure2-assets/c97c60ca19c64a8b5378d9f9e971f7bd.png",
+    "retrieved": "2026-09-08",
+    "sha256": "b4f8929dca6d35346d63a49605eed3ab4f8ca0e706dfc5c3aa0a79eed98954fe"
+  },
+  {
+    "id": "postiz",
+    "file": "postiz.svg",
+    "source": "https://postiz.com/_next/static/media/logo-mobile.100342d9.svg",
+    "retrieved": "2026-09-08",
+    "sha256": "de6ffd57e5b43547969ffc44e564b266bd1e5516952f91116bff912c65d2ac07"
+  },
+  {
+    "id": "google-drive",
+    "file": "google-drive.svg",
+    "source": "https://www.gstatic.com/images/branding/productlogos/drive_2026/v2/web/192px.svg",
+    "retrieved": "2026-09-08",
+    "sha256": "60a6496d705d8bf010ce126469be89889db331622b14d8ae1645a38c2aaa23f5"
+  },
+  {
+    "id": "gmail",
+    "file": "gmail.svg",
+    "source": "https://www.gstatic.com/images/branding/productlogos/gmail_2026/v2/web/192px.svg",
+    "retrieved": "2026-09-08",
+    "sha256": "0a242131424b796a26247a8edd41d66fa294da6d177897526a19b7e81aedfdb8"
+  },
+  {
+    "id": "google-analytics",
+    "file": "google-analytics.svg",
+    "source": "https://www.gstatic.com/analytics-suite/header/suite/v2/ic_analytics.svg",
+    "retrieved": "2026-09-08",
+    "sha256": "aa7d39ae684b9dc29b319257ad078f97fd90350aa6ace71fc9cfb66eb316c045"
+  },
+  {
+    "id": "clickup",
+    "file": "clickup.svg",
+    "source": "https://clickup.com/images/brand-assets/logo-symbol-color.svg",
+    "retrieved": "2026-09-15",
+    "sha256": "704d7d3779dbe8793b835e3cf7fa556b9b6fbf1558581a94ea6bc7800cc78c35"
+  }
+]

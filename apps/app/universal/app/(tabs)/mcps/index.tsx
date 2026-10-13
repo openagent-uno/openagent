@@ -40,15 +40,20 @@ import SectionTabs from '../../../components/SectionTabs';
 import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import { useConfirm } from '../../../components/ConfirmDialog';
 import McpTile from '../../../components/mcps/McpTile';
-import MarketplaceTile from '../../../components/mcps/MarketplaceTile';
+import Grid from '../../../components/mcps/MarketplaceGrid';
 import McpConfigForm, { type McpSubmitPayload } from '../../../components/mcps/McpConfigForm';
 
-type Mode = 'official' | 'builtin' | 'custom' | 'browse' | 'new';
+type Mode = 'builtin' | 'custom' | 'browse' | 'new';
 
 const MARKETPLACE_SOURCE_PREFIX = 'marketplace:registry.modelcontextprotocol.io/';
 const SEARCH_DEBOUNCE_MS = 300;
 const TILE_MIN_WIDTH = 280;
 const TILE_MAX_COLS = 6;
+
+function marketplaceTarget() {
+  const { config, activeAccountId } = useConnection.getState();
+  return config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
+}
 
 /**
  * Compute column count from the *container's* measured width. Base the
@@ -78,9 +83,11 @@ export default function McpsScreen() {
   const navigation = useNavigation();
   const headerInset = useHeaderInset();
   const config = useConnection((s) => s.config);
+  const activeAccountId = useConnection((s) => s.activeAccountId);
+  const target = config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
   const confirm = useConfirm();
 
-  const [mode, setMode] = useState<Mode>('official');
+  const [mode, setMode] = useState<Mode>('browse');
 
   // Unified "create" control in the navigator header (same position as
   // Workflows / Scheduled) — jumps to the "New" connector form.
@@ -101,6 +108,14 @@ export default function McpsScreen() {
   const [mktLoading, setMktLoading] = useState(false);
   const [mktError, setMktError] = useState<string | null>(null);
   const mktDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mktTargetRef = useRef('');
+  const mktRequestRef = useRef(0);
+  useEffect(() => {
+    mktTargetRef.current = target;
+    mktRequestRef.current++;
+    setMktResults([]); setMktCursor(undefined); setMktError(null); setMktLoading(false);
+    return () => { mktTargetRef.current = ''; mktRequestRef.current++; };
+  }, [target]);
 
   // Container-measured width. Starts at 0; first layout pass fills it.
   const [containerWidth, setContainerWidth] = useState(0);
@@ -177,28 +192,34 @@ export default function McpsScreen() {
 
   // ── Marketplace search (debounced) ──
   const runSearch = useCallback(async (q: string, cursor?: string, append = false) => {
+    const expected = mktTargetRef.current;
+    if (!expected || expected !== marketplaceTarget()) return;
+    const request = ++mktRequestRef.current;
+    const current = () => request === mktRequestRef.current && expected === mktTargetRef.current && expected === marketplaceTarget();
     setMktLoading(true);
     setMktError(null);
     try {
       const data = await searchMcpMarketplace(q, cursor, 30);
-      setMktResults((prev) => (append ? [...prev, ...data.servers] : data.servers));
+      if (!current()) return;
+      setMktResults((prev) => [...new Map((append ? [...prev, ...data.servers] : data.servers).map(card => [`${card.name}@${card.version || 'latest'}`, card])).values()]);
       setMktCursor(data.nextCursor);
     } catch (e: any) {
+      if (!current()) return;
       setMktError(e?.message || String(e));
       if (!append) setMktResults([]);
     } finally {
-      setMktLoading(false);
+      if (current()) setMktLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (mode !== 'browse') return;
+    if (mode !== 'browse' || !target) return;
     if (mktDebounceRef.current) clearTimeout(mktDebounceRef.current);
     mktDebounceRef.current = setTimeout(() => runSearch(mktQuery.trim()), SEARCH_DEBOUNCE_MS);
     return () => {
       if (mktDebounceRef.current) clearTimeout(mktDebounceRef.current);
     };
-  }, [mktQuery, mode, runSearch]);
+  }, [mktQuery, mode, target, runSearch]);
 
   // ── Computed ──
   const builtinRows = useMemo(
@@ -278,7 +299,6 @@ export default function McpsScreen() {
     <View style={[styles.root, { paddingTop: headerInset }]}>
       <SectionTabs<Mode>
         tabs={[
-          { id: 'official', label: 'Official', icon: 'check-circle' },
           { id: 'builtin', label: `Builtin · ${builtinRows.length}`, icon: 'package' },
           { id: 'custom', label: `Custom · ${customRows.length}`, icon: 'sliders' },
           { id: 'browse', label: 'Browse', icon: 'compass' },
@@ -299,7 +319,6 @@ export default function McpsScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-        {mode === 'official' && <OfficialConnectorsPane />}
         {mode === 'builtin' && (
           <InstalledPane
             kind="builtin"
@@ -330,22 +349,12 @@ export default function McpsScreen() {
           <View style={{ gap: 24 }}>
           <View style={[styles.searchBox, styles.searchBoxLarge]}>
             <Feather name="search" size={15} color={colors.textMuted} />
-            <TextInput accessibilityLabel="Search official connectors and MCP registry" value={mktQuery} onChangeText={setMktQuery} placeholder="Search official connectors and MCP registry" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={[styles.searchInput, { fontSize: 14 }]} />
+            <TextInput accessibilityLabel="Search marketplace" value={mktQuery} onChangeText={setMktQuery} placeholder="Search marketplace" placeholderTextColor={colors.textMuted} autoCapitalize="none" autoCorrect={false} style={[styles.searchInput, { fontSize: 14 }]} />
             {mktLoading && <ActivityIndicator size="small" color={colors.primary} />}
           </View>
-          <OfficialConnectorsPane query={mktQuery} showConnections={false} />
-          <MarketplacePane
-            query={mktQuery}
-            setQuery={setMktQuery}
-            loading={mktLoading}
-            error={mktError}
-            results={mktResults}
-            cursor={mktCursor}
-            cols={cols}
-            installedNames={installedRegistryNames}
-            onInstallClick={onInstallClick}
-            onLoadMore={() => runSearch(mktQuery.trim(), mktCursor, true)}
-          />
+          {mktError && <View style={styles.errorBanner}><Text style={styles.errorText}>Some marketplace results could not load.</Text><Button variant="ghost" size="sm" label="Retry" onPress={() => runSearch(mktQuery.trim())} /></View>}
+          <OfficialConnectorsPane query={mktQuery} cols={cols} registryResults={mktResults} registryInstalledNames={installedRegistryNames} onInstallRegistry={onInstallClick} />
+          {mktCursor && !mktLoading && <View style={styles.loadMore}><Button variant="ghost" size="sm" label="Load more results" icon="chevron-down" onPress={() => runSearch(mktQuery.trim(), mktCursor, true)} /></View>}
           </View>
         )}
         {mode === 'new' && (
@@ -482,110 +491,9 @@ function NewPane({ onSubmit, onCancel, serverError }: NewPaneProps) {
 // Marketplace pane
 // ───────────────────────────────────────────────────────────────────────
 
-interface MarketplacePaneProps {
-  query: string;
-  setQuery: (v: string) => void;
-  loading: boolean;
-  error: string | null;
-  results: MarketplaceCard[];
-  cursor?: string;
-  cols: number;
-  installedNames: Set<string>;
-  onInstallClick: (card: MarketplaceCard) => void;
-  onLoadMore: () => void;
-}
-
-function MarketplacePane({
-  query, loading, error, results, cursor, cols,
-  installedNames, onInstallClick, onLoadMore,
-}: MarketplacePaneProps) {
-  return (
-    <View style={{ gap: 14 }}>
-      <View style={styles.previewRibbon}>
-        <Feather name="info" size={10} color={colors.textMuted} />
-        <Text style={styles.previewRibbonText}>
-          Preview registry — occasional outages expected —{' '}
-          <Text style={styles.previewRibbonDomain}>registry.modelcontextprotocol.io</Text>
-        </Text>
-      </View>
-
-      {error && (
-        <View style={styles.errorBanner}>
-          <Feather name="alert-circle" size={13} color={colors.error} />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {results.length === 0 && !loading && !error ? (
-        <EmptyState
-          icon="compass"
-          title={query ? 'Nothing matches' : 'Type to start searching'}
-          message={query
-            ? 'Try a shorter or more general term.'
-            : 'The registry holds every publicly-listed Model Context Protocol server.'}
-        />
-      ) : (
-        <Grid cols={cols}>
-          {results.map((card) => (
-            <MarketplaceTile
-              key={`${card.name}@${card.version || 'latest'}`}
-              card={card}
-              installed={installedNames.has(card.name)}
-              onInstall={() => onInstallClick(card)}
-            />
-          ))}
-        </Grid>
-      )}
-
-      {cursor && !loading && (
-        <View style={styles.loadMore}>
-          <Button
-            variant="ghost"
-            size="sm"
-            label="Load more results"
-            icon="chevron-down"
-            onPress={onLoadMore}
-          />
-        </View>
-      )}
-    </View>
-  );
-}
-
 // ───────────────────────────────────────────────────────────────────────
 // Small building blocks
 // ───────────────────────────────────────────────────────────────────────
-
-function Grid({ cols, children }: { cols: number; children: React.ReactNode }) {
-  // Chunk the children into fixed-size rows and give each cell ``flex: 1``.
-  // Why not ``flexBasis: 33.33%`` with wrap: percent-sized cells plus a
-  // ``gap`` overflow slightly, and the last-row orphans need explicit
-  // ``maxWidth`` caps to keep columns aligned. Row-chunking sidesteps both
-  // problems — every row is an independent flexbox with N equal cells,
-  // and the last row is padded with empty spacers so columns line up.
-  const gap = 14;
-  const nodes = Array.isArray(children) ? children : [children];
-  const rows: React.ReactNode[][] = [];
-  for (let i = 0; i < nodes.length; i += cols) {
-    rows.push(nodes.slice(i, i + cols));
-  }
-  return (
-    <View style={{ gap }}>
-      {rows.map((row, ri) => (
-        <View key={ri} style={[gridStyles.row, { gap }]}>
-          {row.map((child, ci) => (
-            <View key={ci} style={gridStyles.cell}>{child}</View>
-          ))}
-          {/* Pad short last row so remaining columns don't stretch. */}
-          {row.length < cols &&
-            Array.from({ length: cols - row.length }).map((_, pi) => (
-              <View key={`pad-${pi}`} style={gridStyles.cell} />
-            ))}
-        </View>
-      ))}
-    </View>
-  );
-}
 
 function EmptyState({
   icon, title, message, primary, secondary,
@@ -672,17 +580,6 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}),
   },
 
-  previewRibbon: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 2, marginTop: -6,
-  },
-  previewRibbonText: {
-    fontSize: 10.5, color: colors.textMuted, fontFamily: font.sans,
-  },
-  previewRibbonDomain: {
-    fontFamily: font.mono, color: colors.textSecondary,
-  },
-
   empty: {
     alignItems: 'center',
     paddingVertical: 56,
@@ -733,12 +630,4 @@ const styles = StyleSheet.create({
     height: 1, backgroundColor: colors.borderLight,
     marginTop: 22, marginBottom: 28,
   },
-});
-
-const gridStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  cell: { flex: 1, minWidth: 0 },
 });

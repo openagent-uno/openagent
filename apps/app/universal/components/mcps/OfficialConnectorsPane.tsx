@@ -1,8 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup } from '../../services/api';
+import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup, type MarketplaceCard } from '../../services/api';
 import { colors, radius } from '../../theme';
-import Feather from '@expo/vector-icons/Feather';
+import MarketplaceTile from './MarketplaceTile';
+import ConnectorLogo from './ConnectorLogo';
+import Button from '../Button';
+import Grid from './MarketplaceGrid';
 import { useConnection } from '../../stores/connection';
 
 function currentTarget() {
@@ -10,7 +13,7 @@ function currentTarget() {
   return config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
 }
 
-export default function OfficialConnectorsPane({ query = '', showConnections = true }: { query?: string; showConnections?: boolean }) {
+export default function OfficialConnectorsPane({ query = '', cols = 1, registryResults = [], registryInstalledNames = new Set<string>(), onInstallRegistry }: { query?: string; cols?: number; registryResults?: MarketplaceCard[]; registryInstalledNames?: Set<string>; onInstallRegistry?: (card: MarketplaceCard) => void }) {
   const config = useConnection(s => s.config);
   const activeAccountId = useConnection(s => s.activeAccountId);
   const target = config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
@@ -20,6 +23,7 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
   const [available, setAvailable] = useState(true);
   const [selected, setSelected] = useState<OfficialConnector | null>(null);
   const [token, setToken] = useState('');
+  const [showSetup, setShowSetup] = useState(true);
   const [account, setAccount] = useState('');
   const [mail, setMail] = useState<Record<string, string>>({ mailbox: 'INBOX' });
   const [allowWrite, setAllowWrite] = useState(false);
@@ -30,7 +34,7 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
   const generation = useRef(0);
   useEffect(() => {
     generation.current++; boundTarget.current = target;
-    setSelected(null); setToken(''); setMail({ mailbox: 'INBOX' }); setPending(null); setBusy(false);
+    setSelected(null); setShowSetup(true); setToken(''); setMail({ mailbox: 'INBOX' }); setPending(null); setBusy(false);
     setCatalog([]); setConnections([]); setError(''); setNotice('');
     if (target) void refresh();
     return () => { generation.current++; boundTarget.current = ''; };
@@ -45,7 +49,9 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
     if (!expected || expected !== currentTarget() || expected !== boundTarget.current) return;
     if (!setup.authorization_url) {
       if (setup.connection?.status !== 'connected') throw new Error('Connection not completed');
-      await refresh(); setSelected(null); setNotice(`${setup.connection.display_name} connection saved on this server.`); return;
+      await refresh();
+      if (expected !== currentTarget() || expected !== boundTarget.current) return;
+      setSelected(null); setNotice(`${setup.connection.display_name} connection saved on this server.`); return;
     }
     if (!setup.expires_at || !Number.isFinite(Date.parse(setup.expires_at)) || Date.parse(setup.expires_at) <= Date.now()) throw new Error('Invalid authorization expiry');
     const url = new URL(setup.authorization_url);
@@ -86,26 +92,47 @@ export default function OfficialConnectorsPane({ query = '', showConnections = t
     finally { if (expected === currentTarget() && expected === boundTarget.current) setBusy(false); }
   }
   async function action(operation: (expected: string) => Promise<unknown>) { const expected = boundTarget.current; if (!expected || expected !== currentTarget()) return; setError(''); setNotice(''); try { await operation(expected); if (expected === currentTarget()) await refresh(); } catch { if (expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError('The server could not update this connection. Try again.'); } } }
+  function select(item: OfficialConnector) {
+    setSelected(item); setShowSetup(!connections.some(c => c.catalog_id === item.id && c.status !== 'disconnected'));
+    setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice('');
+  }
+  const items = [
+    ...catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.trim().toLowerCase())).map(item => ({ key: `connector:${item.id}`, name: item.name, connector: item, registry: undefined as MarketplaceCard | undefined })),
+    ...registryResults.map(item => ({ key: `registry:${item.name}@${item.version || 'latest'}`, name: item.title || item.name, connector: undefined as OfficialConnector | undefined, registry: item })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
   return <View style={styles.root}>
-    <Text style={styles.title}>Official connectors</Text>
-    <Text style={styles.subtitle}>OpenAgent provides the integration. Your server stores credentials and connects directly to the service.</Text>
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-    {!!notice && <Text accessibilityRole="alert" style={styles.subtitle}>{notice}{!showConnections ? ' Manage it in Official.' : ''}</Text>}
-    {!available && <Text style={styles.subtitle}>Official connectors are not available on this server yet.</Text>}
-    {showConnections && !selected && connections.filter(c => c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
+    {!!notice && <Text accessibilityRole="alert" style={styles.subtitle}>{notice}</Text>}
+    {!selected && <Grid cols={cols}>{items.map(entry => {
+      const item = entry.connector;
+      const installed = item ? connections.some(c => c.catalog_id === item.id && c.status !== 'disconnected') : registryInstalledNames.has(entry.registry!.name);
+      return <View key={entry.key} style={{ flex: 1 }}>
+        <MarketplaceTile card={item ? { name: item.name, title: item.name, description: item.description } : entry.registry!} installed={installed}
+          icon={item ? <ConnectorLogo id={item.id} /> : undefined}
+          disabled={item ? busy || !item.available : false}
+          unavailableReason={item && !item.available ? item.unavailableReason || 'Not available yet' : undefined}
+          onManage={item ? () => { if (!busy) select(item); } : undefined}
+          onInstall={() => item ? select(item) : onInstallRegistry?.(entry.registry!)} style={{ height: '100%' }} />
+      </View>;
+    })}</Grid>}
+    {!selected && !items.length && catalog.length > 0 && <Text style={styles.subtitle}>No connectors match your search.</Text>}
+    {selected && <>
+      <Button variant="ghost" size="sm" label="Back to marketplace" icon="arrow-left" disabled={busy} onPress={() => { setSelected(null); setToken(''); setMail({ mailbox: 'INBOX' }); }} />
+      <View style={styles.row}><ConnectorLogo id={selected.id} /><Text style={styles.title}>{selected.name}</Text></View>
+      <Text style={styles.subtitle}>{selected.description} Your server stores credentials and connects directly to the service.</Text>
+      {!available && <Text style={styles.subtitle}>This server cannot manage these connections yet.</Text>}
+    </>}
+    {selected && connections.filter(c => c.catalog_id === selected.id && c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
       <Text style={styles.name}>{c.display_name}</Text><Text style={styles.subtitle}>{c.status}</Text>
       <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} value={!!c.enabled} onValueChange={enabled => void action(() => api.update(c.id, { enabled }))} /></View>
-      <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} value={!!c.allow_write} onValueChange={allow_write => void action(() => api.update(c.id, { allow_write }))} /></View>
-      <View style={styles.row}>{catalog.find(item => item.id === c.catalog_id)?.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !catalog.find(item => item.id === c.catalog_id)?.available ? 0.45 : 1 }} disabled={busy || !catalog.find(item => item.id === c.catalog_id)?.available} onPress={() => void action(async expected => { setBusy(true); try { await authorize(await api.connect(c.id), expected); } finally { if (expected === currentTarget()) setBusy(false); } })}><Text style={styles.link}>Reconnect</Text></Pressable>}
-        <Pressable accessibilityRole="button" onPress={() => void action(() => api.disconnect(c.id))}><Text style={styles.link}>Disconnect from this server</Text></Pressable></View>
+      {selected.agentTools.length > 0 && <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} value={!!c.allow_write} onValueChange={allow_write => void action(() => api.update(c.id, { allow_write }))} /></View>}
+      <View style={styles.row}>{selected.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !selected.available ? 0.45 : 1 }} disabled={busy || !selected.available} onPress={() => void action(async expected => { setBusy(true); try { await authorize(await api.connect(c.id), expected); } finally { if (expected === currentTarget()) setBusy(false); } })}><Text style={styles.link}>Reconnect</Text></Pressable>}
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => void action(() => api.disconnect(c.id))}><Text style={styles.link}>Disconnect from this server</Text></Pressable></View>
       <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>
     </View>)}
+    {selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label="Connect another account" disabled={busy} onPress={() => setShowSetup(true)} />}
     {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
-    {!selected && <View style={styles.grid}>{catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.toLowerCase())).map(item => <Pressable accessibilityRole="button" accessibilityLabel={`Connect ${item.name}`} key={item.id} disabled={!item.available || busy} style={[styles.card, styles.tile]} onPress={() => { setSelected(item); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice(''); }}>
-      <View style={styles.row}><Feather name={(['mail', 'hard-drive', 'shopping-bag', 'check-square', 'share-2', 'bar-chart-2', 'credit-card', 'message-square', 'message-circle', 'trending-up', 'inbox', 'github'].includes(item.icon || '') ? item.icon : 'link') as React.ComponentProps<typeof Feather>['name']} size={26} color={colors.accent} /><Text style={styles.badge}>OpenAgent · Official</Text></View>
-      <Text style={styles.name}>{item.name}</Text><Text style={styles.subtitle}>{item.description}</Text><Text style={styles.subtitle}>{item.available ? item.auth === 'oauth' ? 'Connect account' : item.auth === 'token' ? 'Connect with API token' : 'Configure account' : item.unavailableReason || 'Not available yet'}</Text>
-    </Pressable>)}</View>}
-    {selected && !pending && <View style={styles.card}>
+    {selected && showSetup && !pending && <View style={styles.card}>
       <Text style={styles.name}>Connect {selected.name}</Text>
       {selected.auth === 'token' && <TextInput accessibilityLabel={`${selected.name} API token`} placeholder="API token" secureTextEntry value={token} onChangeText={setToken} style={styles.input} autoCapitalize="none" />}
       {['replio', 'billingbear', 'pipeboard'].includes(selected.id) && <TextInput accessibilityLabel="Account identifier" placeholder={selected.id === 'replio' ? 'Organization ID' : selected.id === 'billingbear' ? 'Project ID' : 'Ads provider: meta_ads or google_ads'} value={account} onChangeText={setAccount} style={styles.input} autoCapitalize="none" />}
@@ -124,9 +151,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.textSecondary, fontSize: 13, lineHeight: 20 }, name: { color: colors.text, fontSize: 16, fontWeight: '600' },
   label: { color: colors.text, fontSize: 14, flex: 1 }, error: { color: colors.error },
   card: { borderWidth: 1, borderColor: colors.border, padding: 18, borderRadius: radius.lg, gap: 10 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 }, tile: { flexBasis: 280, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 },
   input: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, color: colors.text },
   link: { color: colors.accent, paddingVertical: 8, fontWeight: '600' },
-  badge: { color: colors.textSecondary, fontSize: 11, fontWeight: '600' },
 });

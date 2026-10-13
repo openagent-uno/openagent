@@ -11,3 +11,23 @@ A deliberately invalid Replio fixture was rejected. A well-formed dummy token wa
 Validation: TypeScript check and full Expo web export passed. The native Electron app loaded the exported build and repeated the reload, connect, disable and disconnect flow. This is a development app; it does not qualify a signed installed release, Windows or Linux.
 
 Shopify enrollment remains blocked until product-local privacy export/redaction of derived content is implemented. Central common OAuth remains disabled pending provider configuration, production secret-storage hardening and real end-to-end checks.
+
+## Unified marketplace presentation
+
+The marketplace now combines provider integrations and public-registry MCPs
+in one alphabetically sorted grid using the same `MarketplaceTile` and
+responsive `MarketplaceGrid`. There is no Official tab, heading, badge or
+separator. The original eleven provider logo assets were copied from
+GlassPalace with their source metadata and verified SHA-256 hashes; protocol
+connectors retain the mail icon. Connection controls open from the card's
+Manage action, and search/pagination remain bound to the authenticated target.
+The earlier default-Official-tab screenshot is superseded by this presentation.
+
+The unified native app loaded 12 catalog entries and 30 real registry results
+in the same grid. A Gmail search mixed the branded Gmail connector with real
+registry Gmail MCPs and retained no official label or divider. The Replio card
+opened its credential form, saved a dummy credential, changed to Manage and
+exposed enable/disconnect controls. Local disable and disconnect passed and
+the database confirmed every fixture credential was removed. TypeScript and
+the final full Expo web export passed after these changes. Real OAuth and
+signed/public product release acceptance remain pending.

@@ -9,6 +9,7 @@
  */
 
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import type { ReactNode } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import type { MarketplaceCard } from '../../services/api';
 import { colors, font, radius } from '../../theme';
@@ -19,9 +20,13 @@ interface Props {
   installed: boolean;
   onInstall: () => void;
   style?: object;
+  icon?: ReactNode;
+  disabled?: boolean;
+  unavailableReason?: string;
+  onManage?: () => void;
 }
 
-export default function MarketplaceTile({ card, installed, onInstall, style }: Props) {
+export default function MarketplaceTile({ card, installed, onInstall, style, icon, disabled, unavailableReason, onManage }: Props) {
   const hasDistinctTitle = !!(card.title && card.title !== card.name);
 
   return (
@@ -31,15 +36,16 @@ export default function MarketplaceTile({ card, installed, onInstall, style }: P
       {...(Platform.OS === 'web' ? { className: 'oa-hover-lift' } : {})}
     >
       <View style={styles.content}>
-        {hasDistinctTitle && (
+        {icon}
+        {!!card.title && (
           <Text style={styles.title} numberOfLines={1}>{card.title}</Text>
         )}
-        <Text
+        {(hasDistinctTitle || !card.title) && <Text
           style={[styles.registryName, !hasDistinctTitle && styles.registryNamePrimary]}
           numberOfLines={1}
         >
           {card.name}
-        </Text>
+        </Text>}
 
         {card.description ? (
           <Text style={styles.description} numberOfLines={3}>{card.description}</Text>
@@ -59,10 +65,11 @@ export default function MarketplaceTile({ card, installed, onInstall, style }: P
             </View>
           )}
         </View>
+        {unavailableReason ? <Text style={styles.description} numberOfLines={2}>{unavailableReason}</Text> : null}
       </View>
 
       <View style={styles.footer}>
-        {installed ? (
+        {installed && onManage ? <Button variant="primary" size="sm" label="Manage" icon="settings" iconPosition="right" onPress={onManage} /> : installed ? (
           <View style={styles.installedStamp}>
             <Feather name="check-circle" size={12} color={colors.success} />
             <Text style={styles.installedText}>Installed</Text>
@@ -71,8 +78,9 @@ export default function MarketplaceTile({ card, installed, onInstall, style }: P
           <Button
             variant="primary"
             size="sm"
-            label="Install"
-            icon="plus"
+            label={disabled ? 'Unavailable' : 'Install'}
+            disabled={disabled}
+            icon={disabled ? undefined : 'plus'}
             iconPosition="right"
             onPress={onInstall}
           />

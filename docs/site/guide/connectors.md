@@ -24,7 +24,7 @@ Custom MCP servers remain available alongside official connectors. Embedding pro
 
 ## Connect and disconnect
 
-In the standalone client, open **MCPs → Official**, or the official section in **Browse**, select the connector, and authorize in the browser or enter the required account credentials. GlassPalace and ICS display these integrations in their **MCP marketplace** alongside custom MCP endpoints. OAuth disclosure identifies the product and the particular receiving installation. Third-party products may use the shared protocol; an operator-supplied name does not mean OpenAgent has approved that product.
+In the standalone client, open **MCPs → Browse**, select the connector from the unified marketplace, and authorize in the browser or enter the required account credentials. The standalone uses the same cards for provider integrations and public-registry MCPs, with provider logos and no separate official category. Connection controls are available through each card’s **Manage** action. GlassPalace and ICS display these integrations in their **MCP marketplace** alongside custom MCP endpoints. OAuth disclosure identifies the product and the particular receiving installation. Third-party products may use the shared protocol; an operator-supplied name does not mean OpenAgent has approved that product.
 
 The server exposes the authenticated catalog at `GET /api/marketplace/official`; `GET /api/connectors/catalog` remains compatible. Unavailable entries include their reason; neither response contains credentials.
 
