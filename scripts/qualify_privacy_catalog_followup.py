@@ -14,7 +14,7 @@ import shutil
 import sys
 import zipfile
 
-from qualify_privacy_source import checked_download, command, environment_python, SDK_BASE
+from qualify_privacy_source import checked_download, command, environment_python, SDK_BASE, BASES, PROTOCOL_SHA
 
 ARCHIVE_SHA = '20449cb4488a170ebf8593ad47b0934606007ede27e389bcff8233b08fd249eb'
 SDK_WHEEL = 'openagent_connectors-0.1.3-py3-none-any.whl'
@@ -71,9 +71,11 @@ def finish_catalog(archive_path: Path, output: Path):
     try:
         sdk = output/SDK_WHEEL
         checked_download(SDK_BASE,SDK_WHEEL,SDK_SHA,sdk,8726)
+        protocol = output/'openagent_tool_protocol-1.0.0b1-py3-none-any.whl'
+        checked_download(BASES['tools'][0],protocol.name,PROTOCOL_SHA,protocol,8323)
         fixture_python = environment_python(output/'catalog-fixture')
         command([fixture_python,'-m','pip','install','--no-deps',
-            output/'product-assets/openagent_framework-1.1.0b39-py3-none-any.whl',sdk],
+            output/'product-assets/openagent_framework-1.1.0b39-py3-none-any.whl',sdk,protocol],
             output=evidence/'catalog-fixture-install.log')
         # Only stdlib-based acquisition and runner APIs run in this fixture;
         # full dependency closure/pipcheck belongs to the retained prior proof.
