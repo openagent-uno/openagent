@@ -109,10 +109,15 @@ class OfficialConnectors:
                 id TEXT PRIMARY KEY, group_id TEXT NOT NULL, topic TEXT NOT NULL,
                 ciphertext BLOB NOT NULL, nonce BLOB NOT NULL, received_at TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending')""")
+            encrypted_state = await (await db.execute("""SELECT
+                EXISTS(SELECT 1 FROM official_connector_connections WHERE credential IS NOT NULL)
+                OR EXISTS(SELECT 1 FROM official_connector_events)""")).fetchone()
             await db.commit()
         key_path = self.db_path.parent / "connector-credential-key"
         if key_path.is_symlink():
             raise RuntimeError("Connector credential key must be host-owned")
+        if not key_path.exists() and encrypted_state[0]:
+            raise RuntimeError("Restore the matching connector credential key before starting this server")
         try:
             descriptor = os.open(key_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         except FileExistsError:

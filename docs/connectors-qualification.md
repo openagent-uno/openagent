@@ -31,3 +31,12 @@ exposed enable/disconnect controls. Local disable and disconnect passed and
 the database confirmed every fixture credential was removed. TypeScript and
 the final full Expo web export passed after these changes. Real OAuth and
 signed/public product release acceptance remain pending.
+
+## Credential-key recovery
+
+The host refuses to generate a new credential key when encrypted connection
+credentials or privacy notifications already exist in the database. A partial
+restore must recover the matching key; the failure leaves encrypted records
+unchanged. Nineteen focused storage/authorization tests passed with the verified
+0.1.1 adapter, including missing-key credential/event cases and restart after
+restoring the original key. This does not complete Shopify content processing.

@@ -151,6 +151,42 @@ async def test_credential_encryption_binds_connection_and_owner(fixture):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("encrypted_kind", ["credential", "privacy_event"])
+async def test_missing_key_never_reinitializes_existing_encrypted_state(fixture, encrypted_kind):
+    service, context, runner, _ = fixture
+    if encrypted_kind == "credential":
+        setup = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
+                                               "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+        original = await service.record(setup["connection"]["id"])
+    else:
+        async with aiosqlite.connect(service.db_path) as db:
+            await db.execute("INSERT INTO official_connector_events(id,group_id,topic,ciphertext,nonce,received_at) VALUES(?,?,?,?,?,?)",
+                             ("event-fixture", "group-fixture", "customers/redact", b"encrypted-fixture", b"nonce", "2026-10-13T00:00:00Z"))
+            await db.commit()
+    key_path = service.db_path.parent / "connector-credential-key"
+    # Model a partial backup restore in this disposable fixture directory.
+    original_key = key_path.read_bytes()
+    key_path.unlink()
+    restarted = OfficialConnectors(service.runtime, runner=runner)
+    with pytest.raises(RuntimeError, match="Restore the matching"):
+        await restarted.start()
+    assert not key_path.exists()
+    if encrypted_kind == "credential":
+        assert (await service.record(original["id"]))["credential"] == original["credential"]
+        key_path.write_bytes(original_key)
+        restored = OfficialConnectors(service.runtime, runner=runner)
+        await restored.start()
+        try:
+            assert restored.decrypt(await restored.record(original["id"]))["access_token"] == "rpl_" + "a" * 40
+        finally:
+            await restored.close()
+    else:
+        async with aiosqlite.connect(service.db_path) as db:
+            row = await (await db.execute("SELECT ciphertext FROM official_connector_events WHERE id='event-fixture'")).fetchone()
+        assert row[0] == b"encrypted-fixture"
+
+
+@pytest.mark.asyncio
 async def test_oauth_completed_connection_survives_service_restart(fixture):
     service, context, runner, _ = fixture
     setup = await service.create(context, {"catalog_id": "clickup"})
