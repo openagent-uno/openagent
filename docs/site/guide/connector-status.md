@@ -15,7 +15,7 @@ installed client already includes the candidate UI.
 | Standalone server/App/CLI | Candidate implementation uses the pinned shared release; real authenticated local catalog; unified App cards/search and connection controls verified on macOS; CLI management contracts pass | Qualified coordinated product release and real provider operations |
 | GlassPalace | Shared module pinned; connector gateway and focused control-plane contracts pass; marketplace identifies shared integrations | Updated production/native delivery and final real UI/provider acceptance |
 | ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Published updated native server/client and real provider acceptance |
-| Common authentication service | HTTPS service deployed on Mixout; signed outgoing registration/mailbox and metadata restore verified; `0.1.1` release binary | Production storage/capacity qualification and provider activation |
+| Common authentication service | HTTPS `0.1.1` deployed on Mixout; encrypted production Secret storage and matching backups verified; signed mailbox/replay/quota checks passed | Provider exchange/rotation/privacy capacity qualification and provider activation |
 | Common provider enrollment | **No provider enabled** in the central deployment at this checkpoint | Complete the gates below before enabling new common consents |
 
 The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.1)
@@ -71,15 +71,27 @@ verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
 privacy-event cases preserve encrypted records; restoring the original key
 allows the credential to be read after restart.
 
+The operator-approved Mixout maintenance upgraded the control plane to
+`v1.33.13+k3s2`, enabled and rotated secrets-at-rest encryption, and verified
+the final restart. Both nodes are Ready. Broker Secret values were unchanged;
+the current datastore record is encrypted and its protected backup was
+integrity-checked. A real published-module client also verified HTTPS,
+signed mailbox access, replay/unsigned rejection and the 120-request/minute
+quota. The bounded four-client burst had p95 latency 299 ms and no unexpected
+responses. This is bootstrap admission evidence; provider exchange, rotation
+and privacy backlog load remain separate qualification.
+
 ## Remaining implementation and activation gates
 
 1. Complete the standalone privacy-content processor: provenance of connected
    data, product-local export/redaction of derived history/Vault/files as
    applicable, durable processing/retry and completion receipts. Shopify remains
    blocked there until this is implemented and qualified.
-2. Qualify production app-secret storage, recoverable metadata/key backups,
-   restore procedures and the broker's capacity/request budget. Bootstrap health
-   is not the admission or availability gate for a loaded production service.
+2. Finish provider exchange/rotation/privacy capacity qualification and the
+   production request budget beyond the verified bootstrap mailbox quota.
+   Encrypted production app-secret storage and matching backups are now
+   verified. Bootstrap health is not the availability gate for a loaded
+   production service.
 3. Finish provider review/verification and test Google, ClickUp, Shopify and
    Postiz using their real callback/consent flows. Complete real cancel, read,
    authorized write, renewal, restart and local disconnection in all products.

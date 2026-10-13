@@ -149,6 +149,14 @@ it in artifacts or logs. Temporary encrypted token messages are expected to be
 lost across broker restart; recipients recover from a current peer or consent
 again.
 
+On 13 October 2026 the approved Mixout control-plane maintenance enabled and
+rotated Kubernetes secrets-at-rest encryption. Live status and a final restart
+were verified, with unchanged broker Secret values and a protected consistent
+post-rotation backup. A cluster restore must preserve its matching server token,
+encryption credentials and configuration; never replace encryption keys or
+restore the datastore alone. The [status checkpoint](./connector-status.md)
+distinguishes this storage qualification from outstanding provider/load tests.
+
 ## Troubleshooting
 
 | Symptom | Check/action |
