@@ -42,6 +42,8 @@ async def owned_server(root, label):
                             model=NativeProvider('openai:fixture', api_key='fixture'))
     host = SimpleNamespace(agent=agent, authorizer=Allow(), runtime=runtime)
     service = OfficialConnectors(host)
+    # Fixture qualification must never use an installed real runner/broker.
+    service.runner = None
     await service.start()
     # Only this fixture's managed canonical surfaces are enabled. This is not
     # an attestation for arbitrary product extensions or historical user data.

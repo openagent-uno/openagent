@@ -20,6 +20,7 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
             await seed.start()
             await seed.close()
             service = NativeRuntimeService(SimpleNamespace(agent=agent), agent)
+            service.official_connectors.runner = None
             observed = []
             async def attach():
                 for contract in (ToolResultPrivacyPublisher, EngineContentPrivacyWriter, SessionJournalPrivacyWriter):
