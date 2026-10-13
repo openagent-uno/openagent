@@ -12,11 +12,12 @@ installed client already includes the candidate UI.
 | --- | --- | --- |
 | Shared Go connector module | Published `0.1.2`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
-| Standalone server/App/CLI | Candidate implementation uses the pinned shared release; real authenticated local catalog; unified App cards/search and connection controls verified on macOS; CLI management contracts pass | Qualified coordinated product release and real provider operations |
+| Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
+| Standalone App | `1.1.0-beta.16` builds and packaged launch checks pass for macOS, Windows and Linux on both architectures; the same marketplace cards and icons are used for connectors and registry MCPs | Final release publication and visual acceptance against the released server |
 | GlassPalace | Shared module `0.1.2` and release gates merged into both main repositories; 947 frontend tests and public runtime packaging checks pass | Updated production/native delivery and final real UI/provider acceptance |
 | ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Published updated native server/client and real provider acceptance |
 | Common authentication service | HTTPS `0.1.2` deployed on Mixout from the checksum-qualified public binary; encrypted production Secret storage and matching backups verified; signed mailbox/replay/quota checks passed | Provider exchange/rotation/privacy capacity qualification and provider activation |
-| Common provider enrollment | **No provider enabled** in the central deployment at this checkpoint | Complete the gates below before enabling new common consents |
+| Common provider enrollment | ClickUp enabled only for two named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
 
 The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
 is distinct from [standalone product downloads](../downloads.md).
@@ -28,6 +29,15 @@ not claim real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 
+The [standalone server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.38)
+includes installed-wheel qualification and checksums. Its tested dependency
+closure uses [public Core beta 21](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.21)
+through public APIs. The server installer and service environment use a
+product-local runner; users do not need a Go compiler or a manually configured
+runner path. The connector release remains independently pinned and verified.
+These packaging checks do not establish provider consent, API access or privacy
+processing.
+
 ## Provider registration checkpoint
 
 - **Google:** OpenAgent app/client, callbacks, test audience and the existing
@@ -36,8 +46,12 @@ inferred from a downloaded binary or logo.
   applicable verification and security assessment are not complete.
 - **ClickUp:** the existing GlassPalace registration is reused. Its old redirect
   was removed at the operator's request; ClickUp saved the common auth origin.
-  The actual callback path still needs a real round-trip test. Existing tokens
-  were not revoked by this configuration change.
+  The actual callback path still needs a real round-trip test. A disposable
+  standalone server has started a recipient-bound transaction through its
+  authenticated product API. The local Chrome consent page returned
+  `ERR_BLOCKED_BY_CLIENT`; a consent URL can be completed from another device
+  because the receiving server retrieves the result through outgoing requests.
+  Existing tokens were not revoked by this configuration change.
 - **Shopify:** the original GlassPalace registration is retained, renamed
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
