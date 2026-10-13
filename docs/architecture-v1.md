@@ -8,11 +8,10 @@ The approved target has three independently versioned repositories:
 | `openagent-tools` | Standalone filesystem, editor, shell, web search and native computer/browser tools |
 | `openagent` | App, CLI, server, MCP bridge, identity, dashboards, product configuration, optional integrations and distribution |
 
-GlassPalace imports a pinned Core package into its own Python worker. Its Go
+An embedding host imports a pinned Core package into its own Python worker. Its Go
 control plane owns authentication, authorization, delivery, computers and
 Kubernetes infrastructure. A Core update does not require a standalone
-OpenAgent release. Replio is another possible consumer with its own identity
-and a fixed catalog.
+OpenAgent release. A host can instead provide its own identity and a fixed catalog.
 
 ## Runtime and capabilities
 
@@ -72,7 +71,7 @@ ledger, binds certificate identities and current result audiences, and exposes
 App dashboard/device sources only in their exact originating context. Managed
 MCP catalogs and automation definition changes use shared public services;
 definition changes and durable grants commit atomically. The standalone product
-and GlassPalace integration use public package boundaries without source
+and an embedded host integration use public package boundaries without source
 overlays. Product `v1.1.0-beta.8`, Core `v1.1.0-beta.4` and Tools
 `v1.0.0-beta.2` are public. Native cross-platform updater qualification remains
 in progress; the current product manifest is therefore

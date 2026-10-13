@@ -94,7 +94,7 @@ runtime = Runtime(settings=settings, services=services, profile=profile)
 await runtime.start()
 ```
 
-GlassPalace follows this model: it builds its own worker image from pinned
+An embedding host can follow this model: it builds its own worker image from pinned
 packages and owns its pods, sandbox, volumes and identity adapters. It does not
 download or patch the standalone OpenAgent repository at runtime.
 

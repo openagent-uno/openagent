@@ -2,13 +2,13 @@
 
 Updated: 12 October 2026.
 
-OpenAgent is a modular AI agent runtime and a standalone client/server product. Its official connectors let an authorized agent work with services such as Gmail, Google Drive, Google Analytics, Shopify and ClickUp. The same connector library can be embedded in GlassPalace, ICS and other products.
+OpenAgent is a modular AI agent runtime and a standalone client/server product. Its official connectors let an authorized agent work with services such as Gmail, Google Drive, Google Analytics, Shopify and ClickUp. The same connector library can be embedded in independent host products.
 
 **Service contact:** AI Agent, the commercial name used for the OpenAgent connector service. For support, privacy questions or requests concerning that service, email [geroale2000@gmail.com](mailto:geroale2000@gmail.com).
 
 ## What this notice covers
 
-This notice describes the OpenAgent website, standalone product and shared authentication service at `auth.openagent.uno`. Each receiving product's operator controls its own server, user accounts, connection permissions and stored content. For an independently operated GlassPalace, ICS or third-party installation, also consult that operator's privacy notice. A product appearing in the authorization disclosure is the intended recipient; its name does not mean OpenAgent endorses it.
+This notice describes the OpenAgent website, standalone product and shared authentication service at `auth.openagent.uno`. Each receiving product's operator controls its own server, user accounts, connection permissions and stored content. For any independently operated host installation, also consult that operator's privacy notice. A product appearing in the authorization disclosure is the intended recipient; its name does not mean OpenAgent endorses it.
 
 The common OAuth apps are being qualified and are not yet available for general production enrollment. Provider approval and real end-to-end testing remain required. Existing connections using a product's own app continue under that registration.
 
@@ -50,6 +50,6 @@ Shopify privacy notifications are delivered to the authorized receiving products
 
 ## Website and changes
 
-The public website is hosted through GitHub Pages; the authentication service uses separate Mixout infrastructure. Their hosting providers may process request metadata such as IP addresses and browser information to deliver and protect the services. This notice does not assert that infrastructure request logs have a particular retention period.
+The public website is hosted through GitHub Pages; the authentication service uses separate operator-managed infrastructure. Their hosting providers may process request metadata such as IP addresses and browser information to deliver and protect the services. This notice does not assert that infrastructure request logs have a particular retention period.
 
 We update this page when the published data handling changes. Check the date above and the receiving product's own notice when reconnecting or enabling new capabilities.

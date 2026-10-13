@@ -8,7 +8,7 @@ Shopify remains disabled and Google verification/Postiz registration are pending
 [release status and remaining gates](./connector-status.md).
 :::
 
-OpenAgent provides one shared connector implementation for the standalone server, GlassPalace, ICS and other products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
+OpenAgent provides one shared connector implementation for the standalone server, independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
 The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback once enabled.
 
@@ -64,7 +64,7 @@ provider API call; verify access with an appropriate authorized operation.
 This screenshot is from the actual development App and an authenticated
 disposable server. Gmail OAuth was deliberately unavailable on that server;
 the image demonstrates layout/search, not a completed provider consent.
-GlassPalace and ICS display these integrations in their **MCP marketplace**
+Embedding hosts display these integrations in their **MCP marketplace**
 alongside custom MCP endpoints. OAuth disclosure identifies the product and
 the particular receiving installation. Third-party products may use the shared
 protocol; an operator-supplied name does not mean OpenAgent has approved it.
@@ -91,7 +91,7 @@ Each server keeps its own encrypted token copy. Connecting the same Shopify shop
 
 Disabling a connection prevents tool use without deleting its saved credentials.
 Where supported, **Allow changes** additionally controls mutating operations.
-GlassPalace and ICS also retain workspace/project scope and explicit agent
+Embedding hosts also retain workspace/project scope and explicit agent
 grants; saving a connection does not grant every agent access.
 
 **Disconnect from this server** removes that product's local access. Removing/revoking the app in the provider's settings can affect other products using the same app. Reconnection requires consent; existing credentials are never silently reassigned to another OAuth app.

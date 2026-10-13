@@ -64,10 +64,10 @@ qualification beyond coordinate-mapping tests.
 | Send a follow-up or message to another agent | A person may add a turn to a shared session through authenticated ingress. | Agent-originated cross-session delivery needs recipient authorization, authorship, audience, idempotency and a durable delivery receipt. |
 
 These contracts belong in Core and its optional Sessions/Delegation modules.
-GlassPalace, Replio and standalone OpenAgent decide who may invoke them. The
+independent hosts and standalone OpenAgent decide who may invoke them. The
 computer UI tree and app lifecycle belong to client-registered device
 capabilities; installing those packages must not add them to Telegram or a
-GlassPalace sandbox.
+host sandbox.
 
 The generic web-search package currently covers search and page text, not the
 whole Codex `web.run` surface (finance, weather, sport, clocks, image search and

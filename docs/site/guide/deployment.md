@@ -199,11 +199,11 @@ Install ollama, pull the model, and expose it on the tailnet as a boot-persisten
 ```bash
 brew install ollama
 # LaunchDaemon (runs at boot, no login needed) bound to all interfaces:
-sudo tee /Library/LaunchDaemons/com.esound.ollama.plist >/dev/null <<'PLIST'
+sudo tee /Library/LaunchDaemons/com.openagent.ollama.plist >/dev/null <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>com.esound.ollama</string>
+  <key>Label</key><string>com.openagent.ollama</string>
   <key>UserName</key><string>development</string>
   <key>ProgramArguments</key>
   <array><string>/opt/homebrew/opt/ollama/bin/ollama</string><string>serve</string></array>
@@ -215,7 +215,7 @@ sudo tee /Library/LaunchDaemons/com.esound.ollama.plist >/dev/null <<'PLIST'
   <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 </dict></plist>
 PLIST
-sudo launchctl bootstrap system /Library/LaunchDaemons/com.esound.ollama.plist
+sudo launchctl bootstrap system /Library/LaunchDaemons/com.openagent.ollama.plist
 ollama pull nomic-embed-text
 # verify from another tailnet host:
 curl http://<tailscale-ip>:11434/api/tags

@@ -8,9 +8,8 @@ graph view, backlinks, and plugins all work untouched.
 Vault is independent from Sessions. Sessions searches authoritative
 transcripts; Vault searches consolidated notes. Removing Vault registers no
 memory tools, hooks, reminder or prompt rules, while the kernel and Sessions
-continue to work. The standalone full profile and the initial GlassPalace
-profile enable Vault and preserve the established recall, save, quality and
-Dream rules.
+continue to work. The standalone full profile enables Vault and preserves the established recall,
+save, quality and Dream rules. Embedding hosts can opt into the same module.
 
 The markdown is the source of truth. On top of it sits a code-enforced
 **quality system**: an incremental SQLite + FTS5 index, a quality gate that
