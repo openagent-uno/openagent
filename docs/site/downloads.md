@@ -56,7 +56,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   also publishes the host-tools `1.0.0b5` wheel for local runner acquisition.
 - [Shared connector module/runner 0.1.2](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
   — shared provider adapters, Python/MCP transport, platform manifests and checksums.
-- [Connector auth service 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.3)
+- [Connector auth service 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4)
   — separate operator deployment release; public provider enrollment remains disabled.
 - [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.38/manifest.json)
   — component versions, source commits and SHA-256 digests.

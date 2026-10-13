@@ -16,8 +16,8 @@ installed client already includes the candidate UI.
 | Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
 | GlassPalace | Shared module `0.1.2` deployed in production; three product deployments Ready; authenticated marketplace UI verified; existing ClickUp connection preserved | Native `0.1.82` delivery/signing qualification in progress, including its existing Windows certificate gate; real common-provider acceptance |
 | ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Windows Vault/Git NUL-handle fix and final package qualification before updated public server/client delivery; real provider acceptance |
-| Common authentication service | Auth-only `0.1.3` published and deployed on Mixout from source `523d17efeb1de049ca20cf90b87c29f641879216`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
-| Common provider enrollment | ClickUp enabled only for two named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
+| Common authentication service | Auth-only `0.1.4` published and deployed on Mixout from source `54fecfbdb0e8dc1a1f6778fabedefaec197da7cc`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
+| Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
 
 The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
 is distinct from [standalone product downloads](../downloads.md).
@@ -46,7 +46,7 @@ historical App repository; its payload comes from canonical source
 `721e90feb0e4ae3bb719e23cf5983e064464f782`. The historical repository is archived
 again and existing updater identities are preserved.
 
-[Auth service 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.3)
+[Auth service 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4)
 is a separate deployment release. It does not replace connector module/runner
 0.1.2 or activate public enrollment. No candidate Core privacy API, product
 privacy-job integration or related migration has been rolled into production.
@@ -61,9 +61,13 @@ privacy-job integration or related migration has been rolled into production.
   was removed at the operator's request; ClickUp saved the common auth origin.
   The actual callback path still needs a real round-trip test. A disposable
   standalone server has started a recipient-bound transaction through its
-  authenticated product API. The auth-only 0.1.3 update is deployed; real
-  provider callback, exchange and recipient delivery remain under qualification.
-  Existing tokens were not revoked by this configuration change.
+  authenticated product API. Auth-only 0.1.4 is published and deployed, but
+  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. Reopening
+  the same transaction showed its disclosure form: the POST had not reached
+  the service, so no provider grant or token exchange occurred. This verified
+  fail-closed behavior, not a successful OAuth round trip. The disposable
+  product connection is disconnected and disabled; public enrollment remains
+  closed. Existing tokens were not revoked by this configuration change.
 - **Shopify:** the original GlassPalace registration is retained, renamed
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.

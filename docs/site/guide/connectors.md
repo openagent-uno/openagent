@@ -2,8 +2,8 @@
 
 ::: info Published releases and activation gates
 App beta 16, server/CLI beta 38 and shared library/runner 0.1.2 are published.
-Auth-only 0.1.3 is separately deployed. Common OAuth enrollment remains closed
-to the public; ClickUp qualification is limited to two allowlisted QA servers.
+Auth-only 0.1.4 is separately deployed. Common OAuth enrollment remains closed
+to the public; ClickUp qualification is limited to allowlisted QA servers.
 Shopify remains disabled and Google verification/Postiz registration are pending. See
 [release status and remaining gates](./connector-status.md).
 :::
@@ -108,7 +108,7 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.3/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.4/deploy/connector-auth) describes provider registration and activation gates.
 
 ## Connection requirements by service
 
