@@ -17,6 +17,7 @@ import path from 'node:path';
 import * as asar from '@electron/asar';
 import yaml from 'js-yaml';
 import {
+  assertDebianPackageVersion,
   canonicalAsarEntry,
   expectedLinuxExecutableName,
   findLinuxPayloadExecutables,
@@ -314,7 +315,7 @@ try {
 
     run('dpkg-deb', ['--info', debs[0]]);
     const debVersion = run('dpkg-deb', ['--field', debs[0], 'Version']).stdout.trim();
-    assert.equal(debVersion, version, `${debs[0]} package version mismatch`);
+    assertDebianPackageVersion(debVersion, version, debs[0]);
     const debRoot = path.join(extractionRoot, 'deb');
     fs.mkdirSync(debRoot);
     run('dpkg-deb', ['--extract', debs[0], debRoot]);

@@ -31,6 +31,12 @@ export function expectedLinuxExecutableName(packageManifest) {
   return value;
 }
 
+/** electron-builder's LinuxTargetHelper sanitizes every hyphen to a tilde for
+ * Debian package metadata. The application and updater retain their SemVer. */
+export function assertDebianPackageVersion(actual, version, label = 'Debian package') {
+  assert.equal(actual, version.replace(/-/g, '~'), `${label} package version mismatch`);
+}
+
 /** Locate the real executable payload in an extracted Linux package. Links are
  * excluded so a package cannot satisfy the smoke test with only a launcher
  * alias whose target is absent. */
