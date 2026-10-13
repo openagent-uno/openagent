@@ -99,6 +99,15 @@ class OfficialConnectors:
     def available(self):
         return self.runner is not None
 
+    def privacy_enabled(self):
+        """Explicit tracker opt-in; configuration cannot attest sink coverage."""
+        value = (self.agent.config.get('connectors') or {}).get('privacy')
+        if value is None:
+            return False
+        if not isinstance(value, dict) or set(value) != {'enabled'} or type(value['enabled']) is not bool:
+            raise ValueError('Connector privacy accepts only an explicit enabled boolean')
+        return value['enabled']
+
     async def start(self):
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("""CREATE TABLE IF NOT EXISTS official_connector_connections (

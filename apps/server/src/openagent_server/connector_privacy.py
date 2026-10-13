@@ -98,6 +98,9 @@ def install_local_privacy(service, runtime, *, covered_surfaces=frozenset()):
     after its writers/fences and legacy-data checks have been qualified.
     """
     import os
+    # Fail startup for an opted-in installation with an older public SDK.
+    # Continuing without source callbacks would lose the required provenance.
+    from openagent_connectors.privacy import invocation_selection, result_fragments
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from openagent_core.content_privacy import (
         ToolResultPrivacyPublisher, EngineContentPrivacyWriter, SessionJournalPrivacyWriter)

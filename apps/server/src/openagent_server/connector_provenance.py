@@ -53,8 +53,6 @@ class OfficialConnectorProvenance:
             # The qualified mutation changes the same provider entity only.
             # It cannot copy another customer's/store's protected context into
             # that destination. Other remote writers remain fenced by catalog.
-            if descriptor.name!='commerce.shopify.customers.update':
-                raise PrivacyFence('This remote writer has no qualified privacy binding')
             for origin in inherited:
                 same=(origin.tenant_id==scope.tenant and origin.source_id=='shopify/'+scope.app
                       and origin.group_id==scope.group and origin.generation==scope.generation)
