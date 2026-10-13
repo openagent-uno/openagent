@@ -75,7 +75,9 @@ privacy-job integration or related migration has been rolled into production.
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
   This records the existing app's configuration, not a new review approval.
-- **Postiz:** the reviewed common app registration is still pending.
+- **Postiz:** the common registration has not yet been verified against the
+  production inventory. The existing registration must be reused once identified;
+  a placeholder in one configuration does not establish that no app exists.
 - **Token/account connectors:** no common OAuth app is needed. Product-local
   configuration is implemented; dummy-token tests do not validate a real account.
 

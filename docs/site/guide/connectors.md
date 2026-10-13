@@ -4,7 +4,8 @@
 App beta 16, server/CLI beta 38 and shared library/runner 0.1.2 are published.
 Auth-only 0.1.4 is separately deployed. Common OAuth enrollment remains closed
 to the public; ClickUp qualification is limited to allowlisted QA servers.
-Shopify remains disabled and Google verification/Postiz registration are pending. See
+Shopify remains disabled; Google verification and verification of the existing
+Postiz registration remain pending. See
 [release status and remaining gates](./connector-status.md).
 :::
 
@@ -27,7 +28,7 @@ shared and which stay in the receiving product. Operators can use the
 | Google Drive | OAuth | Search, files, folders and permitted file operations |
 | Google Analytics | OAuth | Read-only GA4 reports and metadata |
 | ClickUp | OAuth | Tasks, workspaces, Docs, Goals and time tracking |
-| Postiz | OAuth | Social integrations, analytics, drafts and publishing; app registration still pending |
+| Postiz | OAuth | Social integrations, analytics, drafts and publishing; existing registration not yet verified |
 | Pipeboard Ads | API token | Meta/Google Ads reports and permitted campaign pause |
 | Replio | Organization API token | Apps, conversations and support statistics |
 | BillingBear | Project API token | Revenue and customer billing information |
@@ -117,7 +118,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |
-| Postiz | Reviewed provider app registration and consent; the common registration is pending |
+| Postiz | Verified existing provider registration and consent; reuse the existing app once identified |
 | Replio | Dedicated organization-wide `rpl_…` key and organization UUID |
 | BillingBear | Project API token and project identifier |
 | Pipeboard Ads | API token and provider identifier `meta_ads` or `google_ads` |
