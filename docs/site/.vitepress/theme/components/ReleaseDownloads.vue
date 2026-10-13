@@ -26,12 +26,14 @@ type Target = "server" | "cli" | "desktop";
 
 const props = defineProps<{ target?: Target }>();
 
-const repoPath = "openagent-uno/openagent";
+const repoPath = computed(() => props.target === "desktop"
+  ? "openagent-uno/openagent-app"
+  : "openagent-uno/openagent");
 const releasesUrl = computed(
-  () => `https://api.github.com/repos/${repoPath}/releases?per_page=30`,
+  () => `https://api.github.com/repos/${repoPath.value}/releases?per_page=30`,
 );
 const allReleasesUrl = computed(
-  () => `https://github.com/${repoPath}/releases`,
+  () => `https://github.com/${repoPath.value}/releases`,
 );
 
 const loading = ref(true);
