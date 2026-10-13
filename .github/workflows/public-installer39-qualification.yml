@@ -1,0 +1,52 @@
+name: Public installer 39 qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-installer39-qualification
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
+  UV_CONCURRENT_BUILDS: 1
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  actual-installer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: qualifier
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: 45c57221d5c56927e0498e01498f3ae3eca89ab7
+          path: product
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Verify exact script and static shell syntax
+        run: |
+          test "$(git -C product rev-parse HEAD)" = 45c57221d5c56927e0498e01498f3ae3eca89ab7
+          echo 'ccc9e983d9df31e393fdfeaccbb37ea61977cc9fb7a7bb61953e96115527fac9  product/docs/site/public/install.sh' | sha256sum --check
+          sh -n product/docs/site/public/install.sh
+          shellcheck --severity=error product/docs/site/public/install.sh
+      - name: Execute installer into isolated temporary roots without startup
+        run: nice -n 10 python qualifier/scripts/qualify_public_installer39.py --script product/docs/site/public/install.sh --output "$RUNNER_TEMP/installer39-proof"
+      - name: Preserve receipt and logs without credentials or databases
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: public-installer39-proof-${{ github.run_id }}
+          path: ${{ runner.temp }}/installer39-proof/evidence/
+          if-no-files-found: error
+          retention-days: 3
