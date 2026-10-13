@@ -45,6 +45,10 @@ def main():
         parser.add_argument('--'+name, required=True, type=Path)
     options = parser.parse_args()
     core, product, output = (getattr(options, name).resolve() for name in ('core', 'product', 'output'))
+    if os.environ.get('QUALIFICATION_CATALOG_FOLLOWUP_ARCHIVE'):
+        from qualify_privacy_catalog_followup import finish_catalog
+        finish_catalog(Path(os.environ['QUALIFICATION_CATALOG_FOLLOWUP_ARCHIVE']), output)
+        return
     evidence = output/'evidence'
     evidence.mkdir(parents=True, exist_ok=True)
     receipt = {'format':1, 'status':'started', 'scope':'source-and-installed-python-fixtures',
@@ -157,7 +161,7 @@ def main():
         receipt['stages'].append('normal-installed-pipcheck-import-prefix-core-and-product-fixtures-pass')
         save()
         runner_check = fixture/'runner_check.py'
-        runner_check.write_text('''import asyncio,json,pathlib,sys\nfrom openagent_server.connector_acquisition import acquire,verify_bundle\nfrom openagent_connectors import ConnectorRunner\nasync def main():\n root=pathlib.Path(sys.argv[2]); lock=pathlib.Path(sys.argv[1]); wheelhouse=root/"acquired-wheels"\n bundle=acquire(lock,"linux-x64",root/"runner",wheelhouse)\n metadata=json.loads(lock.read_text());verify_bundle(metadata,"linux-x64",bundle)\n runner=ConnectorRunner(str(bundle/"bin/openagent-connector-runner"),identity_file=root/"fixture-identity.json",product="generic-host",name="Fixture host")\n try:\n  items=await runner.call("catalog"); assert len(items)==12\n  print(json.dumps({"catalog_count":len(items),"provider_calls":0,"source_commit":metadata["source_commit"],"platform":"linux-x64"}))\n finally: await runner.close()\nasyncio.run(main())\n''')
+        runner_check.write_text('''import asyncio,json,pathlib,sys\nfrom openagent_server.connector_acquisition import acquire,verify_bundle\nfrom openagent_connectors import ConnectorRunner\nasync def main():\n root=pathlib.Path(sys.argv[2]); lock=pathlib.Path(sys.argv[1]); wheelhouse=root/"acquired-wheels"\n bundle=acquire(lock,"linux-x64",root/"runner",wheelhouse)\n metadata=json.loads(lock.read_text());verify_bundle(metadata,"linux-x64",bundle)\n runner=ConnectorRunner(str(bundle/"bin/openagent-connector-runner"),identity_file=root/"fixture-identity.json",product="generic-host",name="Fixture host")\n try:\n  items=await runner.call("catalog"); official=[item for item in items if not item.get("nativeKind")]; custom=[item for item in items if item.get("nativeKind")]\n  assert len(official)==12 and len(items)==13\n  assert [(item["id"],item["nativeKind"]) for item in custom]==[("custom-mcp","custom_mcp")]\n  print(json.dumps({"official_catalog_count":len(official),"custom_catalog_count":len(custom),"provider_calls":0,"source_commit":metadata["source_commit"],"platform":"linux-x64"}))\n finally: await runner.close()\nasyncio.run(main())\n''')
         command([installed,'-I',runner_check,product/'apps/server/connectors.lock.json',output],
                 cwd=fixture,environment=environment,output=evidence/'installed-runner-catalog.log')
         receipt['stages'].append('actual-installed-acquirer-public-runner-catalog-12-without-provider-io-pass')

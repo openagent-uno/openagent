@@ -16,6 +16,11 @@ on:
         required: false
         default: false
         type: boolean
+      catalog_followup_only:
+        description: Reuse exact prior installed candidate; finish only corrected official/custom catalog assertion
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -60,15 +65,21 @@ jobs:
         with:
           python-version: '3.11'
       - name: Retrieve immutable small native candidate metadata only
-        if: inputs.candidate_host_proof
+        if: inputs.candidate_host_proof && !inputs.catalog_followup_only
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh api repos/openagent-uno/openagent/actions/artifacts/11847689047/zip > "$RUNNER_TEMP/host-b6-candidate.zip"
+      - name: Retrieve exact prior installed candidate for catalog-only follow-up
+        if: inputs.catalog_followup_only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api repos/openagent-uno/openagent/actions/artifacts/11851469142/zip > "$RUNNER_TEMP/privacy-installed-candidate.zip"
       - name: Source units then exact normal installed closure
         env:
           QUALIFICATION_PRODUCT_SOURCE: ${{ inputs.product_source }}
           QUALIFICATION_HOST_INDEX_SHA256: ${{ inputs.host_index_sha256 }}
           QUALIFICATION_HOST_CANDIDATE_ARCHIVE: ${{ inputs.candidate_host_proof && format('{0}/host-b6-candidate.zip', runner.temp) || '' }}
+          QUALIFICATION_CATALOG_FOLLOWUP_ARCHIVE: ${{ inputs.catalog_followup_only && format('{0}/privacy-installed-candidate.zip', runner.temp) || '' }}
         run: |
           python -m pip install 'uv>=0.9,<1'
           nice -n 10 python qualifier/scripts/qualify_privacy_release.py --core core --product product --output "$RUNNER_TEMP/privacy-release"
