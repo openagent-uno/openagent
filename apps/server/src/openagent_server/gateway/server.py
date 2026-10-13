@@ -1089,7 +1089,7 @@ class Gateway:
         # The token-bypass path in ``make_auth_middleware`` accepts
         # requests carrying ``X-OpenAgent-Token: <token>`` as authenticated.
         #
-        # Common deployment: an L7 reverse proxy (Virgil orchestrator,
+        # Common deployment: an L7 reverse proxy (an operator-managed orchestrator,
         # ngrok) terminates client TLS and injects the token. The Iroh
         # transport keeps working for native P2P clients in parallel.
         http_port_raw = os.environ.get("OPENAGENT_HTTP_PORT", "").strip()

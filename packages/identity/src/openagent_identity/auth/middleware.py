@@ -175,8 +175,8 @@ def make_auth_middleware(state: NetworkAuthState):
     When ``OPENAGENT_HTTP_TOKEN`` is set in the environment, requests
     carrying a matching ``X-OpenAgent-Token`` header skip device-cert
     verification entirely. This is the fast-path used by deployments
-    that front the gateway with a trusted reverse proxy (Virgil's
-    orchestrator, ngrok tunnels for local dev, etc.) where the Iroh
+    that front the gateway with a trusted reverse proxy (operator-managed
+    orchestrators, ngrok tunnels for local dev, etc.) where the Iroh
     transport isn't reachable. The token is captured at middleware
     construction time, not per-request, so changing the env var
     requires a gateway restart.
@@ -185,7 +185,7 @@ def make_auth_middleware(state: NetworkAuthState):
     least-privilege credential scoped to the LLM gateway ONLY: a holder
     of that token (and NOT the full ``OPENAGENT_HTTP_TOKEN``) may reach
     ``/api/llm/*`` and is rejected on every other route. This lets a
-    caller that only needs the LLM gateway (e.g. Replio's reply-guard
+    caller that only needs the LLM gateway (e.g. an external reply guard
     calling ``/api/llm/chat/completions``) be handed a token that cannot
     reach vault, config, scheduled-tasks, terminal-backed chat, etc. It
     is fully backward compatible: when ``OPENAGENT_LLM_TOKEN`` is unset,
@@ -234,7 +234,7 @@ def make_auth_middleware(state: NetworkAuthState):
             # with ``secrets.compare_digest`` — this only ADDS accepted
             # headers, it does not weaken anything:
             #   1. ``X-OpenAgent-Token: <token>`` — the original bridge
-            #      header (Virgil's orchestrator, ngrok dev tunnels).
+            #      header (operator-managed orchestrators, ngrok dev tunnels).
             #   2. ``Authorization: Bearer <token>`` — the standard header
             #      every OpenAI-compatible client sends, so the whole
             #      gateway (incl. /api/llm/chat/completions) is reachable

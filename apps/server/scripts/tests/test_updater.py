@@ -850,9 +850,9 @@ async def t_verify_new_binary(ctx: TestContext) -> None:
 
 @test("updater", "candidate selfcheck uses an isolated accessible cwd, agent dir, and frozen env")
 async def t_verify_new_binary_isolated_context(ctx: TestContext) -> None:
-    """Regression for Friday's v0.20.5 -> v0.20.6 false rejection.
+    """Regression for a deployed instance's v0.20.5 -> v0.20.6 false rejection.
 
-    ``runuser -u friday`` inherited ``/root``. The candidate tried to stat
+    ``runuser -u agent-user`` inherited ``/root``. The candidate tried to stat
     ``openagent.yaml`` there, exited 1, and the updater mislabeled that as a
     version mismatch. The candidate must never inherit that cwd/config scope.
     """

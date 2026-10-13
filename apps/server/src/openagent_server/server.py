@@ -1390,7 +1390,7 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
     ``LoopbackProxy`` started by THIS bridge's ``BridgeSession`` (see
     ``openagent.network.bridge_session``). One LoopbackProxy per bridge
     is required so each bridge has its own gateway client_id; sharing
-    one URL across bridges produced the v0.12.49 friday outage.
+    one URL across bridges produced the v0.12.49 bridge outage.
     """
     channels_config = config.get("channels") or {}
     out = []
