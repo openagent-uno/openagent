@@ -3,10 +3,9 @@ from __future__ import annotations
 import re
 import json
 from typing import Any
-from openagent_support.support_turn import receipt_objects, delivery_state
 
 
-def retain_event_output(text: str, limit: int = 4000) -> str:
+def retain_event_output(text: str, limit: int = 4000, *, controller_ids: tuple[str, ...] = ("support-local-v1",)) -> str:
     """Retain a valid operational result instead of cutting JSON mid-receipt."""
     if len(text) <= limit:
         return text
@@ -14,7 +13,7 @@ def retain_event_output(text: str, limit: int = 4000) -> str:
         data = json.loads(text)
     except (ValueError, TypeError):
         return text[:limit]
-    if not isinstance(data, dict) or data.get('controller') != 'esound-local-v1':
+    if not isinstance(data, dict) or data.get('controller') not in controller_ids:
         return text[:limit]
     facts = data.get('facts') or {}
     kept = {k: data.get(k) for k in ('thread_id', 'controller', 'intent', 'decision', 'outcome', 'reply')}
@@ -81,3 +80,62 @@ def summarize(actions: list[dict[str, Any]]) -> dict[str, Any]:
         error_type = next((o['error_type'] for o in objects if o.get('error_type') in ('RuntimeError', 'TimeoutError', 'ValueError', 'ConnectionError', 'MCPResultEnvelopeLimitError')), None)
         if error_type: result['error_type'] = error_type
     return result
+
+
+def receipt_objects(receipt: Any) -> list[dict[str, Any]]:
+    # Traverse protocol envelopes only, never arbitrary business data. The
+    # controller's JSON adapter may already have decoded a text block to a
+    # dict; native MCP and JSON-string results must carry the same verdict.
+    objects: list[dict[str, Any]] = []
+    pending = [(receipt, 0)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > 8:
+            continue
+        if isinstance(value, str):
+            try:
+                pending.append((json.loads(value), depth + 1))
+            except (ValueError, TypeError):
+                pass
+        elif isinstance(value, list):
+            pending.extend((item, depth + 1) for item in value[:32])
+        elif isinstance(value, dict):
+            objects.append(value)
+            for key in ("structuredContent", "structured_content", "content"):
+                if key in value:
+                    pending.append((value[key], depth + 1))
+            if value.get("type") in (None, "text") and "text" in value:
+                pending.append((value["text"], depth + 1))
+    return objects
+
+
+def delivery_state(actions: list[dict[str, Any]]) -> str:
+    """A completed turn or an MCP success is not a delivered answer.
+
+    Last attempt wins (blocked -> sent is a successful bounded repair).
+    Error envelopes outrank optimistic inner content. Never label a simulated
+    send as sent, even if its simulated payload says sent=true.
+    """
+    for action in reversed(actions):
+        if action.get("kind") not in {"customer_reply", "customer_draft"}:
+            continue
+        if action.get("planned"):
+            return "planned"
+        objects = receipt_objects(action.get("receipt"))
+        if any(x.get("uncertain") is True for x in objects):
+            return "unknown"
+        if any(x.get("blocked") is True for x in objects):
+            return "blocked"
+        if any(x.get("isError") or x.get("is_error") or x.get("ok") is False
+               or x.get("success") is False for x in objects):
+            return "failed"
+        if any(x.get("simulated") or x.get("dryRun") for x in objects):
+            return "simulated"
+        if action.get("kind") == "customer_draft":
+            return "draft" if action.get("success") else "failed"
+        if any(x.get("sent") is False for x in objects):
+            return "held"
+        if any(x.get("sent") is True for x in objects) and action.get("success"):
+            return "sent"
+        return "unknown"
+    return "not_attempted"
