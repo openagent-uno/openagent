@@ -73,7 +73,8 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                     return True
                 channel = RealtimeChannel(stream, sender, encoder=event_to_wire, decoder=wire_to_event,
                                           on_outbound=cache.append)
-                reference = (await service.runtime.capabilities.discover(context))[0].tool_ref
+                tools = {item.name:item.tool_ref for item in await service.runtime.capabilities.discover(context)}
+                reference = tools['commerce.shopify.customers.get']
                 with execution_scope(service.runtime,context,'managed-run'):
                     result = await service.runtime.capabilities.call_tool(reference,{'id':'gid://shopify/Customer/23'},context)
                     await stream._publish(OutTextFinal(text=result['data']['customer']['name']))
