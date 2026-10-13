@@ -1,4 +1,4 @@
-"""Compact operational receipts without customer text or credentials."""
+"""Compact host-owned operational receipts."""
 from __future__ import annotations
 import re
 import json

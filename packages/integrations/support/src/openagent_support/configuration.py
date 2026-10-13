@@ -59,6 +59,8 @@ class SupportProfile:
     def __post_init__(self) -> None:
         if not isinstance(self.identity, SupportIdentity):
             raise SupportConfigurationError("A profile requires an authenticated identity binding")
+        if any(not isinstance(value, (list, tuple)) for value in (self.event_slugs, self.operations)):
+            raise SupportConfigurationError("Support event slugs and operations must be lists or tuples")
         for name in self.event_slugs:
             _identifier(name)
         if any(name not in {"event", "quality_scorer", "quality_digest"} for name in self.operations):

@@ -153,6 +153,20 @@ class SupportConfigurationTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(SupportConfigurationError):
             SupportIdentity('', ALPHA.tenant_id, ALPHA.profile_id)
 
+    def test_event_and_operation_collections_require_lists_or_tuples(self):
+        for field in ('event_slugs', 'operations'):
+            for value in ('', 'event', {'event'}, {'event': True}, 1, None):
+                with self.subTest(field=field, value=value):
+                    with self.assertRaises(SupportConfigurationError):
+                        SupportProfile(ALPHA, **{field: value})
+        slugs = ['support-event']
+        operations = ['event']
+        configured = SupportProfile(ALPHA, event_slugs=slugs, operations=operations)
+        slugs.append('another-event')
+        operations.clear()
+        self.assertEqual(configured.event_slugs, ('support-event',))
+        self.assertEqual(configured.operations, ('event',))
+
     async def test_host_hooks_are_explicit_and_passed_unchanged(self):
         retainer = lambda text, limit: text[:limit]
         async def selector(*args):
