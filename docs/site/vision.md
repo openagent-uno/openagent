@@ -16,7 +16,7 @@ OpenAgent is an agnostic AI agent system. It is agnostic of model, provider, fra
 
 OpenAgent Core is an importable library with explicit construction, startup and shutdown. It owns reasoning, durable sessions and runs, framework rules and configured reusable modules. It does not require a server, standalone users, a network transport or tools installed on a computer. Hosts provide authenticated abstract principals, authorization, storage, model credentials and capability sources. Two runtime instances can live independently in the same process.
 
-The standalone OpenAgent product assembles the library into an app, CLI, server and MCP bridge. GlassPalace and other products assemble the same public library into their own runtime and build their own distributions. A product may expose the optional gateway or invoke the SDK directly; both paths use the same authorization and run services. Kubernetes pods, sandbox isolation, volumes and machine lifecycle belong to the host product.
+The standalone OpenAgent product assembles the library into an app, CLI, server and MCP bridge. Independent host products assemble the same public library into their own runtime and build their own distributions. A product may expose the optional gateway or invoke the SDK directly; both paths use the same authorization and run services. Kubernetes pods, sandbox isolation, volumes and machine lifecycle belong to the host product.
 
 Every user runs their own OpenAgent. Each agent has its own identity, its own memory vault, its own configured set of models and capabilities, and its own history. Agents discover one another and communicate directly, peer-to-peer, without any central authority mediating between them.
 
@@ -148,7 +148,7 @@ An agent may act as a coordinator for its own network, issuing certificates to i
 
 The agent runs a scheduled "dream" task that maintains its memory vault. Dreaming consolidates duplicate notes into single canonical ones, strengthens wiki-links between related notes, prunes stale or contradictory entries, and writes a dream-log that records what was reorganized and why.
 
-Dream mode belongs to the reusable vault module. The standalone and GlassPalace presets enable that module and preserve the existing maintenance defaults. A host chooses applicable modules and permissions; read-only vault access never creates an impossible write requirement. An agent without dreaming degrades over time as its memory accumulates noise, redundancy, and broken cross-references; dreaming is the system's antidote to that decay.
+Dream mode belongs to the reusable vault module. The standalone preset enables that module and preserves the existing maintenance defaults; embedding hosts can opt into the same module. A host chooses applicable modules and permissions; read-only vault access never creates an impossible write requirement. An agent without dreaming degrades over time as its memory accumulates noise, redundancy, and broken cross-references; dreaming is the system's antidote to that decay.
 
 Dream mode runs while the agent is otherwise idle — nightly by default, at a time the user can adjust. It does not compete with user-facing work, and any in-flight tasks take priority.
 

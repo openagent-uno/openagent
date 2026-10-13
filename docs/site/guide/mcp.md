@@ -31,7 +31,7 @@ ModuleConfig(
 )
 ```
 
-GlassPalace normally uses `managed`; its control plane owns connector and MCP
+A host with a managed capability catalog uses `managed`; its control plane owns connector and MCP
 policy. Replio can use `fixed`. The standalone full profile uses `dynamic`.
 
 ## Discovery and invocation

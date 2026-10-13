@@ -13,7 +13,7 @@
 - [Attachment preview in the App](attachment-preview.md)
 - [Beta 38 shared connector Python product release](releases/v1.1.0-beta.38.md)
 - [Beta 34 grounded memory authorization and durable recovery](releases/v1.1.0-beta.34.md)
-- [Beta 35 Performa session and scheduler reliability](releases/v1.1.0-beta.35.md)
+- [Beta 35 session and scheduler reliability](releases/v1.1.0-beta.35.md)
 - [Beta 33 authorized automation composition and resilient domain search](releases/v1.1.0-beta.33.md)
 - [Beta 32 long-running automation deadline repair](releases/v1.1.0-beta.32.md)
 - [Beta 31 catalog-aware fallback and resilient scheduled-task delivery](releases/v1.1.0-beta.31.md)
@@ -26,7 +26,7 @@
 - [Beta 24 scheduler responsiveness and bootstrap ownership repair](releases/v1.1.0-beta.24.md)
 - [Beta 23 standalone automation authorization repair](releases/v1.1.0-beta.23.md)
 - [Beta 16 Telegram voice repair and live acceptance](releases/v1.1.0-beta.16.md)
-- [Beta 17 Friday Telegram vault access](releases/v1.1.0-beta.17.md)
+- [Beta 17 Telegram vault access](releases/v1.1.0-beta.17.md)
 - [Beta 18 Telegram image input and proxy capability repair](releases/v1.1.0-beta.18.md)
 - [Beta 19 subscription proxy capability discovery](releases/v1.1.0-beta.19.md)
 - [Beta 21 compatible server and CLI release](releases/v1.1.0-beta.21.md)
@@ -62,8 +62,16 @@ Occurrence timestamps fence original consent generations; customer/order IDs are
 provider-validated numeric selectors. Durable receipt ACK and local processing
 status remain separate. Processing retries across restarts and broker outages;
 historical payload-only receipts remain blocked pending authenticated redelivery.
-No runtime currently injects a fully covered processor, and the published Core
+The candidate normal startup installs the tracker through strict opt-in before
+runtime recovery and source registration. No runtime currently injects a fully
+covered processor, and the published Core
 pins do not yet contain these candidate APIs. Shopify enrollment remains closed
 until canonical content writer coverage, sink completion, protected export
 delivery and consumer qualification are complete. Tests using Core source candidates
 are source qualification, never installed-wheel or product-release acceptance.
+
+The host-tools NDJSON producer writes explicit UTF-8 bytes independently of
+Windows locale and frozen-interpreter environment handling. The three encoding
+regressions live in `packages/host-tools/tests/test_stdio_encoding.py`; the
+compatibility 0.1.3 build for existing consumers retains its independent release
+and does not change this product's host-tools version or dependency closure.

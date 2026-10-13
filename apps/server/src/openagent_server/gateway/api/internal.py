@@ -1,7 +1,7 @@
 """POST /api/internal/skill-data — write-back endpoint for central skill runners.
 
 Central skills (runtime: central) run as shared multi-tenant pods in
-virgil-system. After each ingest tick they push results here so each
+an operator-managed namespace. After each ingest tick they push results here so each
 user's agent has data in their local SQLite — no direct DB mount needed.
 
 Auth: ``X-OpenAgent-Token`` header matching ``OPENAGENT_HTTP_TOKEN``

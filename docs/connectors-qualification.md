@@ -17,8 +17,8 @@ Shopify enrollment remains blocked until product-local privacy export/redaction 
 The marketplace now combines provider integrations and public-registry MCPs
 in one alphabetically sorted grid using the same `MarketplaceTile` and
 responsive `MarketplaceGrid`. There is no Official tab, heading, badge or
-separator. The original eleven provider logo assets were copied from
-GlassPalace with their source metadata and verified SHA-256 hashes; protocol
+separator. The original eleven provider logo assets were copied from the
+original host implementation with their source metadata and verified SHA-256 hashes; protocol
 connectors retain the mail icon. Connection controls open from the card's
 Manage action, and search/pagination remain bound to the authenticated target.
 The earlier default-Official-tab screenshot is superseded by this presentation.

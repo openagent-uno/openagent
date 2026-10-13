@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors } from '../../theme';
 import { connectorVectors } from './connector-vectors';
 
-// Identical bundled provider marks to GlassPalace and ICS; no remote fetches.
+// Bundled provider marks shared by connector cards; no remote fetches.
 const images: Readonly<Record<string, ImageSourcePropType>> = {
   replio: require('../../assets/connectors/replio.png'),
   billingbear: require('../../assets/connectors/billingbear.png'),

@@ -1,3 +1,4 @@
+<!-- Installation names and paths are anonymized operator labels; original deployment records are retained in the protected audit. -->
 # Unified history and search verification plan
 
 - Status: Active beta verification contract; Beta 4 replacement pre-tag gates
@@ -37,18 +38,18 @@ intent rather than editing the Beta 3 record.
 
 ::: warning Beta 3 evidence boundary
 Release run `32976311521` published GitHub prerelease `377189126` successfully.
-The exact Linux package then projected `583/585` Friday legacy sessions: two
+The exact Linux package then projected `583/585` Dogfood installation legacy sessions: two
 provider call IDs reused across distinct runs collided with a root-scoped
-unique constraint. `history_ready` stayed false and Friday was rolled back to
+unique constraint. `history_ready` stayed false and Dogfood installation was rolled back to
 stable `0.19.26`. Beta 3 is non-promotable; its passing suite and package
 evidence are historical evidence for those immutable bytes, not a waiver for
 the successor. See the
-[`sanitized failure record`](../release/unified-history-beta-3-friday-failure.yaml).
+[`sanitized failure record`](../release/unified-history-beta-3-dogfood-failure.yaml).
 :::
 
 ::: warning First Beta 4 source rejected
 `699ffe8…` passed local full/targeted/selfcheck, supply chain and the isolated
-Friday repair rehearsal. Branch Tests `32981309012` recorded `1647` passed,
+Dogfood installation repair rehearsal. Branch Tests `32981309012` recorded `1647` passed,
 one failed and `51` skipped because of a search-cache readiness race. No tag or
 release was created. The Beta 4 tag remains unused, but this source cannot be
 released; see the
@@ -57,7 +58,7 @@ released; see the
 
 ::: info Beta 4 replacement accepted pre-tag
 `b9d8ab5…` passed exact-source full suite `1653/0/46`, Tests
-`32982520288`, Supply chain `32982520375`, and the exact-source Friday repair
+`32982520288`, Supply chain `32982520375`, and the exact-source Dogfood installation repair
 rehearsal. Its intent is frozen, but no tag, release or packaged-live E2E has
 run yet.
 :::
@@ -151,7 +152,7 @@ Supply-chain run `32974967908` passed on the same source SHA; branch test run
 `32974968028` also passed on that SHA. Their successful terminal jobs are
 `98197349011` and `98197348947`, respectively.
 
-Those results continue to describe Beta 3 accurately, but the Friday defect
+Those results continue to describe Beta 3 accurately, but the Dogfood installation defect
 changes server source and migration behavior. The successor must record its own
 full-suite counts, log digest, branch tests, supply-chain jobs and package
 matrix on its exact new SHA.
@@ -208,7 +209,7 @@ visual-regression, or accessibility automation.
 Tag `v0.17.0-beta.1` has dispatched run `32983788693`. It is in progress and
 no app release is published at this evidence snapshot. A running workflow is
 not a pass; installation, real-gateway E2E and promotion remain behind the
-server Friday gate.
+server Dogfood installation gate.
 
 #### CLI
 
@@ -242,13 +243,13 @@ OPENAGENT_PACKAGING_PYTHON=3.12 bash scripts/test-packaging.sh full
 They build a wheel from a staged source copy, install it into a clean virtual
 environment, reject leaked legacy top-level modules, and—in `full` mode—build and
 launch a PyInstaller executable outside the checkout. They still do not replace
-a live gateway integration or the cross-version/Friday matrix below. The
+a live gateway integration or the cross-version/Dogfood installation matrix below. The
 per-platform release jobs separately smoke each final signed/frozen package
 before upload; the release job then downloads the platform artifacts and
 verifies the exact merged union and checksums before opening a hidden draft.
 
 Tag `v0.16.0-beta.1` has dispatched run `32983586871`. It is in progress and
-no CLI release is published at this evidence snapshot. Installation, Friday
+no CLI release is published at this evidence snapshot. Installation, Dogfood installation
 live E2E and train promotion remain behind the server gate.
 
 #### Docs
@@ -537,13 +538,13 @@ For each source version test:
 17. prove deleted data is not resurrected in history or search;
 18. exercise offline restore plan and apply in a disposable directory.
 
-Rejected source `699ffe8…` ran this repair on Friday against a fresh Backup API
+Rejected source `699ffe8…` ran this repair on Dogfood installation against a fresh Backup API
 copy. Its digest stayed
 `526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd`.
 Before: `586` legacy, `583` normalized, two failed and one pending. After:
 `586/586/0/0`, search ready/pending zero, exact legacy canary hit, eight
 collision groups/`16` invocations preserved, and clean quick/foreign-key
-checks. Live Friday stayed stable `0.19.26` at the before counts and was not
+checks. Live Dogfood installation stayed stable `0.19.26` at the before counts and was not
 mutated by rehearsal.
 
 Because the same source failed branch CI, the rehearsal proves the repair on
@@ -742,7 +743,7 @@ Exercise these pairs with real binaries or packages:
   `OPENAGENT_UPDATE_CHANNEL=beta` (and config-channel precedence), with
   beta.2 → beta.3, beta.N → beta.N+1, and beta → newer stable; an unknown channel must fail
   safe to stable, while the environment alone must not enable `auto_update`;
-- a `0.19.x` server must not auto-select `0.20.0-beta.4` (nor Beta 3): seed Friday manually
+- a `0.19.x` server must not auto-select `0.20.0-beta.4` (nor Beta 3): seed Dogfood installation manually
   from the exact Linux x64 package after sibling-checksum and GitHub asset-digest
   verification, then prove later compatible `0.20.0-beta.N` selection;
 - missing, corrupt, interrupted, wrong-platform, wrong-architecture, unsigned and
@@ -762,9 +763,9 @@ metadata verification is a separate post-publication check and never mutates
 ## 12. Evidence bundle and exit criteria
 
 Beta 3 provides a deliberately split evidence record: source/package/release
-gates passed, while the Friday storage gate failed. GitHub release
+gates passed, while the Dogfood installation storage gate failed. GitHub release
 `377189126` and workflow `32976311521` remain valid provenance for the exact
-immutable bytes; `release/unified-history-beta-3-friday-failure.yaml` records
+immutable bytes; `release/unified-history-beta-3-dogfood-failure.yaml` records
 the sanitized deployment counts, failure class and safe rollback. This is not a
 complete train exit and cannot be copied forward as successor test evidence.
 
@@ -812,10 +813,10 @@ For every OS/architecture artifact:
    `draft=true`;
 7. patch the verified draft to `draft=false`, `prerelease=true`,
    `make_latest=false`, then re-read its state and assets;
-8. install or unpack the exact published server/CLI Linux package on Friday
+8. install or unpack the exact published server/CLI Linux package on Dogfood installation
    without editable packages, source-tree imports, `PYTHONPATH`, or unscoped
    developer credentials, and only after the verified backup/restore rehearsal;
-9. run the component-specific live smoke against the marked Friday principal
+9. run the component-specific live smoke against the marked Dogfood installation principal
    and backed-up agent root;
 10. collect the smoke result and environment identity, then recompute/archive
    the immutable artifact digest;
@@ -839,7 +840,7 @@ Minimum package probes:
   fixture gateway, history/search/JSON/pagination, and clean execution from
   outside the checkout.
 
-No package or Friday smoke step may invoke `release.sh`, push another tag, or
+No package or Dogfood installation smoke step may invoke `release.sh`, push another tag, or
 mutate a real updater feed. The separately permissioned release job is the only
 publisher and runs only after native package smoke succeeds; its draft is not
 public until remote digest verification passes.
@@ -877,11 +878,11 @@ The beta is blocked by any:
 
 The beta train is already authorized, but execution remains gated. Beta 3 proved
 its pre-tag and exact-artifact publication path, then failed the separately
-required Friday migration gate; it is therefore a published prerelease but not
+required Dogfood installation migration gate; it is therefore a published prerelease but not
 a train exit. The first Beta 4 source then failed pre-tag branch CI. Replacement
 `b9d8ab5…` has passed its own pre-tag items; the still-unused tag may proceed
 only after intent review, and its workflow must hold GitHub Release creation
 until exact-artifact smoke passes. App/CLI beta package workflows may publish
 their isolated prereleases in parallel; installation, live E2E, train promotion
-and further user-data deployment remain blocked until the successor Friday gate
+and further user-data deployment remain blocked until the successor Dogfood installation gate
 succeeds. Nothing here authorizes stable.

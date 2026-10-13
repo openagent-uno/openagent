@@ -1,3 +1,4 @@
+# Installation names and paths are anonymized operator labels; original records remain in the protected audit.
 schema: 1
 train_id: unified-history-beta.1
 component: server
@@ -15,7 +16,7 @@ discrepancy:
   update_installed_at: 2026-08-26T12:17:23Z
   update_confirmed_at: 2026-08-26T12:18:49Z
   discovered_at: 2026-08-26T13:04:00Z
-  original_backup: /srv/friday/backups/beta-unified-history-20260826T122809Z
+  original_backup: /srv/dogfood/backups/beta-unified-history-20260826T122809Z
   original_database_valid: true
   stale_fields:
     - source_version
@@ -23,7 +24,7 @@ discrepancy:
   original_record_retained: true
 
 corrected_backup:
-  path: /srv/friday/backups/beta-unified-history-20260826T130504Z-corrected
+  path: /srv/dogfood/backups/beta-unified-history-20260826T130504Z-corrected
   source_version: 0.19.26
   source_executable_sha256: 4f4d32e2fee22ca542ff812d389db7769de0975fdd24a37dd933e906dbd7b3a5
   secondary_rollback_version: 0.19.16

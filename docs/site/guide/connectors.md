@@ -4,11 +4,12 @@
 App beta 16, server/CLI beta 38 and shared library/runner 0.1.2 are published.
 Auth-only 0.1.4 is separately deployed. Common OAuth enrollment remains closed
 to the public; ClickUp qualification is limited to allowlisted QA servers.
-Shopify remains disabled and Google verification/Postiz registration are pending. See
+Shopify remains disabled; Google verification and verification of the existing
+Postiz registration remain pending. See
 [release status and remaining gates](./connector-status.md).
 :::
 
-OpenAgent provides one shared connector implementation for the standalone server, GlassPalace, ICS and other products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
+OpenAgent provides one shared connector implementation for the standalone server, independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
 The shared authentication release is being qualified. New common-app enrollment becomes available only after provider approval and end-to-end acceptance, and requires the receiving server to opt in explicitly. Shopify enrollment is currently disabled in the standalone while its privacy-content processor is completed. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback once enabled.
 
@@ -27,7 +28,7 @@ shared and which stay in the receiving product. Operators can use the
 | Google Drive | OAuth | Search, files, folders and permitted file operations |
 | Google Analytics | OAuth | Read-only GA4 reports and metadata |
 | ClickUp | OAuth | Tasks, workspaces, Docs, Goals and time tracking |
-| Postiz | OAuth | Social integrations, analytics, drafts and publishing; app registration still pending |
+| Postiz | OAuth | Social integrations, analytics, drafts and publishing; existing registration not yet verified |
 | Pipeboard Ads | API token | Meta/Google Ads reports and permitted campaign pause |
 | Replio | Organization API token | Apps, conversations and support statistics |
 | BillingBear | Project API token | Revenue and customer billing information |
@@ -64,7 +65,7 @@ provider API call; verify access with an appropriate authorized operation.
 This screenshot is from the actual development App and an authenticated
 disposable server. Gmail OAuth was deliberately unavailable on that server;
 the image demonstrates layout/search, not a completed provider consent.
-GlassPalace and ICS display these integrations in their **MCP marketplace**
+Embedding hosts display these integrations in their **MCP marketplace**
 alongside custom MCP endpoints. OAuth disclosure identifies the product and
 the particular receiving installation. Third-party products may use the shared
 protocol; an operator-supplied name does not mean OpenAgent has approved it.
@@ -91,7 +92,7 @@ Each server keeps its own encrypted token copy. Connecting the same Shopify shop
 
 Disabling a connection prevents tool use without deleting its saved credentials.
 Where supported, **Allow changes** additionally controls mutating operations.
-GlassPalace and ICS also retain workspace/project scope and explicit agent
+Embedding hosts also retain workspace/project scope and explicit agent
 grants; saving a connection does not grant every agent access.
 
 **Disconnect from this server** removes that product's local access. Removing/revoking the app in the provider's settings can affect other products using the same app. Reconnection requires consent; existing credentials are never silently reassigned to another OAuth app.
@@ -117,7 +118,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |
-| Postiz | Reviewed provider app registration and consent; the common registration is pending |
+| Postiz | Verified existing provider registration and consent; reuse the existing app once identified |
 | Replio | Dedicated organization-wide `rpl_…` key and organization UUID |
 | BillingBear | Project API token and project identifier |
 | Pipeboard Ads | API token and provider identifier `meta_ads` or `google_ads` |

@@ -1,4 +1,6 @@
-FROM hub.spicysparks.com/spicysparks/openagent:v29
+# The operator supplies a qualified builder image for its own deployment.
+ARG OPENAGENT_BASE_IMAGE
+FROM ${OPENAGENT_BASE_IMAGE}
 RUN apt-get update -qq \
  && apt-get install -y -qq binutils libpython3.12 \
  && rm -rf /var/lib/apt/lists/*

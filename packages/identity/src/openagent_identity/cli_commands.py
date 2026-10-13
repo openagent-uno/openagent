@@ -1060,7 +1060,7 @@ def cmd_peer_chat(ctx, network_id_or_name: str, message: str, agent_handle: str 
 
     \\b
       openagent network chat ff9efe9f… "What can you do?"
-      openagent network chat lyra-agent "Summarise today's news"
+      openagent network chat example-peer "Summarise today's news"
     """
     asyncio.run(_run_peer_chat(ctx, network_id_or_name, message, agent_handle, session_id))
 

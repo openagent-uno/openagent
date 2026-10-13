@@ -131,7 +131,7 @@ class DashboardTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(PermissionError):
             self.adapter.resolve_ingress('guessed',self.identity,'other')
         with self.assertRaises(ValueError):
-            self.adapter.register_connection('connection',{'type':'app_capability_register','product':'glasspalace','dashboard_tools':1})
+            self.adapter.register_connection('connection',{'type':'app_capability_register','product':'example-host','dashboard_tools':1})
 
     async def test_inline_references_require_current_session_and_current_publication_rights(self):
         context=await self.activate()
