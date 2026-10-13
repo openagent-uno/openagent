@@ -59,3 +59,16 @@ apps/app/
 | `./start.sh web\|macos\|windows\|linux\|ios\|android` | Dev server |
 | `./build.sh web\|macos\|windows\|linux\|ios\|android` | Production build |
 | `./test.sh` | Lint + type check + unit tests |
+
+## Provider connectors and the MCP marketplace
+
+The candidate connector release combines provider integrations and registry
+MCP cards in **Connectors → Browse**, using the same responsive card/grid and
+the provider logos used by GlassPalace/ICS. It adds no dedicated Official tab,
+badge or separator. Setup and local enable/reconnect/disconnect controls open
+from the card; custom MCP registration remains available.
+
+Read [the usage guide](./connectors.md), [configuration/recovery](./connector-operations.md)
+and [release status](./connector-status.md) before assuming this candidate UI is
+present in a currently installed public build. OAuth availability is decided by
+the authenticated receiving server and provider configuration.

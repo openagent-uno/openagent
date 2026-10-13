@@ -255,3 +255,12 @@ kubectl delete pod <pod>          # Recreate strategy; the built index persists 
 Verify the build: `semantic.index_built` in `events.jsonl`, growing `vault_vectors` in `semantic_index_*.db`, and zero `semantic.embed_error` naming the endpoint.
 
 > A ready-to-adapt copy of the LaunchDaemon script lives at `~/k8s-manifests/mini-ollama-setup.sh` (not auto-committed — treat `~/k8s-manifests` as out-of-repo, per the signing-incident rule).
+
+## Shared connector and OAuth deployment
+
+Connector libraries/runners are local product dependencies. The common OAuth
+broker is a separate optional HTTPS service; it is not required for Core or
+Iroh identity, and does not replace a product's account/data server. See
+[operator configuration, pinning and recovery](./connector-operations.md) and
+[activation gates](./connector-status.md). Do not enable common-app allowlists
+from a successful bootstrap health check alone.
