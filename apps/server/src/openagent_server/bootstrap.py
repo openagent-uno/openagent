@@ -80,7 +80,16 @@ async def start_stream(session: Any, gateway: Any) -> None:
     voice = service_for_gateway(gateway)
     async def stt(_db): return VoiceSTT(voice)
     async def tts(_db): return VoiceTTS(voice)
-    await session.start(stt_factory=stt, tts_factory=tts)
+    runtime_service = getattr(gateway, 'runtime_service', None)
+    connectors = getattr(runtime_service, 'official_connectors', None)
+    processor = getattr(connectors, 'privacy_processor', None)
+    if processor is not None:
+        processor.register_stream(session)
+        # This opt-in cohort qualifies text delivery. Do not synthesize a
+        # second, untracked audio copy of protected context.
+        await session.start(stt_factory=stt, tts_factory=None)
+    else:
+        await session.start(stt_factory=stt, tts_factory=tts)
 
 
 _SERVER_HOST_DEFAULTS = frozenset({"filesystem", "editor", "shell"})

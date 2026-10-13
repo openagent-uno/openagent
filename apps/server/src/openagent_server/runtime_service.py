@@ -486,9 +486,11 @@ class NativeRuntimeService:
             # Install canonical sinks before recovery, modules or sources run.
             # Runtime.start retains ownership and its idempotent store startup.
             await self.store.start()
-            from openagent_server.connector_privacy import install_local_privacy
+            from openagent_server.connector_privacy import install_local_privacy, qualify_local_coverage
 
             install_local_privacy(self.official_connectors, self.runtime)
+            self.official_connectors.privacy_processor.covered_surfaces = await qualify_local_coverage(
+                self.official_connectors, self.runtime)
         await self.runtime.start()
         await self.official_connectors.attach_sources()
         mcp_service = self.runtime.service("mcp.service")

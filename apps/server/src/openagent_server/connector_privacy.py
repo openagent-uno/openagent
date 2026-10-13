@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
+import weakref
 
 from openagent_core.content_privacy import PrivacyRequest
 
@@ -38,6 +39,13 @@ class ConnectorPrivacyProcessor:
         self.store, self.sinks = store, tuple(sinks)
         self.covered_surfaces = frozenset(covered_surfaces)
         self.exports, self.prepare = exports, prepare
+        self.streams = weakref.WeakSet()
+
+    def register_stream(self, stream):
+        from openagent_core.stream.session import StreamSession
+        if type(stream) is not StreamSession:
+            raise ValueError('Privacy enrollment requires the canonical text stream')
+        self.streams.add(stream)
 
     async def process(self, receipt, connections):
         topic = receipt['topic']
@@ -162,8 +170,36 @@ def install_local_privacy(service, runtime, *, covered_surfaces=frozenset()):
             control = SessionControl(service.agent)
             for session_id in await publisher.sessions_for_request(request):
                 await control.invalidate_context(session_id)
+            for stream in tuple(processor.streams):
+                stream.purge_outbound(request)
     processor = ConnectorPrivacyProcessor(ledger, sinks=(run_sink, engine_sink, journal_sink, exports),
                                           exports=exports, prepare=prepare, covered_surfaces=covered_surfaces)
     processor.publisher = publisher
     service.privacy_processor = processor
     return publisher
+
+
+async def qualify_local_coverage(service, runtime):
+    """Compute coverage for this known canonical text assembly, never config.
+
+    A fresh canonical cohort, the shipped providers and no injected engine
+    callbacks are required. Historical installations retain blocked receipts
+    until a separate reviewed reconciliation; nothing is silently deleted.
+    """
+    from openagent_core.engine import NativeProvider, ModelDispatcher
+    from openagent_core.extensions import EngineExtensions
+    from openagent_core.content_privacy import ToolResultPrivacyPublisher
+    processor = service.privacy_processor
+    if processor is None or type(getattr(service.agent, 'model', None)) not in {NativeProvider, ModelDispatcher}:
+        return frozenset()
+    if getattr(service.agent, 'extensions', None) != EngineExtensions():
+        return frozenset()
+    if runtime.service(ToolResultPrivacyPublisher) is not processor.publisher:
+        return frozenset()
+    if not await processor.store.qualify_empty_history():
+        return frozenset()
+    # Canonical engine/run/journal/search sinks are installed above. Vault,
+    # managed files, MCP writers and attachments without qualified lineage are
+    # fenced before IO in a protected run. Text delivery is guarded and retained
+    # pending frames are purged by prepare; media copies are not admitted.
+    return processor.store.required_surfaces
