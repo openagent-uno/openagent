@@ -140,3 +140,23 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                     service.official_connectors.privacy_enabled()
             agent.config['connectors'] = {'privacy':{'enabled':False}}
             self.assertFalse(service.official_connectors.privacy_enabled())
+
+    async def test_custom_callback_cannot_attest_canonical_coverage(self):
+        from openagent_core.engine import MemoryDB, NativeProvider
+        from openagent_core.extensions import EngineExtensions
+        with tempfile.TemporaryDirectory() as directory:
+            agent = FakeAgent(Path(directory)/'state.sqlite')
+            memory = MemoryDB(agent.memory_db.db_path)
+            await memory.connect()
+            agent.memory_db = memory
+            agent.model = NativeProvider('openai:fixture', api_key='fixture')
+            agent.extensions = EngineExtensions(output_retainer=lambda text, limit: text)
+            agent.config['connectors'] = {'privacy':{'enabled':True}}
+            service = NativeRuntimeService(SimpleNamespace(agent=agent), agent)
+            service.official_connectors.runner = None
+            try:
+                await service.start()
+                self.assertEqual(service.official_connectors.privacy_processor.covered_surfaces, frozenset())
+            finally:
+                await service.close()
+                await memory.close()

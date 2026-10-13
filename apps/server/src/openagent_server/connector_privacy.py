@@ -179,20 +179,28 @@ def install_local_privacy(service, runtime, *, covered_surfaces=frozenset()):
     return publisher
 
 
-async def qualify_local_coverage(service, runtime):
+async def qualify_local_coverage(service, runtime, *, dashboards=None):
     """Compute coverage for this known canonical text assembly, never config.
 
-    A fresh canonical cohort, the shipped providers and no injected engine
-    callbacks are required. Historical installations retain blocked receipts
+    A fresh canonical cohort, the shipped providers and only the canonical
+    dashboard validator are required. Historical installations retain blocked receipts
     until a separate reviewed reconciliation; nothing is silently deleted.
     """
     from openagent_core.engine import NativeProvider, ModelDispatcher
     from openagent_core.extensions import EngineExtensions
+    from openagent_server.dashboard_capabilities import DashboardCapabilities
     from openagent_core.content_privacy import ToolResultPrivacyPublisher
     processor = service.privacy_processor
     if processor is None or type(getattr(service.agent, 'model', None)) not in {NativeProvider, ModelDispatcher}:
         return frozenset()
-    if getattr(service.agent, 'extensions', None) != EngineExtensions():
+    if (type(dashboards) is not DashboardCapabilities
+            or dashboards.agent is not service.agent):
+        return frozenset()
+    # This exact host-owned validator reads an authorized inline reference; it
+    # does not retain generated text. No configured or arbitrary callback can
+    # attest coverage, including the other engine extension fields.
+    if getattr(service.agent, 'extensions', None) != EngineExtensions(
+            content_validator=dashboards.content_validator):
         return frozenset()
     if runtime.service(ToolResultPrivacyPublisher) is not processor.publisher:
         return frozenset()

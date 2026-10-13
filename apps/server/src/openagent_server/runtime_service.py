@@ -490,7 +490,7 @@ class NativeRuntimeService:
 
             install_local_privacy(self.official_connectors, self.runtime)
             self.official_connectors.privacy_processor.covered_surfaces = await qualify_local_coverage(
-                self.official_connectors, self.runtime)
+                self.official_connectors, self.runtime, dashboards=self.dashboards)
         await self.runtime.start()
         await self.official_connectors.attach_sources()
         mcp_service = self.runtime.service("mcp.service")
