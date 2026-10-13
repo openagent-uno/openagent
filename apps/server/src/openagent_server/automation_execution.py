@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 import asyncio
+import time
 from dataclasses import replace
 from uuid import NAMESPACE_URL, uuid4, uuid5
 from openagent_core.contracts import RunRequest, canonical_json
@@ -20,8 +21,12 @@ def _runtime_deadline_seconds(config, kind, definition):
     executors.  The Runtime deadline starts slightly earlier and also covers
     final projection writes, so using the same value for both lets the outer
     wrapper cancel an otherwise valid long-running automation first.
+    Without an explicit operator deadline or definition budget, the run is
+    unbounded just like a foreground agent request; no hidden default applies.
     """
-    configured = float((config.get("automation") or {}).get("deadline_seconds", 960))
+    configured = (config.get("automation") or {}).get("deadline_seconds")
+    if configured is not None:
+        configured = float(configured)
     if kind == "task":
         from openagent_core.core.execution_policy import task_execution_policy
 
@@ -36,7 +41,7 @@ def _runtime_deadline_seconds(config, kind, definition):
     if operation_timeout is None:
         return configured
     return max(
-        configured,
+        configured or 0.0,
         float(operation_timeout) + _AUTOMATION_FINALIZE_GRACE_SECONDS,
     )
 
@@ -99,7 +104,10 @@ class NativeAutomationExecution:
                 authorized.append(row["id"])
         return tuple(authorized)
 
-    async def _execute(self, kind, definition, occurrence, operation, payload=None):
+    async def _execute(
+        self, kind, definition, occurrence, operation, payload=None,
+        *, projection_run_id=None,
+    ):
         canonical = await self.service.automations.definition(kind, definition["id"])
         identifier = str(
             uuid5(NAMESPACE_URL, f"openagent:{kind}:{definition['id']}:{occurrence}")
@@ -139,6 +147,17 @@ class NativeAutomationExecution:
             )
             submitted = True
             record = await self.service.runtime.wait(identifier, context)
+            if record.status == "timed_out" and projection_run_id:
+                # Inner executors see CancelledError for a Runtime deadline.
+                # Its canonical outcome distinguishes that from a user stop.
+                update = {
+                    "task": self.service.agent.memory_db.update_task_run,
+                    "workflow": self.service.agent.memory_db.update_workflow_run,
+                }[kind]
+                await update(
+                    projection_run_id, status="timed_out", finished_at=time.time(),
+                    error="Automation runtime deadline exceeded",
+                )
             if record.status != "success":
                 raise RuntimeError(f"Automation run ended with status {record.status}")
             return record.output
@@ -171,7 +190,10 @@ class NativeAutomationExecution:
         selected = {**task, "_runtime_run_id": run_id}
 
         async def operation():
+            base_called = False
             async def base(value):
+                nonlocal base_called
+                base_called = True
                 return await execute(
                     value, trigger=trigger, request_id=request_id, context=payload
                 )
@@ -186,6 +208,23 @@ class NativeAutomationExecution:
                 chain = wrapped
             result = await chain(selected)
             projection = await scheduler.db.get_task_run(run_id)
+            if not base_called:
+                # Replacement hooks (notably auto-update) do not enter the
+                # Core executor. Finalize their successful occurrence here,
+                # before Runtime publication validates the task projection.
+                # A delegated executor's missing/failed finalize must still
+                # fail the check below, rather than being called successful.
+                if projection is None:
+                    await scheduler.db.add_task_run(
+                        task_id=task["id"], trigger=trigger, run_id=run_id,
+                    )
+                    projection = await scheduler.db.get_task_run(run_id)
+                if projection.get("status") == "running":
+                    await scheduler._record_task_finish(
+                        run_id, selected, status="success",
+                        output="Completed by scheduled-task execution hook",
+                    )
+                    projection = await scheduler.db.get_task_run(run_id)
             if projection and projection.get("status") not in {
                 "success",
                 "completed",
@@ -194,7 +233,10 @@ class NativeAutomationExecution:
                 raise RuntimeError("Scheduled task did not complete successfully")
             return result
 
-        return await self._execute("task", task, occurrence, operation, payload)
+        return await self._execute(
+            "task", task, occurrence, operation, payload,
+            projection_run_id=run_id,
+        )
 
     async def run_workflow(
         self,
@@ -237,6 +279,7 @@ class NativeAutomationExecution:
             occurrence,
             operation,
             {"inputs": inputs, "entry_node_id": entry_node_id},
+            projection_run_id=identifier,
         )
 
     async def run_event(

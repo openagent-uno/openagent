@@ -97,6 +97,78 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             await self.execution.run_task(scheduler,row,trigger='manual',request_id='same-request',payload=None,execute=perform)
         self.assertEqual(len(calls),1)
 
+    async def test_successful_replacement_hook_finalizes_before_runtime_publish(self):
+        from openagent_core.core.scheduler import Scheduler
+        calls=[]
+        async def hook(task,next_call):
+            calls.append(task['id'])
+        self.execution.register_task_hook('replacement',hook)
+        for trigger in ('schedule','manual'):
+            with self.subTest(trigger=trigger):
+                row=await self.management.call('scheduled_task','create_scheduled_task',
+                    {'name':'Replacement '+trigger,'cron_expression':'* * * * *',
+                     'prompt':'Hook-owned operation'},self.context)
+                scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+                async def forbidden_base(*args,**kwargs):
+                    self.fail('A replacement hook must not call the standard executor')
+                scheduler._execute_task=forbidden_base
+                if trigger=='schedule':
+                    await self.db.update_task(row['id'],next_run=1)
+                    await scheduler._check_and_run()
+                    await asyncio.gather(*tuple(scheduler._workflow_tasks))
+                else:
+                    for _ in range(2):
+                        await scheduler.run_task(row,trigger='manual',request_id='replacement-manual')
+                runs=await self.db.list_task_runs(row['id'])
+                self.assertEqual(len(runs),1)
+                self.assertEqual(runs[0]['status'],'success')
+                self.assertIsNotNone(runs[0]['finished_at'])
+                self.assertEqual(calls.count(row['id']),1)
+                records=await (await self.db._conn.execute(
+                    'SELECT status FROM session_runs WHERE session_id LIKE ?',
+                    ('automation:task:'+row['id']+':%',))).fetchall()
+                self.assertEqual([r[0] for r in records],['success'])
+
+    async def test_replacement_hook_exception_stays_failed(self):
+        from openagent_core.core.scheduler import Scheduler
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Broken hook','cron_expression':'* * * * *','prompt':'Work'},self.context)
+        async def hook(task,next_call):
+            raise RuntimeError('Hook failed before completion')
+        self.execution.register_task_hook('replacement',hook)
+        scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+        await self.db.update_task(row['id'],next_run=1)
+        await scheduler._check_and_run()
+        await asyncio.gather(*tuple(scheduler._workflow_tasks))
+        runs=await self.db.list_task_runs(row['id'])
+        self.assertEqual(len(runs),1)
+        self.assertEqual(runs[0]['status'],'failed')
+
+    async def test_auto_update_check_error_reaches_the_runtime(self):
+        from unittest.mock import patch
+        from openagent_server.server import _do_auto_update
+        with patch('openagent_server.server.run_upgrade',
+                   side_effect=RuntimeError('Check unavailable')):
+            with self.assertRaisesRegex(RuntimeError,'Check unavailable'):
+                await _do_auto_update(self.service.agent,'auto')
+
+    async def test_delegated_executor_missing_finalize_is_not_hook_success(self):
+        from openagent_core.core.scheduler import Scheduler
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Missing finalize','cron_expression':'* * * * *','prompt':'Work'},self.context)
+        async def hook(task,next_call):
+            return await next_call(task)
+        self.execution.register_task_hook('delegating',hook)
+        scheduler=Scheduler(self.db,self.service.agent,execution_service=self.execution)
+        async def unfinished(task,**kwargs):
+            pass
+        scheduler._execute_task=unfinished
+        await self.db.update_task(row['id'],next_run=1)
+        await scheduler._check_and_run()
+        await asyncio.gather(*tuple(scheduler._workflow_tasks))
+        runs=await self.db.list_task_runs(row['id'])
+        self.assertEqual(runs[0]['status'],'failed')
+
     async def test_task_policy_timeout_outlives_inner_execution_budget(self):
         self.service.agent.config={'automation': {'deadline_seconds': 960}}
         row=await self.management.call('scheduled_task','create_scheduled_task',
@@ -131,7 +203,101 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             ),
             1830,
         )
-        self.assertEqual(_runtime_deadline_seconds({},'workflow',{}),960)
+        for kind in ('task','event','workflow'):
+            self.assertIsNone(_runtime_deadline_seconds({},kind,{}))
+            self.assertEqual(_runtime_deadline_seconds(
+                {'automation': {'deadline_seconds': 120}},kind,{}),120)
+
+    async def test_unbounded_task_has_no_implicit_runtime_deadline(self):
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Unbounded','cron_expression':'0 9 * * *','prompt':'Work'},self.context)
+        requests=[]
+        execute_operation=self.runtime.execute_operation
+        async def capture(request,context,operation):
+            requests.append(request)
+            return await execute_operation(request,context,operation)
+        self.runtime.execute_operation=capture
+        async def perform(task,**kwargs):
+            await self.db.add_task_run(task_id=task['id'],trigger=kwargs['trigger'],run_id=task['_runtime_run_id'])
+            await asyncio.sleep(0.06)
+            await self.db.update_task_run(task['_runtime_run_id'],status='success')
+        await self.execution.run_task(SimpleNamespace(db=self.db),row,
+            trigger='manual',request_id='unbounded',payload=None,execute=perform)
+        self.assertIsNone(requests[0].deadline_seconds)
+
+    async def _cancelled_projection(self, *, deadline):
+        self.service.agent.config={'automation': {'deadline_seconds': deadline}}
+        row=await self.management.call('scheduled_task','create_scheduled_task',
+            {'name':'Cancellation','cron_expression':'0 9 * * *','prompt':'Work'},self.context)
+        # Match scheduler admission: the occurrence is committed before the
+        # Runtime deadline starts, not during a cancellable shared-DB write.
+        projection_id='preclaimed-cancellation'
+        row={**row,'_preclaimed_run_id':projection_id}
+        await self.db.add_task_run(task_id=row['id'],trigger='manual',run_id=projection_id)
+        started=asyncio.Event()
+        captured=[]
+        execute_operation=self.runtime.execute_operation
+        async def capture(request,context,operation):
+            captured.append((request,context))
+            return await execute_operation(request,context,operation)
+        self.runtime.execute_operation=capture
+        projection_ids=[]
+        async def perform(task,**kwargs):
+            identifier=task['_runtime_run_id']
+            projection_ids.append(identifier)
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                await self.db.update_task_run(identifier,status='cancelled',error='Stopped by user')
+                raise
+        future=asyncio.create_task(self.execution.run_task(SimpleNamespace(db=self.db),row,
+            trigger='manual',request_id='cancel-case',payload=None,execute=perform))
+        await asyncio.wait_for(started.wait(),15)
+        if deadline is None:
+            request,context=captured[0]
+            await self.runtime.cancel(request.run_id,context)
+        with self.assertRaisesRegex(RuntimeError,'timed_out' if deadline else 'cancelled'):
+            await asyncio.wait_for(future,30)
+        request,context=captured[0]
+        canonical=await self.runtime.get_run(request.run_id,context)
+        return canonical,await self.db.get_task_run(projection_ids[0])
+
+    async def test_runtime_timeout_projection_is_not_a_user_stop(self):
+        canonical,projection=await self._cancelled_projection(deadline=5)
+        self.assertEqual(canonical.status,'timed_out')
+        self.assertEqual(projection['status'],'timed_out')
+        self.assertEqual(projection['error'],'Automation runtime deadline exceeded')
+        self.assertIsNotNone(projection['finished_at'])
+
+    async def test_actual_user_stop_remains_cancelled(self):
+        canonical,projection=await self._cancelled_projection(deadline=None)
+        self.assertEqual(canonical.status,'cancelled')
+        self.assertEqual(projection['status'],'cancelled')
+        self.assertEqual(projection['error'],'Stopped by user')
+
+    async def test_workflow_runtime_timeout_projection_is_not_a_user_stop(self):
+        self.service.agent.config={'automation': {'deadline_seconds': 5}}
+        row=await self.management.call('workflow','create_workflow',
+            {'name':'Bounded workflow'},self.context)
+        identifier='deadline-workflow'
+        await self.db.add_workflow_run(workflow_id=row['id'],trigger='manual',run_id=identifier)
+        started=asyncio.Event()
+        async def perform(workflow,**kwargs):
+            started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                await self.db.update_workflow_run(identifier,status='cancelled',error='Stopped by user')
+                raise
+        with self.assertRaisesRegex(RuntimeError,'timed_out'):
+            await asyncio.wait_for(self.execution.run_workflow(
+                SimpleNamespace(db=self.db),row,trigger='manual',inputs={},
+                request_id=None,entry_node_id=None,run_id=identifier,execute=perform),30)
+        self.assertTrue(started.is_set())
+        projection=await self.db.get_workflow_run(identifier)
+        self.assertEqual(projection['status'],'timed_out')
+        self.assertEqual(projection['error'],'Automation runtime deadline exceeded')
 
     async def test_unapproved_manual_request_fails_before_enqueue(self):
         identifier=await self.db.add_task('Pending','* * * * *','hello',next_run=1)
