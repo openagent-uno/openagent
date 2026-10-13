@@ -14,10 +14,25 @@ installed client already includes the candidate UI.
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
 | Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
 | Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
-| GlassPalace | Shared module `0.1.2` deployed in production; three product deployments Ready; authenticated marketplace UI verified; existing ClickUp connection preserved | Native `0.1.82` delivery/signing qualification in progress, including its existing Windows certificate gate; real common-provider acceptance |
-| ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Windows Vault/Git NUL-handle fix and final package qualification before updated public server/client delivery; real provider acceptance |
+| GlassPalace | Control plane, connector gateway and web client use shared module `0.1.2` in production; authenticated marketplace UI verified; public desktop `0.1.81` consumes the dynamic catalog through compatible existing contracts; existing ClickUp connection preserved | Candidate desktop `0.1.82` broker-poll/availability renderer changes are not published; Windows host-tools gate failed; real common-provider acceptance |
+| ICS | Shared module `0.1.2` pinned; native supervisor forwards explicit opt-in; private UI `143d30bf` with server `54803760` displayed the catalog and custom MCP; earlier development builds verified dummy-token management | Updated client/server release remains unpublished; private UI, older native macOS binary and Linux/VPS QA are separate from final same-source package qualification; Windows acceptance and real provider access pending |
 | Common authentication service | Auth-only `0.1.4` published and deployed on Mixout from source `54fecfbdb0e8dc1a1f6778fabedefaec197da7cc`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
+
+GlassPalace's public desktop and download alias remain at `0.1.81`. The
+immutable `0.1.82` candidate is not promoted: its real Windows gate exposed
+CP1252 launcher output being decoded as UTF-8. The frozen Windows host-tools
+executable is byte-identical in `0.1.81` and `0.1.82`, so this is a pre-existing
+host-tools issue. Its correction is tracked separately from production catalog
+delivery; no replacement desktop release is announced here. The candidate's
+macOS package was notarized and uploaded, and its unsigned Windows exception
+was disclosed without changing the default signing policy.
+
+ICS's private evidence combines native macOS `59a`, UI `143d30bf` and
+Linux/server `54803760` with connector module `0.1.2`. Its existing Core/SQLite
+beta 7 pins are unchanged. This does not qualify a same-source public release
+or an OAuth grant. Common OAuth remains closed to the public; the actual
+ClickUp browser consent is still blocked as described below.
 
 The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
 is distinct from [standalone product downloads](../downloads.md).
