@@ -75,3 +75,26 @@ def test_manifest_cannot_cover_changed_binary(tmp_path):
     source, lock = assets(tmp_path, binary_digest="0" * 64)
     with pytest.raises(ValueError, match="binary checksum mismatch"):
         acquisition.acquire(lock, "linux-x64", tmp_path / "rejected", tmp_path / "wheels", source)
+
+
+def test_existing_bundle_is_reverified_and_tampering_or_symlinks_are_rejected(tmp_path):
+    source, lock = assets(tmp_path)
+    bundle = acquisition.acquire(lock, "linux-x64", tmp_path / "verified", tmp_path / "wheels", source)
+    data = json.loads(lock.read_text())
+    assert acquisition.verify_bundle(data, "linux-x64", bundle) == bundle
+    binary = bundle / "bin/openagent-connector-runner"
+    original = binary.read_bytes()
+    binary.write_bytes(b"changed")
+    with pytest.raises(ValueError, match="binary checksum"):
+        acquisition.verify_bundle(data, "linux-x64", bundle)
+    binary.unlink()
+    outside = tmp_path / "outside-binary"
+    outside.write_bytes(original)
+    binary.symlink_to(outside)
+    with pytest.raises(ValueError, match="symbolic"):
+        acquisition.verify_bundle(data, "linux-x64", bundle)
+
+
+def test_packaged_consumer_lock_matches_the_release_build_lock():
+    packaged = SCRIPT.parents[1] / "src/openagent_server/connectors.lock.json"
+    assert packaged.read_bytes() == (SCRIPT.parents[1] / "connectors.lock.json").read_bytes()

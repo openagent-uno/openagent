@@ -21,12 +21,17 @@ For the current qualification and remaining work, see
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The shared connector release is `0.1.1`, with Go module tag
-`packages/connectors/v0.1.1` and runner release `connectors-v0.1.1`.
-[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.1/packages/connectors)
-and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.1)
+The shared connector release is `0.1.2`, with Go module tag
+`packages/connectors/v0.1.2` and runner release `connectors-v0.1.2`.
+[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors)
+and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
 are independently versioned from the standalone product. The platform release
 is a qualification prerelease, not native signing or provider acceptance.
+Its `qualification.json` records the tested boundaries alongside the source,
+platform manifests and checksums. The deployed broker is independently released
+as [auth-only 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4).
+This does not change module/runner 0.1.2 or enable public provider enrollment;
+ClickUp is restricted to allowlisted QA installation identities.
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
 must update its catalog entry, schemas, operation implementation and tests;

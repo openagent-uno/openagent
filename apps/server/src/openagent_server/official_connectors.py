@@ -79,7 +79,8 @@ class OfficialConnectors:
             except (OSError, ValueError, TypeError):
                 pass
         bundled = Path(getattr(sys,"_MEIPASS",Path(__file__).parent)) / ("openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner")
-        executable = config.get("runner_path") or environment.get("OPENAGENT_CONNECTOR_RUNNER") or (str(bundled) if getattr(sys,"frozen",False) and bundled.is_file() else None) or shutil.which("openagent-connector-runner")
+        installed = Path(sys.executable).parent / ("openagent-connector-runner.exe" if sys.platform == "win32" else "openagent-connector-runner")
+        executable = config.get("runner_path") or environment.get("OPENAGENT_CONNECTOR_RUNNER") or (str(bundled) if getattr(sys,"frozen",False) and bundled.is_file() else None) or (str(installed) if installed.is_file() else None) or shutil.which("openagent-connector-runner")
         self.runner = runner
         if self.runner is None and executable:
             from openagent_connectors import ConnectorRunner

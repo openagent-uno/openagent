@@ -10,12 +10,22 @@ import zlib from 'node:zlib';
 import yaml from 'js-yaml';
 
 import {
+  assertDebianPackageVersion,
   canonicalAsarEntry,
   expectedLinuxExecutableName,
   findLinuxPayloadExecutables,
   listTopLevelReleaseFiles,
   verifyEmbeddedBlockMap,
 } from '../release-artifact-contract.mjs';
+
+test('Debian prerelease metadata follows builder normalization while rejecting another release', () => {
+  assertDebianPackageVersion('1.1.0~beta.16', '1.1.0-beta.16');
+  assertDebianPackageVersion('1.1.0', '1.1.0');
+  for (const actual of ['1.1.0~beta.15', '1.1.0-beta.16', '1.1.1']) {
+    assert.throws(() => assertDebianPackageVersion(actual, '1.1.0-beta.16'), /package version mismatch/);
+  }
+  assert.throws(() => assertDebianPackageVersion('1.1.0~beta.16', '1.1.0'), /package version mismatch/);
+});
 
 test('ASAR entry comparison is invariant across Windows and POSIX separators', () => {
   assert.equal(canonicalAsarEntry('\\dist\\main.js'), '/dist/main.js');

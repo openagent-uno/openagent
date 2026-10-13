@@ -11,6 +11,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 38 shared connector Python product release](releases/v1.1.0-beta.38.md)
 - [Beta 34 grounded memory authorization and durable recovery](releases/v1.1.0-beta.34.md)
 - [Beta 35 Performa session and scheduler reliability](releases/v1.1.0-beta.35.md)
 - [Beta 33 authorized automation composition and resilient domain search](releases/v1.1.0-beta.33.md)

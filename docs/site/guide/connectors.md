@@ -1,9 +1,10 @@
 # Using connectors
 
-::: info Candidate release
-The shared library/runner are published for qualification. The unified App,
-server and CLI integration is a candidate build; it is not yet a coordinated
-public product release. Common OAuth enrollment is not enabled centrally. See
+::: info Published releases and activation gates
+App beta 16, server/CLI beta 38 and shared library/runner 0.1.2 are published.
+Auth-only 0.1.4 is separately deployed. Common OAuth enrollment remains closed
+to the public; ClickUp qualification is limited to allowlisted QA servers.
+Shopify remains disabled and Google verification/Postiz registration are pending. See
 [release status and remaining gates](./connector-status.md).
 :::
 
@@ -37,7 +38,8 @@ Custom MCP servers remain available alongside official connectors. Embedding pro
 
 ## Connect and disconnect
 
-In a build that includes these features:
+In App beta 16 connected to server beta 38, or a receiving product with the
+shared catalog enabled:
 
 1. Select the receiving server and authenticated user first. In the App, open
    **Connectors → Browse**; the same search/grid contains provider integrations
@@ -106,7 +108,7 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.1/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/codex/shared-official-connectors/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.4/deploy/connector-auth) describes provider registration and activation gates.
 
 ## Connection requirements by service
 

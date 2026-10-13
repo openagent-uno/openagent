@@ -10,20 +10,61 @@ installed client already includes the candidate UI.
 
 | Surface | Confirmed | Still required |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.1`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
+| Shared Go connector module | Published `0.1.2`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
-| Standalone server/App/CLI | Candidate implementation uses the pinned shared release; real authenticated local catalog; unified App cards/search and connection controls verified on macOS; CLI management contracts pass | Qualified coordinated product release and real provider operations |
-| GlassPalace | Shared module pinned; connector gateway and focused control-plane contracts pass; marketplace identifies shared integrations | Updated production/native delivery and final real UI/provider acceptance |
-| ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Published updated native server/client and real provider acceptance |
-| Common authentication service | HTTPS `0.1.1` deployed on Mixout; encrypted production Secret storage and matching backups verified; signed mailbox/replay/quota checks passed | Provider exchange/rotation/privacy capacity qualification and provider activation |
-| Common provider enrollment | **No provider enabled** in the central deployment at this checkpoint | Complete the gates below before enabling new common consents |
+| Standalone server/CLI | Published `1.1.0-beta.38`; the public installer verifies the wheel closure and acquires runner `0.1.2` automatically; an installed authenticated server and CLI expose all 12 catalog entries | Real provider consent and API operations |
+| Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
+| GlassPalace | Control plane, connector gateway and web client use shared module `0.1.2` in production; authenticated marketplace UI verified; public desktop `0.1.81` consumes the dynamic catalog through compatible existing contracts; existing ClickUp connection preserved | Candidate desktop `0.1.82` broker-poll/availability renderer changes are not published; Windows host-tools gate failed; real common-provider acceptance |
+| ICS | Shared module `0.1.2` pinned; native supervisor forwards explicit opt-in; private UI `143d30bf` with server `54803760` displayed the catalog and custom MCP; earlier development builds verified dummy-token management | Updated client/server release remains unpublished; private UI, older native macOS binary and Linux/VPS QA are separate from final same-source package qualification; Windows acceptance and real provider access pending |
+| Common authentication service | Auth-only `0.1.4` published and deployed on Mixout from source `54fecfbdb0e8dc1a1f6778fabedefaec197da7cc`; module/runner remain independently pinned at `0.1.2`; encrypted Secret storage and signed admission checks verified | Provider exchange/rotation/privacy capacity qualification and public provider activation |
+| Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
 
-The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.1)
-is distinct from [standalone product downloads](../downloads.md). Code is being
-reviewed in the [standalone integration PR](https://github.com/openagent-uno/openagent/pull/2)
-and [Tools PR](https://github.com/openagent-uno/openagent-tools/pull/2).
+GlassPalace's public desktop and download alias remain at `0.1.81`. The
+immutable `0.1.82` candidate is not promoted: its real Windows gate exposed
+CP1252 launcher output being decoded as UTF-8. The frozen Windows host-tools
+executable is byte-identical in `0.1.81` and `0.1.82`, so this is a pre-existing
+host-tools issue. Its correction is tracked separately from production catalog
+delivery; no replacement desktop release is announced here. The candidate's
+macOS package was notarized and uploaded, and its unsigned Windows exception
+was disclosed without changing the default signing policy.
+
+ICS's private evidence combines native macOS `59a`, UI `143d30bf` and
+Linux/server `54803760` with connector module `0.1.2`. Its existing Core/SQLite
+beta 7 pins are unchanged. This does not qualify a same-source public release
+or an OAuth grant. Common OAuth remains closed to the public; the actual
+ClickUp browser consent is still blocked as described below.
+
+The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
+is distinct from [standalone product downloads](../downloads.md).
+[Tools qualification PR](https://github.com/openagent-uno/openagent-tools/pull/4)
+and [GlassPalace release-gate PR](https://github.com/Viki-Home-AI/GlassPalace/pull/72)
+are merged. The published `qualification.json` records contract qualification,
+macOS runner smoke checks and cross-compilation for the other targets; it does
+not claim real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
+
+The [standalone server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.38)
+includes installed-wheel qualification and checksums. Its tested dependency
+closure uses [public Core beta 21](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.21)
+through public APIs. The server installer and service environment use a
+product-local runner; users do not need a Go compiler or a manually configured
+runner path. The connector release remains independently pinned and verified.
+These packaging checks do not establish provider consent, API access or privacy
+processing.
+
+The [App beta 16 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.16)
+contains 36 verified assets for six targets. Ten CI jobs passed, including native
+packaged launches, macOS signing/notarization, Intel ZIP/DMG launches and exact
+post-upload checksum verification. The signing/updater executor remains the
+historical App repository; its payload comes from canonical source
+`721e90feb0e4ae3bb719e23cf5983e064464f782`. The historical repository is archived
+again and existing updater identities are preserved.
+
+[Auth service 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4)
+is a separate deployment release. It does not replace connector module/runner
+0.1.2 or activate public enrollment. No candidate Core privacy API, product
+privacy-job integration or related migration has been rolled into production.
 
 ## Provider registration checkpoint
 
@@ -33,8 +74,15 @@ inferred from a downloaded binary or logo.
   applicable verification and security assessment are not complete.
 - **ClickUp:** the existing GlassPalace registration is reused. Its old redirect
   was removed at the operator's request; ClickUp saved the common auth origin.
-  The actual callback path still needs a real round-trip test. Existing tokens
-  were not revoked by this configuration change.
+  The actual callback path still needs a real round-trip test. A disposable
+  standalone server has started a recipient-bound transaction through its
+  authenticated product API. Auth-only 0.1.4 is published and deployed, but
+  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. Reopening
+  the same transaction showed its disclosure form: the POST had not reached
+  the service, so no provider grant or token exchange occurred. This verified
+  fail-closed behavior, not a successful OAuth round trip. The disposable
+  product connection is disconnected and disabled; public enrollment remains
+  closed. Existing tokens were not revoked by this configuration change.
 - **Shopify:** the original GlassPalace registration is retained, renamed
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
@@ -51,11 +99,22 @@ coordination/recovery and durable webhook retry/deduplication. Provider response
 in these tests are controlled fixtures.
 
 Standalone storage/authorization and acquisition tests, CLI management tests,
-TypeScript and full renderer exports passed. The full native development App
-used real device/network membership against a disposable server. It displayed
+TypeScript and full renderer exports passed. The released native App beta 16
+used real Iroh device/network membership against a disposable beta 38 server. It displayed
 12 catalog entries alongside 30 actual public-registry results. Gmail search
 mixed the branded integration and registry MCPs in the same grid. Dummy Replio
-save, Manage, disable and disconnect passed; fixture credentials were removed.
+save, Manage, disable, persisted disabled state after renderer reload and
+disconnect passed; the disconnected tombstone was retained with tools disabled,
+and fixture credential and nonce were cleared. These used a
+synthetic key and do not establish real Replio API access.
+
+A renderer reload directly on the marketplace can briefly display an HTML/JSON
+parse error while the loopback API origin is restored. The observed native
+window recovered without another action. A live loopback can resume even when
+password remembering was disabled; this does not mean a password was persisted.
+The existing real-Iroh chat reload test establishes eventual chat recovery,
+but does not cover the initial marketplace/sidebar error. No recovery time is
+promised; this remains a scoped UX limitation.
 
 ICS native development acceptance used a new local account, workspace and
 server, not the user's installation. The encrypted Replio fixture persisted
@@ -63,8 +122,10 @@ a renderer reload. Local removal then revoked the fixture and cleared its
 credential/nonce. After a complete private-server restart, the native client
 kept its authenticated workspace and showed the catalog with no installed
 connections. Both Go products' focused frontend suites passed 53 checks.
-These checks do not establish real OAuth access, signed installed releases,
+These ICS development checks do not establish real OAuth access, signed installed releases,
 Windows/Linux native acceptance or completion of privacy actions.
+The pending ICS package cut must qualify its own exact source; development
+screenshots from an earlier UI/runtime combination are not final release proof.
 
 Nineteen focused standalone storage/authorization checks also passed with the
 verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
@@ -77,7 +138,16 @@ notifications preserve credentials minted by a newer consent. Historical
 payload-only receipts remain explicitly marked until matching broker redelivery;
 startup does not invent missing occurrence metadata. The expanded 35-check
 authorization/acquisition/receipt suite passed against published Core/SQLite
-beta 20 and connector adapter 0.1.1. Content export/redaction remains unfinished.
+beta 20 and connector adapter 0.1.2. Content export/redaction remains unfinished.
+
+The upstream Core candidate tracks provider origins before API execution,
+selective customer records in tool results, derived session history, compaction
+and child sessions. Host bridges and durable runtime privacy jobs are candidates;
+they have not yet been qualified with a final public Core/SQLite release in all
+three products. Unverified historical content, backups or enabled surfaces with
+no qualified processor keep the request blocked. Receiving a webhook, removing
+a credential or finishing the control-plane SQL actions never completes those
+content jobs by itself.
 
 The operator-approved Mixout maintenance upgraded the control plane to
 `v1.33.13+k3s2`, enabled and rotated secrets-at-rest encryption, and verified
