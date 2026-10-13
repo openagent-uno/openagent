@@ -1,12 +1,15 @@
 """Remote source proof followed by normal installed Core22/product39 proof.
 
 Builds Core's 23 wheels and eight product families from clean pinned snapshots.
-The ninth product family is the exact PUBLIC canonical HostTools B6 wheel, never
-a rebuilt same-version archive. This script publishes nothing and grants no OAuth.
+The ninth product family is the exact canonical HostTools B6 wheel, never a
+rebuilt same-version archive. Public provenance is preferred; the explicitly
+selected native candidate cannot authorize product promotion. This script
+publishes nothing and grants no OAuth.
 """
 from __future__ import annotations
 import argparse
 import hashlib
+import io
 import json
 from pathlib import Path
 import shutil
@@ -22,6 +25,8 @@ from qualify_privacy_source import CORE_SOURCE, checked_download, command, envir
 HOST_SOURCE = 'aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0'
 HOST_BASE = 'https://github.com/openagent-uno/openagent/releases/download/v1.0.0b6/'
 HOST_WHEEL_SHA = 'b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e'
+HOST_CANDIDATE_ARCHIVE_SHA = '503e62bfc2e1a50d75765c1b88416192100a603901af8f39af0ab2ddd9e4b3ef'
+HOST_CANDIDATE_INDEX_SHA = 'f59b6a5f4e622120b9c9e2c84ce89c8377281053169f4c7fb74bf696cb9b46ab'
 COMPONENTS = ('server', 'cli', 'mcp-bridge', 'identity', 'dashboards',
               'integrations-support', 'product-config', 'client-transport')
 
@@ -55,12 +60,38 @@ def main():
                  '--core',core,'--product',product,'--output',output/'source'], output=evidence/'source-stage.log')
         receipt['stages'].append('reviewed-source-unit-proof-pass')
         save()
-        index = json.loads(checked_download(HOST_BASE,'release-index.json',
-            os.environ['QUALIFICATION_HOST_INDEX_SHA256'],evidence/'host-b6-index.json'))
+        candidate_archive = os.environ.get('QUALIFICATION_HOST_CANDIDATE_ARCHIVE')
+        if candidate_archive:
+            candidate_path = Path(candidate_archive)
+            if candidate_path.stat().st_size != 44599:
+                raise ValueError('Native candidate artifact size mismatch')
+            archive = candidate_path.read_bytes()
+            if hashlib.sha256(archive).hexdigest() != HOST_CANDIDATE_ARCHIVE_SHA:
+                raise ValueError('Native candidate artifact differs from its reviewed bytes')
+            with zipfile.ZipFile(io.BytesIO(archive)) as package:
+                index_bytes = package.read('release-index.json')
+                host_bytes = package.read('openagent_host_tools-1.0.0b6-py3-none-any.whl')
+            if (hashlib.sha256(index_bytes).hexdigest() != HOST_CANDIDATE_INDEX_SHA
+                    or len(host_bytes) != 47103 or hashlib.sha256(host_bytes).hexdigest() != HOST_WHEEL_SHA):
+                raise ValueError('Native candidate index or wheel differs from reviewed bytes')
+            (evidence/'host-b6-index.json').write_bytes(index_bytes)
+            proof = {'public_release_verified':False, 'native_mac_signing_pending':True,
+                'product39_promotion_permitted':False, 'native_run_id':38457527270,
+                'artifact_id':11847689047, 'artifact_sha256':HOST_CANDIDATE_ARCHIVE_SHA,
+                'index_sha256':HOST_CANDIDATE_INDEX_SHA}
+        else:
+            index_bytes = checked_download(HOST_BASE,'release-index.json',
+                os.environ['QUALIFICATION_HOST_INDEX_SHA256'],evidence/'host-b6-index.json')
+            proof = {'public_release_verified':True, 'native_mac_signing_pending':False,
+                'product39_promotion_permitted':True, 'release':HOST_BASE,
+                'index_sha256':os.environ['QUALIFICATION_HOST_INDEX_SHA256']}
+        index = json.loads(index_bytes)
         if (index.get('source_commit') != HOST_SOURCE or index.get('version') != '1.0.0b6'
                 or index.get('source_repository') != 'openagent-uno/openagent'
                 or len(index.get('platforms',{})) != 6):
-            raise ValueError('HostTools public canonical index identity mismatch')
+            raise ValueError('HostTools canonical index identity mismatch')
+        receipt['host_tools_proof'] = proof
+        save()
         core_assets, product_assets = output/'core-assets', output/'product-assets'
         command([sys.executable,core/'packaging/build.py','--out',core_assets],output=evidence/'build-core.log',cwd=core)
         command([sys.executable,product/'scripts/build_wheels.py','--out',product_assets,
@@ -68,14 +99,16 @@ def main():
         host = index['python_wheel']
         if host['asset'] != 'openagent_host_tools-1.0.0b6-py3-none-any.whl' or host['sha256'] != HOST_WHEEL_SHA:
             raise ValueError('Unexpected canonical HostTools Python payload')
-        checked_download(HOST_BASE,host['asset'],host['sha256'],product_assets/host['asset'],47103)
+        if candidate_archive:
+            (product_assets/host['asset']).write_bytes(host_bytes)
+        else:
+            checked_download(HOST_BASE,host['asset'],host['sha256'],product_assets/host['asset'],47103)
         runpy.run_path(str(product/'scripts/build_wheels.py'))['verify_ownership'](sorted(product_assets.glob('*.whl')))
         manifest = json.loads((product_assets/'manifest.json').read_text())
         manifest['wheels'].append(metadata(product_assets/host['asset']))
         manifest['upstream_components'] = {'host-tools':{
             'source_repository':'openagent-uno/openagent', 'source_commit':HOST_SOURCE,
-            'release':HOST_BASE, 'index_sha256':os.environ['QUALIFICATION_HOST_INDEX_SHA256'],
-            **manifest['wheels'][-1]}}
+            **proof, **manifest['wheels'][-1]}}
         (product_assets/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
         for assets, source, count in ((core_assets,CORE_SOURCE,23),
                                      (product_assets,receipt['product_source'],9)):
@@ -85,7 +118,7 @@ def main():
             for spec in item['wheels']:
                 if metadata(assets/spec['file']) != spec:
                     raise ValueError('Candidate wheel differs from manifest bytes/metadata')
-        receipt['stages'].append('clean-source-23-core-8-product-plus-exact-public-host-b6-wheels-pass')
+        receipt['stages'].append('clean-source-23-core-8-product-plus-exact-canonical-host-b6-wheels-pass')
         save()
         installed = environment_python(output/'installed')
         public = output/'source/public-wheels'
