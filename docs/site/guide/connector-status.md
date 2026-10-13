@@ -47,8 +47,9 @@ contains 36 verified assets for six targets. Ten CI jobs passed, including nativ
 packaged launches, macOS signing/notarization, Intel ZIP/DMG launches and exact
 post-upload checksum verification. The signing/updater executor remains the
 historical App repository; its payload comes from canonical source
-`721e90feb0e4ae3bb719e23cf5983e064464f782`. The historical repository is archived
-again and existing updater identities are preserved.
+`721e90feb0e4ae3bb719e23cf5983e064464f782`. Existing updater identities are
+preserved. The historical repository is temporarily available for the next
+bounded signing/publishing run; canonical product source remains in this repository.
 
 [Auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
 is a separate deployment release. It does not replace connector module/runner
@@ -129,14 +130,19 @@ startup does not invent missing occurrence metadata. The expanded 35-check
 authorization/acquisition/receipt suite passed against published Core/SQLite
 beta 20 and connector adapter 0.1.2. Content export/redaction remains unfinished.
 
-The upstream Core candidate tracks provider origins before API execution,
-selective customer records in tool results, derived session history, compaction
-and child sessions. Host bridges and durable runtime privacy jobs are candidates;
-they have not yet been qualified with a final public Core/SQLite release in all
-three products. Unverified historical content, backups or enabled surfaces with
-no qualified processor keep the request blocked. Receiving a webhook, removing
-a credential or finishing the control-plane SQL actions never completes those
-content jobs by itself.
+[Core beta 22](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.22)
+is published with 23 wheels and verified manifests/checksums. It tracks provider
+origins before API execution, selective customer records in tool results,
+derived session history, compaction and child sessions. The installed-wheel
+qualification covers a fresh canonical text-history cohort. The standalone
+beta 39 candidate also passed installed-product privacy tests and an exact
+catalog follow-up against public runner 0.1.3: 12 official entries plus custom
+MCP. This is candidate qualification, not a published product or host rollout.
+Host bridges and durable runtime privacy jobs require each receiving product's
+own qualification. Unverified historical content, backups or enabled surfaces
+with no qualified processor keep requests blocked. Receiving a webhook,
+removing a credential or finishing control-plane SQL actions never completes
+those content jobs by itself.
 
 The operator-approved infrastructure maintenance upgraded the control plane to
 `v1.33.13+k3s2`, enabled and rotated secrets-at-rest encryption, and verified

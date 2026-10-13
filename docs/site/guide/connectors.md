@@ -1,11 +1,14 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-App beta 16, server/CLI beta 38 and shared library/runner 0.1.2 are published.
-Auth-only 0.1.4 is separately deployed. Common OAuth enrollment remains closed
+App beta 16, server/CLI beta 38 and shared library/runner 0.1.3 are published.
+Auth-only 0.1.5 is separately deployed. The installed beta 38 server still pins
+runner 0.1.2; publishing a library does not update an installed product.
+Common OAuth enrollment remains closed
 to the public; ClickUp qualification is limited to allowlisted QA servers.
-Shopify remains disabled; Google verification and verification of the existing
-Postiz registration remain pending. See
+Shopify remains disabled; Google verification and real provider qualification
+remain pending. Postiz is registered, with credential rotation required before
+activation. See
 [release status and remaining gates](./connector-status.md).
 :::
 
@@ -28,7 +31,7 @@ shared and which stay in the receiving product. Operators can use the
 | Google Drive | OAuth | Search, files, folders and permitted file operations |
 | Google Analytics | OAuth | Read-only GA4 reports and metadata |
 | ClickUp | OAuth | Tasks, workspaces, Docs, Goals and time tracking |
-| Postiz | OAuth | Social integrations, analytics, drafts and publishing; existing registration not yet verified |
+| Postiz | OAuth | Social integrations, analytics, drafts and publishing; registered app remains disabled pending credential rotation and qualification |
 | Pipeboard Ads | API token | Meta/Google Ads reports and permitted campaign pause |
 | Replio | Organization API token | Apps, conversations and support statistics |
 | BillingBear | Project API token | Revenue and customer billing information |
@@ -109,7 +112,7 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.4/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.3/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.5/deploy/connector-auth) describes provider registration and activation gates.
 
 ## Connection requirements by service
 
@@ -118,7 +121,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |
-| Postiz | Verified existing provider registration and consent; reuse the existing app once identified |
+| Postiz | Configured provider registration, credential rotation and real consent qualification before activation |
 | Replio | Dedicated organization-wide `rpl_…` key and organization UUID |
 | BillingBear | Project API token and project identifier |
 | Pipeboard Ads | API token and provider identifier `meta_ads` or `google_ads` |

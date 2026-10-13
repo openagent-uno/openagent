@@ -21,16 +21,16 @@ For the current qualification and remaining work, see
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The shared connector release is `0.1.2`, with Go module tag
-`packages/connectors/v0.1.2` and runner release `connectors-v0.1.2`.
-[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors)
-and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
+The shared connector release is `0.1.3`, with Go module tag
+`packages/connectors/v0.1.3` and runner release `connectors-v0.1.3`.
+[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.3/packages/connectors)
+and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
 are independently versioned from the standalone product. The platform release
 is a qualification prerelease, not native signing or provider acceptance.
 Its `qualification.json` records the tested boundaries alongside the source,
 platform manifests and checksums. The deployed broker is independently released
-as [auth-only 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4).
-This does not change module/runner 0.1.2 or enable public provider enrollment;
+as [auth-only 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5).
+This does not change the version pinned by an installed product or enable public provider enrollment;
 ClickUp is restricted to allowlisted QA installation identities.
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
@@ -190,10 +190,16 @@ complete a privacy request or enable Shopify enrollment.
 
 The host needs durable, idempotent jobs for the verified provider request,
 bounded export/redaction, admission fences while affected work is running,
-and completion receipts. Reusable content/provenance contracts belong upstream
-in Core's public services; Shopify event interpretation and customer/store
-selection belong to the receiving product. This integration is unfinished.
-Clearing a token or acknowledging a webhook cannot substitute for it.
+and completion receipts. [Core beta 22](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.22)
+publishes reusable content/provenance contracts through public services. Its
+installed-wheel qualification covers a fresh, canonical text-history cohort,
+including selected records, derived history, compaction and child sessions.
+The receiving product interprets Shopify events, selects the verified
+customer/store and binds its own qualified storage surfaces before runtime
+startup. Unqualified historical content, backups, media, Vault/files or custom
+callbacks keep processing blocked. Publishing Core does not qualify a host
+adapter or migrate existing data. Clearing a token or acknowledging a webhook
+cannot substitute for completing local privacy jobs.
 
 ## Shared code and product UI
 
