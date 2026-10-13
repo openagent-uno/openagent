@@ -80,8 +80,10 @@ class RuntimeAgentFacade:
                 raise IdempotencyConflict(
                     "Prepared run input differs from the accepted request"
                 )
-            async for event in self._service.observe_run(prepared, on_status=on_status):
-                yield event
+            from openagent_core.runtime import execution_scope
+            with execution_scope(self._service.runtime, prepared.context, prepared.request.run_id):
+                async for event in self._service.observe_run(prepared, on_status=on_status):
+                    yield event
             return
         from openagent_core.runtime import current_runtime, current_execution_context
 
@@ -137,10 +139,11 @@ class RuntimeAgentFacade:
                 origin=current_execution_origin(),
                 ingress=current_ingress_identity(),
             )
-        async for event in self._service.observe_run(
-            self._service.prepared_runs[identifier], on_status=on_status
-        ):
-            yield event
+        from openagent_core.runtime import execution_scope
+        prepared = self._service.prepared_runs[identifier]
+        with execution_scope(self._service.runtime, prepared.context, identifier):
+            async for event in self._service.observe_run(prepared, on_status=on_status):
+                yield event
 
     async def run(self, message: str, **kwargs):
         parts = []

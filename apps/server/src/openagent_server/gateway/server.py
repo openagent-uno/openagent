@@ -1543,6 +1543,8 @@ class Gateway:
             ("POST", "/api/connectors/{connection_id}/poll", official_connectors_api.poll),
             ("PUT", "/api/connectors/{connection_id}", official_connectors_api.update),
             ("DELETE", "/api/connectors/{connection_id}", official_connectors_api.disconnect),
+            ("POST", "/api/connectors/privacy/{request_id}/export", official_connectors_api.privacy_export),
+            ("POST", "/api/connectors/privacy/{request_id}/ack", official_connectors_api.privacy_export_ack),
             ("GET", "/api/mcps", mcps.handle_list),
             ("POST", "/api/mcps", mcps.handle_create),
             ("GET", "/api/mcps/{name}", mcps.handle_get),

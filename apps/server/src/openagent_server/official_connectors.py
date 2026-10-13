@@ -23,6 +23,7 @@ from openagent_core.contracts import ResourceRef, require_authorized
 class OfficialConnectorSource:
     def __init__(self, service, connection_id):
         self.service, self.connection_id = service, connection_id
+        self.privacy = None
 
     async def discover(self, context):
         row = await self.service.record(self.connection_id)
@@ -44,6 +45,8 @@ class OfficialConnectorSource:
         row = await self.service.record(self.connection_id)
         if not self.service.can_use(context, row):
             raise PermissionError("Connector binding is unavailable")
+        if self.privacy is not None:
+            await self.privacy.before_io(name,context)
         call_id = uuid.uuid4().hex
         await self.service.audit(row, name, call_id, "admitted")
         try:
@@ -368,20 +371,34 @@ class OfficialConnectors:
             if cursor.rowcount != 1:
                 raise PermissionError("Connector was disconnected or credential generation changed")
             await db.commit()
-        self.register_source(row["id"])
+        await self.register_source(row["id"])
 
-    def register_source(self, connection_id):
+    async def register_source(self, connection_id):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog and self.runner:
             catalog.revoke(self.source_id(connection_id))
             source = OfficialConnectorSource(self, connection_id)
-            catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector")
+            options = {}
+            publisher = getattr(self.privacy_processor,'publisher',None)
+            if publisher is not None:
+                from .connector_provenance import OfficialConnectorProvenance, independent_result
+                row=await self.record(connection_id)
+                definitions=await self.runner.call('tools',self.binding(row,self.decrypt(row)))
+                # These declarations come from the verified local official
+                # runner, never custom MCP metadata or model annotations.
+                options['privacy_fenced']={tool['name']:tool['risk']=='read' for tool in definitions}
+                options['result_provenance']=independent_result
+                if row['provider']=='shopify' and row.get('group_id'):
+                    source.privacy=OfficialConnectorProvenance(self,connection_id,publisher)
+                    options.update(invocation_provenance=source.privacy.invocation,result_provenance=source.privacy.result)
+                    options['privacy_fenced']['commerce.shopify.customers.update']=True
+            catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector", **options)
 
     async def attach_sources(self):
         async with aiosqlite.connect(self.db_path) as db:
             rows = await (await db.execute("SELECT id FROM official_connector_connections WHERE enabled=1 AND status='connected'")).fetchall()
         for row in rows:
-            self.register_source(row[0])
+            await self.register_source(row[0])
 
     async def update(self, context, connection_id, payload):
         row = await self.owned(context, connection_id)
@@ -395,7 +412,7 @@ class OfficialConnectors:
         if catalog:
             catalog.revoke(self.source_id(connection_id))
         if (await self.record(connection_id))["enabled"]:
-            self.register_source(connection_id)
+            await self.register_source(connection_id)
         return self.public(await self.record(connection_id))
 
     async def disconnect(self, context, connection_id):
@@ -526,6 +543,26 @@ class OfficialConnectors:
             async with aiosqlite.connect(self.db_path) as db:
                 await db.execute("UPDATE official_connector_events SET status=? WHERE id=? AND status IN ('pending','blocked')", (status,event['id']))
                 await db.commit()
+
+    async def privacy_export(self, context, request_id):
+        await self.check(context)
+        exports = getattr(self.privacy_processor, 'exports', None)
+        if exports is None:
+            raise RuntimeError('Local privacy export service is unavailable')
+        bundle = await exports.download(request_id, context)
+        return {'request_id': request_id, 'bundle': json.loads(bundle.payload),
+                'delivery_token': bundle.delivery_token}
+
+    async def privacy_export_ack(self, context, request_id, payload):
+        await self.check(context, write=True)
+        if not isinstance(payload, dict) or set(payload) != {'delivery_token'}:
+            raise ValueError('An exact export delivery receipt is required')
+        exports = getattr(self.privacy_processor, 'exports', None)
+        if exports is None:
+            raise RuntimeError('Local privacy export service is unavailable')
+        await exports.acknowledge(request_id, context, payload['delivery_token'])
+        await self.process_privacy_events()
+        return {'ok': True}
 
     async def receive_event(self, event):
         """Commit the complete verified broker receipt before delivery ACK.

@@ -11,6 +11,8 @@ async def _call(request, method, *, body=False):
     arguments = [context]
     if "connection_id" in request.match_info:
         arguments.append(request.match_info["connection_id"])
+    if "request_id" in request.match_info:
+        arguments.append(request.match_info["request_id"])
     if body:
         payload = await request.json()
         if not isinstance(payload, dict):
@@ -36,3 +38,5 @@ async def connect(request): return await _call(request, "connect")
 async def poll(request): return await _call(request, "poll")
 async def update(request): return await _call(request, "update", body=True)
 async def disconnect(request): return await _call(request, "disconnect")
+async def privacy_export(request): return await _call(request, "privacy_export")
+async def privacy_export_ack(request): return await _call(request, "privacy_export_ack", body=True)
