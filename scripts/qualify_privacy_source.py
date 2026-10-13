@@ -104,7 +104,8 @@ def main():
         checked_download(SDK_BASE.replace('0.1.3','0.1.2'), sdk12.name, SDK12_SHA, sdk12)
         baseline_wheels.append(sdk12)
         baseline = environment_python(output/'baseline38')
-        command([baseline,'-m','pip','install',*baseline_wheels], output=evidence/'baseline-install.log')
+        command([baseline,'-m','pip','install',*baseline_wheels,'openagent-core[engine,providers,modules]==1.1.0b21'],
+                output=evidence/'baseline-install.log')
         command([baseline,'-m','pip','check'], output=evidence/'baseline-pip-check.log')
         command([baseline,'-m','pip','freeze','--all'], output=evidence/'baseline-freeze.txt')
         receipt['stages'].append('normal-public-beta38-core21-sdk12-closure-pass')
@@ -124,7 +125,8 @@ def main():
         selected = [wheel for wheel in baseline_wheels if not wheel.name.startswith(('openagent_framework-', 'openagent_connectors-'))]
         third_party = [requirement for requirement in tomllib.loads((product/'apps/server/pyproject.toml').read_text())['project']['dependencies']
                        if not requirement.startswith('openagent-')]
-        command([unit,'-m','pip','install',*selected,sdk13,*third_party,'pytest','pytest-asyncio'], output=evidence/'unit-install.log')
+        command([unit,'-m','pip','install',*selected,sdk13,'openagent-core[engine,providers,modules]==1.1.0b21',
+                 *third_party,'pytest','pytest-asyncio'], output=evidence/'unit-install.log')
         command([unit,'-m','pip','check'], output=evidence/'unit-pip-check.log')
         command([unit,'-m','pip','freeze','--all'], output=evidence/'unit-freeze.txt')
         receipt['stages'].append('normal-public-sdk13-dependency-fixture-pass')
