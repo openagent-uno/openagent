@@ -65,5 +65,5 @@ Existing 0.x installations continue to use their historical updater endpoints
 during the transition. The historical repositories are archived read-only and
 retain their immutable tags and release assets. The installed-version →
 transition → canonical-release chain remains separately qualified from provider
-consent. Beta clients retain their beta channel and manual update behavior;
+consent. Desktop beta clients retain their beta channel and manual update behavior;
 archival preserves the published downloads and updater feed.
