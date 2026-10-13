@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-connectors==0.1.1",
+    "openagent-connectors==0.1.2",
     "openagent-storage-sqlite==1.1.0b20",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b2",

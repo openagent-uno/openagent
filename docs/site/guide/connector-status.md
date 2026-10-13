@@ -10,18 +10,21 @@ installed client already includes the candidate UI.
 
 | Surface | Confirmed | Still required |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.1`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
+| Shared Go connector module | Published `0.1.2`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
 | Standalone server/App/CLI | Candidate implementation uses the pinned shared release; real authenticated local catalog; unified App cards/search and connection controls verified on macOS; CLI management contracts pass | Qualified coordinated product release and real provider operations |
-| GlassPalace | Shared module pinned; connector gateway and focused control-plane contracts pass; marketplace identifies shared integrations | Updated production/native delivery and final real UI/provider acceptance |
+| GlassPalace | Shared module `0.1.2` and release gates merged into both main repositories; 947 frontend tests and public runtime packaging checks pass | Updated production/native delivery and final real UI/provider acceptance |
 | ICS | Shared module pinned; native supervisor forwards explicit opt-in; real local native login, catalog and encrypted dummy-token connection/reload verified | Published updated native server/client and real provider acceptance |
-| Common authentication service | HTTPS `0.1.1` deployed on Mixout; encrypted production Secret storage and matching backups verified; signed mailbox/replay/quota checks passed | Provider exchange/rotation/privacy capacity qualification and provider activation |
+| Common authentication service | HTTPS `0.1.2` deployed on Mixout from the checksum-qualified public binary; encrypted production Secret storage and matching backups verified; signed mailbox/replay/quota checks passed | Provider exchange/rotation/privacy capacity qualification and provider activation |
 | Common provider enrollment | **No provider enabled** in the central deployment at this checkpoint | Complete the gates below before enabling new common consents |
 
-The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.1)
-is distinct from [standalone product downloads](../downloads.md). Code is being
-reviewed in the [standalone integration PR](https://github.com/openagent-uno/openagent/pull/2)
-and [Tools PR](https://github.com/openagent-uno/openagent-tools/pull/2).
+The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.2)
+is distinct from [standalone product downloads](../downloads.md).
+[Tools qualification PR](https://github.com/openagent-uno/openagent-tools/pull/4)
+and [GlassPalace release-gate PR](https://github.com/Viki-Home-AI/GlassPalace/pull/72)
+are merged. The published `qualification.json` records contract qualification,
+macOS runner smoke checks and cross-compilation for the other targets; it does
+not claim real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 
@@ -77,7 +80,16 @@ notifications preserve credentials minted by a newer consent. Historical
 payload-only receipts remain explicitly marked until matching broker redelivery;
 startup does not invent missing occurrence metadata. The expanded 35-check
 authorization/acquisition/receipt suite passed against published Core/SQLite
-beta 20 and connector adapter 0.1.1. Content export/redaction remains unfinished.
+beta 20 and connector adapter 0.1.2. Content export/redaction remains unfinished.
+
+The upstream Core candidate tracks provider origins before API execution,
+selective customer records in tool results, derived session history, compaction
+and child sessions. Host bridges and durable runtime privacy jobs are candidates;
+they have not yet been qualified with a final public Core/SQLite release in all
+three products. Unverified historical content, backups or enabled surfaces with
+no qualified processor keep the request blocked. Receiving a webhook, removing
+a credential or finishing the control-plane SQL actions never completes those
+content jobs by itself.
 
 The operator-approved Mixout maintenance upgraded the control plane to
 `v1.33.13+k3s2`, enabled and rotated secrets-at-rest encryption, and verified
