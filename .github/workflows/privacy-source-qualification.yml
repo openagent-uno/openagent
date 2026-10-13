@@ -1,0 +1,69 @@
+name: Privacy source qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_source:
+        description: Exact reviewed standalone candidate source SHA
+        required: true
+        type: string
+      sdk_manifest_sha256:
+        description: Root-reviewed public connectors-v0.1.3 manifest SHA256
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: privacy-source-qualification
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
+  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  source-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Reviewed operational recipe
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: qualifier
+          persist-credentials: false
+      - name: Exact product source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.product_source }}
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact candidate Core source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: openagent-uno/openagent-core
+          ref: d3756f207c684642cff068732cb995e85cc54b55
+          path: core
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Verify public dependencies then qualify isolated source units
+        env:
+          QUALIFICATION_PRODUCT_SOURCE: ${{ inputs.product_source }}
+          QUALIFICATION_SDK_MANIFEST_SHA256: ${{ inputs.sdk_manifest_sha256 }}
+        run: nice -n 10 python qualifier/scripts/qualify_privacy_source.py --core core --product product --output "$RUNNER_TEMP/privacy-qualification"
+      - name: Save bounded source qualification evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: privacy-source-qualification-${{ github.run_id }}
+          path: ${{ runner.temp }}/privacy-qualification/evidence/
+          if-no-files-found: error
+          retention-days: 3
