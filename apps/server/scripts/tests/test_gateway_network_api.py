@@ -89,7 +89,7 @@ async def _open_db(db_path: Path):
 async def _seed_coord(db_path: Path, *, users: list[str] | None = None,
                      agents: list[tuple[str, str]] | None = None,
                      invites: list[dict] | None = None,
-                     network_name: str = "lyra-agent"):
+                     network_name: str = "beta-agent"):
     """Spin up a coordinator-mode network row + optional users/agents/invites."""
     from openagent_identity.coordinator.store import CoordinatorStore
 
@@ -168,7 +168,7 @@ async def t_list_agents(ctx: TestContext) -> None:
     foreign = "ff" + "8" * 62
     await _seed_coord(db_path, agents=[
         ("foreign-agent", foreign),
-        ("lyra-agent",    coord_node),  # coord's own — should be filtered
+        ("beta-agent",    coord_node),  # coord's own — should be filtered
     ])
 
     db = await _open_db(db_path)
@@ -192,7 +192,7 @@ async def t_list_agents(ctx: TestContext) -> None:
 @test("gateway_network",
       "GET /agents empty list when no federated peers (single-agent network)")
 async def t_list_agents_solo(ctx: TestContext) -> None:
-    """In the 1-agent-per-network setup (today's default on lyra),
+    """In the 1-agent-per-network setup (today's default on beta),
     the only registered agent IS the coordinator's own. Filtering
     it out leaves an empty list — the UI uses that to render a
     "no other agents" empty state."""
@@ -202,7 +202,7 @@ async def t_list_agents_solo(ctx: TestContext) -> None:
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
     coord_node = "cb" + "0" * 62
-    await _seed_coord(db_path, agents=[("lyra-agent", coord_node)])
+    await _seed_coord(db_path, agents=[("beta-agent", coord_node)])
 
     db = await _open_db(db_path)
     try:
@@ -547,14 +547,14 @@ async def t_patch_agent_label(ctx: TestContext) -> None:
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
     coord_node = "cb" + "0" * 62
-    await _seed_coord(db_path, agents=[("lyra-agent", coord_node)])
+    await _seed_coord(db_path, agents=[("beta-agent", coord_node)])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
-            db, method="PATCH", path="/api/network/agents/lyra-agent",
-            body=b'{"label":"Lyra music & ops"}',
-            match_info={"handle": "lyra-agent"},
+            db, method="PATCH", path="/api/network/agents/beta-agent",
+            body=b'{"label":"Beta music & ops"}',
+            match_info={"handle": "beta-agent"},
         )
         resp = await handle_patch_agent(req)
         assert resp.status == 200, f"got {resp.status}: {resp.body!r}"
@@ -562,7 +562,7 @@ async def t_patch_agent_label(ctx: TestContext) -> None:
         # Verify it landed.
         store = CoordinatorStore(db)
         agents = await store.list_agents()
-        assert agents[0].label == "Lyra music & ops"
+        assert agents[0].label == "Beta music & ops"
     finally:
         await db.close()
 
@@ -579,7 +579,7 @@ async def t_delete_self_agent_blocked(ctx: TestContext) -> None:
     db_path = agent_dir / "agent.db"
     coord_node = "cb" + "0" * 62
     await _seed_coord(db_path, agents=[
-        ("lyra-agent", coord_node),
+        ("beta-agent", coord_node),
         ("foreign", "ff" + "8" * 62),
     ])
 
@@ -587,8 +587,8 @@ async def t_delete_self_agent_blocked(ctx: TestContext) -> None:
     try:
         # Refuse: trying to delete the coord's own agent.
         req = _make_request(
-            db, method="DELETE", path="/api/network/agents/lyra-agent",
-            match_info={"handle": "lyra-agent"},
+            db, method="DELETE", path="/api/network/agents/beta-agent",
+            match_info={"handle": "beta-agent"},
         )
         resp = await handle_delete_agent(req)
         assert resp.status == 409, f"got {resp.status}: {resp.body!r}"
@@ -625,7 +625,7 @@ async def t_member_mode_404(ctx: TestContext) -> None:
         await store.set_network_role(
             role="member",
             network_id=uuid.uuid4().hex,
-            name="lyra-agent",
+            name="beta-agent",
             coordinator_node_id="cb" + "0" * 62,
             coordinator_pubkey=b"\x42" * 32,
         )

@@ -204,7 +204,7 @@ async def handle_chat(request: web.Request) -> web.Response:
     Request body (JSON)::
 
         {
-            "message":    "Ciao Virgil, come sto?",   // required
+            "message":    "Ciao, come sto?",   // required
             "session_id": "ios:device-uuid",           // optional, default "default"
             "client_id":  "ios-rest"                   // optional, overridden by cert
         }

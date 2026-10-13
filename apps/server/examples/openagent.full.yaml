@@ -168,8 +168,8 @@ channels:
 # past). Treat it as a seatbelt, not a sandbox.
 #
 # Leave it off unless you know your agent doesn't do the things below by
-# design — the Lyra agent, for one, force-pushes its own branch on every
-# run and would break instantly with this on.
+# design — an agent that force-pushes its own branch on every run
+# would break instantly with this on.
 safety:
   approvals:
     enabled: false                      # DEFAULT — off; every command runs unchecked
@@ -187,14 +187,14 @@ safety:
     # pattern, so this is how you keep the list on for an agent that
     # legitimately does one thing on it. Without this the stanza is
     # all-or-nothing, and an agent that force-pushes its own branch every
-    # run (as the Lyra agent does) forces you to disable every other
+    # run forces you to disable every other
     # protection to keep working — so you would, and then none of this
     # would be on at all.
     #
     # Be specific. ``git push --force`` as an allow pattern re-permits it
     # everywhere; scope it to the branch the agent owns instead:
     # allow_patterns:
-    #   - "git push --force[a-z-]* origin lyra-agent/"
+    #   - "git push --force[a-z-]* origin beta-agent/"
 
 # ── Sandbox ─────────────────────────────────────────────────────────
 # Where the ``shell`` tool's commands actually run. Independent of the

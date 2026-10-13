@@ -52,7 +52,7 @@ def bridge_handle_for(bridge_name: str) -> str:
     cert's ``device_pubkey``; see ``openagent.gateway.server``). When
     two bridges share a handle, the second bridge's WS connection
     triggers ``gateway.client_replaced`` on the first, killing the
-    first bridge's send half — which is what bit friday in v0.12.49
+    first bridge's send half — which caused a bridge outage in v0.12.49
     when telegram + whatsapp ran together.
     """
     return f"{BRIDGE_HANDLE_PREFIX}_{bridge_name}"
@@ -92,7 +92,7 @@ class BridgeSession:
     One BridgeSession per bridge — they MUST NOT be shared across
     bridges (telegram + whatsapp on the same agent) because each
     bridge needs its own gateway client_id. Sharing produced the
-    v0.12.49 friday outage where one bridge's WS was kicked off by
+    v0.12.49 bridge outage where one bridge's WS was kicked off by
     the other's via ``gateway.client_replaced``.
 
     Lifecycle: ``await session.start(network_state, gateway_site, agent_dir)`` →

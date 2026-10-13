@@ -421,7 +421,7 @@ async def handle_delete_agent(request: "web.Request") -> "web.Response":
     NodeId is the network's only working gateway — deleting it
     strands every client (list_agents returns empty → no agent to
     pick → WS dials fail). Block that path. Foreign-network rows
-    (the failure mode that surfaced as WS code 1006 on lyra) can be
+    (the failure mode that surfaced as WS code 1006) can be
     removed freely.
     """
     from aiohttp import web
