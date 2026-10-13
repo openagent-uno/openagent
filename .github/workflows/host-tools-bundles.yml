@@ -3,6 +3,10 @@ name: Host tools native bundles
 on:
   workflow_dispatch:
     inputs:
+      source_sha:
+        description: Exact reviewed canonical main commit for Host Tools B6
+        required: true
+        type: string
       signing_mode:
         description: Sign macOS in CI, or build unsigned candidates for local signing
         required: true
@@ -14,6 +18,20 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: host-tools-native-qualification
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SOURCE_SHA: ${{ inputs.source_sha }}
+  CARGO_BUILD_JOBS: 2
+  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  UV_CONCURRENT_BUILDS: 1
+  UV_CONCURRENT_DOWNLOADS: 4
+  UV_CONCURRENT_INSTALLS: 2
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
 
 jobs:
   signing-inputs:
@@ -38,6 +56,7 @@ jobs:
     if: always() && (inputs.signing_mode == 'local' || needs.signing-inputs.result == 'success')
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - { runner: macos-15, platform: darwin-arm64 }
@@ -47,17 +66,23 @@ jobs:
           - { runner: windows-2022, platform: win32-x64 }
           - { runner: windows-11-arm, platform: win32-arm64 }
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Require an immutable main source commit
         shell: bash
         run: |
           set -euo pipefail
           test "${{ github.ref_name }}" = main
-          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b6
+          git diff --quiet HEAD
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -86,21 +111,16 @@ jobs:
             libwayland-dev libxkbcommon-dev libpipewire-0.3-dev libdbus-1-dev \
             libegl1-mesa-dev libgl1-mesa-dev libgbm-dev pkg-config xvfb xauth openbox x11-apps \
             x11-utils x11-xserver-utils
-      - name: Fetch immutable Core, Tools and product wheels
+      - name: Install verified public dependencies and the fresh canonical wheel
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p wheelhouse
-          gh release download v1.1.0-beta.5 --repo openagent-uno/openagent-core \
-            --pattern '*.whl' --dir wheelhouse
-          gh release download v1.0.0-beta.3 --repo openagent-uno/openagent-tools \
-            --pattern '*.whl' --dir wheelhouse
-          gh release download v1.1.0-beta.9 --repo openagent-uno/openagent \
-            --pattern 'openagent_host_tools-*.whl' --dir wheelhouse
-          python -m pip install --find-links wheelhouse -e 'packages/host-tools[dev]' pyinstaller
+          python packages/host-tools/scripts/prepare_public_wheels.py wheelhouse
+          python -m pip install uv
+          uv build --wheel --out-dir candidate-wheel packages/host-tools
+          python -m pip install wheelhouse/*.whl candidate-wheel/*.whl pytest pytest-asyncio pyinstaller
           python -m pip check
+          python -m pip freeze --all > wheelhouse/install-freeze.txt
       - name: Test the host-tools package
         shell: bash
         run: python -m pytest packages/host-tools/tests -q
@@ -166,6 +186,15 @@ jobs:
             "$RUNNER_TEMP/verified-${{ matrix.platform }}" \
             --expect-platform "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: host-tools-dependencies-${{ matrix.platform }}
+          path: |
+            wheelhouse/dependency-receipt.json
+            wheelhouse/install-freeze.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
         with:
           name: host-tools-${{ matrix.platform }}
           path: |
@@ -181,32 +210,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - uses: actions/download-artifact@v4
         with:
-          pattern: host-tools-*
+          pattern: host-tools-@(darwin|linux|win32)-*
           path: dist
           merge-multiple: true
-      - name: Include the immutable host-tools wheel
+      - name: Build the canonical host-tools wheel from the same immutable source
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download v1.1.0-beta.9 --repo openagent-uno/openagent \
-            --pattern 'openagent_host_tools-*.whl' --dir dist
-      - name: Verify all six signed archives and produce the consumer lock
-        if: inputs.signing_mode == 'ci'
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git diff --quiet HEAD
+          python -m pip install uv
+          uv build --wheel --out-dir dist packages/host-tools
+      - name: Verify all six native archives and produce the candidate consumer lock
         shell: bash
         run: |
           set -euo pipefail
           python packages/host-tools/scripts/release_index.py dist \
-            --source-commit '${{ github.sha }}' \
+            --source-commit "$SOURCE_SHA" \
             --source-repository openagent-uno/openagent
           test -s dist/release-index.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-tools-candidate-metadata
+          path: |
+            dist/release-index.json
+            dist/openagent_host_tools-*.whl
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: host-tools-${{ inputs.signing_mode }}-candidate
