@@ -60,8 +60,9 @@ class OfficialConnectorSource:
 
 
 class OfficialConnectors:
-    def __init__(self, runtime, *, runner=None):
+    def __init__(self, runtime, *, runner=None, privacy_processor=None):
         self.runtime, self.agent = runtime, runtime.agent
+        self.privacy_processor = privacy_processor
         self.db_path = Path(self.agent.memory_db.db_path)
         config = self.agent.config.get("connectors") or {}
         environment = dict(getattr(self.agent, "product_environment", os.environ))
@@ -490,6 +491,40 @@ class OfficialConnectors:
         for event in await self.runner.call("events"):
             await self.receive_event(event)
             await self.runner.call("events.ack", {"id": event["id"]})
+        await self.process_privacy_events()
+
+    async def process_privacy_events(self):
+        """Resume local work independently of broker delivery acknowledgements.
+
+        No configured processor means receipt remains pending. Old payload-only
+        rows remain blocked until authenticated redelivery restores occurrence
+        metadata. The Shopify admission gate remains separately closed.
+        """
+        if self.privacy_processor is None:
+            return
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            events = [dict(row) for row in await (await db.execute(
+                "SELECT * FROM official_connector_events WHERE status IN ('pending','blocked') ORDER BY received_at LIMIT 32")).fetchall()]
+            connections = [dict(row) for row in await (await db.execute(
+                "SELECT tenant_id,provider,app_id,group_id FROM official_connector_connections")).fetchall()]
+        for event in events:
+            status = 'blocked'
+            if event['receipt_format'] == 2:
+                try:
+                    receipt = json.loads(AESGCM(self.key).decrypt(event['nonce'],event['ciphertext'],event['id'].encode()))
+                    status = await self.privacy_processor.process(receipt,connections)
+                    if status not in {'complete','blocked','credential_revoked'}:
+                        status = 'blocked'
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    # Retries preserve origin metadata; no payload or exception
+                    # message enters receipts/logs after a sink failure.
+                    status = 'blocked'
+            async with aiosqlite.connect(self.db_path) as db:
+                await db.execute("UPDATE official_connector_events SET status=? WHERE id=? AND status IN ('pending','blocked')", (status,event['id']))
+                await db.commit()
 
     async def receive_event(self, event):
         """Commit the complete verified broker receipt before delivery ACK.
@@ -554,4 +589,11 @@ class OfficialConnectors:
             except Exception:
                 # Errors never contain credentials; the next authenticated cycle
                 # resumes delivery, and current tokens remain usable.
-                continue
+                pass
+            try:
+                # Local privacy work must progress during broker outages too.
+                await self.process_privacy_events()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
