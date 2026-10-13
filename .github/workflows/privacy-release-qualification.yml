@@ -1,0 +1,74 @@
+name: Privacy candidate installed qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_source:
+        description: Exact reviewed beta 39 source with public HostTools B6 pins
+        required: true
+        type: string
+      host_index_sha256:
+        description: Root-verified PUBLIC canonical B6 release-index SHA256
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: privacy-release-qualification
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
+  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  UV_CONCURRENT_BUILDS: 1
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+  QUALIFICATION_SDK_MANIFEST_SHA256: 03684b84d9738ea7c14073a43110a4fc46744af6bd7ba3438c3059e682af127f
+
+jobs:
+  source-and-installed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: qualifier
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          repository: openagent-uno/openagent-core
+          ref: 9d9603f76999e77f13c6d7f2024aa061891dcd8f
+          path: core
+          lfs: true
+          persist-credentials: false
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.product_source }}
+          path: product
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Source units then exact normal installed closure
+        env:
+          QUALIFICATION_PRODUCT_SOURCE: ${{ inputs.product_source }}
+          QUALIFICATION_HOST_INDEX_SHA256: ${{ inputs.host_index_sha256 }}
+        run: |
+          python -m pip install 'uv>=0.9,<1'
+          nice -n 10 python qualifier/scripts/qualify_privacy_release.py --core core --product product --output "$RUNNER_TEMP/privacy-release"
+      - name: Preserve private candidate payloads and honest evidence on any result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: privacy-release-candidate-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/privacy-release/core-assets/
+            ${{ runner.temp }}/privacy-release/product-assets/
+            ${{ runner.temp }}/privacy-release/evidence/
+            ${{ runner.temp }}/privacy-release/source/evidence/
+          if-no-files-found: error
+          retention-days: 3
