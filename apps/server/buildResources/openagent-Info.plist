@@ -10,7 +10,7 @@
   binary without a bundle, TCC uses a path-based entry (``client_type=1``)
   that is pinned to the binary's cdhash — which changes on every openagent
   release because the Python bytecode and version string change. The
-  effect observed on lyra-agent running v0.6.10 was:
+  effect observed on an installation running v0.6.10 was:
 
     tccd: Failed to match existing code requirement for subject
       /Users/development/.local/bin/openagent and service

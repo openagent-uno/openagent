@@ -19,7 +19,7 @@ dependencies = [
     "openagent-core==1.1.0b21",
     "openagent-identity==1.1.0b38",
     "openagent-dashboards==1.1.0b38",
-    "openagent-product-config==1.1.0b17",
+    "openagent-product-config==1.1.0b18",
     "openagent-support-integration==1.1.0b38",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.

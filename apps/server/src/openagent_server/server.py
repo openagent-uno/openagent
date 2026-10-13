@@ -24,8 +24,8 @@ from openagent_core.core.logging import clear as clear_event_log, elog
 # Pre-import the update-flow modules at server boot so the PyInstaller
 # archive entries they live in are loaded into memory before any sibling
 # service that shares the same on-disk binary can swap it. Without this,
-# a /api/update on a sibling (e.g. performa boss/yoanna/friday share
-# ~/.local/bin/openagent-stable) replaces the file we lazy-read from,
+# a /api/update on a sibling sharing ~/.local/bin/openagent-stable
+# replaces the file we lazy-read from,
 # and the next ``from openagent_server._frozen import is_frozen`` in run_upgrade
 # raises ``zlib.error: Error -3 while decompressing data: incorrect
 # header check``. Loading these eagerly puts them in sys.modules so
@@ -468,7 +468,7 @@ operator. A quiet day is a valid, correct outcome — log it as such.
 
 def _is_custom_quality_scorer_name(name: str) -> bool:
     """A NON-builtin scheduled-task name that serves the quality-scorer
-    purpose — an agent's own tuned grader (eSound/Lyra ship one). Matches when
+    purpose — an agent's own tuned grader. Matches when
     the name mentions quality AND scoring, case-insensitively."""
     low = name.lower()
     return "quality" in low and ("scor" in low or "score" in low)
@@ -552,7 +552,7 @@ is a correct, healthy outcome, not a failure to report.
 
 def _is_custom_cost_observability_name(name: str) -> bool:
     """A NON-builtin scheduled-task name that serves the cost-observability
-    purpose — an agent's own tuned cost/spend watcher (eSound/Lyra ship one).
+    purpose — an agent's own tuned cost/spend watcher.
     Matches when the name mentions cost AND observe/anomaly/monitor,
     case-insensitively, so the builtin defers to it rather than double-running."""
     low = name.lower()
@@ -639,8 +639,7 @@ clean window is a correct outcome — log it as such.
 
 def _is_custom_escalation_audit_name(name: str) -> bool:
     """A NON-builtin scheduled-task name that serves the escalation-audit
-    purpose — an agent's own tuned handoff/escalation auditor (eSound/Lyra ship
-    ``support-escalation-audit``). Matches when the name mentions
+    purpose — an agent's own tuned ``support-escalation-audit``. Matches when the name mentions
     escalation/handoff AND audit/hygiene, case-insensitively, so the builtin
     defers to it rather than double-running."""
     low = name.lower()
@@ -2225,7 +2224,7 @@ class AgentServer:
             # gates and optional schedule overrides; re-sync both built-in
             # tasks so a runtime flip enables/disables (or reschedules) either
             # without a restart. The dedup against a tuned custom task is
-            # re-evaluated on every sync, so this stays safe on eSound/Lyra.
+            # re-evaluated on every sync, preserving configured custom tasks.
             self.config["self_improvement"] = patch or {}
             await self._sync_quality_scorer(scheduler)
             await self._sync_quality_digest(scheduler)
@@ -2299,7 +2298,7 @@ class AgentServer:
                 await scheduler.reschedule_task(existing["id"])
         elif existing["enabled"]:
             # Un built-in acceso a mano muore al PRIMO riavvio, e finora
-            # moriva in silenzio. Misurato su SpicySparks: quality-scorer,
+            # moriva in silenzio. Osservato in produzione: quality-scorer,
             # quality-digest, cost-observability ed escalation-audit erano
             # stati creati il 21-22 luglio con enabled=1 — la config non li
             # ha mai chiesti (``self_improvement`` non compare in nessun
@@ -2550,11 +2549,11 @@ class AgentServer:
 
         DEDUP — the one thing that makes "intrinsic" safe on tuned agents: an
         agent that already ships a NON-builtin, hand-tuned quality-scorer
-        (eSound/Lyra do) keeps it. Before seeding the builtin we scan
+        keeps it. Before seeding the builtin we scan
         ``scheduled_tasks`` for a non-builtin task whose name serves the same
         purpose (mentions quality + scoring); if one exists we DEFER — park any
         stray builtin row disabled and install no hook — so we never double-run.
-        Fresh agents (spicysparks, new deployments) get the generic builtin.
+        Fresh agents get the generic builtin.
 
         Which branch was taken is logged so a firing's provenance is auditable.
         """
@@ -2622,7 +2621,7 @@ class AgentServer:
         identical in discipline: opt-in (``self_improvement.enabled`` AND
         ``digest_enabled``), and it DEFERS to an agent's own tuned, non-builtin
         quality-digest (name mentions quality + digest/improvement) so
-        eSound/Lyra keep their custom pass while fresh agents get the builtin.
+        configured agents keep their custom pass while fresh agents get the builtin.
 
         Independent of the scorer's toggle — either half may run alone.
         """
@@ -2686,8 +2685,8 @@ class AgentServer:
         discipline: opt-in (``self_improvement.enabled`` AND
         ``cost_observability_enabled``), and it DEFERS to an agent's own tuned,
         non-builtin cost watcher (name mentions cost + observe/anomaly/monitor)
-        so eSound/Lyra keep their custom, more-sensitive pass while fresh agents
-        (spicysparks, new deployments) get the generic builtin.
+        so configured agents keep their custom, more-sensitive pass while fresh
+        agents get the generic builtin.
 
         The builtin is CACHE-AWARE by construction: its prompt pages only on the
         engine's own ``router.cost_anomaly`` signal (real cost + fresh/non-cached
@@ -2754,7 +2753,7 @@ class AgentServer:
         discipline: opt-in (``self_improvement.enabled`` AND
         ``escalation_audit_enabled``), and it DEFERS to an agent's own tuned,
         non-builtin escalation auditor (name mentions escalation/handoff + audit)
-        so eSound/Lyra keep their tuned ``support-escalation-audit`` while fresh
+        so configured agents keep their tuned ``support-escalation-audit`` while fresh
         agents get the generic, ROLE-/TOOL-agnostic builtin.
 
         Independent of the other self_improvement toggles — any arm may run alone.
