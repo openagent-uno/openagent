@@ -1,3 +1,4 @@
+# Installation names and paths are anonymized operator labels; original records remain in the protected audit.
 schema: 1
 train_id: unified-history-beta.1
 component: server
@@ -50,7 +51,7 @@ contracts:
   operational_storage_v2_sha256: ce406057aec3d3b0076e3750045ae24ab50f7829396809ae8f72defdd2111863
   operational_tool_call_context_v1_sha256: 14fc8629dee90415e58807825b7d32492fb51b4dbb7ee31909396d21a648fd46
 
-friday_rehearsal:
+dogfood_rehearsal:
   database_copy_method: sqlite_backup_api
   execution_source_sha: 699ffe8fa20d960e90ce7ade45a440301085e72a
   source_database_sha256_before: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
@@ -110,7 +111,7 @@ replacement_candidate:
     run: 32982520375
     job: 98222392469
     result: pass
-  friday_rehearsal:
+  dogfood_rehearsal:
     execution_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
     source_database_sha256_before: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd
     source_database_sha256_after: 526df4fc85ba8b3f6fbb1a88ecf52a1b4240d69eccb7129a82a847afe32e99cd

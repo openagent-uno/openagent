@@ -1,3 +1,4 @@
+<!-- Installation names and paths are anonymized operator labels; original deployment records are retained in the protected audit. -->
 # Piano beta: storage normalizzato, history unificata e ricerca globale
 
 Stato: replacement server Beta 4 congelato e gate pre-tag verdi; tag workflow,
@@ -19,12 +20,12 @@ Base server congelata: `v0.19.27`
 `cc66f96cb22ee80349a004edb9cfee056e7e9ee7` ha superato suite locale
 `1647/0/46`, CI test branch `32974968028`, supply-chain `32974967908` e
 release workflow `32976311521`; il package pubblicato ha poi esposto due gap
-di proiezione su Friday. Il repair `ebcfedc…` ha chiuso i gap su una copia
+di proiezione su Dogfood installation. Il repair `ebcfedc…` ha chiuso i gap su una copia
 Backup API, ma il source Beta 4 `699ffe8…` è stato respinto perché la branch CI
 ha rilevato una race di readiness della cache di ricerca. Il replacement
 `b9d8ab50619ce89129146027c7ec21f83ce4f337` include la correzione e la
 regressione deterministica; suite locale e le due branch CI sono verdi sullo
-stesso SHA, così come il rehearsal Friday exact-source.
+stesso SHA, così come il rehearsal Dogfood installation exact-source.
 
 Ultimo aggiornamento: 2026-08-26
 
@@ -57,7 +58,7 @@ contratti normativi e verificabili sono:
 - [specifica visuale e ricerca globale](../design/global-search-visual-refresh-spec.md);
 - [piano di verifica cross-repository](../testing/unified-history-search-verification.md);
 - [runbook beta](../release/beta-unified-history-runbook.md);
-- [esito dogfood server Beta 3](../release/unified-history-beta-3-friday-failure.yaml);
+- [esito dogfood server Beta 3](../release/unified-history-beta-3-dogfood-failure.yaml);
 - [esito CI del primo source Beta 4](../release/unified-history-beta-4-ci-failure.yaml);
 - [intent server Beta 4](../release/unified-history-beta-4-intent.yaml);
 - [evidenza e preparazione server Beta 4](../release/unified-history-beta-4-preparation.md).
@@ -252,11 +253,11 @@ test interessati.
   sconosciuto ricade su stable. La selezione del canale non abilita da sola il
   job `auto_update`.
 - L'updater beta server accetta prerelease sulla major/minor già installata:
-  Friday su `0.19.x` non seleziona automaticamente una `0.20.0-beta.N`. Il seed è
+  Dogfood installation su `0.19.x` non seleziona automaticamente una `0.20.0-beta.N`. Il seed è
   quindi manuale dal package Linux x64 pubblicato, dopo verifica combinata del
   checksum sibling e del digest GitHub; dalla beta installata gli update
   successivi restano sulla linea compatibile `0.20`.
-- Il seed esatto di Beta 3 su Friday ha proiettato `583/585` sessioni legacy.
+- Il seed esatto di Beta 3 su Dogfood installation ha proiettato `583/585` sessioni legacy.
   Due sessioni con lo stesso `tool_call_id` in run distinti collidevano con una
   unicità troppo ampia; `history_ready` è rimasto `false` e la ricerca globale
   non è stata pubblicizzata. Il server è stato riportato in sicurezza alla
@@ -266,7 +267,7 @@ test interessati.
   drill di riconciliazione del successore.
 - Il primo source Beta 4 `699ffe8fa20d960e90ce7ade45a440301085e72a`
   ha superato localmente `1653/0/46`, storage/API `32/32`, updater `29/29` e
-  selfcheck. Su una copia Backup API Friday ha portato la copertura da
+  selfcheck. Su una copia Backup API Dogfood installation ha portato la copertura da
   `586/583`, due failed e un pending a `586/586`, zero/zero, preservando otto
   gruppi di collisione e `16` invocazioni; source digest, quick check e FK sono
   rimasti integri e il live server non è stato mutato.
@@ -2553,7 +2554,7 @@ subordinati ai rispettivi gate:
 
 I tag app e CLI sono stati creati dopo il freeze per parallelizzare i build;
 le run `32983788693` e `32983586871` sono in corso. Questo non anticipa
-installazione, E2E live o promozione, che restano dietro il gate server Friday.
+installazione, E2E live o promozione, che restano dietro il gate server Dogfood installation.
 
 - tag vX.Y.Z-beta.N;
 - GitHub Release prerelease=true;
@@ -2564,12 +2565,12 @@ installazione, E2E live o promozione, che restano dietro il gate server Friday.
   prerelease; l'opt-in beta è installation-scoped tramite config o
   `OPENAGENT_UPDATE_CHANNEL=beta`, con feed, lineage, asset, checksum e
   bad-version guard separati;
-- Friday parte da `0.19.x`: poiché il selector beta non attraversa una
+- Dogfood installation parte da `0.19.x`: poiché il selector beta non attraversa una
   major/minor verso una prerelease, Beta 3 è stata installata manualmente dal
   package Linux x64 verificato per checksum e digest. Il successor dovrà
   ripetere il seed manuale dai propri byte pubblicati dopo il rollback alla
   stable, senza riusare l'evidenza o il package Beta 3;
-- Friday usa un drop-in systemd dedicato con
+- Dogfood installation usa un drop-in systemd dedicato con
   `OPENAGENT_UPDATE_CHANNEL=beta` soltanto dopo backup/preflight; il rollback
   rimuove o ripristina quel drop-in e verifica il processo riavviato, mentre un
   eventuale `auto_update.channel` confliggente blocca il rollout;
@@ -2588,7 +2589,7 @@ installazione, E2E live o promozione, che restano dietro il gate server Friday.
 
 Pubblicazione immutabile con il workflow corrente:
 
-1. preflight, test E2E disponibili e Friday baseline/backup rehearsal si
+1. preflight, test E2E disponibili e Dogfood installation baseline/backup rehearsal si
    chiudono prima del tag server;
 2. il push dell'esatto tag beta è la prima mutazione pubblica e avvia il
    workflow sullo SHA congelato;
@@ -2600,7 +2601,7 @@ Pubblicazione immutabile con il workflow corrente:
    digest `sha256:` di ogni asset con i byte locali;
 6. solo dopo il confronto porta il draft a `draft=false`,
    `prerelease=true`, `make_latest=false` e ricontrolla lo stato pubblicato;
-7. il server package pubblicato viene installato su Friday col digest esatto e
+7. il server package pubblicato viene installato su Dogfood installation col digest esatto e
    sottoposto a E2E, rollback `0.19.x` e re-upgrade; app e CLI vengono
    pubblicati soltanto dopo questo gate;
 8. l'indice finale di evidenza contiene SHA, versioni API/capability, workflow
@@ -2608,7 +2609,7 @@ Pubblicazione immutabile con il workflow corrente:
 
 Un test su build locale o su byte ricostruiti non soddisfa il gate. Un fallimento
 di upload/verifica lascia la release nascosta; un fallimento successivo al
-publish, come quello di Beta 3 su Friday, lascia immutabili tag e asset ma rende
+publish, come quello di Beta 3 su Dogfood installation, lascia immutabili tag e asset ma rende
 il candidate non promuovibile. In entrambi i casi la correzione usa un nuovo
 `beta.N`, mai un tag riutilizzato.
 
@@ -2702,19 +2703,19 @@ pubblicato:
 - Beta 3 ha superato il workflow di release `32976311521` e ha pubblicato la
   GitHub prerelease non-latest `377189126` con tag e sei asset immutabili;
 - il package Linux pubblicato e verificato per digest è stato installato
-  esattamente su Friday in `shadow`: `583/585` sessioni legacy sono state
+  esattamente su Dogfood installation in `shadow`: `583/585` sessioni legacy sono state
   proiettate, due sono rimaste gap per collisioni di `tool_call_id` tra run
   distinti, `history_ready` è rimasto `false` e il gate ha fermato il rollout;
-- Friday è tornato alla stable `0.19.26` con drop-in beta disabilitato; il
+- Dogfood installation è tornato alla stable `0.19.26` con drop-in beta disabilitato; il
   database additivo è stato mantenuto, non è stato restaurato uno snapshot e un
   canary legacy resta pending per provare il reconcile del nuovo candidate;
 - l'esito Beta 3 è immutabile in
-  `release/unified-history-beta-3-friday-failure.yaml`;
+  `release/unified-history-beta-3-dogfood-failure.yaml`;
 - repair additivo `ebcfedc3779421f874a1e0d079bb06b002fa79f9`, con storage-v2
   hash invariato `ce406057…` e nuova migrazione ledgerizzata `14fc8629…`;
 - primo source Beta 4 `699ffe8fa20d960e90ce7ade45a440301085e72a`:
   local full `1653/0/46`, targeted `32/32` e `29/29`, selfcheck e supply chain
-  verdi; rehearsal Friday su copia completa `586/586`, zero failed/pending,
+  verdi; rehearsal Dogfood installation su copia completa `586/586`, zero failed/pending,
   search ready, canary trovata e `16` invocazioni collision-preserved;
 - lo stesso source è respinto in
   `release/unified-history-beta-4-ci-failure.yaml`: branch Tests
@@ -2765,12 +2766,12 @@ Non completato o non ancora verificato end-to-end:
 
 - review del freeze/intent Beta 4, tag workflow e verifica dei package
   pubblicati senza mutare stable `latest`;
-- canary ACL/API gateway-only, bridge filter e benchmark Friday sul successore;
+- canary ACL/API gateway-only, bridge filter e benchmark Dogfood installation sul successore;
 - realtime history/search, che resta opzionale e non pubblicizzato;
 - matrice UI/deep-link multipiattaforma, QA visuale e test E2E con server reale;
-- nuovo dogfood Friday/Bluehost con principal temporaneo, rollback e re-upgrade;
+- nuovo dogfood Dogfood installation/Bluehost con principal temporaneo, rollback e re-upgrade;
 - tag, push e prerelease del server; raccolta delle run app/CLI già dispatchate,
   mentre installazione, E2E live e promozione restano bloccati fino al gate
-  server Friday;
+  server Dogfood installation;
 - verifica post-publish per ogni nuovo candidate che stable `latest` sia
   invariata.

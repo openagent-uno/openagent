@@ -1,3 +1,4 @@
+<!-- Installation names and paths are anonymized operator labels; original deployment records are retained in the protected audit. -->
 # Server browser dependencies for custom MCPs
 
 The standalone server does not lend an App or CLI device's `agent-in-chrome`
@@ -52,9 +53,9 @@ verification, while leaving the managed browser and profile running. Do not
 copy session or clearance cookies between machines or spoof browser and
 hardware identity as a default recovery path.
 
-## Friday, 2026-10-04
+## Dogfood installation, 2026-10-04
 
-The Chrono24 MCP on Friday reported `connection refused` at its localhost CDP
+The Chrono24 MCP on Dogfood installation reported `connection refused` at its localhost CDP
 endpoint. No browser process or supervisor was running. A dedicated Chromium
 systemd service was installed with the existing agent-owned profile and
 loopback CDP binding. The Chrono24 MCP's tab selection was changed to require
@@ -68,11 +69,11 @@ checkbox attempt in the original profile returned to the same challenge.
 Testing on the same host showed that Google Chrome Stable with a fresh,
 separate profile displayed the login form, while Chrome Stable with a copy of
 the old profile still displayed the challenge. Removing Chrono24 site data
-from that disposable copy did not change the result. Friday now runs a second,
+from that disposable copy did not change the result. Dogfood installation now runs a second,
 resource-limited Chrome service on loopback CDP port `18801` for this MCP; the
 original browser and its other site sessions remain intact. A Telegram
-`chrono24_status` call through Friday returned `state: login_required` and
-`verification_required: false` on the new profile. When Friday submitted the
+`chrono24_status` call through Dogfood installation returned `state: login_required` and
+`verification_required: false` on the new profile. When Dogfood installation submitted the
 form directly from a clean profile, Chrono24 displayed a visible Cloudflare
 "Conferma" checkbox over the login page. The widget was not exposed through
 the page's ordinary iframe and input selectors, so the MCP initially misread
@@ -85,7 +86,7 @@ This is a host service and custom MCP repair, not a change to an OpenAgent
 runtime package.
 
 The follow-up diagnosis for beta 22 found that the model's assertion of a
-"black Xvfb screenshot" was false. Friday's stored `computer_control_computer`
+"black Xvfb screenshot" was false. Dogfood installation's stored `computer_control_computer`
 result and a direct MCP capture both show the browser and verification widget
 on display `:101`; the running sidecar's `DISPLAY` and `XAUTHORITY` match the
 Chrome service. Core and Claude sub proxy had been passing the image as text

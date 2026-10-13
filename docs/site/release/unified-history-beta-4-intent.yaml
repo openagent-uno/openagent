@@ -1,3 +1,4 @@
+# Installation names and paths are anonymized operator labels; original records remain in the protected audit.
 schema: 1
 train_id: unified-history-beta.1
 channel: beta
@@ -29,7 +30,7 @@ predecessors:
     release_run: 32976311521
     github_release_id: 377189126
     outcome: published_prerelease_dogfood_blocked
-    evidence: release/unified-history-beta-3-friday-failure.yaml
+    evidence: release/unified-history-beta-3-dogfood-failure.yaml
   - component: server
     candidate_label: beta4
     tag: null
@@ -140,7 +141,7 @@ compatibility:
   old_clients_supported: true
   new_clients_fallback_to_old_server: true
   legacy_storage_retained: true
-  friday_seed: manual_exact_digest
+  dogfood_seed: manual_exact_digest
 
 pretag_gates:
   server:
@@ -193,8 +194,8 @@ contracts:
   legacy_session_bridge_sha256: 7c45f580af4abba61ef3a7cc690f9e7b02479cff1d3c32c041cee2bc7039f0ee
   legacy_automation_bridge_sha256: bbb5253f728bf46d4078838de11ec7b162a67450c1588d52323eaeeff4ca21fe
 
-friday_rehearsal:
-  environment_alias: Friday
+dogfood_rehearsal:
+  environment_alias: Dogfood installation
   hosting_alias: Bluehost
   execution_source_sha: b9d8ab50619ce89129146027c7ec21f83ce4f337
   database_copy_method: sqlite_backup_api

@@ -36,30 +36,18 @@ Use this shorter form only when the selected version and every pinned
 first-party dependency are available from the same configured package index.
 For the current beta, use the verified wheelhouse above.
 
-## Operator-managed container builds
+## Operator-managed container recipes
 
-The server's builder and runtime Docker recipes require an explicit
-`OPENAGENT_BASE_IMAGE` build argument. OpenAgent does not select a third-party
-registry or deployment image for an embedding host. The operator must qualify
-and pin the base image, including its Python, native libraries and process
-supervisor, for the intended environment. The runtime recipe also expects the
-qualified `apps/server/dist/openagent` artifact in its build context.
+The retained builder and runtime Dockerfiles are legacy, unqualified deployment
+recipes. They require an explicit `OPENAGENT_BASE_IMAGE` supplied by the operator;
+OpenAgent does not select a third-party registry or base image for a host. The
+operator must qualify the base image, Python/native-library compatibility,
+process supervision and current artifact layout before using either recipe.
+Their historical copy paths do not establish a working canonical container
+build. No published container release is implied.
 
-```bash
-# Set these to the operator's reviewed immutable image references.
-: "${OPENAGENT_BUILDER_BASE_IMAGE:?Set a qualified builder image reference}"
-: "${OPENAGENT_RUNTIME_BASE_IMAGE:?Set a qualified runtime image reference}"
-docker build -f apps/server/Dockerfile.openagent-builder \
-  --build-arg OPENAGENT_BASE_IMAGE="$OPENAGENT_BUILDER_BASE_IMAGE" \
-  -t openagent-builder:local apps/server
-docker build -f apps/server/Dockerfile.openagent-runtime \
-  --build-arg OPENAGENT_BASE_IMAGE="$OPENAGENT_RUNTIME_BASE_IMAGE" \
-  -t openagent-runtime:local apps/server
-```
-
-These recipes are deployment inputs, not a published container release or proof
-that an operator's base image is compatible. Native standalone installation uses
-the verified product distributions described above.
+For standalone installation, use the verified product distributions described
+above. These Dockerfiles are not the prescribed installation path.
 
 ## Doctor & Setup
 
