@@ -109,6 +109,12 @@ class OfficialConnectors:
                 id TEXT PRIMARY KEY, group_id TEXT NOT NULL, topic TEXT NOT NULL,
                 ciphertext BLOB NOT NULL, nonce BLOB NOT NULL, received_at TEXT NOT NULL,
                 status TEXT NOT NULL DEFAULT 'pending')""")
+            event_columns = {row[1] for row in await (await db.execute(
+                "PRAGMA table_info(official_connector_events)")).fetchall()}
+            if "receipt_format" not in event_columns:
+                # Historical receipts contain only payload, without the broker
+                # timestamp needed to fence a late uninstall/redaction.
+                await db.execute("ALTER TABLE official_connector_events ADD COLUMN receipt_format INTEGER NOT NULL DEFAULT 1")
             encrypted_state = await (await db.execute("""SELECT
                 EXISTS(SELECT 1 FROM official_connector_connections WHERE credential IS NOT NULL)
                 OR EXISTS(SELECT 1 FROM official_connector_events)""")).fetchone()
@@ -482,22 +488,60 @@ class OfficialConnectors:
             except RuntimeError:
                 await self.runner.call("sync.recover", {"group": row["group_id"]})
         for event in await self.runner.call("events"):
-            nonce = os.urandom(12)
-            ciphertext = AESGCM(self.key).encrypt(nonce, json.dumps(event["payload"]).encode(), event["id"].encode())
-            async with aiosqlite.connect(self.db_path) as db:
-                await db.execute("INSERT OR IGNORE INTO official_connector_events(id,group_id,topic,ciphertext,nonce,received_at) VALUES(?,?,?,?,?,?)",
-                                 (event["id"], event["group"], event["topic"], ciphertext, nonce, datetime.now(timezone.utc).isoformat()))
-                if event["topic"] in {"app/uninstalled", "shop/redact"}:
-                    db.row_factory = aiosqlite.Row
-                    targets = await (await db.execute("SELECT * FROM official_connector_connections WHERE group_id=? AND credential IS NOT NULL", (event["group"],))).fetchall()
-                    for target in targets:
-                        token = self.decrypt(dict(target))
-                        occurred = event.get("occurred_at", event["created_at"])
-                        authorized = token.get("authorized_at")
-                        if authorized is None or datetime.fromisoformat(authorized.replace("Z", "+00:00")) <= datetime.fromisoformat(occurred.replace("Z", "+00:00")):
-                            await db.execute("UPDATE official_connector_connections SET enabled=0,status='disconnected',credential=NULL,nonce=NULL WHERE id=?", (target["id"],))
-                await db.commit()
+            await self.receive_event(event)
             await self.runner.call("events.ack", {"id": event["id"]})
+
+    async def receive_event(self, event):
+        """Commit the complete verified broker receipt before delivery ACK.
+
+        Receipt is not a privacy-completion claim. Preserve immutable origin
+        and occurrence metadata so a future processor can apply the same
+        generation fence after restart; never manufacture it for old rows.
+        """
+        if (not isinstance(event, dict) or not all(isinstance(event.get(key), str) and event[key]
+                                                 for key in ("id", "group", "topic", "created_at"))
+                or event["topic"] not in {"app/uninstalled", "shop/redact", "customers/redact", "customers/data_request"}
+                or not isinstance(event.get("payload"), dict)):
+            raise ValueError("Invalid connector privacy receipt")
+        occurred = event.get("occurred_at") or event["created_at"]
+        occurrence = datetime.fromisoformat(occurred.replace("Z", "+00:00"))
+        created = datetime.fromisoformat(event["created_at"].replace("Z", "+00:00"))
+        if occurrence.tzinfo is None or created.tzinfo is None:
+            raise ValueError("Connector privacy receipt requires timezone-aware timestamps")
+        receipt = {key: event[key] for key in ("id", "group", "topic", "payload", "created_at")}
+        receipt["occurred_at"] = occurred
+        encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+        if len(encoded) > 2 * 1024 * 1024:
+            raise ValueError("Connector privacy receipt exceeds the supported size")
+        async with aiosqlite.connect(self.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Serialize duplicate receipt comparison, upgrade and revocation.
+            await db.execute("BEGIN IMMEDIATE")
+            old = await (await db.execute("SELECT * FROM official_connector_events WHERE id=?", (event["id"],))).fetchone()
+            if old:
+                previous = json.loads(AESGCM(self.key).decrypt(old["nonce"], old["ciphertext"], event["id"].encode()))
+                if (old["group_id"] != event["group"] or old["topic"] != event["topic"]
+                        or previous != (receipt if old["receipt_format"] == 2 else event["payload"])):
+                    raise ValueError("Connector privacy receipt conflicts with durable delivery")
+            if not old or old["receipt_format"] == 1:
+                nonce = os.urandom(12)
+                ciphertext = AESGCM(self.key).encrypt(nonce, encoded, event["id"].encode())
+                if old:
+                    # Only a matching authenticated broker redelivery can
+                    # enrich an old payload-only receipt. Retain job status.
+                    await db.execute("UPDATE official_connector_events SET ciphertext=?,nonce=?,receipt_format=2 WHERE id=?",
+                                     (ciphertext, nonce, event["id"]))
+                else:
+                    await db.execute("INSERT INTO official_connector_events(id,group_id,topic,ciphertext,nonce,received_at,receipt_format) VALUES(?,?,?,?,?,?,2)",
+                                     (event["id"], event["group"], event["topic"], ciphertext, nonce, datetime.now(timezone.utc).isoformat()))
+            if event["topic"] in {"app/uninstalled", "shop/redact"}:
+                targets = await (await db.execute("SELECT * FROM official_connector_connections WHERE group_id=? AND credential IS NOT NULL", (event["group"],))).fetchall()
+                for target in targets:
+                    token = self.decrypt(dict(target))
+                    authorized = token.get("authorized_at")
+                    if authorized is None or datetime.fromisoformat(authorized.replace("Z", "+00:00")) <= occurrence:
+                        await db.execute("UPDATE official_connector_connections SET enabled=0,status='disconnected',credential=NULL,nonce=NULL WHERE id=?", (target["id"],))
+            await db.commit()
 
     async def _synchronize(self):
         while True:
