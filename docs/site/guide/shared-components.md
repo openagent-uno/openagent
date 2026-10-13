@@ -29,9 +29,9 @@ are independently versioned from the standalone product. The platform release
 is a qualification prerelease, not native signing or provider acceptance.
 Its `qualification.json` records the tested boundaries alongside the source,
 platform manifests and checksums. The deployed broker is independently released
-as [auth-only 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.3).
+as [auth-only 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.4).
 This does not change module/runner 0.1.2 or enable public provider enrollment;
-ClickUp is restricted to two allowlisted QA installation identities.
+ClickUp is restricted to allowlisted QA installation identities.
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
 must update its catalog entry, schemas, operation implementation and tests;
