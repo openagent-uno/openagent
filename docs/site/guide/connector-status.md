@@ -15,7 +15,7 @@ installed client already includes the candidate UI.
 | Standalone server/CLI | Published `1.1.0-beta.39`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.3` and Host Tools B6; catalog fixture verifies 12 official entries plus one custom MCP | Real provider consent and API operations; receiving hosts qualify their own rollout |
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
-| Standalone App | Published `1.1.0-beta.16` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; released native App tested through real Iroh against server beta 38 with mixed marketplace cards | Real provider consent and API operations; initial renderer-reload UX limitation below |
+| Standalone App | Published `1.1.0-beta.17` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; the previous visual baseline remains App beta 16 with server beta 38 | Real provider consent and API operations; initial renderer-reload UX limitation below |
 | Common authentication service | Auth-only `0.1.5` published and deployed from source `a5f81d65a0d7939473b30759276fa719272fda4a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
 
@@ -52,10 +52,12 @@ packaged launches, macOS signing/notarization, Intel ZIP/DMG launches and exact
 post-upload checksum verification. The signing/updater executor remains the
 historical App repository; its payload comes from canonical source
 `721e90feb0e4ae3bb719e23cf5983e064464f782`. Existing updater identities are
-preserved. App beta 17 remains a source/package candidate, not a published App
-release. The recorded native visual acceptance still uses App beta 16 and
-server beta 38. The historical repository is temporarily available for the next
-bounded signing/publishing run; canonical product source remains in this repository.
+preserved. The [App beta 17 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
+is published from canonical source `0b00b5bde99fbbe5685f7906a7d1596c6e0d85fb`;
+its [native qualification run](https://github.com/openagent-uno/openagent-app/actions/runs/38479698733)
+is separate from the recorded App beta 16/server beta 38 visual baseline.
+Those earlier screenshots are not new App beta 17 visual acceptance.
+Canonical product source remains in this repository.
 
 [Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
 publishes 16 verified assets from source `aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0`.

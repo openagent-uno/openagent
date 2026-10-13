@@ -1,7 +1,7 @@
 # Download OpenAgent
 
 The current server and CLI build is **v1.1.0-beta.39**. The latest desktop App
-is **v1.1.0-beta.16**, published for macOS, Windows and Linux on ARM64 and x64.
+is **v1.1.0-beta.17**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
 
@@ -17,7 +17,7 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 16 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.16)
+The [App beta 17 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
 includes installer checksums, six platform provenance manifests and verified
 update metadata. Native packaged launches passed on all six targets.
 
@@ -58,7 +58,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
   — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 39.
-  The current desktop App beta 16 retains its own release lock.
+  The desktop App retains its own release lock.
 - [Shared connector module/runner 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
   — shared provider adapters, Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
