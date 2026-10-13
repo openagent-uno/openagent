@@ -15,7 +15,7 @@ dependencies = [
     "click>=8.0",
     "rich>=13.0",
     "prompt-toolkit>=3.0.48,<4",
-    "openagent-host-tools==1.0.0b5",
+    "openagent-host-tools==1.0.0b6",
     # The standalone ``openagent_cli.network`` package implements the
     # client side of Iroh/certificate transport; ``openagent_client_transport``
     # carries the checksum-locked stream/capability protocol shared with the
