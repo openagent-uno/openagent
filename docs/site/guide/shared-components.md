@@ -179,6 +179,13 @@ compacted history, delegated sessions, Vault notes, attachments and generated
 files. Provenance must remain bound to the authorized tenant and provider
 account; model-supplied labels cannot authorize a privacy action.
 
+The candidate inbox persists the complete broker receipt encrypted, including
+group/topic and occurrence timestamps, before acknowledging delivery. This
+preserves the generation fence across restart and duplicate delivery. Historical
+payload-only receipts retain an explicit older format; missing metadata is
+never inferred from the local receive time. These storage guarantees do not
+complete a privacy request or enable Shopify enrollment.
+
 The host needs durable, idempotent jobs for the verified provider request,
 bounded export/redaction, admission fences while affected work is running,
 and completion receipts. Reusable content/provenance contracts belong upstream

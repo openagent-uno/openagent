@@ -71,6 +71,14 @@ verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
 privacy-event cases preserve encrypted records; restoring the original key
 allows the credential to be read after restart.
 
+The next standalone candidate retains complete encrypted privacy receipts,
+rejects conflicting duplicates and commits before delivery ACK. Late uninstall
+notifications preserve credentials minted by a newer consent. Historical
+payload-only receipts remain explicitly marked until matching broker redelivery;
+startup does not invent missing occurrence metadata. The expanded 35-check
+authorization/acquisition/receipt suite passed against published Core/SQLite
+beta 20 and connector adapter 0.1.1. Content export/redaction remains unfinished.
+
 The operator-approved Mixout maintenance upgraded the control plane to
 `v1.33.13+k3s2`, enabled and rotated secrets-at-rest encryption, and verified
 the final restart. Both nodes are Ready. Broker Secret values were unchanged;
