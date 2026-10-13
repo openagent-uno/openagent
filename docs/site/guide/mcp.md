@@ -164,3 +164,16 @@ Install the release asset into an immutable deployment directory and configure
 the MCP source to execute its `meta-ads-mcp` binary. Pin the asset digest from
 the release manifest instead of resolving an npm package dynamically at service
 startup.
+
+## Shared connector implementations
+
+Official provider integrations and registry MCPs appear in the same standalone
+marketplace, but a connector implementation does not require an external MCP
+process. The shared Go adapters execute on each product server; Python hosts
+use a local runner and can expose an MCP surface through an authorizing factory.
+Core receives the same bound capability contract in either case.
+
+See [using connectors](./connectors.md), [component ownership and data
+flow](./shared-components.md), and [current release gates](./connector-status.md).
+Provider credentials and product permissions are not shared merely because
+the implementation or OAuth app registration is shared.

@@ -4,8 +4,7 @@
 
 LLM providers (API keys, base URLs), the per-provider model catalog,
 the MCP server list, and scheduled tasks all live in SQLite, not in
-this file. Manage them via the `mcp-manager` / `model-manager` /
-`scheduler` built-in MCPs, the REST endpoints (`/api/providers`,
+this file. Manage them via the enabled MCP, Models and Scheduler module management surfaces, the REST endpoints (`/api/providers`,
 `/api/mcps`, `/api/models`, `/api/scheduled-tasks`), or the desktop/CLI
 UI. yaml stays the source of truth for identity, channels, memory
 paths, dream mode, and auto-update.
@@ -18,8 +17,8 @@ system_prompt: |
 
 # LLM provider credentials (API keys, base URLs), the per-provider
 # model catalog, MCP servers, and scheduled tasks all live in SQLite.
-# Add/manage them via the ``model-manager`` / ``mcp-manager`` /
-# ``scheduler`` MCPs, the matching REST endpoints, the
+# Add/manage them via the enabled Models / MCP / Scheduler
+# module management surfaces, the matching REST endpoints, the
 # ``openagent provider`` CLI, or the Settings screens in the desktop
 # app.
 
@@ -131,3 +130,12 @@ openagent -d ./agent-a service status # service status for agent-a
 ```
 
 The directory is created automatically with default config if it doesn't exist.
+
+## Connector configuration
+
+Candidate standalone builds accept the `connectors` section documented in
+[operator setup](./connector-operations.md#standalone-configuration). It selects
+the local runner, optional own-app provider descriptor file, common auth URL
+and explicit common-provider allowlist. Credentials remain encrypted server
+state, not YAML values. The [release status](./connector-status.md) records which
+implementation, deployment and provider gates have actually passed.

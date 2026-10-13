@@ -18,6 +18,8 @@ It's model-agnostic: Claude, GLM, Ollama, LM Studio, vLLM, or any OpenAI-compati
 - [Invitation System & Networking](./invitation-system.md) — Iroh P2P transport, coordinator, device certs, invite tickets
 - [Models](./models.md) — pick a provider
 - [MCP and capabilities](./mcp.md) — uniform tools, catalog modes and client sources
+- [Using connectors](./connectors.md) — unified marketplace, consent and local controls
+- [Shared components](./shared-components.md) — Core, Tools, runner, MCP surfaces and product boundaries
 - [Gateway](./gateway.md) — WebSocket + REST surface over Iroh QUIC
 - [Channels](./channels.md) — Telegram, Discord, WhatsApp, Webhook
 - [Events](./events.md) — inbound webhook triggers for workflows, tasks, and chats
@@ -29,6 +31,8 @@ It's model-agnostic: Claude, GLM, Ollama, LM Studio, vLLM, or any OpenAI-compati
 - [Desktop App](./desktop-app.md)
 - [Architecture](./architecture.md) — component map and system flow
 - [Deployment](./deployment.md)
+- [Connector setup and recovery](./connector-operations.md)
+- [Connector release status](./connector-status.md) — delivered code, verification and outstanding gates
 
 ## Examples
 
