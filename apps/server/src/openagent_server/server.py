@@ -648,8 +648,8 @@ def _is_custom_escalation_audit_name(name: str) -> bool:
     )
 
 
-def _build_agent(config: dict) -> Agent:
-    """Build an Agent from a config dict (factored out of cli.py)."""
+def _build_agent(config: dict, *, engine_extensions=None) -> Agent:
+    """Build an Agent with optional extensions supplied by its trusted host."""
     from openagent_core.core.paths import default_db_path
     from openagent_product_config import configure_product_prompts
 
@@ -1352,8 +1352,6 @@ def _build_agent(config: dict) -> Agent:
         budgets_cfg = config.get("budgets")
         _set_budget_seed(budgets_cfg if isinstance(budgets_cfg, list) else None)
 
-    from openagent_support.extensions import support_extensions
-
     agent = Agent(
         name=config.get("name", "openagent"),
         model=model,
@@ -1362,7 +1360,7 @@ def _build_agent(config: dict) -> Agent:
         memory=db,
         config=config,  # channels / memory / name only — providers/models/mcps live in the DB
         fallback_config=fallback_config,
-        extensions=support_extensions(),
+        extensions=engine_extensions,
     )
     from types import MappingProxyType
     agent.product_environment = MappingProxyType(environment)
@@ -1554,8 +1552,12 @@ class AgentServer:
         self._stop_event: asyncio.Event | None = None
 
     @classmethod
-    def from_config(cls, config: dict, only_channels: list[str] | None = None) -> AgentServer:
-        agent = _build_agent(config)
+    def from_config(
+        cls, config: dict, only_channels: list[str] | None = None,
+        *, engine_extensions=None,
+    ) -> AgentServer:
+        """Assemble the server; domain extensions require explicit host injection."""
+        agent = _build_agent(config, engine_extensions=engine_extensions)
         server = cls(agent=agent, config=config)
         memory_cfg = config.get("memory", {}) or {}
         # The runtime and the gateway must expose the same vault.  Most agents
