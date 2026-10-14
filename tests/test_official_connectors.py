@@ -34,7 +34,8 @@ class Runner:
                 self.after_catalog()
             return [{"id": "replio", "name": "Replio", "auth": "token", "available": True, "provider": "replio", "capability": "outreach"},
                     {"id": "billingbear", "name": "BillingBear", "auth": "token", "available": True, "provider": "billingbear", "capability": "commerce"},
-                    {"id": "clickup", "name": "ClickUp", "auth": "oauth", "available": True, "provider": "clickup", "capability": "files"}]
+                    {"id": "clickup", "name": "ClickUp", "auth": "oauth", "available": True, "provider": "clickup", "capability": "files"},
+                    {"id": "shopify", "name": "Shopify", "auth": "oauth", "available": True, "provider": "shopify", "capability": "commerce"}]
         if method == "auth.start":
             return {"id": "t" * 43, "expires_at": "2099-01-01T00:00:00Z", "authorization_url": "https://auth.openagent.uno/authorize/" + "t" * 43}
         if method == "auth.poll":
@@ -126,6 +127,57 @@ async def test_authorization_revoked_during_exchange_prevents_token_persistence(
     with pytest.raises(PermissionError):
         await service.poll(context, setup["connection"]["id"])
     assert (await service.record(setup["connection"]["id"]))["credential"] is None
+
+
+@pytest.mark.parametrize('shop', ['', 'https://store.myshopify.com', 'Store.myshopify.com',
+    '-store.myshopify.com', 'store-.myshopify.com', 'store_name.myshopify.com',
+    'a' * 64 + '.myshopify.com', 'store.myshopify.com.attacker.example', None])
+def test_shopify_store_rejects_noncanonical_domains(shop):
+    with pytest.raises(ValueError):
+        OfficialConnectors.validate_config({'provider': 'shopify', 'auth': 'oauth'}, {'shop': shop})
+
+
+@pytest.mark.asyncio
+async def test_shopify_start_is_store_bound_and_enrollment_gate_remains_closed(fixture):
+    service, context, runner, _ = fixture
+    payload = {'catalog_id': 'shopify', 'config': {'shop': 'qa-store.myshopify.com'}}
+    with pytest.raises(PermissionError):
+        await service.create(context, payload)
+    assert not any(method == 'auth.start' for method, _ in runner.calls)
+    # Exercise the request contract behind the independent rollout gate,
+    # without enabling a real provider or changing the production gate.
+    service.authorization_available = lambda provider: provider == 'shopify'
+    setup = await service.create(context, payload)
+    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com'}) in runner.calls
+    row = await service.record(setup['connection']['id'])
+    assert json.loads(row['config']) == payload['config']
+    with pytest.raises(PermissionError, match='another store'):
+        await service.save(row, {'access_token': 'fixture', 'app_id': 'fixture-app',
+                                'external_id': 'other-store.myshopify.com'}, authorization_transaction=row['transaction_id'])
+    assert (await service.record(row['id']))['credential'] is None
+
+
+@pytest.mark.asyncio
+async def test_shopify_reconnect_uses_verified_legacy_store_or_rejects_before_auth_io(fixture):
+    service, context, runner, _ = fixture
+    service.authorization_available = lambda provider: provider == 'shopify'
+    setup = await service.create(context, {'catalog_id': 'shopify', 'config': {'shop': 'qa-store.myshopify.com'}})
+    row = await service.record(setup['connection']['id'])
+    await service.save(row, {'access_token': 'fixture', 'app_id': 'fixture-app',
+                            'external_id': 'qa-store.myshopify.com'}, authorization_transaction=row['transaction_id'])
+    async with aiosqlite.connect(service.db_path) as db:
+        await db.execute("UPDATE official_connector_connections SET config='{}' WHERE id=?", (row['id'],))
+        await db.commit()
+    runner.calls.clear()
+    await service.connect(context, row['id'])
+    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com'}) in runner.calls
+    async with aiosqlite.connect(service.db_path) as db:
+        await db.execute("UPDATE official_connector_connections SET credential=NULL,nonce=NULL WHERE id=?", (row['id'],))
+        await db.commit()
+    runner.calls.clear()
+    with pytest.raises(ValueError, match='store is required'):
+        await service.connect(context, row['id'])
+    assert runner.calls == [('catalog', None)]
 
 
 @pytest.mark.asyncio

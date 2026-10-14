@@ -75,6 +75,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     setBusy(true); setError(''); setNotice('');
     try {
       const config: Record<string, string | number> = {};
+      if (selected.id === 'shopify') config.shop = account.trim().toLowerCase();
       if (selected.id === 'replio') config.organization_id = account.trim();
       if (selected.id === 'billingbear') config.project_id = account.trim();
       if (selected.id === 'pipeboard') config.ads_provider = account || 'meta_ads';
@@ -136,6 +137,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
       <Text style={styles.name}>Connect {selected.name}</Text>
       {selected.auth === 'token' && <TextInput accessibilityLabel={`${selected.name} API token`} placeholder="API token" secureTextEntry value={token} onChangeText={setToken} style={styles.input} autoCapitalize="none" />}
       {['replio', 'billingbear', 'pipeboard'].includes(selected.id) && <TextInput accessibilityLabel="Account identifier" placeholder={selected.id === 'replio' ? 'Organization ID' : selected.id === 'billingbear' ? 'Project ID' : 'Ads provider: meta_ads or google_ads'} value={account} onChangeText={setAccount} style={styles.input} autoCapitalize="none" />}
+      {selected.id === 'shopify' && <TextInput accessibilityLabel="Shopify store" placeholder="your-store.myshopify.com" value={account} onChangeText={setAccount} style={styles.input} autoCapitalize="none" autoCorrect={false} />}
       {selected.auth === 'credentials' && <>
         {['imap_host', 'smtp_host', 'username', 'password', 'smtp_password', 'smtp_from', 'mailbox'].map(field => <TextInput key={field} accessibilityLabel={field.replaceAll('_', ' ')} placeholder={field.replaceAll('_', ' ')} secureTextEntry={field.includes('password')} value={mail[field] || ''} onChangeText={value => setMail(previous => ({ ...previous, [field]: value }))} style={styles.input} autoCapitalize="none" />)}
         <View style={styles.row}><Text style={styles.label}>Use STARTTLS for IMAP (port 143)</Text><Switch accessibilityLabel="Use STARTTLS for IMAP" value={mail.imap_tls === 'starttls'} onValueChange={enabled => setMail(previous => ({ ...previous, imap_tls: enabled ? 'starttls' : 'implicit_tls' }))} /></View>

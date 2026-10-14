@@ -34,6 +34,13 @@ central provider or bypass product policy. Standalone Shopify is independently
 blocked until the local privacy processor is qualified. An empty OAuth list
 does not disable token/account connectors that are configured locally.
 
+The candidate Shopify setup asks for the canonical store domain, for example
+`your-store.myshopify.com`, in the App or CLI. The authenticated create request
+stores it as `config.shop` and passes it to the broker before consent. Reconnect
+reuses that store, or the verified store in an older locally held credential;
+it cannot silently select another store. This input does not enable enrollment
+or bypass the independent Shopify privacy and provider qualification gates.
+
 The server stores its signing/encryption identity in `connectors-identity.json`
 and its credential encryption key in `connector-credential-key`, alongside its
 configured database. Protect this host-owned directory; it must not be an
