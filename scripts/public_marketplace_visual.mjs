@@ -24,9 +24,10 @@ try {
     env: process.env, timeout: 60000 });
   let page = await app.firstWindow();
   await page.setViewportSize({ width: 1440, height: 1040 });
-  await markPhase('open-ordinary-join-form');
+  await markPhase('wait-for-ordinary-join-form');
   const ticket = page.getByPlaceholder('oa1abcdef… (from `openagent invite`)');
-  if (!await ticket.isVisible()) await page.getByRole('button', { name: 'Add an agent', exact: true }).click();
+  // A fresh ordinary profile automatically opens this form after storage loads.
+  await expect(ticket).toBeVisible({ timeout: 30000 });
   await markPhase('fill-invite-ticket'); await ticket.fill(invitation.ticket);
   await markPhase('fill-join-handle');
   await page.getByPlaceholder('alice').fill(invitation.handle);
@@ -101,10 +102,19 @@ try {
   receipt = { status: 'failed', phase, reason: 'actual-ui-contract-failed' };
 } finally {
   try {
-    if (app) await app.close();
-    assert(!app || app.process().exitCode !== null);
+    if (app) {
+      const child = app.process();
+      await app.close();
+      await expect.poll(() => child.exitCode !== null || child.signalCode !== null, { timeout: 10000 }).toBe(true);
+      receipt.clientExitCode = Number.isInteger(child.exitCode) ? child.exitCode : null;
+      receipt.clientExitSignal = ['SIGINT', 'SIGTERM', 'SIGKILL'].includes(child.signalCode) ? child.signalCode : null;
+    }
     receipt.clientCleanupConfirmed = true;
-  } catch { receipt = { status: 'failed', phase: 'owned-client-cleanup', reason: 'client-cleanup-failed' }; }
+  } catch {
+    if (receipt.status === 'passed') receipt = { status: 'failed', phase: 'owned-client-cleanup', reason: 'client-cleanup-failed' };
+    receipt.clientCleanupConfirmed = false;
+    receipt.clientCleanupReason = 'client-cleanup-failed';
+  }
 }
 await writeFile(path.join(evidence, 'ui-receipt.json'), JSON.stringify(receipt, null, 2) + '\n', { mode: 0o600 });
 if (receipt.status !== 'passed') process.exit(1);
