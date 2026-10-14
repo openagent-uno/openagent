@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -77,10 +78,11 @@ def main():
     require(os.environ.get('GITHUB_ACTIONS') == 'true' and sys.platform == 'linux')
     source = os.environ.get('QUALIFIER_SOURCE', '')
     require(re.fullmatch('[0-9a-f]{40}', source) and source == os.environ.get('GITHUB_SHA'))
-    temporary = Path(os.environ['RUNNER_TEMP']).resolve()
+    runner_temporary = Path(os.environ['RUNNER_TEMP']).resolve()
+    temporary = Path(tempfile.gettempdir()).resolve()
     root = temporary / ('marketplace-public-qa-' + os.environ['GITHUB_RUN_ID'])
     evidence = args.evidence.resolve()
-    require(not root.exists() and root.parent == temporary and evidence.parent == temporary)
+    require(not root.exists() and root.parent == temporary and evidence.parent == runner_temporary)
     root.mkdir(mode=0o700); evidence.mkdir(mode=0o700, exist_ok=False)
     ownership = (root.stat().st_dev, root.stat().st_ino)
     receipt = {'status': 'started', 'qualifierSource': source, 'appSource': APP_SOURCE,
@@ -109,7 +111,8 @@ def main():
         home = root / 'home'; home.mkdir(mode=0o700)
         environment.update(HOME=str(home), USERPROFILE=str(home), XDG_CONFIG_HOME=str(home / '.config'),
                            XDG_CACHE_HOME=str(home / '.cache'), OPENAGENT_INSTALL_ROOT=str(root / 'server'),
-                           PYTHONUNBUFFERED='1', OPENAGENT_IROH_DISCOVERY='none')
+                           PYTHONUNBUFFERED='1', OPENAGENT_IROH_DISCOVERY='none', TMPDIR=str(temporary))
+        receipt['ownedProfileUnderOSTempRoot'] = True
         receipt['phase'] = 'install-public-server'; save()
         run(['sh', str(root / 'install.sh'), '--server', '--prefix', str(root / 'bin')], root, environment)
         python = root / 'server/venv/bin/python'
@@ -119,14 +122,17 @@ def main():
         require(versions == {'openagent-framework': '1.1.0b39', 'openagent-core': '1.1.0b22',
                              'openagent-connectors': '0.1.3', 'openagent-host-tools': '1.0.0b6'})
         receipt['installedVersions'] = versions
+        receipt['phase'] = 'extract-public-deb'; save()
         payload = root / 'app'; payload.mkdir()
         run(['dpkg-deb', '--extract', str(root / DEB), str(payload)], root, environment)
+        receipt['phase'] = 'verify-public-payload-layout'; save()
         executables = [p for p in payload.rglob('openagent-desktop') if p.is_file() and not p.is_symlink() and os.access(p, os.X_OK)]
         require(len(executables) == 1)
         executable = executables[0]
         require((executable.parent / 'resources/app.asar').is_file()
                 and (executable.parent / 'resources/web-build/index.html').is_file())
         profile = root / 'app-profile'; profile.mkdir(mode=0o700)
+        receipt['phase'] = 'launch-public-packaged-smoke'; save()
         run([str(executable), '--no-sandbox', '--local-e2e', '--e2e-user-data-dir=' + str(profile),
              '--packaged-smoke', '--expected-version=1.1.0-beta.17'], root, environment, timeout=60)
         receipt['phase'] = 'normal-server-bootstrap'; save()
@@ -165,7 +171,8 @@ def main():
     finally:
         try:
             stop_owned_server(server)
-            require(root.is_dir() and not root.is_symlink() and (root.stat().st_dev, root.stat().st_ino) == ownership)
+            require(root.is_dir() and not root.is_symlink() and root.stat().st_uid == os.getuid()
+                    and (root.stat().st_dev, root.stat().st_ino) == ownership)
             shutil.rmtree(root)
             require(not root.exists())
             receipt['ownedStagingCleanupConfirmed'] = True
