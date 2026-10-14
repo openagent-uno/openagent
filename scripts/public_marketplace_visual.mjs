@@ -32,13 +32,14 @@ try {
   await markPhase('fill-join-handle');
   await page.getByPlaceholder('alice').fill(invitation.handle);
   await markPhase('fill-join-password');
-  await page.locator('input[type="password"]').fill(invitation.password);
+  const password = page.locator('input[type="password"]');
+  await password.fill(invitation.password);
   await markPhase('keep-remembered-password-disabled');
   for (const toggle of await page.getByRole('switch').all()) {
     if (await toggle.getAttribute('aria-checked') === 'true') await toggle.click();
   }
   await markPhase('submit-ordinary-join');
-  await page.getByRole('button', { name: 'Join network', exact: true }).click();
+  await password.press('Enter');
   invitation.ticket = ''; invitation.password = '';
   await markPhase('wait-for-connected-agent-window');
   await expect.poll(async () => {
