@@ -306,7 +306,9 @@ class OfficialConnectors:
         # Host setup accepts only reviewed public connection fields. Unknown or
         # nested metadata must never become an accidental plaintext secret store.
         provider = item["provider"]
-        if item["auth"] == "oauth":
+        if provider == "shopify":
+            valid = set(config) == {"shop"} and OfficialConnectors.valid_shop(config["shop"])
+        elif item["auth"] == "oauth":
             valid = not config
         elif provider == "replio":
             valid = set(config) == {"organization_id"} and isinstance(config["organization_id"], str) and bool(re.fullmatch(r"[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}", config["organization_id"]))
@@ -337,6 +339,11 @@ class OfficialConnectors:
         if not valid:
             raise ValueError("Invalid public connector configuration")
 
+    @staticmethod
+    def valid_shop(shop):
+        return isinstance(shop, str) and bool(re.fullmatch(
+            r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.myshopify\.com", shop))
+
     async def connect(self, context, connection_id):
         row = await self.owned(context, connection_id)
         item = next(item for item in await self.runner.call("catalog") if item["id"] == row["catalog_id"])
@@ -344,8 +351,18 @@ class OfficialConnectors:
             raise ValueError("Connector does not use OAuth")
         if not self.authorization_available(item["provider"]):
             raise PermissionError("Connector authorization is not enabled")
+        start = {"provider": item["provider"]}
+        if item["provider"] == "shopify":
+            config = json.loads(row["config"])
+            # Historical connections can reuse only their locally verified
+            # shop binding; reconnect never asks for an arbitrary new shop.
+            previous = self.decrypt(row) if not config and row.get("credential") else {}
+            shop = config.get("shop") if config else previous.get("external_id")
+            if not self.valid_shop(shop):
+                raise ValueError("A valid Shopify store is required")
+            start["shop"] = shop
         await self.runner.call("auth.register")
-        transaction = await self.runner.call("auth.start", {"provider": item["provider"]})
+        transaction = await self.runner.call("auth.start", start)
         await self.check(context, write=True)
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute("UPDATE official_connector_connections SET transaction_id=?,expires_at=? WHERE id=? AND owner_key=? AND status!='disconnected'",
@@ -409,6 +426,10 @@ class OfficialConnectors:
         return old.tzinfo is not None and new.tzinfo is not None and old == new
 
     async def save(self, row, token, *, authorization_transaction=None, renewal=False):
+        if row["provider"] == "shopify":
+            shop = json.loads(row["config"]).get("shop")
+            if shop is not None and token.get("external_id") != shop:
+                raise PermissionError("Shopify consent belongs to another store")
         if renewal and (authorization_transaction is not None or not self.same_consent(row, token)):
             raise PermissionError("Renewal changed the connector consent or permissions")
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()

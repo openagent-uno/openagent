@@ -1,0 +1,67 @@
+name: Shopify consent shop source qualification
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/shopify-consent-shop.yml
+      - apps/server/src/openagent_server/official_connectors.py
+      - apps/cli/src/openagent_cli/connectors.py
+      - apps/app/universal/components/mcps/OfficialConnectorsPane.tsx
+      - tests/test_official_connectors.py
+      - tests/test_cli_connector_shop.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shopify-consent-shop-source
+  cancel-in-progress: false
+
+jobs:
+  source-unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      OPENBLAS_NUM_THREADS: 1
+      OMP_NUM_THREADS: 1
+      UV_CONCURRENT_BUILDS: 1
+      PIP_DISABLE_PIP_VERSION_CHECK: 1
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Install normal public dependencies for isolated source tests
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error https://openagent.uno/install.sh -o "$RUNNER_TEMP/install.sh"
+          echo "ccc9e983d9df31e393fdfeaccbb37ea61977cc9fb7a7bb61953e96115527fac9  $RUNNER_TEMP/install.sh" | sha256sum --check
+          OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/server" nice -n 10 sh "$RUNNER_TEMP/install.sh" --server --prefix "$RUNNER_TEMP/bin"
+          "$RUNNER_TEMP/server/venv/bin/python" -I -m pip check
+          "$RUNNER_TEMP/server/venv/bin/python" -I -m pip install pytest pytest-asyncio
+      - name: Qualify candidate server and CLI source, without activation or provider IO
+        run: |
+          PYTHONPATH="$GITHUB_WORKSPACE/apps/server/src:$GITHUB_WORKSPACE/apps/cli/src" \
+            nice -n 10 "$RUNNER_TEMP/server/venv/bin/python" -m pytest --asyncio-mode=auto -q \
+              tests/test_official_connectors.py tests/test_cli_connector_shop.py
+      - name: Check only the modified TSX syntax using the existing TypeScript version
+        run: |
+          npm install --prefix "$RUNNER_TEMP/tsx-parser" --ignore-scripts --no-audit --no-fund typescript@5.9.3
+          NODE_PATH="$RUNNER_TEMP/tsx-parser/node_modules" node - <<'JS'
+          const fs = require('node:fs');
+          const ts = require('typescript');
+          const file = 'apps/app/universal/components/mcps/OfficialConnectorsPane.tsx';
+          const result = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+            fileName: file, reportDiagnostics: true,
+            compilerOptions: { jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 },
+          });
+          if (result.diagnostics?.some(item => item.category === ts.DiagnosticCategory.Error)) process.exit(1);
+          console.log('Modified TSX syntax passed; no renderer build or UI acceptance claimed');
+          JS
