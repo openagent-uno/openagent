@@ -1,0 +1,97 @@
+name: Public App17 Server39 marketplace visual
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/public-marketplace-visual.yml
+      - scripts/qualify_public_marketplace_visual.py
+      - scripts/public_marketplace_visual.mjs
+      - scripts/tests/test_public_marketplace_visual.py
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed qualifier commit (must match this workflow ref)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-app17-server39-marketplace-visual
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  OPENBLAS_NUM_THREADS: 1
+  OMP_NUM_THREADS: 1
+  UV_CONCURRENT_BUILDS: 1
+  CARGO_BUILD_JOBS: 1
+  GOMAXPROCS: 1
+  NODE_OPTIONS: --max-old-space-size=768
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+
+jobs:
+  source-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Finite source safety fixtures only (no package, account or screenshot execution)
+        run: |
+          python -m unittest discover -s scripts/tests -p test_public_marketplace_visual.py -v
+          node --check scripts/public_marketplace_visual.mjs
+  actual-public-packages:
+    if: github.event_name == 'workflow_dispatch'
+    needs: source-contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Require the reviewed source before checkout
+        env:
+          EXPECTED: ${{ inputs.source_sha }}
+          ACTUAL: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED" =~ ^[0-9a-f]{40}$ ]]
+          test "$EXPECTED" = "$ACTUAL"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Install only the screenshot driver and existing Linux launch dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends xvfb libgtk-3-0 libnss3 libasound2t64 libxss1 libgbm1
+          npm install --prefix "$RUNNER_TEMP/marketplace-driver" --ignore-scripts --no-audit --no-fund @playwright/test@1.62.1
+      - name: Qualify the existing public packages through ordinary UI enrollment
+        env:
+          QUALIFIER_SOURCE: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          unset GH_TOKEN GITHUB_TOKEN PYTHONPATH OPENAGENT_DESKTOP_E2E OPENAGENT_DESKTOP_E2E_LOOPBACK OPENAGENT_DESKTOP_E2E_RENDERER_URL
+          xvfb-run -a nice -n 10 python scripts/qualify_public_marketplace_visual.py \
+            --driver-root "$RUNNER_TEMP/marketplace-driver" \
+            --evidence "$RUNNER_TEMP/marketplace-visual-evidence"
+      - name: Preserve only authenticated marketplace screenshots and sanitized metadata
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: public-app17-server39-marketplace-${{ github.run_id }}
+          path: ${{ runner.temp }}/marketplace-visual-evidence/
+          if-no-files-found: error
+          retention-days: 3
