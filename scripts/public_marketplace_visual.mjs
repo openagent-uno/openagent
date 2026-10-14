@@ -1,0 +1,91 @@
+// Actual published Electron UI only: no route fixtures, token injection or model.
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
+const [executable, profile, driverRoot, evidence] = process.argv.slice(2);
+const require = createRequire(path.join(driverRoot, 'package.json'));
+const { _electron: electron, expect } = require('@playwright/test');
+let input = '';
+for await (const block of process.stdin) { input += block; assert(input.length < 20000); }
+const invitation = JSON.parse(input); input = '';
+let app;
+let phase = 'launch-public-package';
+let receipt;
+try {
+  app = await electron.launch({ executablePath: executable,
+    args: ['--no-sandbox', '--local-e2e', `--e2e-user-data-dir=${profile}`],
+    env: process.env, timeout: 60000 });
+  let page = await app.firstWindow();
+  await page.setViewportSize({ width: 1440, height: 1040 });
+  phase = 'ordinary-ui-join';
+  const ticket = page.getByPlaceholder('oa1abcdef… (from `openagent invite`)');
+  if (!await ticket.isVisible()) await page.getByRole('button', { name: 'Add an agent', exact: true }).click();
+  await ticket.fill(invitation.ticket);
+  await page.getByPlaceholder('alice').fill(invitation.handle);
+  await page.locator('input[type="password"]').fill(invitation.password);
+  for (const toggle of await page.getByRole('switch').all()) {
+    if (await toggle.getAttribute('aria-checked') === 'true') await toggle.click();
+  }
+  await page.getByRole('button', { name: 'Join network', exact: true }).click();
+  invitation.ticket = ''; invitation.password = '';
+  await expect.poll(async () => {
+    for (const window of app.windows()) {
+      if (await window.getByText('Connectors', { exact: true }).first().isVisible()) { page = window; return true; }
+    }
+    return false;
+  }, { timeout: 60000 }).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 1040 });
+  phase = 'actual-authenticated-marketplace';
+  const rendererOrigin = new URL(page.url()).origin;
+  const responses = new Map();
+  page.on('response', async response => {
+    const url = new URL(response.url());
+    if (!['/api/marketplace/official', '/api/connectors', '/api/marketplace/search'].includes(url.pathname)) return;
+    try {
+      assert.equal(url.hostname, '127.0.0.1'); assert.notEqual(url.origin, rendererOrigin);
+      const body = response.status() === 200 ? await response.json() : null;
+      responses.set(url.pathname, { status: response.status(), body });
+    } catch { responses.set(url.pathname, { status: 0, body: null }); }
+  });
+  await page.getByText('Connectors', { exact: true }).first().click();
+  await expect(page.getByPlaceholder('Search marketplace')).toBeVisible({ timeout: 30000 });
+  await expect.poll(() => responses.has('/api/marketplace/search'), { timeout: 30000 }).toBe(true);
+  if (responses.get('/api/marketplace/search').status !== 200) {
+    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+  }
+  await expect.poll(() => responses.get('/api/marketplace/official')?.status, { timeout: 30000 }).toBe(200);
+  await expect.poll(() => responses.get('/api/connectors')?.status, { timeout: 30000 }).toBe(200);
+  await expect.poll(() => responses.get('/api/marketplace/search')?.status, { timeout: 30000 }).toBe(200);
+  const official = responses.get('/api/marketplace/official').body.connectors;
+  const registry = responses.get('/api/marketplace/search').body.servers;
+  assert.equal(official.length, 12); assert(registry.length > 0);
+  assert.equal(responses.get('/api/connectors').body.connections.length, 0);
+  for (const item of official) await expect(page.getByText(item.name, { exact: true }).first()).toHaveCount(1);
+  await expect(page.getByText('Some marketplace results could not load.', { exact: true })).toHaveCount(0);
+  await expect(page.locator('input[type="password"]')).toHaveCount(0);
+  await expect(page.getByPlaceholder('oa1abcdef… (from `openagent invite`)')).toHaveCount(0);
+  // Capture only after ordinary authentication and live catalog responses.
+  await page.screenshot({ path: path.join(evidence, 'app17-server39-marketplace-top.png') });
+  await page.mouse.wheel(0, 850); await page.waitForTimeout(500);
+  await page.screenshot({ path: path.join(evidence, 'app17-server39-marketplace-scroll.png') });
+  receipt = { status: 'passed', appVersion: '1.1.0-beta.17', serverVersion: '1.1.0b39',
+    officialCount: official.length, officialIds: official.map(item => item.id).sort(), registryCount: registry.length,
+    transport: 'ordinary UI join/SRP/device certificate/native Iroh proxy',
+    backendMocked: false, modelInvoked: false, cookieOrTokenExported: false,
+    profilePolicy: 'packaged --local-e2e isolates temp profile/updater only; authentication unchanged',
+    apiStatus: Object.fromEntries([...responses].map(([key, value]) => [key, value.status])),
+    guiScope: 'real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance' };
+} catch {
+  receipt = { status: 'failed', phase, reason: 'actual-ui-contract-failed' };
+} finally {
+  try {
+    if (app) await app.close();
+    assert(!app || app.process().exitCode !== null);
+    receipt.clientCleanupConfirmed = true;
+  } catch { receipt = { status: 'failed', phase: 'owned-client-cleanup', reason: 'client-cleanup-failed' }; }
+}
+await writeFile(path.join(evidence, 'ui-receipt.json'), JSON.stringify(receipt, null, 2) + '\n', { mode: 0o600 });
+if (receipt.status !== 'passed') process.exit(1);
+console.log(JSON.stringify(receipt));
