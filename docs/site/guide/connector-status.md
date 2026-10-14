@@ -88,7 +88,11 @@ its production privacy processing.
   The actual callback path still needs a real round-trip test. A disposable
   standalone server has started a recipient-bound transaction through its
   authenticated product API. Auth-only 0.1.5 is published and deployed, but
-  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. A read-only
+  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. On 14 October,
+  even the public health page was blocked in Chrome and the integrated browser,
+  while direct HTTPS returned healthy QA-only service metadata. A temporary,
+  domain-only AdBlock pause did not resolve the block; AdBlock was restored.
+  No grant was started in the integrated browser. A read-only
   check showed the initial disclosure form and a pending transaction: approval
   was not recorded, and no provider grant or token exchange occurred. This verified
   fail-closed behavior, not a successful OAuth round trip. The disposable
@@ -152,6 +156,13 @@ encrypted dummy-token persistence, restart and local removal. These development
 checks do not establish real OAuth access, signed native host releases or final
 same-source package qualification. Every receiving host retains its own release
 and data-processing responsibilities.
+
+A bounded outage regression against the published server beta 39 dependency
+closure passed on Linux. With a simulated unavailable broker, a still-valid
+near-expiry token continued to serve a read without changing saved credentials;
+new consent failed, local privacy processing continued, and blocked encrypted
+receipts were retained without delivery ACK. Provider and broker responses were
+fixtures: this does not establish a real consent, renewal or provider operation.
 
 Nineteen focused standalone storage/authorization checks also passed with the
 verified 0.1.1 adapter after adding recovery guards. Missing-key credential and
