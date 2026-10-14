@@ -5,8 +5,8 @@ As of 14 October 2026, App beta 17, server/CLI beta 39, Core beta 22,
 Host Tools B6 and shared library/runner 0.1.3 are published.
 Auth-only 0.1.5 is separately deployed. Beta 39 pins connector 0.1.3 and B6;
 an existing beta 38 installation still pins runner 0.1.2 until explicitly
-updated. The recorded visual baseline still uses App beta 16/server beta 38. Publishing a component does not
-update an installed product.
+updated. The released App beta 17/server beta 39 marketplace has been visually
+verified on Linux x64. Publishing a component does not update an installed product.
 Common OAuth enrollment remains closed
 to the public; ClickUp qualification is limited to allowlisted QA servers.
 Shopify remains disabled; Google verification and real provider qualification
@@ -46,7 +46,7 @@ Custom MCP servers remain available alongside official connectors. Embedding pro
 ## Connect and disconnect
 
 In App beta 17 connected to server beta 39, or a receiving product with the
-shared catalog enabled (the screenshots below remain the earlier App beta 16/server beta 38 baseline):
+shared catalog enabled:
 
 1. Select the receiving server and authenticated user first. In the App, open
    **Connectors → Browse**; the same search/grid contains provider integrations
@@ -66,11 +66,16 @@ be broader; a local read-only choice does not rewrite the provider's grant.
 A token connection being saved as Connected does not prove a successful
 provider API call; verify access with an appropriate authorized operation.
 
-![Previous App beta 16 visual baseline: provider integration and registry MCPs share one grid](/connectors/marketplace-preview.png)
+![Released App beta 17 with server beta 39: BillingBear shares the marketplace grid with registry MCPs](/connectors/app17-server39-marketplace-top.png)
 
-This retained screenshot is the earlier App beta 16/server beta 38 visual baseline,
-not a new App beta 17 interactive check. Gmail OAuth was deliberately unavailable on that server;
-the image demonstrates layout/search, not a completed provider consent.
+![Released App beta 17 with server beta 39: ClickUp, Gmail and Google Analytics use the same cards alongside registry MCPs](/connectors/app17-server39-marketplace-scroll.png)
+
+These actual Linux x64 screenshots show the released App beta 17 connected to
+server beta 39 through normal authenticated Iroh membership. The marketplace
+loaded 12 official entries and 30 real registry results in one grid. OAuth was
+unavailable on this disposable server; the images demonstrate the presentation,
+not provider consent or API access. See the
+[qualification scope](./connector-status.md#what-the-tests-establish).
 Embedding hosts display these integrations in their **MCP marketplace**
 alongside custom MCP endpoints. OAuth disclosure identifies the product and
 the particular receiving installation. Third-party products may use the shared
