@@ -16,14 +16,14 @@ installed client already includes the candidate UI.
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
 | Standalone App | Published `1.1.0-beta.17` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 39 | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
-| Common authentication service | Auth-only `0.1.5` published and deployed from source `a5f81d65a0d7939473b30759276fa719272fda4a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
-| Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | Finish the real consent round trip and activation gates before public enrollment |
+| Common authentication service | Auth-only `0.1.6` published and deployed from source `d61f23e33352c74a6dc6c5b3948b67c0f625cd6a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
+| Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | ClickUp real consent, read, reversible write, restart and disconnect passed; remaining activation gates apply before public enrollment |
 
 Host products qualify their own deployments and client distributions. Their
 version pins, release receipts and private deployment inventories remain with
 those operators; they are not part of the standalone product's release proof.
-Common OAuth remains closed to the public, and actual ClickUp browser consent
-is still blocked as described below.
+Common OAuth remains closed to the public. ClickUp now has a successful real
+browser consent and installed-product trial, as recorded below.
 
 The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
 is distinct from [standalone product downloads](../downloads.md).
@@ -71,7 +71,7 @@ are recorded separately. Assembly reused the qualified signatures; the four
 other native archives and Python wheel stayed byte-identical. No provider grant
 or user-profile acceptance is inferred from publication.
 
-[Auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
+[Auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
 is a separate deployment release. It does not replace connector module/runner
 versions in already installed products or activate public enrollment. Publishing
 Core beta 22 and server/CLI beta 39 does not migrate a receiving host or attest
@@ -83,21 +83,21 @@ its production privacy processing.
   connector scope set are prepared. Gmail, Drive, Analytics Data and Analytics
   Admin APIs were individually enabled and verified. The app remains in Testing;
   applicable verification and security assessment are not complete.
-- **ClickUp:** the existing provider registration is reused. Its old redirect
-  was removed at the operator's request; ClickUp saved the common auth origin.
-  The actual callback path still needs a real round-trip test. A disposable
-  standalone server has started a recipient-bound transaction through its
-  authenticated product API. Auth-only 0.1.5 is published and deployed, but
-  the real Chrome consent POST still returns `ERR_BLOCKED_BY_CLIENT`. On 14 October,
-  even the public health page was blocked in Chrome and the integrated browser,
-  while direct HTTPS returned healthy QA-only service metadata. A temporary,
-  domain-only AdBlock pause did not resolve the block; AdBlock was restored.
-  No grant was started in the integrated browser. A read-only
-  check showed the initial disclosure form and a pending transaction: approval
-  was not recorded, and no provider grant or token exchange occurred. This verified
-  fail-closed behavior, not a successful OAuth round trip. The disposable
-  product connection is disconnected and disabled; public enrollment remains
-  closed. Existing tokens were not revoked by this configuration change.
+- **ClickUp:** the existing provider registration and credentials are reused.
+  Its common callback completed a real browser round trip on 14 October with
+  auth service 0.1.6. The disclosure response now preserves the browser's
+  same-origin form `Origin`; provider navigation still uses `no-referrer`, and
+  missing, null and incorrect origins remain rejected. No browser protection
+  was disabled for this successful trial. The ordinary public server/CLI beta
+  39 installed with Core beta 22, connector SDK/runner 0.1.3 and Host Tools B6
+  received the result through its authenticated API and saved credentials
+  locally encrypted. Authorized workflow capability calls read the selected
+  workspace, created and deleted only a uniquely marked QA task, and read again
+  after a full server restart. Local disconnect disabled the connection and
+  the temporary server was stopped. No model was used. ClickUp access tokens
+  do not expire, so refresh is not applicable to this provider. This proves
+  that installed-product path; native App interaction, other receiving hosts
+  and public enrollment are separate acceptance boundaries.
 - **Shopify:** the original provider registration is retained, renamed
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
