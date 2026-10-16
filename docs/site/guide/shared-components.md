@@ -10,6 +10,12 @@ For the current qualification and remaining work, see
 [Connector release status](./connector-status.md). For end-user actions, see
 [Using connectors](./connectors.md).
 
+For composing applications over several accounts or sources, see
+[Composable applications](./application-composition.md). Shared provider
+adapters supply operations; application state, projections, interactive views
+and synchronization remain explicit host service contracts. A connector card
+or a successful OAuth connection does not establish those application features.
+
 ## What is shared
 
 | Component | Owner | Consuming products |

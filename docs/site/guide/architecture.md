@@ -187,6 +187,13 @@ standalone product ordinary configurations of the same runtime.
 
 ## Shared provider integrations
 
+The [application composition contract](./application-composition.md) extends
+these boundaries to persistent interactive applications over multiple accounts
+and sources. It defines requirements for typed components, source bindings,
+actions, state and synchronization, and records which foundations already
+exist. The reference applications are acceptance cases, not new built-in
+features or a claim that those application contracts are shipped.
+
 The [shared components guide](./shared-components.md) maps the versioned Go
 connector library, local runner, Python/MCP surfaces and optional OAuth broker.
 Go embedding hosts link the adapters directly; the standalone registers local

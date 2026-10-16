@@ -41,6 +41,14 @@ Dynamic MCP documentation never becomes an authoritative framework block.
 
 ## History and data
 
+Persistent interactive application composition follows the
+[multi-source architecture requirements](site/guide/application-composition.md).
+Application definitions, source bindings, typed views/actions, durable records
+and synchronization are separate extension contracts. Multiple accounts and
+providers must coexist without changing Core identity or capability dispatch.
+Calendar, task tracking and document editing are reference acceptance cases;
+this architecture decision does not add their domain features.
+
 Seven repositories have been imported with their complete ancestry and
 non-squash subtree merges. Original source repositories and worktrees were
 left unchanged. Legacy tags have component namespaces; exact source commits

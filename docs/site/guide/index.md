@@ -20,6 +20,7 @@ It's model-agnostic: Claude, GLM, Ollama, LM Studio, vLLM, or any OpenAI-compati
 - [MCP and capabilities](./mcp.md) — uniform tools, catalog modes and client sources
 - [Using connectors](./connectors.md) — unified marketplace, consent and local controls
 - [Shared components](./shared-components.md) — Core, Tools, runner, MCP surfaces and product boundaries
+- [Composable applications](./application-composition.md) — architecture requirements for multi-source data, interactive views, durable state and synchronization
 - [Gateway](./gateway.md) — WebSocket + REST surface over Iroh QUIC
 - [Channels](./channels.md) — Telegram, Discord, WhatsApp, Webhook
 - [Events](./events.md) — inbound webhook triggers for workflows, tasks, and chats

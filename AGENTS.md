@@ -3,6 +3,12 @@
 Start with `docs/README.md` and `docs/site/vision.md`. Keep documentation and
 component receipts updated with implementation changes.
 
+For UI, capability and data-service design, also read
+`docs/site/guide/application-composition.md`. Preserve multi-account/source
+composition, typed extensible views/actions and independent durable state/sync
+boundaries. Its reference applications are acceptance cases, not features to
+implement without a separate request.
+
 This repository assembles the standalone OpenAgent product. Reusable engine
 code belongs in the independently versioned `openagent-core` dependency;
 autonomous computer tools belong in `openagent-tools`. Never add a core fork,

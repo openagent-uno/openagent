@@ -1,5 +1,12 @@
 # App dashboard capabilities
 
+The [application composition architecture](site/guide/application-composition.md)
+defines the additional contracts required for persistent applications over
+multiple sources. Existing dashboard registration and Custom Views are reusable
+foundations; they do not yet establish generic renderer extensions, application
+records, conflict handling or provider synchronization. New application
+surfaces must preserve the originating-client and publication checks below.
+
 OpenAgent App explicitly registers its dashboard tools on its authenticated
 chat WebSocket using `app_capability_register`. The server acknowledges the
 registration with that exact socket's opaque `connection_id`. The registration

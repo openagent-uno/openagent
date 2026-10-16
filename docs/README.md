@@ -4,6 +4,7 @@
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)
 - [Shared tools, connectors and MCP architecture](site/guide/shared-components.md)
+- [Composable applications and multi-source architecture](site/guide/application-composition.md)
 - [Using connectors in the App and CLI](site/guide/connectors.md)
 - [Connector setup, embedding and recovery](site/guide/connector-operations.md)
 - [Connector delivery status and remaining qualification](site/guide/connector-status.md)
