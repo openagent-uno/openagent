@@ -12,6 +12,7 @@ import re
 import shutil
 import sys
 import uuid
+from urllib.parse import urlsplit
 
 import aiosqlite
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -73,6 +74,10 @@ class OfficialConnectorSource:
 
 
 class OfficialConnectors:
+    _binding_fields = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
+                       "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
+                       "credential", "nonce", "token_version", "transaction_id")
+
     def __init__(self, runtime, *, runner=None, privacy_processor=None):
         self.runtime, self.agent = runtime, runtime.agent
         self.privacy_processor = privacy_processor
@@ -440,9 +445,7 @@ class OfficialConnectors:
                 # Compare the credential and complete local binding atomically.
                 # Neither a new grant nor an ACL edit during authentication IO
                 # can be overwritten by this response.
-                keys = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
-                        "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
-                        "credential", "nonce", "token_version", "transaction_id")
+                keys = self._binding_fields
                 cursor = await db.execute(
                     "UPDATE official_connector_connections SET credential=?,nonce=?,token_version=? WHERE "
                     + " AND ".join(key + " IS ?" for key in keys)
@@ -538,7 +541,119 @@ class OfficialConnectors:
                 "scheme": "" if row["catalog_id"] in {"shopify", "imap_smtp", "postiz"} else "Bearer",
                 "version": str(token.get("version", 0)), "expires_at": token.get("expires_at")}
 
-    async def current_token(self, row, *, context=None):
+    @staticmethod
+    def require_refresh_credential(token):
+        if token.get("app_id") == "personal-token":
+            raise PermissionError("Only an OAuth connection can be renewed")
+        refresh = token.get("refresh_token")
+        if not isinstance(refresh, str) or not refresh:
+            raise ValueError("This connection has no refresh credential")
+
+    async def refresh(self, context, connection_id):
+        row = await self.owned(context, connection_id)
+        if not self.can_use(context, row):
+            raise PermissionError("Connector binding is unavailable")
+        self.require_refresh_credential(self.decrypt(row))
+        if not self.runner:
+            raise RuntimeError("Shared connector runner is not installed")
+        item = next((item for item in await self.runner.call("catalog")
+                     if item["id"] == row["catalog_id"]), None)
+        if not item or item["auth"] != "oauth" or item["provider"] != row["provider"]:
+            raise PermissionError("Only an OAuth connection can be renewed")
+        await self.current_token(row, context=context, force_refresh=True)
+        current = await self.owned(context, connection_id)
+        if not self.can_use(context, current) or self.source_snapshot(row) != self.source_snapshot(current):
+            raise PermissionError("Connector binding is unavailable")
+        return {"status": current["status"], "connection": self.public(current)}
+
+    @staticmethod
+    def valid_cloud_id(value):
+        return (isinstance(value, str) and value != "00000000-0000-0000-0000-000000000000"
+                and bool(re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", value)))
+
+    async def _atlassian_sites(self, context, connection_id):
+        row = await self.owned(context, connection_id)
+        if row["provider"] != "atlassian" or not self.can_use(context, row):
+            raise PermissionError("An active Atlassian connection is required")
+        source = self.sources.get(connection_id)
+        if source is None:
+            raise RuntimeError("Connector source is unavailable")
+        # The same registered source owns credential renewal, binding and audit.
+        # No site or URL is accepted as an argument to accessible-resources.
+        result = await source.call_tool("files.atlassian.resources.list", {}, context)
+        current = await self.owned(context, connection_id)
+        source.require_current_registration()
+        if not self.can_use(context, current) or self.source_snapshot(row) != self.source_snapshot(current):
+            raise PermissionError("Connector binding is unavailable")
+        if not isinstance(result, list) or len(result) > 1000:
+            raise RuntimeError("Provider returned invalid accessible resources")
+        required = {"read:jira-work"}
+        if current["allow_write"]:
+            required.add("write:jira-work")
+        if not required.issubset(self.decrypt(current).get("scopes", [])):
+            raise PermissionError("The connection has no required Jira scope")
+        sites, seen = [], set()
+        for resource in result:
+            if not isinstance(resource, dict):
+                raise RuntimeError("Provider returned invalid accessible resources")
+            scopes = resource.get("scopes")
+            if (not isinstance(scopes, list) or len(scopes) > 100
+                    or any(not isinstance(scope, str) or len(scope) > 200 for scope in scopes)):
+                raise RuntimeError("Provider returned invalid resource scopes")
+            if not required.issubset(scopes):
+                continue
+            cloud_id = resource.get("id")
+            if not self.valid_cloud_id(cloud_id) or cloud_id in seen:
+                raise RuntimeError("Provider returned ambiguous resource identity")
+            name, url = resource.get("name", ""), resource.get("url", "")
+            if any(not isinstance(value, str) or len(value) > 2048
+                   or any(ord(char) < 32 or ord(char) == 127 for char in value) for value in (name, url)):
+                raise RuntimeError("Provider returned invalid resource metadata")
+            if url:
+                try:
+                    parsed = urlsplit(url)
+                    valid_url = parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password
+                except ValueError:
+                    valid_url = False
+                if not valid_url:
+                    raise RuntimeError("Provider returned invalid resource metadata")
+            seen.add(cloud_id)
+            sites.append({"id": cloud_id, "name": name, "url": url, "scopes": sorted(set(scopes))})
+        return current, sites
+
+    async def sites(self, context, connection_id):
+        row, sites = await self._atlassian_sites(context, connection_id)
+        return {"sites": sites, "selected_cloud_id": json.loads(row["config"]).get("cloud_id")}
+
+    async def select_site(self, context, connection_id, payload):
+        if not isinstance(payload, dict) or set(payload) != {"cloud_id"} or not self.valid_cloud_id(payload["cloud_id"]):
+            raise ValueError("Select a canonical Atlassian site ID")
+        row, sites = await self._atlassian_sites(context, connection_id)
+        if payload["cloud_id"] not in {site["id"] for site in sites}:
+            raise PermissionError("This Jira site was not granted to the connection")
+        async with self.lock:
+            current = await self.owned(context, connection_id)
+            if not self.can_use(context, current) or self.source_snapshot(row) != self.source_snapshot(current):
+                raise PermissionError("Connector binding is unavailable")
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute(
+                    "UPDATE official_connector_connections SET config=? WHERE "
+                    + " AND ".join(key + " IS ?" for key in self._binding_fields)
+                    + " AND status='connected' AND enabled=1",
+                    (json.dumps({"cloud_id": payload["cloud_id"]}), *(row[key] for key in self._binding_fields)))
+                if cursor.rowcount != 1:
+                    raise PermissionError("Connector binding changed during site selection")
+                # Revoke old references before the new target becomes visible.
+                # A failed commit leaves access fenced, never on another site.
+                catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
+                if catalog:
+                    catalog.revoke(self.source_id(connection_id))
+                self.sources.pop(connection_id, None)
+                await db.commit()
+            await self.register_source(connection_id)
+        return {"ok": True, "cloud_id": payload["cloud_id"]}
+
+    async def current_token(self, row, *, context=None, force_refresh=False):
         async with self.lock:
             admitted = row
             row = await self.record(row["id"])
@@ -547,15 +662,28 @@ class OfficialConnectors:
             if context is not None and self.source_snapshot(admitted) != self.source_snapshot(row):
                 raise PermissionError("Connector consent or permissions changed before authentication")
             token = self.decrypt(row)
+            if force_refresh:
+                if context is None:
+                    raise PermissionError("Renewal requires the authenticated owner")
+                current = await self.owned(context, row["id"])
+                if not self.can_use(context, current) or self.source_snapshot(row) != self.source_snapshot(current):
+                    raise PermissionError("Connector binding is unavailable")
+                self.require_refresh_credential(token)
             expiry = token.get("expires_at")
-            if expiry and datetime.fromisoformat(expiry.replace("Z", "+00:00")).timestamp() < datetime.now(timezone.utc).timestamp() + 120:
+            if force_refresh or (expiry and datetime.fromisoformat(expiry.replace("Z", "+00:00")).timestamp() < datetime.now(timezone.utc).timestamp() + 120):
                 provider = self.binding(row, token)["connection"]["provider"]
                 try:
                     rotation = await self.runner.call("auth.refresh", {"provider": provider, "token": {k: v for k, v in token.items() if k not in {"group", "recipients"}}})
                 except RuntimeError:
-                    if datetime.fromisoformat(expiry.replace("Z", "+00:00")) > datetime.now(timezone.utc):
+                    if not force_refresh and datetime.fromisoformat(expiry.replace("Z", "+00:00")) > datetime.now(timezone.utc):
                         return token
                     raise
+                if force_refresh:
+                    # Authorization can be revoked while the broker is doing
+                    # IO; the storage CAS below also fences binding/grant edits.
+                    current = await self.owned(context, row["id"])
+                    if not self.can_use(context, current) or self.source_snapshot(row) != self.source_snapshot(current):
+                        raise PermissionError("Connector binding is unavailable")
                 token = rotation["token"]
                 token["group"] = rotation.get("group", "")
                 token["recipients"] = rotation.get("recipients", [])

@@ -1,0 +1,42 @@
+{
+  "status": "PASS",
+  "scope": "source-unit qualification; no real provider, native, GUI or release acceptance",
+  "product_python_tests_unique": 100,
+  "overlay_stdlib_tests": 7,
+  "component_test_groups": 6,
+  "catalog_items_exact": 15,
+  "catalog_includes_custom_mcp": true,
+  "pods_deleted": true,
+  "source_files": {
+    "apps/server/src/openagent_server/official_connectors.py": "5fee6284d6017f9050dc6611bc92c4d20789818f1e13e88d4f5e1181bfa77e94",
+    "apps/server/src/openagent_server/gateway/api/official_connectors.py": "c852fd0645a3b67ce382229bfad4a3accfc38efadfba706dcaaa3ecbe4500480",
+    "apps/server/src/openagent_server/gateway/server.py": "39f257acdcf328ad59261136fafd4dfb7b85c44873759a7985cf3507ff6187cf",
+    "apps/cli/src/openagent_cli/connectors.py": "86856a7237d2b74c2961e3e070a2862d558db0e096129b9b0bcafa3755f5380c",
+    "apps/cli/tests/test_official_connectors.py": "601ab5cdf923b3afc97da4f80262e08e7569f31c324497351e26be8512eaae87",
+    "tests/test_official_connectors.py": "62106723994081492dc593d5ef782a08af07b921ec9dcf60458fd711d3741d9c",
+    "apps/app/universal/components/mcps/OfficialConnectorsPane.tsx": "6d0f829f10e0cfa1acb511d7fac8bfa53d20421e88c3fda8217d9084a210c45f",
+    "apps/app/universal/services/api.ts": "a1071f7f47d67e92b7fb19ae63483fcdec1fcc2eb5a18df2b5b0dea2d6abfada",
+    "docs/qualification/official-connectors-pane.test.cjs": "a01025e2bd46cd2963e85759c5a3e8ee57e3abc30679100632a81726050ddddd",
+    "docs/qualification/README.md": "a5e2435b61ed1b04ff9e9c4875f39d7710fbbb692fbae9b016e7ac03aa5fee72"
+  },
+  "persisted_harness": "docs/qualification/official-connectors-pane.test.cjs",
+  "persisted_harness_note": "Same remotely passing assertions; source/output paths parameterized and one test label clarified after execution. This portable wrapper was source-reviewed only; no local execution.",
+  "format": 1,
+  "date": "2026-10-16",
+  "source_parent": "3ff4926b8785580218f910c83c5637f7685adff2",
+  "public_runtime_release": "1.1.0b39",
+  "candidate_runtime_published": false,
+  "paid_github_actions_started": false,
+  "mac_builds_started": false,
+  "real_oauth_consent": false,
+  "provider_network_calls": 0,
+  "native_visual_acceptance": false,
+  "worker_limits": {
+    "cpu": "1",
+    "memory": "1536Mi",
+    "ephemeral_volume": "3Gi",
+    "non_root": true,
+    "service_account_token": false
+  },
+  "python_image": "docker.io/library/python:3.12-slim-bookworm@sha256:2ed6491b93cd49272ee6de2b5a38440c3448360322c089fc23e370722d74179d"
+}

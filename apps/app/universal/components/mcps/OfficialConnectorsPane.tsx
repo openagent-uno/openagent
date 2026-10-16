@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup, type MarketplaceCard } from '../../services/api';
+import { officialConnectorsAPI as api, type OfficialConnector, type OfficialConnection, type OfficialConnectorSetup, type OfficialConnectorSite, type MarketplaceCard } from '../../services/api';
 import { colors, radius } from '../../theme';
 import MarketplaceTile from './MarketplaceTile';
 import ConnectorLogo from './ConnectorLogo';
@@ -31,39 +31,70 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [pending, setPending] = useState<OfficialConnectorSetup | null>(null);
+  const [sites, setSites] = useState<{ connectionId: string; items: OfficialConnectorSite[]; selectedId: string | null } | null>(null);
   const generation = useRef(0);
+  const operation = useRef(0);
+  const busyRef = useRef(false);
   useEffect(() => {
-    generation.current++; boundTarget.current = target;
+    generation.current++; operation.current++; busyRef.current = false; boundTarget.current = target;
     setSelected(null); setShowSetup(true); setToken(''); setMail({ mailbox: 'INBOX' }); setPending(null); setBusy(false);
-    setCatalog([]); setConnections([]); setError(''); setNotice('');
+    setCatalog([]); setConnections([]); setSites(null); setError(''); setNotice('');
     if (target) void refresh();
-    return () => { generation.current++; boundTarget.current = ''; };
+    return () => { generation.current++; operation.current++; busyRef.current = false; boundTarget.current = ''; };
   }, [target]);
+  function beginOperation() {
+    if (busyRef.current) return null;
+    const id = ++operation.current;
+    busyRef.current = true; setBusy(true);
+    return id;
+  }
+  function finishOperation(id: number) {
+    if (operation.current === id) { busyRef.current = false; setBusy(false); }
+  }
   async function refresh() {
     const expected = boundTarget.current;
+    const epoch = generation.current;
     if (!expected || expected !== currentTarget()) return;
-    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); if (expected !== currentTarget() || expected !== boundTarget.current) return; setCatalog(c.connectors); setConnections(i.connections); setAvailable(c.available && i.available); setError(''); }
-    catch { if (expected === currentTarget() && expected === boundTarget.current) setError('The server could not load connectors. Try again.'); }
+    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return; setCatalog(c.connectors); setConnections(i.connections); setAvailable(c.available && i.available); setError(''); }
+    catch { if (epoch === generation.current && expected === currentTarget() && expected === boundTarget.current) setError('The server could not load connectors. Try again.'); }
+  }
+  async function loadSites(id: string, expected = boundTarget.current) {
+    const epoch = generation.current;
+    if (expected !== currentTarget() || expected !== boundTarget.current) return;
+    setSites(null);
+    const result = await api.sites(id);
+    if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
+    setSites({ connectionId: id, items: result.sites, selectedId: result.selected_cloud_id });
+  }
+  async function connected(setup: OfficialConnectorSetup, expected: string) {
+    const epoch = generation.current;
+    await refresh();
+    if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
+    setShowSetup(false);
+    if (setup.connection.catalog_id === 'atlassian') await loadSites(setup.connection.id, expected);
+    else setSelected(null);
+    if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
+    setNotice(`${setup.connection.display_name} connected to this server.`);
   }
   async function authorize(setup: OfficialConnectorSetup, expected = boundTarget.current) {
     if (!expected || expected !== currentTarget() || expected !== boundTarget.current) return;
+    const epoch = generation.current;
     if (!setup.authorization_url) {
       if (setup.connection?.status !== 'connected') throw new Error('Connection not completed');
-      await refresh();
-      if (expected !== currentTarget() || expected !== boundTarget.current) return;
-      setSelected(null); setNotice(`${setup.connection.display_name} connection saved on this server.`); return;
+      await connected(setup, expected); return;
     }
     if (!setup.expires_at || !Number.isFinite(Date.parse(setup.expires_at)) || Date.parse(setup.expires_at) <= Date.now()) throw new Error('Invalid authorization expiry');
     const url = new URL(setup.authorization_url);
-    if (url.protocol !== "https:" || url.hash || url.username || url.password || (setup.authorization_mode === "own-app" ? !["https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com"].includes(url.origin) : url.origin !== (setup.authorization_origin || "https://auth.openagent.uno") || !/^\/authorize\/[A-Za-z0-9_-]{43}$/.test(url.pathname) || !!url.search)) throw new Error('Invalid authorization link');
+    if (url.protocol !== "https:" || url.hash || url.username || url.password || (setup.authorization_mode === "own-app" ? !["https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com"].includes(url.origin) : url.origin !== (setup.authorization_origin || "https://auth.openagent.uno") || !/^\/authorize\/[A-Za-z0-9_-]{43}$/.test(url.pathname) || !!url.search)) throw new Error('Invalid authorization link');
     setPending(setup);
     if (Platform.OS === 'web') { const tab = window.open(url.toString(), '_blank'); if (tab) tab.opener = null; }
     else await Linking.openURL(url.toString());
+    if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
     const current = ++generation.current;
     while (current === generation.current && Date.now() < Date.parse(setup.expires_at)) {
       const status = await api.poll(setup.connection.id);
       if (current !== generation.current || expected !== currentTarget()) return;
-      if (status.status === 'connected') { setPending(null); setSelected(null); setNotice(`${setup.connection.display_name} connected to this server.`); await refresh(); return; }
+      if (status.status === 'connected') { setPending(null); await connected(setup, expected); return; }
       if (status.status === 'cancelled') { setPending(null); throw new Error('Authorization cancelled'); }
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
@@ -72,7 +103,9 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
   async function connect() {
     const expected = boundTarget.current;
     if (!selected || !expected || expected !== currentTarget()) return;
-    setBusy(true); setError(''); setNotice('');
+    const id = beginOperation();
+    if (id === null) return;
+    setError(''); setNotice('');
     try {
       const config: Record<string, string | number> = {};
       if (selected.id === 'shopify') config.shop = account.trim().toLowerCase();
@@ -86,16 +119,31 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
         body.credentials = { imap_password: mail.password, smtp_password: mail.smtp_password || mail.password };
       }
       const setup = await api.create(body);
-      if (expected !== currentTarget() || expected !== boundTarget.current) return;
+      if (id !== operation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
       setToken(''); setMail({ mailbox: 'INBOX' });
       await authorize(setup, expected);
-    } catch (e) { if (expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError(e instanceof Error && e.message === 'Authorization cancelled' ? e.message : 'Could not connect. Check your account details or try authorization again.'); } }
-    finally { if (expected === currentTarget() && expected === boundTarget.current) setBusy(false); }
+    } catch (e) { if (id === operation.current && expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError(e instanceof Error && e.message === 'Authorization cancelled' ? e.message : 'Could not connect. Check your account details or try authorization again.'); } }
+    finally { finishOperation(id); }
   }
-  async function action(operation: (expected: string) => Promise<unknown>) { const expected = boundTarget.current; if (!expected || expected !== currentTarget()) return; setError(''); setNotice(''); try { await operation(expected); if (expected === currentTarget()) await refresh(); } catch { if (expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError('The server could not update this connection. Try again.'); } } }
+  async function action(run: (expected: string) => Promise<unknown>, successNotice = '') {
+    const expected = boundTarget.current;
+    if (!expected || expected !== currentTarget()) return;
+    const id = beginOperation();
+    if (id === null) return;
+    setError(''); setNotice('');
+    try {
+      await run(expected);
+      if (id !== operation.current || expected !== currentTarget() || expected !== boundTarget.current) return;
+      await refresh();
+      if (successNotice && id === operation.current && expected === currentTarget() && expected === boundTarget.current) setNotice(successNotice);
+    } catch {
+      if (id === operation.current && expected === currentTarget() && expected === boundTarget.current) { generation.current++; setPending(null); setError('The server could not update this connection. Try again.'); }
+    } finally { finishOperation(id); }
+  }
   function select(item: OfficialConnector) {
+    if (busyRef.current) return;
     setSelected(item); setShowSetup(!connections.some(c => c.catalog_id === item.id && c.status !== 'disconnected'));
-    setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice('');
+    setSites(null); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice('');
   }
   const items = [
     ...catalog.filter(item => `${item.name} ${item.description} ${item.category}`.toLowerCase().includes(query.trim().toLowerCase())).map(item => ({ key: `connector:${item.id}`, name: item.name, connector: item, registry: undefined as MarketplaceCard | undefined })),
@@ -125,14 +173,23 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     </>}
     {selected && connections.filter(c => c.catalog_id === selected.id && c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
       <Text style={styles.name}>{c.display_name}</Text><Text style={styles.subtitle}>{c.status}</Text>
-      <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} value={!!c.enabled} onValueChange={enabled => void action(() => api.update(c.id, { enabled }))} /></View>
-      {selected.agentTools.length > 0 && <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} value={!!c.allow_write} onValueChange={allow_write => void action(() => api.update(c.id, { allow_write }))} /></View>}
-      <View style={styles.row}>{selected.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !selected.available ? 0.45 : 1 }} disabled={busy || !selected.available} onPress={() => void action(async expected => { setBusy(true); try { await authorize(await api.connect(c.id), expected); } finally { if (expected === currentTarget()) setBusy(false); } })}><Text style={styles.link}>Reconnect</Text></Pressable>}
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => void action(() => api.disconnect(c.id))}><Text style={styles.link}>Disconnect from this server</Text></Pressable></View>
+      <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} disabled={busy} value={!!c.enabled} onValueChange={enabled => void action(() => { setSites(null); return api.update(c.id, { enabled }); })} /></View>
+      {selected.agentTools.length > 0 && <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} disabled={busy} value={!!c.allow_write} onValueChange={allow_write => void action(() => { setSites(null); return api.update(c.id, { allow_write }); })} /></View>}
+      <View style={styles.row}>{selected.auth === "oauth" && <Pressable accessibilityRole="button" style={{ opacity: busy || !selected.available ? 0.45 : 1 }} disabled={busy || !selected.available} onPress={() => void action(async expected => { const epoch = generation.current; setSites(null); const setup = await api.connect(c.id); if (epoch === generation.current) await authorize(setup, expected); })}><Text style={styles.link}>Reconnect</Text></Pressable>}
+        {selected.auth === 'oauth' && c.status === 'connected' && <Pressable accessibilityRole="button" disabled={busy} onPress={() => void action(() => api.refreshToken(c.id), 'Access token renewed and saved on this server.')}><Text style={styles.link}>Refresh access</Text></Pressable>}
+        <Pressable accessibilityRole="button" disabled={busy} onPress={() => void action(() => { setSites(null); return api.disconnect(c.id); })}><Text style={styles.link}>Disconnect from this server</Text></Pressable></View>
+      {selected.id === 'atlassian' && c.status === 'connected' && <>
+        <Button variant="secondary" size="sm" label="Choose Jira site" disabled={busy} onPress={() => void action(expected => loadSites(c.id, expected))} />
+        {sites?.connectionId === c.id && <View style={{ gap: 8 }}>
+          <Text style={styles.subtitle}>Choose a site authorized by Atlassian. Tools use only the site saved on this server.</Text>
+          {sites.items.length === 0 && <Text style={styles.subtitle}>No Jira sites have the required permissions. Reconnect and grant access to a Jira site.</Text>}
+          {sites.items.map(site => <Button key={site.id} variant={site.id === sites.selectedId ? 'secondary' : 'ghost'} size="sm" label={`${site.name}${site.id === sites.selectedId ? ' (selected)' : ''}`} disabled={busy} onPress={() => void action(async expected => { const epoch = generation.current; await api.selectSite(c.id, site.id); if (epoch === generation.current && expected === currentTarget() && expected === boundTarget.current) await loadSites(c.id, expected); })} />)}
+        </View>}
+      </>}
       <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>
     </View>)}
     {selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label="Connect another account" disabled={busy} onPress={() => setShowSetup(true)} />}
-    {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
+    {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; operation.current++; busyRef.current = false; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
     {selected && showSetup && !pending && <View style={styles.card}>
       <Text style={styles.name}>Connect {selected.name}</Text>
       {selected.auth === 'token' && <TextInput accessibilityLabel={`${selected.name} API token`} placeholder="API token" secureTextEntry value={token} onChangeText={setToken} style={styles.input} autoCapitalize="none" />}

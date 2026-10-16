@@ -8,7 +8,7 @@ from click.testing import CliRunner
 import pytest
 from rich.console import Console
 
-from openagent_cli.connectors import authorize, connect, register
+from openagent_cli.connectors import authorize, choose_site, connect, register
 
 
 def commands(client):
@@ -63,6 +63,84 @@ def test_configuration_requires_explicit_choice_before_connecting():
     result = CliRunner().invoke(cli, ["connectors", "configure", "conn"])
     assert result.exit_code != 0
     opened.assert_not_awaited()
+
+
+def test_refresh_uses_authenticated_product_route_without_token_output():
+    client = AsyncMock()
+    client.rest_post.return_value = {"status": "connected", "unexpected": "do-not-display-response"}
+    cli, opened, closed = commands(client)
+    result = CliRunner().invoke(cli, ["connectors", "refresh", "conn/one", "--network", "work",
+                                    "--agent", "agent", "--handle", "owner", "--json"])
+    assert result.exit_code == 0, result.output
+    assert json.loads(result.output) == {"ok": True}
+    assert "do-not-display-response" not in result.output
+    opened.assert_awaited_once_with("work", None, "agent", principal_handle="owner", quiet=True)
+    client.rest_post.assert_awaited_once_with("/api/connectors/conn%2Fone/refresh", {})
+    closed.assert_awaited_once_with(client)
+
+
+def test_failed_refresh_disconnects_transport_and_sanitizes_error():
+    client = AsyncMock()
+    client.rest_post.side_effect = RuntimeError("private-refresh-token-from-broker")
+    cli, _, closed = commands(client)
+    result = CliRunner().invoke(cli, ["connectors", "refresh", "conn"])
+    assert result.exit_code != 0
+    assert "private-refresh-token" not in result.output
+    assert "renewed" not in result.output
+    closed.assert_awaited_once_with(client)
+
+
+def test_site_commands_use_owner_product_routes_and_explicit_target():
+    client = AsyncMock()
+    cloud_id = "1324a887-45db-1bf4-1e99-ef0ff456d421"
+    client.rest_get.return_value = {"sites": [{"id": cloud_id, "name": "QA Jira", "url": "https://qa.atlassian.net", "scopes": ["read:jira-work"]}], "selected_cloud_id": None}
+    cli, opened, closed = commands(client)
+    listed = CliRunner().invoke(cli, ["connectors", "sites", "conn/one", "--json"])
+    assert listed.exit_code == 0 and json.loads(listed.output)["selected_cloud_id"] is None
+    client.rest_get.assert_awaited_once_with("/api/connectors/conn%2Fone/sites")
+    selected = CliRunner().invoke(cli, ["connectors", "select-site", "conn/one", cloud_id, "--json"])
+    assert selected.exit_code == 0 and json.loads(selected.output) == {"ok": True}
+    client.rest_put.assert_awaited_once_with("/api/connectors/conn%2Fone/site", {"cloud_id": cloud_id})
+    assert opened.await_count == closed.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_interactive_atlassian_selection_uses_only_returned_site_id():
+    client = AsyncMock()
+    first = "1324a887-45db-1bf4-1e99-ef0ff456d421"
+    second = "2324a887-45db-1bf4-1e99-ef0ff456d421"
+    client.rest_get.return_value = {"sites": [{"id": value, "name": "[red]Literal name", "url": "https://qa.atlassian.net"}
+                                            for value in (first, second)]}
+    with patch("openagent_cli.connectors.Prompt.ask", return_value="2"):
+        await choose_site(client, "conn/one", Console(file=io.StringIO()))
+    client.rest_put.assert_awaited_once_with("/api/connectors/conn%2Fone/site", {"cloud_id": second})
+
+
+@pytest.mark.asyncio
+async def test_interactive_atlassian_no_sites_never_selects_an_arbitrary_target():
+    client = AsyncMock()
+    client.rest_get.return_value = {"sites": [], "selected_cloud_id": None}
+    with pytest.raises(click.ClickException, match="no Jira site"):
+        await choose_site(client, "conn", Console(file=io.StringIO()))
+    client.rest_put.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_atlassian_connect_selects_site_only_after_completed_authorization():
+    client = AsyncMock()
+    cloud_id = "1324a887-45db-1bf4-1e99-ef0ff456d421"
+    client.rest_get.side_effect = [
+        {"connectors": [{"id": "atlassian", "auth": "oauth", "available": True}]},
+        {"sites": [{"id": cloud_id, "name": "QA Jira", "url": "https://qa.atlassian.net"}]}]
+    setup = {"connection": {"id": "conn", "catalog_id": "atlassian"}}
+    client.rest_post.return_value = setup
+    authorized = AsyncMock()
+    with patch("openagent_cli.connectors.authorize", authorized), patch("openagent_cli.connectors.Prompt.ask", return_value="1"):
+        await connect(client, "atlassian", False, Console(file=io.StringIO()))
+    authorized.assert_awaited_once()
+    client.rest_post.assert_awaited_once_with("/api/connectors", {"catalog_id": "atlassian", "allow_write": False, "config": {}})
+    assert client.rest_get.await_args_list[-1].args == ("/api/connectors/conn/sites",)
+    client.rest_put.assert_awaited_once_with("/api/connectors/conn/site", {"cloud_id": cloud_id})
 
 
 @pytest.mark.asyncio
@@ -125,3 +203,38 @@ async def test_authorization_polls_exact_connection_until_connected():
         browser.assert_called_once_with(setup["authorization_url"])
     assert client.rest_post.await_count == 2
     assert all(call.args == ("/api/connectors/conn/poll", {}) for call in client.rest_post.await_args_list)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("origin", [
+    "https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com",
+    "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com",
+])
+async def test_own_app_authorization_accepts_exact_reviewed_origins(origin):
+    client = AsyncMock()
+    client.rest_post.return_value = {"status": "connected"}
+    setup = {"authorization_mode": "own-app", "authorization_url": origin + "/oauth/authorize?state=opaque",
+             "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(), "connection": {"id": "conn"}}
+    with patch("openagent_cli.connectors.webbrowser.open") as browser:
+        await authorize(client, setup, Console(file=io.StringIO()))
+        browser.assert_called_once_with(setup["authorization_url"])
+    client.rest_post.assert_awaited_once_with("/api/connectors/conn/poll", {})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("url", [
+    "http://github.com/login/oauth/authorize", "https://github.com.evil.example/authorize",
+    "https://github.com@evil.example/authorize", "https://user@github.com/authorize",
+    "https://api.notion.com.evil.example/authorize", "https://slack.com.evil.example/authorize",
+    "https://auth.atlassian.com.evil.example/authorize", "https://unreviewed.example/authorize",
+    "https://github.com/login/oauth/authorize#fragment",
+])
+async def test_own_app_authorization_rejects_other_origins_before_browser_or_poll(url):
+    client = AsyncMock()
+    setup = {"authorization_mode": "own-app", "authorization_url": url,
+             "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(), "connection": {"id": "conn"}}
+    with patch("openagent_cli.connectors.webbrowser.open") as browser:
+        with pytest.raises(click.ClickException, match="invalid"):
+            await authorize(client, setup, Console(file=io.StringIO()))
+        browser.assert_not_called()
+    client.rest_post.assert_not_called()

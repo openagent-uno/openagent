@@ -342,3 +342,452 @@ async def test_shopify_enrollment_waits_for_standalone_privacy_processing(fixtur
     service, _, _, _ = fixture
     service.official_providers.add('shopify')
     assert not service.authorization_available('shopify')
+
+
+async def refreshable_connection(fixture, *, refresh_token="held-refresh", expiry=None):
+    """Synthetic held grant; no provider calls or invented expiration required."""
+    service, context, runner, _ = fixture
+    setup = await service.create(context, {"catalog_id": "clickup"})
+    row = await service.record(setup["connection"]["id"])
+    token = {"access_token": "held-access", "app_id": "openagent-clickup", "scopes": [],
+             "authorized_at": "2026-10-16T08:00:00Z", "version": 1}
+    if refresh_token is not None:
+        token["refresh_token"] = refresh_token
+    if expiry:
+        token["expires_at"] = expiry
+    await service.save(row, token, authorization_transaction=row["transaction_id"])
+    runner.calls.clear()
+    return row["id"], token
+
+
+def rotated_runner(runner, token, *, during_refresh=None):
+    original = runner.call
+    async def call(method, params=None):
+        if method != "auth.refresh":
+            return await original(method, params)
+        runner.calls.append((method, params))
+        if during_refresh:
+            await during_refresh()
+        return {"token": {**token, "access_token": "rotated-access", "refresh_token": "rotated-refresh",
+                          "version": token["version"] + 1}}
+    runner.call = call
+
+
+@pytest.mark.asyncio
+async def test_owner_explicit_refresh_without_expiration_rotates_pair_and_keeps_registration(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    registration = service.sources[connection_id]
+    rotated_runner(runner, token)
+    result = await service.refresh(context, connection_id)
+    current = await service.record(connection_id)
+    rotated = service.decrypt(current)
+    assert rotated["access_token"] == "rotated-access"
+    assert rotated["refresh_token"] == "rotated-refresh"
+    assert "expires_at" not in rotated
+    assert service.sources[connection_id] is registration
+    assert [method for method, _ in runner.calls].count("auth.refresh") == 1
+    assert "held-refresh" not in json.dumps(result) and "rotated-access" not in json.dumps(result)
+    assert result["status"] == "connected" and result["connection"]["allow_write"] == 0
+    assert b"rotated-refresh" not in current["credential"]
+    restarted = OfficialConnectors(service.runtime, runner=runner)
+    await restarted.start()
+    try:
+        assert restarted.decrypt(await restarted.record(connection_id))["refresh_token"] == "rotated-refresh"
+    finally:
+        await restarted.close()
+
+
+@pytest.mark.asyncio
+async def test_explicit_refresh_does_not_require_new_enrollment_opt_in(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    service.official_providers.clear()
+    rotated_runner(runner, token)
+    assert (await service.refresh(context, connection_id))["status"] == "connected"
+    assert not any(method == "auth.start" for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("refresh_token", [None, ""])
+async def test_explicit_refresh_without_refresh_credential_fails_before_runner(fixture, refresh_token):
+    service, context, runner, _ = fixture
+    connection_id, _ = await refreshable_connection(fixture, refresh_token=refresh_token)
+    with pytest.raises(ValueError, match="no refresh credential"):
+        await service.refresh(context, connection_id)
+    assert runner.calls == []
+
+
+@pytest.mark.asyncio
+async def test_explicit_refresh_rejects_personal_token_before_runner(fixture):
+    service, context, runner, _ = fixture
+    setup = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
+        "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    runner.calls.clear()
+    with pytest.raises(PermissionError, match="Only an OAuth"):
+        await service.refresh(context, setup["connection"]["id"])
+    assert runner.calls == []
+
+
+@pytest.mark.asyncio
+async def test_non_oauth_catalog_entry_cannot_refresh_even_with_synthetic_refresh_field(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    original = runner.call
+    async def non_oauth(method, params=None):
+        result = await original(method, params)
+        if method == "catalog":
+            return [{**item, "auth": "token"} for item in result]
+        return result
+    runner.call = non_oauth
+    with pytest.raises(PermissionError, match="Only an OAuth"):
+        await service.refresh(context, connection_id)
+    assert not any(method == "auth.refresh" for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unauthorized", ["owner", "tenant", "audience", "role", "disabled", "disconnected"])
+async def test_explicit_refresh_rejects_unauthorized_or_inactive_binding_before_runner(fixture, unauthorized):
+    service, context, runner, authorizer = fixture
+    connection_id, _ = await refreshable_connection(fixture)
+    other = PrincipalRef("openagent", "tenant", "other")
+    if unauthorized == "owner":
+        context = SimpleNamespace(tenant_id=context.tenant_id, initiator=other, audience=(other,))
+    elif unauthorized == "tenant":
+        context = SimpleNamespace(tenant_id="other", initiator=context.initiator, audience=context.audience)
+    elif unauthorized == "audience":
+        context = SimpleNamespace(tenant_id=context.tenant_id, initiator=context.initiator, audience=(context.initiator, other))
+    elif unauthorized == "role":
+        authorizer.allowed = False
+    elif unauthorized == "disabled":
+        await service.update(context, connection_id, {"enabled": False})
+    else:
+        await service.disconnect(context, connection_id)
+    runner.calls.clear()
+    with pytest.raises(PermissionError):
+        await service.refresh(context, connection_id)
+    assert runner.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revocation", ["role", "disabled", "permissions", "new_consent", "credential_generation"])
+async def test_explicit_refresh_cannot_overwrite_changes_during_broker_io(fixture, revocation):
+    service, context, runner, authorizer = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    original = await service.record(connection_id)
+    async def revoke():
+        if revocation == "role":
+            authorizer.allowed = False
+        elif revocation == "disabled":
+            await service.update(context, connection_id, {"enabled": False})
+        elif revocation == "permissions":
+            await service.update(context, connection_id, {"allow_write": True})
+        elif revocation == "new_consent":
+            await service.connect(context, connection_id)
+            pending = await service.record(connection_id)
+            await service.save(pending, {**token, "access_token": "replacement-grant", "refresh_token": "replacement-refresh",
+                                       "authorized_at": "2026-10-16T09:00:00Z"},
+                               authorization_transaction=pending["transaction_id"])
+        else:
+            await service.save(original, {**token, "access_token": "concurrent-access", "refresh_token": "concurrent-refresh",
+                                          "version": 3}, renewal=True)
+    rotated_runner(runner, token, during_refresh=revoke)
+    with pytest.raises(PermissionError):
+        await service.refresh(context, connection_id)
+    current = await service.record(connection_id)
+    assert service.decrypt(current)["access_token"] == (
+        "replacement-grant" if revocation == "new_consent" else
+        "concurrent-access" if revocation == "credential_generation" else "held-access")
+
+
+@pytest.mark.asyncio
+async def test_explicit_refresh_fails_on_broker_outage_without_success_fallback(fixture):
+    service, context, runner, _ = fixture
+    connection_id, _ = await refreshable_connection(fixture, expiry="2099-01-01T00:00:00Z")
+    before = await service.record(connection_id)
+    original = runner.call
+    async def unavailable(method, params=None):
+        if method == "auth.refresh":
+            raise RuntimeError("private-provider-error")
+        return await original(method, params)
+    runner.call = unavailable
+    with pytest.raises(RuntimeError):
+        await service.refresh(context, connection_id)
+    after = await service.record(connection_id)
+    assert after["credential"] == before["credential"] and after["nonce"] == before["nonce"]
+
+
+@pytest.mark.asyncio
+async def test_concurrent_explicit_refreshes_serialize_and_use_latest_held_pair(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    original = runner.call
+    used = []
+    async def rotate(method, params=None):
+        if method != "auth.refresh":
+            return await original(method, params)
+        used.append(params["token"]["refresh_token"])
+        await asyncio.sleep(0)
+        return {"token": {**token, "access_token": "access-" + str(len(used)),
+                          "refresh_token": "refresh-" + str(len(used)), "version": len(used) + 1}}
+    runner.call = rotate
+    await asyncio.gather(service.refresh(context, connection_id), service.refresh(context, connection_id))
+    assert used == ["held-refresh", "refresh-1"]
+    assert service.decrypt(await service.record(connection_id))["refresh_token"] == "refresh-2"
+
+
+@pytest.mark.asyncio
+async def test_reconsent_during_catalog_check_denies_stale_refresh_before_broker_io(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    original = runner.call
+    changed = False
+    async def catalog_with_new_grant(method, params=None):
+        nonlocal changed
+        result = await original(method, params)
+        if method == "catalog" and not changed:
+            changed = True
+            await service.connect(context, connection_id)
+            pending = await service.record(connection_id)
+            await service.save(pending, {**token, "access_token": "new-grant",
+                                       "authorized_at": "2026-10-16T09:00:00Z"},
+                               authorization_transaction=pending["transaction_id"])
+        return result
+    runner.call = catalog_with_new_grant
+    with pytest.raises(PermissionError):
+        await service.refresh(context, connection_id)
+    assert not any(method == "auth.refresh" for method, _ in runner.calls)
+    assert service.decrypt(await service.record(connection_id))["access_token"] == "new-grant"
+
+
+@pytest.mark.asyncio
+async def test_public_refresh_route_checks_current_owner_and_returns_no_credential(fixture):
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+    from openagent_server.gateway.api import official_connectors as api
+    service, context, runner, authorizer = fixture
+    connection_id, token = await refreshable_connection(fixture)
+    rotated_runner(runner, token)
+    async def authenticated_context(request, session_id):
+        assert session_id == "__catalog_management__"
+        if request.headers.get("Authorization") != "Fixture owner":
+            raise web.HTTPForbidden()
+        return context
+    app = web.Application()
+    app["gateway"] = SimpleNamespace(runtime_service=SimpleNamespace(context=authenticated_context, official_connectors=service))
+    app.router.add_post("/api/connectors/{connection_id}/refresh", api.refresh)
+    client = TestClient(TestServer(app))
+    await client.start_server()
+    try:
+        url = f"/api/connectors/{connection_id}/refresh"
+        denied = await client.post(url, json={})
+        assert denied.status == 403 and runner.calls == []
+        response = await client.post(url, json={}, headers={"Authorization": "Fixture owner"})
+        assert response.status == 200 and response.headers["Cache-Control"] == "no-store"
+        body = await response.text()
+        assert "held-refresh" not in body and "rotated-refresh" not in body and "rotated-access" not in body
+        original = runner.call
+        async def unavailable(method, params=None):
+            if method == "auth.refresh":
+                raise RuntimeError("private-token-and-provider-response")
+            return await original(method, params)
+        runner.call = unavailable
+        failure = await client.post(url, json={}, headers={"Authorization": "Fixture owner"})
+        assert failure.status == 503
+        assert "private-token" not in await failure.text()
+        authorizer.allowed = False
+        denied = await client.post(url, json={}, headers={"Authorization": "Fixture owner"})
+        assert denied.status == 403
+    finally:
+        await client.close()
+
+
+ATLASSIAN_SITE = "1324a887-45db-1bf4-1e99-ef0ff456d421"
+ATLASSIAN_OTHER_SITE = "2324a887-45db-1bf4-1e99-ef0ff456d421"
+
+
+async def atlassian_connection(fixture, *, allow_write=False, resources=None):
+    service, context, runner, _ = fixture
+    original = runner.call
+    scopes = ["read:jira-work", "write:jira-work"]
+    if resources is None:
+        resources = [{"id": ATLASSIAN_SITE, "name": "QA Jira", "url": "https://qa.atlassian.net", "scopes": scopes}]
+    async def call(method, params=None):
+        if method == "catalog":
+            return [*(await original(method, params)), {"id": "atlassian", "name": "Atlassian",
+                "auth": "oauth", "available": True, "provider": "atlassian", "capability": "files"}]
+        if method == "invoke":
+            runner.calls.append((method, params))
+            assert params["tool"] == "files.atlassian.resources.list" and params["arguments"] == {}
+            return {"data": resources}
+        return await original(method, params)
+    runner.call = call
+    service.official_providers.add("atlassian")
+    setup = await service.create(context, {"catalog_id": "atlassian", "allow_write": allow_write})
+    row = await service.record(setup["connection"]["id"])
+    token = {"access_token": "private-atlassian-access", "refresh_token": "private-atlassian-refresh",
+             "app_id": "atlassian-qa", "scopes": scopes, "authorized_at": "2026-10-16T08:00:00Z", "version": 1}
+    await service.save(row, token, authorization_transaction=row["transaction_id"])
+    runner.calls.clear()
+    return row["id"], token
+
+
+@pytest.mark.asyncio
+async def test_atlassian_site_selection_uses_provider_resources_and_revokes_previous_reference(fixture):
+    service, context, runner, _ = fixture
+    connection_id, token = await atlassian_connection(fixture)
+    source = service.sources[connection_id]
+    listed = await service.sites(context, connection_id)
+    assert listed["selected_cloud_id"] is None and [site["id"] for site in listed["sites"]] == [ATLASSIAN_SITE]
+    assert "private-atlassian" not in json.dumps(listed)
+    assert (await service.record(connection_id))["config"] == "{}"
+    selected = await service.select_site(context, connection_id, {"cloud_id": ATLASSIAN_SITE})
+    assert selected == {"ok": True, "cloud_id": ATLASSIAN_SITE}
+    current = await service.record(connection_id)
+    assert json.loads(current["config"]) == {"cloud_id": ATLASSIAN_SITE}
+    assert service.decrypt(current) == token
+    with pytest.raises(PermissionError, match="replaced"):
+        source.require_current_registration()
+    assert service.sources[connection_id] is not source
+    assert (await service.sites(context, connection_id))["selected_cloud_id"] == ATLASSIAN_SITE
+    invocations = [params for method, params in runner.calls if method == "invoke"]
+    assert len(invocations) == 3  # PUT fetches a fresh provider list; no client attestation.
+    assert invocations[0]["binding"]["connection"]["config"] == {}
+    assert invocations[-1]["binding"]["connection"]["config"] == {"cloud_id": ATLASSIAN_SITE}
+    assert all(params["arguments"] == {} for params in invocations)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("payload", [{"cloud_id": "not-a-uuid"}, {"cloud_id": "00000000-0000-0000-0000-000000000000"},
+    {"cloud_id": ATLASSIAN_SITE.upper()}, {"cloud_id": ATLASSIAN_SITE, "url": "https://other.example"}])
+async def test_atlassian_site_selection_rejects_untrusted_configuration_before_io(fixture, payload):
+    service, context, runner, _ = fixture
+    connection_id, _ = await atlassian_connection(fixture)
+    with pytest.raises(ValueError):
+        await service.select_site(context, connection_id, payload)
+    assert runner.calls == []
+    assert (await service.record(connection_id))["config"] == "{}"
+    with pytest.raises(ValueError):
+        OfficialConnectors.validate_config({"auth": "oauth", "provider": "atlassian"}, {"cloud_id": ATLASSIAN_SITE})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("allow_write", [False, True])
+async def test_atlassian_sites_filter_resource_scopes_and_require_selected_membership(fixture, allow_write):
+    service, context, _, _ = fixture
+    resources = [{"id": ATLASSIAN_SITE, "name": "Read only Jira", "scopes": ["read:jira-work"]},
+                 {"id": ATLASSIAN_OTHER_SITE, "name": "Confluence only", "scopes": ["read:confluence-content.all"]}]
+    connection_id, _ = await atlassian_connection(fixture, allow_write=allow_write, resources=resources)
+    sites = (await service.sites(context, connection_id))["sites"]
+    assert [site["id"] for site in sites] == ([] if allow_write else [ATLASSIAN_SITE])
+    with pytest.raises(PermissionError, match="not granted"):
+        await service.select_site(context, connection_id, {"cloud_id": ATLASSIAN_OTHER_SITE})
+    assert (await service.record(connection_id))["config"] == "{}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["duplicate", "malformed_id", "malformed_scopes", "control_character", "unsafe_url"])
+async def test_atlassian_resources_fail_closed_on_ambiguous_or_malformed_provider_data(fixture, invalid):
+    service, context, _, _ = fixture
+    resource = {"id": ATLASSIAN_SITE, "name": "Jira", "scopes": ["read:jira-work"]}
+    resources = [resource]
+    if invalid == "duplicate":
+        resources.append(dict(resource))
+    elif invalid == "malformed_id":
+        resource["id"] = "other/site"
+    elif invalid == "malformed_scopes":
+        resource["scopes"] = "read:jira-work"
+    elif invalid == "control_character":
+        resource["name"] = "Jira\x1b[31m"
+    else:
+        resource["url"] = "javascript:alert(1)"
+    connection_id, _ = await atlassian_connection(fixture, resources=resources)
+    with pytest.raises(RuntimeError):
+        await service.select_site(context, connection_id, {"cloud_id": ATLASSIAN_SITE})
+    assert (await service.record(connection_id))["config"] == "{}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revocation", ["owner", "tenant", "role", "during_io"])
+async def test_atlassian_site_management_rechecks_owner_acl_and_provider_io(fixture, revocation):
+    service, context, runner, authorizer = fixture
+    connection_id, _ = await atlassian_connection(fixture)
+    if revocation == "owner":
+        other = PrincipalRef("openagent", "tenant", "other")
+        context = SimpleNamespace(tenant_id=context.tenant_id, initiator=other, audience=(other,))
+    elif revocation == "tenant":
+        context = SimpleNamespace(tenant_id="other", initiator=context.initiator, audience=context.audience)
+    elif revocation == "role":
+        authorizer.allowed = False
+    else:
+        original = runner.call
+        async def revoked_during_io(method, params=None):
+            result = await original(method, params)
+            if method == "invoke":
+                authorizer.allowed = False
+            return result
+        runner.call = revoked_during_io
+    with pytest.raises(PermissionError):
+        await service.select_site(context, connection_id, {"cloud_id": ATLASSIAN_SITE})
+    assert (await service.record(connection_id))["config"] == "{}"
+    if revocation != "during_io":
+        assert runner.calls == []
+
+
+@pytest.mark.asyncio
+async def test_atlassian_site_storage_cas_rejects_concurrent_credential_generation(fixture):
+    service, context, _, _ = fixture
+    connection_id, token = await atlassian_connection(fixture)
+    original = service.owned
+    calls = 0
+    async def concurrent_renewal(context, selected_id):
+        nonlocal calls
+        row = await original(context, selected_id)
+        calls += 1
+        if calls == 3:  # Selection admission after provider IO, before its SQL CAS.
+            await service.save(row, {**token, "access_token": "concurrent-access", "version": 2}, renewal=True)
+        return row
+    service.owned = concurrent_renewal
+    with pytest.raises(PermissionError, match="changed during site selection"):
+        await service.select_site(context, connection_id, {"cloud_id": ATLASSIAN_SITE})
+    current = await service.record(connection_id)
+    assert current["config"] == "{}" and service.decrypt(current)["access_token"] == "concurrent-access"
+
+
+@pytest.mark.asyncio
+async def test_public_atlassian_site_routes_are_owner_only_no_store_and_do_not_accept_scope_claims(fixture):
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+    from openagent_server.gateway.api import official_connectors as api
+    service, context, _, _ = fixture
+    connection_id, _ = await atlassian_connection(fixture)
+    async def owner_context(request, session_id):
+        assert session_id == "__catalog_management__"
+        if request.headers.get("Authorization") != "Fixture owner":
+            raise web.HTTPForbidden()
+        return context
+    app = web.Application()
+    app["gateway"] = SimpleNamespace(runtime_service=SimpleNamespace(context=owner_context, official_connectors=service))
+    app.router.add_get("/api/connectors/{connection_id}/sites", api.sites)
+    app.router.add_put("/api/connectors/{connection_id}/site", api.select_site)
+    client = TestClient(TestServer(app))
+    await client.start_server()
+    try:
+        path = f"/api/connectors/{connection_id}"
+        assert (await client.get(path + "/sites")).status == 403
+        headers = {"Authorization": "Fixture owner"}
+        listing = await client.get(path + "/sites", headers=headers)
+        assert listing.status == 200 and listing.headers["Cache-Control"] == "no-store"
+        assert (await listing.json())["selected_cloud_id"] is None
+        invalid = await client.put(path + "/site", headers=headers, json={"cloud_id": ATLASSIAN_OTHER_SITE, "scopes": ["read:jira-work"]})
+        assert invalid.status == 400
+        denied = await client.put(path + "/site", headers=headers, json={"cloud_id": ATLASSIAN_OTHER_SITE})
+        assert denied.status == 403
+        selected = await client.put(path + "/site", headers=headers, json={"cloud_id": ATLASSIAN_SITE})
+        assert selected.status == 200 and selected.headers["Cache-Control"] == "no-store"
+        assert await selected.json() == {"ok": True, "cloud_id": ATLASSIAN_SITE}
+        listing = await client.get(path + "/sites", headers=headers)
+        assert (await listing.json())["selected_cloud_id"] == ATLASSIAN_SITE
+        assert "private-atlassian" not in await listing.text()
+    finally:
+        await client.close()

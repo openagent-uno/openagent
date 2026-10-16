@@ -29,8 +29,10 @@ shared and which stay in the receiving product. Operators can use the
 
 The [ChatGPT app coverage guide](./chatgpt-apps.md) records the complete publicly
 observed directory and the initial Popular order. Source candidate 0.1.4 adds
-GitHub and Notion; it is not a published release or an activation of these
+GitHub, Notion, Slack and Jira; it is not a published release or an activation of these
 providers in existing installations. See that guide for operations and limits.
+
+The following table describes the published 0.1.3 implementation. Candidate additions and their release gates are in the coverage guide.
 
 | Connector | Authentication | Shared implementation |
 | --- | --- | --- |

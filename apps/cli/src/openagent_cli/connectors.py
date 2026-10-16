@@ -10,6 +10,7 @@ import webbrowser
 import click
 from rich.prompt import Confirm, Prompt
 from rich.table import Table
+from rich.text import Text
 
 
 def catalog_table(items):
@@ -36,7 +37,7 @@ async def authorize(client, setup, console):
     import re
     valid = url.scheme == "https" and not url.username and not url.password and not url.fragment
     if own:
-        valid = valid and origin in {"https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com"}
+        valid = valid and origin in {"https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com"}
     else:
         valid = valid and origin == setup.get("authorization_origin", "https://auth.openagent.uno") and not url.query and bool(re.fullmatch(r"/authorize/[A-Za-z0-9_-]{43}", url.path))
     if not valid:
@@ -92,6 +93,28 @@ async def connect(client, catalog_id, allow_write, console):
         payload.pop("token", None)
         payload.pop("credentials", None)
     await authorize(client, setup, console)
+    if catalog_id == "atlassian":
+        await choose_site(client, setup["connection"]["id"], console)
+
+
+def site_table(sites):
+    table = Table(title="Authorized Jira sites")
+    for column in ("Number", "Site", "ID", "URL"):
+        table.add_column(column)
+    for index, site in enumerate(sites, 1):
+        table.add_row(str(index), Text(site["name"]), Text(site["id"]), Text(site["url"]))
+    return table
+
+
+async def choose_site(client, connection_id, console):
+    path = quote(connection_id, safe="")
+    sites = (await client.rest_get(f"/api/connectors/{path}/sites"))["sites"]
+    if not sites:
+        raise click.ClickException("OAuth is connected, but no Jira site has the required permissions.")
+    console.print(site_table(sites))
+    choice = Prompt.ask("Select the Jira site for this server", choices=[str(i + 1) for i in range(len(sites))])
+    await client.rest_put(f"/api/connectors/{path}/site", {"cloud_id": sites[int(choice) - 1]["id"]})
+    console.print("Jira site selected for this connection.")
 
 
 async def official_menu(client, console):
@@ -203,6 +226,8 @@ def register(cli, open_gateway, disconnect, console):
         async def operation(client):
             setup = await client.rest_post(f"/api/connectors/{quote(connection_id, safe='')}/connect", {})
             await authorize(client, setup, console)
+            if setup.get("connection", {}).get("catalog_id") == "atlassian":
+                await choose_site(client, connection_id, console)
         if as_json:
             raise click.UsageError("Reconnect is interactive; --json is available for listing.")
         execute(operation, **options)
@@ -219,6 +244,40 @@ def register(cli, open_gateway, disconnect, console):
         async def operation(client):
             await client.rest_put(f"/api/connectors/{quote(connection_id, safe='')}", payload)
             console.print(json.dumps({"ok": True}) if as_json else "Connection settings updated on this server.", markup=False)
+        execute(operation, **options)
+
+    @connectors.command("refresh")
+    @click.argument("connection_id")
+    @options
+    def refresh(connection_id, as_json, **options):
+        """Renew the held OAuth credential without requesting a new consent."""
+        async def operation(client):
+            await client.rest_post(f"/api/connectors/{quote(connection_id, safe='')}/refresh", {})
+            console.print(json.dumps({"ok": True}) if as_json else "Connection renewed on this server.", markup=False)
+        execute(operation, **options)
+
+    @connectors.command("sites")
+    @click.argument("connection_id")
+    @options
+    def sites(connection_id, as_json, **options):
+        """List Jira sites authorized to this connection."""
+        async def operation(client):
+            result = await client.rest_get(f"/api/connectors/{quote(connection_id, safe='')}/sites")
+            if as_json:
+                console.print(json.dumps(result), markup=False, highlight=False)
+            else:
+                console.print(site_table(result["sites"]))
+        execute(operation, **options)
+
+    @connectors.command("select-site")
+    @click.argument("connection_id")
+    @click.argument("cloud_id")
+    @options
+    def select_site(connection_id, cloud_id, as_json, **options):
+        """Bind this connection to a Jira site from its authorized site list."""
+        async def operation(client):
+            await client.rest_put(f"/api/connectors/{quote(connection_id, safe='')}/site", {"cloud_id": cloud_id})
+            console.print(json.dumps({"ok": True}) if as_json else "Jira site selected for this connection.", markup=False)
         execute(operation, **options)
 
     @connectors.command("disconnect")

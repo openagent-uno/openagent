@@ -82,5 +82,13 @@
     "source": "https://app.notion.com/images/logo-ios.png",
     "retrieved": "2026-10-16",
     "sha256": "59c42a0afd20dc9dd0cf598e105e774a484bf10cdbec1ffc3a33c9cb59579b47"
+  },
+  {
+    "id": "atlassian",
+    "file": "atlassian.png",
+    "source": "https://atlassian.design/assets/8601660886bc/logos/atlassian_logo.zip",
+    "archive_member": "Atlassian/Atlassian Mark/PNG@2x/Atlassian mark brand RGB.png",
+    "retrieved": "2026-10-16",
+    "sha256": "e4132a5b8f917849da350ec4043e298c3a538cd285b32cb7f30ec288ff28e645"
   }
 ]

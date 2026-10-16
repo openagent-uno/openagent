@@ -11,6 +11,7 @@ const images: Readonly<Record<string, ImageSourcePropType>> = {
   billingbear: require('../../assets/connectors/billingbear.png'),
   pipeboard: require('../../assets/connectors/pipeboard.png'),
   github: require('../../assets/connectors/github.png'),
+  atlassian: require('../../assets/connectors/atlassian.png'),
   notion: require('../../assets/connectors/notion.png'),
   'slack-import': require('../../assets/connectors/slack-import.png'),
   shopify: require('../../assets/connectors/shopify.png'),
