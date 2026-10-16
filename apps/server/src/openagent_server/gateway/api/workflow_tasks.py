@@ -590,9 +590,14 @@ async def handle_run_get(request):
     row = await db.get_workflow_run(run_id)
     if row is None:
         return web.json_response({"error": f"run {run_id!r} not found"}, status=404)
-    from .operational import decorate_workflow_run_detail
+    from .operational import ApiProblem, _problem, decorate_workflow_run_detail
 
-    detail = await decorate_workflow_run_detail(request, _decorate_run(row))
+    try:
+        detail = await decorate_workflow_run_detail(request, _decorate_run(row))
+    except ApiProblem as exc:
+        # ACL projection may still be catching up with the completed run.
+        # Keep its readiness barrier and expose the typed, retryable response.
+        return _problem(exc)
     if detail is None:
         return web.json_response({"error": "This result is no longer available"}, status=404)
     return web.json_response(detail, headers={"Cache-Control": "no-store"})

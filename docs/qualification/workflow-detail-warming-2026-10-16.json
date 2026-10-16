@@ -1,0 +1,37 @@
+{
+  "status": "passed",
+  "test": "t_workflow_detail_warming_response",
+  "checks": [
+    "real signed and verified native device certificates",
+    "actual detail readiness barrier returns503 warming retryable without run data",
+    "canonical automation projection drains changes",
+    "owner detail returns200 with trace",
+    "different verified principal returns404 without run or trace data"
+  ],
+  "source_sha256": {
+    "apps/server/src/openagent_server/gateway/api/workflow_tasks.py": "56dc1f865356df3433e9643ec341e68767bd3629d4fb78438b87001ec7d04840",
+    "apps/server/scripts/tests/test_operational_api.py": "60fc4c5dd043adacd293581bdb6645a7a38e2c7085fc0d8494700590fb243a27"
+  },
+  "versions": {
+    "openagent-core": "1.1.0b22",
+    "openagent-storage-sqlite": "1.1.0b22",
+    "openagent-identity": "1.1.0b39",
+    "openagent-framework": "1.1.0b39"
+  },
+  "python": "3.12.15",
+  "completed_at": "2026-10-16T16:08:33.113203+00:00",
+  "models_used": false,
+  "provider_io": false,
+  "mac_execution": false,
+  "cpu_limit": "1",
+  "memory_limit": "1536Mi",
+  "excluded_baseline_tests": [
+    "t_detail_resolver_contract",
+    "t_detail_resolver_deep_link_acl"
+  ],
+  "source_override": "Product server source under /work/input/apps/server/src is first on sys.path; installed public dependency distributions are measured only in venv site-packages.",
+  "format": 1,
+  "scope": "Targeted source regression with public installed dependencies; not native App or provider acceptance",
+  "paid_github_actions_started": false,
+  "excluded_baseline_note": "The two broad legacy detail fixtures were not qualified on this installed dependency closure; the new self-contained regression exercises readiness and owner isolation without those fixtures."
+}

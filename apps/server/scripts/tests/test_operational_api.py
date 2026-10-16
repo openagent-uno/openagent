@@ -2582,6 +2582,107 @@ async def t_grouped_snapshot_match_quota(_ctx: TestContext) -> None:
         operational._MAX_SNAPSHOT_ROWS_GLOBAL = old_limit
 
 
+@test("operational_api", "workflow detail returns retryable warming before authorized history is ready")
+async def t_workflow_detail_warming_response(_ctx: TestContext) -> None:
+    from unittest.mock import patch
+
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from openagent_identity.auth.device_cert import issue_cert, verify_cert
+    from openagent_server.gateway.api import operational, workflow_tasks
+    from openagent_core.memory.db import MemoryDB
+    from openagent_core.memory.operational.automation import claim_resource, project_automation
+
+    with TemporaryDirectory(prefix="openagent-workflow-detail-warmup-") as directory:
+        db = MemoryDB(str(Path(directory) / "openagent.db"))
+        await db.connect()
+        try:
+            workflow_id = await db.add_workflow(name="Private workflow detail")
+            run_id = await db.add_workflow_run(workflow_id=workflow_id, trigger="manual")
+            now = time.time()
+            await db.update_workflow_run(
+                run_id, status="success", finished_at=now,
+                trace=[{
+                    "node_id": "read", "type": "tool", "status": "success",
+                    "started_at": now, "finished_at": now,
+                    "tool_invocation_ids": ["trace-tool-id"],
+                }],
+            )
+            conn = db._conn
+            state = await (
+                await conn.execute(
+                    "SELECT db_instance_id FROM operational_storage_state WHERE singleton_id=1"
+                )
+            ).fetchone()
+            tenant = f"installation:{state[0]}"
+            await claim_resource(
+                conn, tenant_id=tenant, resource_type="workflow_definition",
+                resource_id=workflow_id, owner_principal_id="user:alice",
+            )
+            await conn.commit()
+            gateway = SimpleNamespace(agent=SimpleNamespace(memory_db=db))
+            coordinator = Ed25519PrivateKey.generate()
+
+            def authenticated_request(handle: str):
+                device_key = Ed25519PrivateKey.generate()
+                public_key = device_key.public_key().public_bytes(
+                    serialization.Encoding.Raw, serialization.PublicFormat.Raw,
+                )
+                certificate = verify_cert(
+                    issue_cert(
+                        coordinator_key=coordinator, handle=handle,
+                        device_pubkey=public_key, network_id=tenant,
+                    ),
+                    coordinator_pubkey=coordinator.public_key(),
+                    expected_network_id=tenant,
+                )
+                request = _Request(
+                    gateway, tenant=tenant, handle=handle,
+                    device=certificate.device_pubkey_hex, match={"run_id": run_id},
+                )
+                # This is the authenticated state supplied by the gateway
+                # middleware after native certificate signature verification.
+                request.update(
+                    device_cert=certificate, auth_kind="device_cert", device_auth_epoch=1,
+                )
+                return request
+
+            request = authenticated_request("alice")
+            # Exercise the actual detail decorator and readiness exception.
+            # Only park background preparation to make the first read stable.
+            gateway._operational_history_ready = False
+            with patch.object(operational, "_start_background"):
+                response = await workflow_tasks.handle_run_get(request)
+            assert response.status == 503, response.text
+            assert response.headers["Cache-Control"] == "no-store"
+            assert _payload(response) == {"error": {
+                "code": "warming",
+                "message": "Operational history is still being prepared",
+                "retryable": True,
+            }}
+
+            # Complete the same canonical automation projection used by the
+            # history worker; no search/UI-view fixture is needed for detail.
+            await project_automation(conn)
+            await conn.commit()
+            gateway._operational_history_ready = True
+            assert await operational._canonical_status(gateway, db, conn)
+            ready = await workflow_tasks.handle_run_get(request)
+            assert ready.status == 200, ready.text
+            detail = _payload(ready)
+            assert detail["id"] == run_id
+            assert detail["status"] == "success"
+            assert detail["trace_steps"][0]["tool_invocation_ids"] == ["trace-tool-id"]
+            denied = await workflow_tasks.handle_run_get(authenticated_request("bob"))
+            assert denied.status == 404, denied.text
+            assert run_id not in denied.text
+            assert "trace-tool-id" not in denied.text
+        finally:
+            if "gateway" in locals():
+                await operational.stop_background_maintenance(gateway)
+            await db.close()
+
+
 @test("operational_api", "detail resolvers keep legacy epochs and canonical deep-link ids")
 async def t_detail_resolver_contract(_ctx: TestContext) -> None:
     from openagent_server.gateway.api import operational
