@@ -75,5 +75,12 @@
     "source": "https://clickup.com/images/brand-assets/logo-symbol-color.svg",
     "retrieved": "2026-09-15",
     "sha256": "704d7d3779dbe8793b835e3cf7fa556b9b6fbf1558581a94ea6bc7800cc78c35"
+  },
+  {
+    "id": "notion",
+    "file": "notion.png",
+    "source": "https://app.notion.com/images/logo-ios.png",
+    "retrieved": "2026-10-16",
+    "sha256": "59c42a0afd20dc9dd0cf598e105e774a484bf10cdbec1ffc3a33c9cb59579b47"
   }
 ]
