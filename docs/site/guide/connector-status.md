@@ -9,7 +9,10 @@ installed client already includes the candidate UI.
 **Subsequent candidate QA, 16 October:** the private GitHub candidate passed a
 selected-repository lifecycle, and Notion passed consent to one empty private QA
 page, read, reversible title write with exact cleanup, owner refresh, read after
-a real server restart and local disconnect. See
+a real server restart and local disconnect. Slack subsequently passed scoped
+reads, an approved message create/read/delete with cleanup, owner refresh after
+a recorded 503 and explicit recovery, a post-restart read and local disconnect;
+its owned runtime was stopped. See
 [ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The delivery
 checkpoint below retains its 14 October published baseline; these private
 trials do not publish candidate 0.1.4, update consumer pins or open public OAuth

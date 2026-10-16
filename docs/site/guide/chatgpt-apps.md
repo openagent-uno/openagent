@@ -57,14 +57,40 @@ remain unchanged.
 
 ## Next candidate batch: Slack and Jira
 
-The same unpublished 0.1.4 source candidate now contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. This qualifies source behavior against fixtures; real provider consent and receiving-product acceptance remain pending. SDK 0.1.3 and existing consumer pins are unchanged.
+The same unpublished 0.1.4 source candidate now contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. Those source checks qualify fixture behavior separately from the limited real Slack lifecycle below; Jira consent and receiving-product acceptance remain pending. SDK 0.1.3 and existing consumer pins are unchanged.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
 | Slack | Token identity, conversations/list/info/history/replies, user information, text post/update/delete | Confidential OAuth user tokens, no bot-token fallback or impersonation. Preserves catalog ID `slack-import`. The workspace comes from Slack and cannot be changed during renewal. History and replies return at most 15 messages per page; no automatic retry. Unlisted commercial-app rate limits apply. |
 | Atlassian / Jira | Accessible sites, projects/list/get, enhanced JQL search, issues/get/create/update and comments/list/create | Resource-level OAuth app, classic read/write Jira scopes and rotating refresh. The server lists granted sites and verifies the selected `cloud_id` against the provider before saving it. Tools cannot provide another site or API URL. Supports a bounded field/text subset; no Confluence, admin operations or Rovo parity claim. |
 
-The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; installation and consent remain pending. Neither provider is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
+The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; one authorized receiving installation completed the limited lifecycle below. Neither provider is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
+
+### Slack real-provider QA
+
+On 16 October, the private standalone candidate completed Slack consent, scoped
+workspace/channel reads, an approved message create/read/delete with verified
+cleanup and restoration of the local write policy, owner refresh, a read after
+a real server restart, and local disconnection with the connection disabled.
+The owned runtime was then stopped. Qualifying provider operations used the
+normal certified CLI, gateway and authorized workflow without a model. A
+separate read-only `auth.test` response-header diagnostic ran on the receiving
+QA server with approved existing access; it exported no token values, made no
+database writes and is excluded from normal-path acceptance. The normally
+installed private product used public Core/Storage beta
+22 and SDK 0.1.3 with the supported private runner-path override.
+
+The first refresh returned 503. After the reviewed broker compatibility fix and
+explicit reconsent, owner refresh passed at 18:32:01 UTC, the post-restart read
+passed at 18:32:52 UTC, and disconnect passed at 18:33:00 UTC. The approved
+17:57 message lifecycle remained valid for the same app, scopes and receiving
+installation; it was not automatically retried during recovery. An initial
+certified-client connection also disconnected before startup readiness; the
+later attempt passed after 43 seconds. These failures and their recovery are
+retained in the [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/slack-oauth-2026-10-16.json).
+Remaining tools, native App acceptance, candidate artifact publication/adoption
+and general enrollment remain separate. This does not qualify Slack's separate
+MCP service or provider-wide app revocation.
 
 ### Candidate setup and renewal
 
