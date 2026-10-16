@@ -8,7 +8,7 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 
 ## First implementation batch: GitHub and Notion
 
-**Source candidate 0.1.4 is not published.** The published SDK/runner remains 0.1.3 and existing installed products keep their pins. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled pending real consent and receiving-host qualification. Registration and source fixtures do not prove real access.
+**Source candidate 0.1.4 is not published.** The published SDK/runner remains 0.1.3 and existing installed products keep their pins. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub completed an authorized standalone QA lifecycle described below; Notion consent remains pending. Registration and source fixtures alone do not prove real access.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -19,6 +19,23 @@ API requests originate from the receiving server using its local credentials. No
 
 For product setup, use [Using connectors](./connectors.md). These candidate providers become usable through the same App marketplace, authenticated server API and CLI only after a qualified SDK/runner release is adopted and an approved OAuth registration is configured. They are not silently activated in an older installation.
 
+## GitHub real-provider QA
+
+On 16 October, a private standalone source candidate completed GitHub OAuth,
+repository reading, creation/reading/closure of a disposable issue, explicit
+owner refresh, a read after server restart, and local disconnection. The app was
+installed only on an explicitly approved private QA repository with Actions
+disabled. API calls ran on the receiving server; no language model was used.
+The temporary server was removed after disconnecting.
+
+The [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/github-oauth-2026-10-16.json)
+records exact source and dependency pins. Native App acceptance, remaining
+tools and qualified artifact publication remain separate. The run also exposed
+a temporary history-readiness error in the product. A targeted regression now
+verifies the source correction: 503 while preparing, then an authorized result,
+with another verified user denied. The fix is not in the published runtime. Published server/CLI beta 39 and SDK 0.1.3
+remain unchanged.
+
 ## Next candidate batch: Slack and Jira
 
 The same unpublished 0.1.4 source candidate now contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. This qualifies source behavior against fixtures; real provider consent and receiving-product acceptance remain pending. SDK 0.1.3 and existing consumer pins are unchanged.
@@ -28,7 +45,7 @@ The same unpublished 0.1.4 source candidate now contains **9 Slack Web API tools
 | Slack | Token identity, conversations/list/info/history/replies, user information, text post/update/delete | Confidential OAuth user tokens, no bot-token fallback or impersonation. Preserves catalog ID `slack-import`. The workspace comes from Slack and cannot be changed during renewal. History and replies return at most 15 messages per page; no automatic retry. Unlisted commercial-app rate limits apply. |
 | Atlassian / Jira | Accessible sites, projects/list/get, enhanced JQL search, issues/get/create/update and comments/list/create | Resource-level OAuth app, classic read/write Jira scopes and rotating refresh. The server lists granted sites and verifies the selected `cloud_id` against the provider before saving it. Tools cannot provide another site or API URL. Supports a bounded field/text subset; no Confluence, admin operations or Rovo parity claim. |
 
-The Atlassian app and callback are registered, with secret custody still pending. Slack's workspace is created; its app registration and installation remain pending. Neither provider is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
+The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; installation and consent remain pending. Neither provider is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
 
 ### Candidate setup and renewal
 
@@ -53,7 +70,7 @@ The table is the initial observation against the published 0.1.3 catalog. The fo
 | 3 | [Flaim Fantasy](https://chatgpt.com/plugins/plugin_asdk_app_69a8f78087e081919e52cacacf00ff36) | Not implemented/qualified | Not researched |
 | 4 | [Atlassian](https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa) | Jira API candidate (9 tools); real qualification pending | [MCP with commercial conditions](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/) |
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | Not researched |
-| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | Candidate implementation; common enrollment disabled | [Documented official MCP](https://github.com/github/github-mcp-server) |
+| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | Real standalone QA passed; release and common enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |

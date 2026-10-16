@@ -241,6 +241,32 @@ shared library is not a shared React application, shared database or global
 MCP credential store. Core exposes public contracts; products build their
 surfaces from those contracts without engine forks or installation overlays.
 
+### Remote MCP authentication: remaining work
+
+The current MCP configuration's `oauth` flag is stored but is not connected to
+an OAuth client in the HTTP transport. Turning it on does not start a complete
+browser authorization flow. Static MCP headers are configuration returned to
+authorized catalog readers; they are not the credential store for new personal
+OAuth connections. Ordinary mutable MCP sources also do not carry the
+per-connection owner binding used by official connector grants.
+
+Adding authenticated official remote MCPs therefore needs one reusable managed
+source per connection: locally encrypted OAuth/client-registration state,
+an authenticated browser callback bound to its owner and installation, and
+tenant/owner/audience/generation checks before tool calls and credential saves.
+Public catalog responses expose connection state and tool descriptions, without
+tokens. The host can register that source through Core's public capability APIs;
+provider-specific API adapters need not be duplicated. Generic pool support can
+then accept host-supplied HTTP authentication through a public hook.
+
+For example, [Supabase's official MCP](https://supabase.com/docs/guides/ai-tools/mcp)
+supports dynamic client registration without a manually created app or PAT, with
+project and read-only restrictions. [Firecrawl documents an OAuth MCP endpoint](https://docs.firecrawl.dev/mcp-server/oauth);
+its registration and callback compatibility still need qualification. Neither
+integration is marked ready by this architecture note. Transport authentication,
+consent, owner isolation, refresh/restart and supported elicitation behavior must
+be verified before a card offers authenticated use.
+
 ## Operational limits
 
 The first broker deployment is one writer, one metadata volume and a `Recreate`
