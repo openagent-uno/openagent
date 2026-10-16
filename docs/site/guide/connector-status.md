@@ -1,6 +1,6 @@
 # Connector release and qualification status
 
-Status recorded on **14 October 2026**. This page distinguishes implemented
+Status updated on **16 October 2026**. This page distinguishes implemented
 code, published artifacts, deployed services and real provider acceptance.
 A visible card or a passing health check alone does not make a connector ready
 for production. It is a qualification checkpoint, not a promise that an older
@@ -13,24 +13,23 @@ a real server restart and local disconnect. Slack subsequently passed scoped
 reads, an approved message create/read/delete with cleanup, owner refresh after
 a recorded 503 and explicit recovery, a post-restart read and local disconnect;
 its owned runtime was stopped. See
-[ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The delivery
-checkpoint below retains its 14 October published baseline; these private
-trials do not publish candidate 0.1.4, update consumer pins or open public OAuth
-enrollment. They also do not qualify the
+[ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The shared SDK/runner 0.1.4 has since been independently qualified and published.
+The product rows below retain their published versions; these private trials
+do not update consumer pins or open public OAuth enrollment. They also do not qualify the
 [multi-source application composition contracts](./application-composition.md).
 
 ## Delivery checkpoint
 
 | Surface | Confirmed | Still required |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.3`; ten implemented integrations, two unavailable placeholders; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
-| Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition verified | Native Windows/Linux/macOS runtime and signing acceptance |
+| Shared Go connector module | Published `0.1.4`; fourteen implemented official adapters, plus the custom MCP descriptor; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
+| Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition and Linux x64 runner/broker smoke verified | Other native targets and signing acceptance remain separate |
 | Standalone server/CLI | Published `1.1.0-beta.39`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.3` and Host Tools B6; catalog fixture verifies 12 official entries plus one custom MCP | Real provider consent and API operations; receiving hosts qualify their own rollout |
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
 | Standalone App | Published `1.1.0-beta.17` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 39 | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
-| Common authentication service | Auth-only `0.1.6` published and deployed from source `d61f23e33352c74a6dc6c5b3948b67c0f625cd6a`; connector module/runner `0.1.3` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
-| Common provider enrollment | ClickUp enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | ClickUp real consent, read, reversible write, restart and disconnect passed; remaining activation gates apply before public enrollment |
+| Common authentication service | Auth-only `0.1.6` published; the QA deployment now uses the reviewed Slack refresh fix from source `e2d3336710dcbde0b2092f095d854b3b4fc6dec7`; connector module/runner `0.1.4` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
+| Common provider enrollment | Provider grants enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | ClickUp real consent, read, reversible write, restart and disconnect passed; remaining activation gates apply before public enrollment |
 
 Host products qualify their own deployments and client distributions. Their
 version pins, release receipts and private deployment inventories remain with
@@ -38,13 +37,20 @@ those operators; they are not part of the standalone product's release proof.
 Common OAuth remains closed to the public. ClickUp now has a successful real
 browser consent and installed-product trial, as recorded below.
 
-The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
+The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
 is distinct from [standalone product downloads](../downloads.md).
-The [remote qualification workflow](https://github.com/openagent-uno/openagent-tools/actions/runs/38450067001)
-passed. The published `qualification.json` records race/vet and vulnerability
-checks, normal isolated Python-wheel installation, nine provider-privacy schema
-checks, macOS ARM64 runner/broker smoke and cross-compilation for the other targets; it does
-not claim real provider access or final product acceptance.
+Its eleven assets were published from clean source
+`709e6634edbf71c6d53711b01482a0509eb7bfa0`; all uploaded API digests and sizes
+matched the qualified files, and the anonymous manifest download was verified.
+Manifest SHA-256:
+`b8aa9fec6f5fc495b13325ad5c2db0a6a7ed5f1b450ad484401bc31629e0fd41`.
+The bounded serial Linux qualification passed race/vet, govulncheck, twelve
+compiled binary checks, nine provider-privacy schema tests, normal isolated
+Python-wheel installation, native Linux x64 runner/broker fixtures and the
+public beta 39 host acquisition contract. Other native targets have
+cross-compilation/checksum/toolchain coverage only. The published
+`qualification.json` records scope and evidence hashes. These checks do not
+establish real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 

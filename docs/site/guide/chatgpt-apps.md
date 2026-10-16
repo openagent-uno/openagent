@@ -8,7 +8,7 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 
 ## First implementation batch: GitHub and Notion
 
-**Source candidate 0.1.4 is not published.** The published SDK/runner remains 0.1.3 and existing installed products keep their pins. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
+**SDK/runner 0.1.4 is published.** The [qualified shared prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4) contains the GitHub, Notion, Slack and Jira adapters. Existing installed products retain their own version pins until an independently qualified product update. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -35,7 +35,7 @@ path handled temporary readiness with typed `503 warming` responses; no history
 fallback or automatic provider-write retry was used. The
 [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/notion-oauth-2026-10-16.json)
 records stages and evidence hashes. This qualifies only that page lifecycle;
-remaining tools, native App acceptance, candidate release/adoption and general
+remaining tools, native App acceptance, receiving-product release/adoption and general
 enrollment remain pending.
 
 ## GitHub real-provider QA
@@ -49,15 +49,14 @@ The temporary server was removed after disconnecting.
 
 The [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/github-oauth-2026-10-16.json)
 records exact source and dependency pins. Native App acceptance, remaining
-tools and qualified artifact publication remain separate. The run also exposed
+tools and receiving-product rollout remain separate. The run also exposed
 a temporary history-readiness error in the product. A targeted regression now
 verifies the source correction: 503 while preparing, then an authorized result,
-with another verified user denied. The fix is not in the published runtime. Published server/CLI beta 39 and SDK 0.1.3
-remain unchanged.
+with another verified user denied. The product fix is not in published server/CLI beta 39. SDK/runner 0.1.4 is now published separately; installed consumer pins remain unchanged.
 
 ## Next candidate batch: Slack and Jira
 
-The same unpublished 0.1.4 source candidate now contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. Those source checks qualify fixture behavior separately from the limited real Slack lifecycle below; Jira consent and receiving-product acceptance remain pending. SDK 0.1.3 and existing consumer pins are unchanged.
+The published 0.1.4 library contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. Those source checks qualify fixture behavior separately from the limited real Slack lifecycle below; Jira consent and receiving-product acceptance remain pending. Existing consumer pins are unchanged until the receiving-product rollout.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -88,8 +87,8 @@ installation; it was not automatically retried during recovery. An initial
 certified-client connection also disconnected before startup readiness; the
 later attempt passed after 43 seconds. These failures and their recovery are
 retained in the [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/slack-oauth-2026-10-16.json).
-Remaining tools, native App acceptance, candidate artifact publication/adoption
-and general enrollment remain separate. This does not qualify Slack's separate
+The shared 0.1.4 artifacts are now published. Remaining tools, native App acceptance,
+receiving-product release/adoption and general enrollment remain separate. This does not qualify Slack's separate
 MCP service or provider-wide app revocation.
 
 ### Candidate setup and renewal
@@ -124,8 +123,8 @@ The table is the initial observation against the published 0.1.3 catalog. The fo
 | 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | Not implemented/qualified | [Documented official MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
-| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | Single-page standalone QA passed; release and common enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
-| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | Limited standalone lifecycle passed; release and common enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
+| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4 published; single-page standalone QA passed; product rollout and common enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
+| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4 published; limited standalone lifecycle passed; product rollout and common enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | Not researched |
