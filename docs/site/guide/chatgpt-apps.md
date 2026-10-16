@@ -8,7 +8,7 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 
 ## First implementation batch: GitHub and Notion
 
-**Source candidate 0.1.4 is not published.** The published SDK/runner remains 0.1.3 and existing installed products keep their pins. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub completed an authorized standalone QA lifecycle described below; Notion consent remains pending. Registration and source fixtures alone do not prove real access.
+**Source candidate 0.1.4 is not published.** The published SDK/runner remains 0.1.3 and existing installed products keep their pins. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -18,6 +18,25 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 API requests originate from the receiving server using its local credentials. Normal provider traffic is not routed through the authentication broker. The receiving host controls identity, authorization, write permission, encrypted storage and audit. Both adapters pin the API origin and version; mutating operations have no automatic retry. Provider capabilities and local tool permission remain separate checks.
 
 For product setup, use [Using connectors](./connectors.md). These candidate providers become usable through the same App marketplace, authenticated server API and CLI only after a qualified SDK/runner release is adopted and an approved OAuth registration is configured. They are not silently activated in an older installation.
+
+## Notion real-provider QA
+
+On 16 October, a private standalone candidate completed Notion OAuth with
+explicit selection of one new empty private QA page. It read that page, changed
+and independently verified its title, restored the exact original title and
+local write policy, refreshed access, read the page after a real server process
+restart, and disconnected the local connection. Existing pages were not selected.
+
+The normally installed private product wheels used public Core/Storage beta 22
+and SDK 0.1.3 with its supported runner-path override to the private candidate
+runner. Calls crossed the ordinary certified gateway and authorized workflow
+execution, without a model or direct test-client provider calls. The run-detail
+path handled temporary readiness with typed `503 warming` responses; no history
+fallback or automatic provider-write retry was used. The
+[qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/notion-oauth-2026-10-16.json)
+records stages and evidence hashes. This qualifies only that page lifecycle;
+remaining tools, native App acceptance, candidate release/adoption and general
+enrollment remain pending.
 
 ## GitHub real-provider QA
 
@@ -79,8 +98,8 @@ The table is the initial observation against the published 0.1.3 catalog. The fo
 | 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | Not implemented/qualified | [Documented official MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
-| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | Candidate implementation; common enrollment disabled | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
-| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | Web API candidate (9 tools); registration pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
+| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | Single-page standalone QA passed; release and common enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
+| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | Web API candidate (9 tools); app registered, installation and QA pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | Not researched |
