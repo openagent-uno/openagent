@@ -47,10 +47,14 @@ assembles public Core beta 22, connector 0.1.4 and
 B6 has six qualified native targets and signed/notarized macOS bundles; its
 release-index SHA-256 is
 `a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
-[App beta 17](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
-is released independently and has a recorded Linux x64 marketplace trial with
-server beta 39. App beta 18 is being qualified separately; its native release
-and updated marketplace screenshots are not inferred from the Python release.
+[App beta 18](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
+is released independently. Its recorded Linux x64 marketplace trial uses
+server beta 40 and SDK/runner 0.1.4, with 14 official entries and registry MCPs
+in the same grid. Native release qualification and marketplace presentation
+acceptance remain separate from provider consent and API operations. The
+[earlier App beta 17](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
+trial with server beta 39 remains historical evidence; neither trial establishes
+Mac or Windows marketplace GUI acceptance.
 Each host owns its locked dependency assembly, installation, enabled storage
 surfaces and release qualification. A public component release never silently
 updates another host or attests its data-processing coverage.

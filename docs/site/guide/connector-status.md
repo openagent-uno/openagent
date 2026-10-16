@@ -14,8 +14,8 @@ reads, an approved message create/read/delete with cleanup, owner refresh after
 a recorded 503 and explicit recovery, a post-restart read and local disconnect;
 its owned runtime was stopped. See
 [ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The shared SDK/runner 0.1.4 has since been independently qualified and published.
-Server/CLI beta 40 now adopts the published library; the App is qualified
-separately. Neither publication nor these private trials open public OAuth enrollment. They also do not qualify the
+Server/CLI beta 40 now adopts the published library. App beta 18 is separately
+published, with a recorded Linux x64 marketplace trial against server beta 40. Neither publication nor these private trials open public OAuth enrollment. They also do not qualify the
 [multi-source application composition contracts](./application-composition.md).
 
 ## Delivery checkpoint
@@ -27,7 +27,7 @@ separately. Neither publication nor these private trials open public OAuth enrol
 | Standalone server/CLI | Published `1.1.0-beta.40`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.4` and Host Tools B6; real runner catalog verifies 14 official entries plus one custom descriptor | Real provider consent and API operations; receiving hosts qualify their own rollout |
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
-| Standalone App | Published `1.1.0-beta.17` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 39 | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
+| Standalone App | Published `1.1.0-beta.18` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 40 and 14 official entries | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
 | Common authentication service | Auth-only `0.1.6` published; the QA deployment now uses the reviewed Slack refresh fix from source `e2d3336710dcbde0b2092f095d854b3b4fc6dec7`; connector module/runner `0.1.4` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
 | Common provider enrollment | Provider grants enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | ClickUp real consent, read, reversible write, restart and disconnect passed; remaining activation gates apply before public enrollment |
 
@@ -88,7 +88,7 @@ historical App repository; its payload comes from canonical source
 preserved. The [App beta 17 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
 is published from canonical source `0b00b5bde99fbbe5685f7906a7d1596c6e0d85fb`;
 its [native qualification run](https://github.com/openagent-uno/openagent-app/actions/runs/38479698733)
-is separate from the [current Linux x64 marketplace visual acceptance](https://github.com/openagent-uno/openagent/actions/runs/38513332981)
+is separate from the [historical Linux x64 marketplace visual acceptance](https://github.com/openagent-uno/openagent/actions/runs/38513332981)
 with released server beta 39. The earlier App beta 16/server beta 38 management
 checks remain historical evidence.
 Canonical product source remains in this repository.
@@ -145,6 +145,23 @@ its production privacy processing.
   configuration is implemented; dummy-token tests do not validate a real account.
 
 ## What the tests establish
+
+The [App beta 18 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
+publishes 36 verified assets from canonical payload source
+`a5623534956d0ff3b1ad0f4c926d1b4cc6040a98`. Its [native qualification run](https://github.com/openagent-uno/openagent-app/actions/runs/38955525864)
+is separate from the [Linux x64 marketplace worker trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json).
+The latter installed the public App beta 18 and server beta 40 artifacts without
+a source overlay and joined through normal authenticated membership. It loaded
+14 official entries alongside 30 real registry results.
+The authenticated connections, official catalog and registry requests returned
+HTTP 200; actual screenshots show one shared card grid and official logos.
+The isolated Linux worker launched Electron with `--no-sandbox`; this is not sandbox/security acceptance. Its `--local-e2e` option isolated the temporary profile/updater only; authentication remained ordinary.
+This qualifies marketplace presentation on Linux x64, not Mac/Windows
+marketplace GUI acceptance or provider OAuth/API operations. Exact source,
+artifact digests, execution flags and owned cleanup are recorded in the
+[visual receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json).
+
+The preceding run remains historical evidence:
 
 The [released App beta 17/server beta 39 visual run](https://github.com/openagent-uno/openagent/actions/runs/38513332981)
 passed from qualifier source `9178edf19ec610f079f7e351fd783a9710db62c1`.

@@ -2,11 +2,11 @@
 
 ::: info Published releases and activation gates
 As of 16 October 2026, server/CLI beta 40, Core beta 22, Host Tools B6
-and shared library/runner 0.1.4 are published. The current App remains beta 17;
-beta 18 is undergoing its separate native release qualification. Beta 40 pins
-connector 0.1.4 and B6; older installations retain their own pins until updated.
-The released App beta 17/server beta 39 marketplace has been visually verified
-on Linux x64; the new App/catalog combination still needs that acceptance.
+and shared library/runner 0.1.4 are published. The current App is beta 18.
+Beta 40 pins connector 0.1.4 and B6; older installations retain their own pins
+until updated. The released App beta 18/server beta 40 marketplace has been
+visually verified on Linux x64 with 14 official entries and registry MCPs in
+one grid. Mac and Windows marketplace GUI acceptance remain separate.
 Publishing a component does not update an installed product. Common OAuth
 enrollment remains closed. ClickUp, GitHub, Notion and Slack have limited real
 QA receipts; Jira secret custody and consent remain pending. Shopify remains
@@ -77,6 +77,19 @@ be broader; a local read-only choice does not rewrite the provider's grant.
 A token connection being saved as Connected does not prove a successful
 provider API call; verify access with an appropriate authorized operation.
 
+![Released App beta 18 with server beta 40: official connectors and registry MCPs share the same marketplace grid](/connectors/app18-server40-marketplace-top.png)
+
+![Released App beta 18 with server beta 40: provider logos use the same cards as registry MCPs](/connectors/app18-server40-marketplace-scroll.png)
+
+These actual Linux x64 screenshots show the released App beta 18 connected to
+server beta 40 through normal authenticated membership. The marketplace loaded
+14 official entries and 30 real registry results in one
+grid, without a dedicated official tab, label or divider. No provider OAuth
+consent or API access is inferred from these images. See the
+[qualification scope](./connector-status.md#what-the-tests-establish).
+
+::: details Historical App beta 17 / server beta 39 screenshots
+
 ![Released App beta 17 with server beta 39: BillingBear shares the marketplace grid with registry MCPs](/connectors/app17-server39-marketplace-top.png)
 
 ![Released App beta 17 with server beta 39: ClickUp, Gmail and Google Analytics use the same cards alongside registry MCPs](/connectors/app17-server39-marketplace-scroll.png)
@@ -87,6 +100,9 @@ loaded 12 official entries and 30 real registry results in one grid. OAuth was
 unavailable on this disposable server; the images demonstrate the presentation,
 not provider consent or API access. See the
 [qualification scope](./connector-status.md#what-the-tests-establish).
+
+:::
+
 Embedding hosts display these integrations in their **MCP marketplace**
 alongside custom MCP endpoints. OAuth disclosure identifies the product and
 the particular receiving installation. Third-party products may use the shared

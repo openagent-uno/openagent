@@ -1,0 +1,104 @@
+{
+  "status": "passed",
+  "qualifierSource": "37ed2e4000bd4e5e877fc497dc5514603045ed13",
+  "appSource": "a5623534956d0ff3b1ad0f4c926d1b4cc6040a98",
+  "appVersion": "1.1.0-beta.18",
+  "serverVersion": "1.1.0b40",
+  "appDEBSHA256": "88aabaef2cbe7491326ce394d810d701ada26d585f20316ef69687d83bfe95c1",
+  "installerURL": "https://openagent.uno/install.sh",
+  "installerSHA256": "c5e3cbab8cf03da53ed5bec370a89a899b7380ac90183e9afa94f999b134c86d",
+  "executionContext": "worker-linux",
+  "sourceOverlay": false,
+  "realProviderOAuth": false,
+  "providerCalls": 0,
+  "personalProfilesUsed": false,
+  "catalogSHA256": "964cf46c08012a8655dd6d06f4b06d04a60236f3a8617a66c5e81b03ad6e40ed",
+  "ownedProfileUnderOSTempRoot": true,
+  "installedVersions": {
+    "openagent-framework": "1.1.0b40",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.4",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "ui": {
+    "status": "passed",
+    "appVersion": "1.1.0-beta.18",
+    "serverVersion": "1.1.0b40",
+    "verifiedLocalProviderIcons": [
+      "github",
+      "notion",
+      "slack-import",
+      "atlassian"
+    ],
+    "officialLabelOrTabAbsent": true,
+    "unlabelledDividerAcceptance": "screenshot review only",
+    "officialCount": 14,
+    "officialIds": [
+      "atlassian",
+      "billingbear",
+      "clickup",
+      "github",
+      "gmail",
+      "google-analytics",
+      "google-drive",
+      "imap_smtp",
+      "notion",
+      "pipeboard",
+      "postiz",
+      "replio",
+      "shopify",
+      "slack-import"
+    ],
+    "registryCount": 30,
+    "transport": "ordinary UI join/SRP/device certificate/native Iroh proxy",
+    "backendMocked": false,
+    "modelInvoked": false,
+    "cookieOrTokenExported": false,
+    "hostedElectronSandboxDisabled": true,
+    "sandboxSecurityAcceptance": false,
+    "profilePolicy": "packaged --local-e2e isolates temp profile/updater only; authentication unchanged",
+    "apiStatus": {
+      "/api/connectors": 200,
+      "/api/marketplace/official": 200,
+      "/api/marketplace/search": 200
+    },
+    "guiScope": "real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance",
+    "clientExitCode": 0,
+    "clientExitSignal": null,
+    "clientCleanupConfirmed": true
+  },
+  "ownedStagingCleanupConfirmed": true,
+  "format": 1,
+  "date": "2026-10-16",
+  "commonEnrollment": false,
+  "screenshotReview": {
+    "status": "passed",
+    "unlabelledDividerAbsent": true
+  },
+  "images": {
+    "app18-server40-marketplace-top.png": {
+      "sha256": "13ad7952700feaa786cf92ce658daf4ebdd0195bdab732f04acad2918cf54284",
+      "bytes": 162674,
+      "url": "/connectors/app18-server40-marketplace-top.png"
+    },
+    "app18-server40-marketplace-scroll.png": {
+      "sha256": "4f0f234b77154e0a56c82a26a08c7b128433899b50eba68a216670df750558d5",
+      "bytes": 167461,
+      "url": "/connectors/app18-server40-marketplace-scroll.png"
+    }
+  },
+  "nativeRelease": {
+    "url": "https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18",
+    "run": "https://github.com/openagent-uno/openagent-app/actions/runs/38955525864",
+    "executor": "071d2bf2a0395f80cc603308eb21cf8174c56607",
+    "assets": 36,
+    "jobsPassed": 10,
+    "nativePlatformsPassed": 6,
+    "actionsArtifacts": 0,
+    "hostToolsLockRawSHA256": {
+      "LF": "a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0",
+      "WindowsCRLF": "d2dbd675ddf35f428de7b6c003e7b40bfe63f7aee761dc2da0de90c6a1d850de"
+    },
+    "hostToolsLockJSONPinsIdentical": true
+  }
+}

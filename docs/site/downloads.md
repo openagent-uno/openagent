@@ -1,7 +1,7 @@
 # Download OpenAgent
 
 The current server and CLI build is **v1.1.0-beta.40**. The latest desktop App
-is **v1.1.0-beta.17**, published for macOS, Windows and Linux on ARM64 and x64.
+is **v1.1.0-beta.18**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
 
@@ -17,9 +17,13 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 17 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
+The [App beta 18 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
 includes installer checksums, six platform provenance manifests and verified
 update metadata. Native packaged launches passed on all six targets.
+The separately recorded [Linux x64 marketplace trial](./guide/connector-status.md#what-the-tests-establish)
+uses App beta 18 with server beta 40 and the published 0.1.4 catalog; this is
+not Mac or Windows marketplace/provider acceptance. App beta 17 remains
+available as a [historical release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17).
 
 ## Standalone server
 

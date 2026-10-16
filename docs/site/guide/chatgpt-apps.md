@@ -35,7 +35,7 @@ path handled temporary readiness with typed `503 warming` responses; no history
 fallback or automatic provider-write retry was used. The
 [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/notion-oauth-2026-10-16.json)
 records stages and evidence hashes. This qualifies only that page lifecycle;
-remaining tools, native App acceptance, receiving-product release/adoption and general
+remaining tools, native App provider acceptance, receiving-product release/adoption and general
 enrollment remain pending.
 
 ## GitHub real-provider QA
@@ -48,7 +48,7 @@ disabled. API calls ran on the receiving server; no language model was used.
 The temporary server was removed after disconnecting.
 
 The [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/github-oauth-2026-10-16.json)
-records exact source and dependency pins. Native App acceptance, remaining
+records exact source and dependency pins. Native App provider acceptance, remaining
 tools and receiving-product rollout remain separate. The run also exposed
 a temporary history-readiness error in the product. A targeted regression now
 verifies the source correction: 503 while preparing, then an authorized result,
@@ -87,15 +87,15 @@ installation; it was not automatically retried during recovery. An initial
 certified-client connection also disconnected before startup readiness; the
 later attempt passed after 43 seconds. These failures and their recovery are
 retained in the [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/slack-oauth-2026-10-16.json).
-The shared 0.1.4 artifacts are now published. Remaining tools, native App acceptance,
+The shared 0.1.4 artifacts are now published. Remaining tools, native App provider acceptance,
 receiving-product release/adoption and general enrollment remain separate. This does not qualify Slack's separate
 MCP service or provider-wide app revocation.
 
 ### Candidate setup and renewal
 
-After a qualified runner and receiving-product release, connect these providers from the same marketplace cards. For Jira, complete OAuth and choose a site from the server-returned list. The candidate App offers **Choose Jira site**; the authenticated CLI offers `connectors sites <connection-id>` and `connectors select-site <connection-id> <cloud-id>`. The server rechecks the current provider grant on every site change and invalidates old tool references.
+After a qualified runner and receiving-product release, connect these providers from the same marketplace cards. For Jira, complete OAuth and choose a site from the server-returned list. App beta 18 offers **Choose Jira site**; the authenticated CLI offers `connectors sites <connection-id>` and `connectors select-site <connection-id> <cloud-id>`. The server rechecks the current provider grant on every site change and invalidates old tool references.
 
-The candidate App also provides **Refresh access**, backed by `POST /api/connectors/{id}/refresh` and `connectors refresh <connection-id>`. This owner-authorized operation is useful when a provider supplies a refresh token without an expiry, as documented for Notion. It does not invent a token lifetime or replace consent. Connections without a refresh credential require reconnection. The server serializes renewal, rechecks consent/permissions after I/O and atomically saves the latest pair. These actions ship in server/CLI beta 40. App beta 18 adds their graphical controls and is being qualified separately; the current App beta 17 does not expose them.
+App beta 18 also provides **Refresh access**, backed by `POST /api/connectors/{id}/refresh` and `connectors refresh <connection-id>`. This owner-authorized operation is useful when a provider supplies a refresh token without an expiry, as documented for Notion. It does not invent a token lifetime or replace consent. Connections without a refresh credential require reconnection. The server serializes renewal, rechecks consent/permissions after I/O and atomically saves the latest pair. These actions ship in server/CLI beta 40. App beta 18 publishes their graphical controls. The Linux x64 marketplace presentation is qualified separately; packaging these controls does not establish Jira consent or native App provider operations. The earlier App beta 17 does not expose them.
 
 ## Integration paths and remaining work
 
@@ -114,7 +114,7 @@ The table preserves the initial Popular directory order, with implementation sta
 | 3 | [Flaim Fantasy](https://chatgpt.com/plugins/plugin_asdk_app_69a8f78087e081919e52cacacf00ff36) | Not implemented/qualified | Not researched |
 | 4 | [Atlassian](https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa) | SDK 0.1.4/server 40 published: 9 Jira tools; secret custody and real qualification pending | [MCP with commercial conditions](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/) |
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | Not researched |
-| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App and enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
+| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance and enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
@@ -123,8 +123,8 @@ The table preserves the initial Popular directory order, with implementation sta
 | 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | Not implemented/qualified | [Documented official MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
-| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App and enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
-| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
+| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance and enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
+| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App 18 published; native App provider acceptance and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | Not researched |
