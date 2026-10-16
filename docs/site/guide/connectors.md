@@ -3,7 +3,7 @@
 ::: info Published releases and activation gates
 As of 14 October 2026, App beta 17, server/CLI beta 39, Core beta 22,
 Host Tools B6 and shared library/runner 0.1.3 are published.
-Auth-only 0.1.5 is separately deployed. Beta 39 pins connector 0.1.3 and B6;
+Auth-only 0.1.6 is separately deployed. Beta 39 pins connector 0.1.3 and B6;
 an existing beta 38 installation still pins runner 0.1.2 until explicitly
 updated. The released App beta 17/server beta 39 marketplace has been visually
 verified on Linux x64. Publishing a component does not update an installed product.
@@ -26,6 +26,11 @@ shared and which stay in the receiving product. Operators can use the
 [setup and recovery guide](./connector-operations.md).
 
 ## Connector library
+
+The [ChatGPT app coverage guide](./chatgpt-apps.md) records the complete publicly
+observed directory and the initial Popular order. Source candidate 0.1.4 adds
+GitHub and Notion; it is not a published release or an activation of these
+providers in existing installations. See that guide for operations and limits.
 
 | Connector | Authentication | Shared implementation |
 | --- | --- | --- |
