@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b39"
+version = "1.1.0b40"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-connectors==0.1.3",
+    "openagent-connectors==0.1.4",
     "openagent-storage-sqlite==1.1.0b22",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b2",
