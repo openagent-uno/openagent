@@ -1,6 +1,6 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.39**. The latest desktop App
+The current server and CLI build is **v1.1.0-beta.40**. The latest desktop App
 is **v1.1.0-beta.17**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
@@ -25,7 +25,8 @@ update metadata. Native packaged launches passed on all six targets.
 
 <ReleaseDownloads target="server" />
 
-The beta server is distributed as a Python 3.11+ wheel. Use the complete
+The beta server is distributed as a Python 3.11+ wheel. The interpreter must
+include `venv` and `ensurepip` (Debian packages this separately as `python3-venv`). Use the complete
 wheelhouse procedure in [Getting Started](./guide/getting-started), because the
 standalone product pins independently released Core and Tools packages.
 
@@ -57,18 +58,19 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 39.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 40.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.3](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
+- [Shared connector module/runner 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
   — shared provider adapters, Python/MCP transport, platform manifests and checksums.
-- [Connector auth service 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5)
+- [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
   — separate operator deployment release; public provider enrollment remains disabled.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.39/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.40/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
-during the transition. The historical repositories are archived read-only and
-retain their immutable tags and release assets. The installed-version →
+during the transition. Retained historical release assets and updater endpoints remain available.
+The historical App repository still executes the reviewed canonical-source
+signing and updater bridge. The installed-version →
 transition → canonical-release chain remains separately qualified from provider
 consent. Desktop beta clients retain their beta channel and manual update behavior;
 archival preserves the published downloads and updater feed.

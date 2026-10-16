@@ -1,17 +1,17 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-As of 14 October 2026, App beta 17, server/CLI beta 39, Core beta 22,
-Host Tools B6 and shared library/runner 0.1.3 are published.
-Auth-only 0.1.6 is separately deployed. Beta 39 pins connector 0.1.3 and B6;
-an existing beta 38 installation still pins runner 0.1.2 until explicitly
-updated. The released App beta 17/server beta 39 marketplace has been visually
-verified on Linux x64. Publishing a component does not update an installed product.
-Common OAuth enrollment remains closed
-to the public; ClickUp qualification is limited to allowlisted QA servers.
-Shopify remains disabled; Google verification and real provider qualification
-remain pending. Postiz is registered, with credential rotation required before
-activation. See
+As of 16 October 2026, server/CLI beta 40, Core beta 22, Host Tools B6
+and shared library/runner 0.1.4 are published. The current App remains beta 17;
+beta 18 is undergoing its separate native release qualification. Beta 40 pins
+connector 0.1.4 and B6; older installations retain their own pins until updated.
+The released App beta 17/server beta 39 marketplace has been visually verified
+on Linux x64; the new App/catalog combination still needs that acceptance.
+Publishing a component does not update an installed product. Common OAuth
+enrollment remains closed. ClickUp, GitHub, Notion and Slack have limited real
+QA receipts; Jira secret custody and consent remain pending. Shopify remains
+disabled; Google verification and real provider qualification remain pending.
+Postiz is registered, with credential rotation required before activation. See
 [release status and remaining gates](./connector-status.md).
 :::
 
@@ -28,11 +28,12 @@ shared and which stay in the receiving product. Operators can use the
 ## Connector library
 
 The [ChatGPT app coverage guide](./chatgpt-apps.md) records the complete publicly
-observed directory and the initial Popular order. Source candidate 0.1.4 adds
-GitHub, Notion, Slack and Jira; it is not a published release or an activation of these
-providers in existing installations. See that guide for operations and limits.
+observed directory and the initial Popular order. Published SDK 0.1.4 adds
+GitHub, Notion, Slack and Jira and is adopted by server/CLI beta 40. These
+artifacts do not activate common provider enrollment. See that guide for
+operations, limited real QA receipts and remaining gates.
 
-The following table describes the published 0.1.3 implementation. Candidate additions and their release gates are in the coverage guide.
+The following table describes the published 0.1.4 implementation. Provider grants, reviews and receiving-host rollout remain separate from library availability.
 
 | Connector | Authentication | Shared implementation |
 | --- | --- | --- |
@@ -46,13 +47,16 @@ The following table describes the published 0.1.3 implementation. Candidate addi
 | Replio | Organization API token | Apps, conversations and support statistics |
 | BillingBear | Project API token | Revenue and customer billing information |
 | IMAP Email | Local account/app passwords | Read messages and send through SMTP over TLS |
-| GitHub, Slack import | — | Catalog placeholders, unavailable |
+| GitHub | GitHub App OAuth | Selected repositories, code and pull-request reads, issues/comments; 17 operations |
+| Notion | Public OAuth with selected pages | Search, pages, blocks and profiles; 8 operations |
+| Slack | Confidential user OAuth | Conversations/history, profiles and text post/update/delete; 9 operations |
+| Atlassian / Jira | Resource-level OAuth and verified site selection | Projects, JQL search, issues and comments; 9 operations; secret custody/consent pending |
 
 Custom MCP servers remain available alongside official connectors. Embedding products retain their own controls over who may install connectors, which agents may use them, and whether they may make changes.
 
 ## Connect and disconnect
 
-In App beta 17 connected to server beta 39, or a receiving product with the
+In the App connected to an updated server, or a receiving product with the
 shared catalog enabled:
 
 1. Select the receiving server and authenticated user first. In the App, open
@@ -99,6 +103,9 @@ openagent-cli marketplace search filesystem
 openagent-cli connectors list
 openagent-cli connectors connect replio
 openagent-cli connectors reconnect <connection-id>
+openagent-cli connectors refresh <connection-id>
+openagent-cli connectors sites <connection-id>
+openagent-cli connectors select-site <connection-id> <cloud-id>
 openagent-cli connectors configure <connection-id> --read-only
 openagent-cli connectors configure <connection-id> --disabled
 openagent-cli connectors disconnect <connection-id>
@@ -127,7 +134,7 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.3/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.5/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.4/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.6/deploy/connector-auth) describes provider registration and activation gates.
 
 ## Connection requirements by service
 

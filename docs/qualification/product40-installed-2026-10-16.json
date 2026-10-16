@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "status": "passed",
+  "date": "2026-10-16",
+  "payload_source_commit": "a5623534956d0ff3b1ad0f4c926d1b4cc6040a98",
+  "public_manifest_sha256": "8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c",
+  "installer_sha256": "c5e3cbab8cf03da53ed5bec370a89a899b7380ac90183e9afa94f999b134c86d",
+  "python": "3.11.14",
+  "new_target_venv_bootstrap": true,
+  "home_override": false,
+  "source_overlay": false,
+  "installed_fixture_tests": 100,
+  "separate_source_acquisition_tests": 8,
+  "workflow_readiness": "503 while warming, authorized 200 after projection; other verified user 404",
+  "acceptance": {
+    "versions": {
+      "openagent-framework": "1.1.0b40",
+      "openagent-cli": "1.1.0b40",
+      "openagent-connectors": "0.1.4",
+      "openagent-core": "1.1.0b22",
+      "openagent-host-tools": "1.0.0b6"
+    },
+    "isolated_imports": true,
+    "installed_lock_sha256": "a6078d4cc7ae2c46356ef96b07320c4d30a1f01f6deadf4808f3bae0fc45395a",
+    "bundle_verified": true,
+    "runner_sha256": "28deced298b711257ea6fe2f1979be51577bbf82bfcfe478fd757922bbde4aac",
+    "official_count": 14,
+    "custom_count": 1,
+    "provider_calls": 0,
+    "model_calls": 0,
+    "shared_server_cli_root": true,
+    "cli_only_install_tested": false
+  },
+  "preparation_failures_retained": [
+    "Initial build operator PATH omitted approved uv; unchanged recipe passed after PATH correction",
+    "Debian Python3.11.2 lacks ensurepip; prerequisite check rejected before installation",
+    "First post-install verifier used an incorrect command name; corrected verifier passed against unchanged installer"
+  ],
+  "native_app_qualified": false,
+  "real_provider_oauth_in_this_cohort": false,
+  "common_enrollment": false
+}

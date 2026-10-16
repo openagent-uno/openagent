@@ -27,27 +27,30 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The shared connector release is `0.1.3`, with Go module tag
-`packages/connectors/v0.1.3` and runner release `connectors-v0.1.3`.
-[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.3/packages/connectors)
-and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.3)
+The shared connector release is `0.1.4`, with Go module tag
+`packages/connectors/v0.1.4` and runner release `connectors-v0.1.4`.
+[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.4/packages/connectors)
+and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
 are independently versioned from the standalone product. The platform release
 is a qualification prerelease, not native signing or provider acceptance.
 Its `qualification.json` records the tested boundaries alongside the source,
 platform manifests and checksums. The deployed broker is independently released
-as [auth-only 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.5).
+as [auth-only 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6).
+The current QA deployment includes a later reviewed Slack refresh fix recorded
+in the [release checkpoint](./connector-status.md).
 This does not change the version pinned by an installed product or enable public provider enrollment;
-ClickUp is restricted to allowlisted QA installation identities.
+Provider grants remain restricted to cryptographically allowlisted QA installations.
 
-The standalone [server/CLI beta 39](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
-assembles public Core beta 22, connector 0.1.3 and
+The standalone [server/CLI beta 40](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
+assembles public Core beta 22, connector 0.1.4 and
 [Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6).
 B6 has six qualified native targets and signed/notarized macOS bundles; its
 release-index SHA-256 is
 `a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
 [App beta 17](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
-is released independently. The App beta 16/server beta 38 marketplace screenshots
-remain the previous visual baseline, not new App beta 17 acceptance evidence.
+is released independently and has a recorded Linux x64 marketplace trial with
+server beta 39. App beta 18 is being qualified separately; its native release
+and updated marketplace screenshots are not inferred from the Python release.
 Each host owns its locked dependency assembly, installation, enabled storage
 surfaces and release qualification. A public component release never silently
 updates another host or attests its data-processing coverage.

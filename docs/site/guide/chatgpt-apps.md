@@ -8,7 +8,7 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 
 ## First implementation batch: GitHub and Notion
 
-**SDK/runner 0.1.4 is published.** The [qualified shared prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4) contains the GitHub, Notion, Slack and Jira adapters. Existing installed products retain their own version pins until an independently qualified product update. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
+**SDK/runner 0.1.4 is published.** The [qualified shared prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4) contains the GitHub, Notion, Slack and Jira adapters. Server/CLI beta 40 adopts this library; other installed products retain their own version pins until updated. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -52,11 +52,11 @@ records exact source and dependency pins. Native App acceptance, remaining
 tools and receiving-product rollout remain separate. The run also exposed
 a temporary history-readiness error in the product. A targeted regression now
 verifies the source correction: 503 while preparing, then an authorized result,
-with another verified user denied. The product fix is not in published server/CLI beta 39. SDK/runner 0.1.4 is now published separately; installed consumer pins remain unchanged.
+with another verified user denied. The product fix ships in server/CLI beta 40 with SDK/runner 0.1.4. Existing installations keep their prior pins until updated.
 
 ## Next candidate batch: Slack and Jira
 
-The published 0.1.4 library contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. Those source checks qualify fixture behavior separately from the limited real Slack lifecycle below; Jira consent and receiving-product acceptance remain pending. Existing consumer pins are unchanged until the receiving-product rollout.
+The published 0.1.4 library contains **9 Slack Web API tools** and **9 Jira REST API tools**. Linux worker contract tests, vet and both runner/broker builds passed. Those source checks qualify fixture behavior separately from the limited real Slack lifecycle below; Jira consent and receiving-product acceptance remain pending. Server/CLI beta 40 adopts the published library; other receiving products qualify their own rollout.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -95,7 +95,7 @@ MCP service or provider-wide app revocation.
 
 After a qualified runner and receiving-product release, connect these providers from the same marketplace cards. For Jira, complete OAuth and choose a site from the server-returned list. The candidate App offers **Choose Jira site**; the authenticated CLI offers `connectors sites <connection-id>` and `connectors select-site <connection-id> <cloud-id>`. The server rechecks the current provider grant on every site change and invalidates old tool references.
 
-The candidate App also provides **Refresh access**, backed by `POST /api/connectors/{id}/refresh` and `connectors refresh <connection-id>`. This owner-authorized operation is useful when a provider supplies a refresh token without an expiry, as documented for Notion. It does not invent a token lifetime or replace consent. Connections without a refresh credential require reconnection. The server serializes renewal, rechecks consent/permissions after I/O and atomically saves the latest pair. These new actions are source candidates and are absent from published server/CLI beta 39.
+The candidate App also provides **Refresh access**, backed by `POST /api/connectors/{id}/refresh` and `connectors refresh <connection-id>`. This owner-authorized operation is useful when a provider supplies a refresh token without an expiry, as documented for Notion. It does not invent a token lifetime or replace consent. Connections without a refresh credential require reconnection. The server serializes renewal, rechecks consent/permissions after I/O and atomically saves the latest pair. These actions ship in server/CLI beta 40. App beta 18 adds their graphical controls and is being qualified separately; the current App beta 17 does not expose them.
 
 ## Integration paths and remaining work
 
@@ -105,16 +105,16 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 
 ## Popular directory order
 
-The table is the initial observation against the published 0.1.3 catalog. The four candidate implementations are described above; it is not a public enrollment claim.
+The table preserves the initial Popular directory order, with implementation status updated for SDK 0.1.4 and server/CLI beta 40. It is not a public enrollment claim.
 
 | Position | App | OpenAgent baseline | Verified interface |
 | ---: | --- | --- | --- |
 | 1 | [Remote Desktop Commander](https://chatgpt.com/plugins/plugin_asdk_app_6a057d268ebc81919918d37eec718425) | Not implemented/qualified | Not researched |
 | 2 | [Google Drive](https://chatgpt.com/plugins/plugin_connector_1p_ab21a553bfbc81919ea8fd1858e3ffa7) | Adapter exists; qualification separate | [Documented public API](https://developers.google.com/workspace/drive/api/guides/about-sdk) |
 | 3 | [Flaim Fantasy](https://chatgpt.com/plugins/plugin_asdk_app_69a8f78087e081919e52cacacf00ff36) | Not implemented/qualified | Not researched |
-| 4 | [Atlassian](https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa) | Jira API candidate (9 tools); real qualification pending | [MCP with commercial conditions](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/) |
+| 4 | [Atlassian](https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa) | SDK 0.1.4/server 40 published: 9 Jira tools; secret custody and real qualification pending | [MCP with commercial conditions](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/) |
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | Not researched |
-| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | Real standalone QA passed; release and common enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
+| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App and enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
@@ -123,8 +123,8 @@ The table is the initial observation against the published 0.1.3 catalog. The fo
 | 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | Not implemented/qualified | [Documented official MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
-| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4 published; single-page standalone QA passed; product rollout and common enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
-| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4 published; limited standalone lifecycle passed; product rollout and common enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
+| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App and enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
+| 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | Not researched |

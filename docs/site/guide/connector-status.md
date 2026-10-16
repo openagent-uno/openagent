@@ -14,8 +14,8 @@ reads, an approved message create/read/delete with cleanup, owner refresh after
 a recorded 503 and explicit recovery, a post-restart read and local disconnect;
 its owned runtime was stopped. See
 [ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The shared SDK/runner 0.1.4 has since been independently qualified and published.
-The product rows below retain their published versions; these private trials
-do not update consumer pins or open public OAuth enrollment. They also do not qualify the
+Server/CLI beta 40 now adopts the published library; the App is qualified
+separately. Neither publication nor these private trials open public OAuth enrollment. They also do not qualify the
 [multi-source application composition contracts](./application-composition.md).
 
 ## Delivery checkpoint
@@ -24,7 +24,7 @@ do not update consumer pins or open public OAuth enrollment. They also do not qu
 | --- | --- | --- |
 | Shared Go connector module | Published `0.1.4`; fourteen implemented official adapters, plus the custom MCP descriptor; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
 | Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition and Linux x64 runner/broker smoke verified | Other native targets and signing acceptance remain separate |
-| Standalone server/CLI | Published `1.1.0-beta.39`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.3` and Host Tools B6; catalog fixture verifies 12 official entries plus one custom MCP | Real provider consent and API operations; receiving hosts qualify their own rollout |
+| Standalone server/CLI | Published `1.1.0-beta.40`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.4` and Host Tools B6; real runner catalog verifies 14 official entries plus one custom descriptor | Real provider consent and API operations; receiving hosts qualify their own rollout |
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
 | Standalone App | Published `1.1.0-beta.17` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 39 | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
@@ -54,7 +54,21 @@ establish real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 
-The [standalone server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
+The [current server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
+publishes twelve verified assets from clean canonical source
+`a5623534956d0ff3b1ad0f4c926d1b4cc6040a98`.
+Manifest SHA-256:
+`8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c`.
+Only Framework and CLI wheels move to beta 40; seven unchanged product wheels
+are byte-identical to beta 39, with 109 source files verified. Normal isolated
+installation passed dependency checks for 154 packages, 100 installed
+server/CLI tests, eight separately identified source acquisition tests, the
+installed workflow-readiness regression and the public SDK 0.1.4 runner catalog.
+The [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.40.md)
+also records the subsequent normal server-plus-CLI installer bootstrap on
+CPython 3.11.14. Native App and real provider acceptance remain separate.
+
+The preceding [server/CLI beta 39 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
 publishes 14 assets from source `7a4c7954566b443537248ef1627af79bfca09eba`.
 All asset API digests/sizes and anonymous downloads were verified. Its manifest
 SHA-256 is `772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97`.
