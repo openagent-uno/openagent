@@ -7,6 +7,7 @@ import { connectorVectors } from './connector-vectors';
 
 // Bundled provider marks shared by connector cards; no remote fetches.
 const images: Readonly<Record<string, ImageSourcePropType>> = {
+  'google-calendar': require('../../assets/connectors/google-calendar.png'),
   'parallel-search': require('../../assets/connectors/parallel-search.png'),
   exa: require('../../assets/connectors/exa.png'),
   firecrawl: require('../../assets/connectors/firecrawl.png'),

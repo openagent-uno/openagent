@@ -127,5 +127,26 @@
     "source": "https://static.coingecko.com/gecko-logo-new-color.svg",
     "retrieved": "2026-10-17",
     "sha256": "6e4913fab13b0852fcb4c7672513073e852bb45bccd4bb2c94705d0ecd7a6858"
+  },
+  {
+    "id": "google-calendar",
+    "file": "google-calendar.png",
+    "source": "https://www.gstatic.com/calendar/images/manifest/logo_2020q4_512.png",
+    "retrieved": "2026-10-17",
+    "sha256": "97eccb770db890e1899b659d2ed66fd9c8fd30c1039cbd251eafcfb9a1a82ae8"
+  },
+  {
+    "id": "outlook-mail",
+    "file": "outlook.svg",
+    "source": "https://www.microsoft.com/content/dam/microsoft/bade/images/icons/en-us/m365-app-icons-fy26/Outlook-Icon-FY26.svg",
+    "retrieved": "2026-10-17",
+    "sha256": "d67b8bb4bb8d7afe8e71e066112452d5d681ea7991fa1ec7c37df962246b2c31"
+  },
+  {
+    "id": "outlook-calendar",
+    "file": "outlook.svg",
+    "source": "https://www.microsoft.com/content/dam/microsoft/bade/images/icons/en-us/m365-app-icons-fy26/Outlook-Icon-FY26.svg",
+    "retrieved": "2026-10-17",
+    "sha256": "d67b8bb4bb8d7afe8e71e066112452d5d681ea7991fa1ec7c37df962246b2c31"
   }
 ]
