@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "scope": "normal-public-combined-server-cli-install-and-catalog-only",
+  "provider_calls": 0,
+  "source_overlay": false,
+  "home_override": false,
+  "tmpdir_override": false,
+  "server_started": false,
+  "models_started": 0,
+  "stages": [
+    "python-preflight",
+    "server",
+    "cli",
+    "pip-check",
+    "versions-imports",
+    "installed-catalog"
+  ],
+  "installer_sha256": "dc0c1394848232dfd7fa6a06d88f0cf1dca1d5b815712f4ab5908e9dc47238ce",
+  "installer_bytes": 8722,
+  "product_source": "162bff9696c1dbcba0e64d3fc14ee7f59343d56d",
+  "product_manifest_sha256": "f61d94548d22525f06871f9f3884509e4ecbd2e6fdc109548a7fa48c9630df5c",
+  "sdk_manifest_sha256": "65af35daccdf93278bd31a61ff00fbaf907ab62ed4afe89ff77d1f0d18890a56",
+  "phase": "installed-catalog",
+  "versions": {
+    "openagent-framework": "1.1.0b44",
+    "openagent-cli": "1.1.0b44",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.7",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "catalog": {
+    "official": 22,
+    "custom": 1,
+    "provider_calls": 0,
+    "runner_exit_code": 0
+  },
+  "recorded_at_unix": 1792240109.9495084
+}

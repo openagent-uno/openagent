@@ -243,8 +243,7 @@ client ID or copying a secret is not a credential migration.
 with an [exact qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json).
 It adds reusable operations, not a calendar app, email client or synchronization
 service. Public server44 adopts SDK17 with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json).
-Fresh public-installer44, App21 native/GUI qualification and real Google/Microsoft
-account acceptance remain pending. Common enrollment for
+The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, without a source overlay or HOME/TMPDIR override. It started no server or model and made zero provider calls. App21 native/GUI qualification and real Google/Microsoft account acceptance remain pending. Common enrollment for
 all three new provider IDs is closed. Adding them to `official_providers`
 cannot activate a disabled central registration.
 

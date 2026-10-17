@@ -201,8 +201,7 @@ evidence; **no real Google/Microsoft consent, provider read or mutation is quali
 
 [Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
-entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed; the fresh public-installer check
-is pending. App21 native builds and 21/44 GUI acceptance are pending.
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. App21 native builds and 21/44 GUI acceptance are pending.
 App20/server43 remain the visually qualified pair with 19 entries and their
 existing screenshots. Publishing a component never upgrades an installation
 or enables a provider.
