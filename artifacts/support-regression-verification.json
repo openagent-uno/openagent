@@ -1,4 +1,9 @@
 {
+  "label_redaction": {
+    "date": "2026-10-17",
+    "reason": "Remove historical host names from public evidence labels; original evidence retained privately.",
+    "scope": "Result display names only; numeric results and recorded outcomes unchanged."
+  },
   "package_version": "1.1.0b1",
   "package_file": "/private/tmp/openagent-release-verify-20260920-2/lib/python3.12/site-packages/openagent_support/__init__.py",
   "wheel_source": {
@@ -188,7 +193,7 @@
     },
     {
       "category": "local_support_controller",
-      "name": "only eSound's own tenant reaches the deletion tool",
+      "name": "only [redacted host name]'s own tenant reaches the deletion tool",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -426,7 +431,7 @@
     },
     {
       "category": "local_support_controller",
-      "name": "an eSound email resolves through Paddle, not the customer lookup",
+      "name": "an [redacted host name] email resolves through Paddle, not the customer lookup",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -853,7 +858,7 @@
     },
     {
       "category": "local_support_controller",
-      "name": "Lyra task links use its own provider even with an eSound override",
+      "name": "[redacted host name] task links use its own provider even with an [redacted host name] override",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

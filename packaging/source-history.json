@@ -44,7 +44,8 @@
     {
       "component": "image",
       "path": "packaging/legacy-image",
-      "source_repository": "https://git.spicysparks.com/SpicySparks/openagent-image",
+      "source_repository_url_redacted": true,
+      "source_repository_url_sha256": "e5dfed9c67ce5569eec074128b3d4112b5924db35f27f5de3960a5240ca1ebe5",
       "source_commit": "62918fa697abdf9b0ff7ca2e498c977bc99e6d4c",
       "tag_namespace": "legacy/image/",
       "history": "non-squash-subtree"

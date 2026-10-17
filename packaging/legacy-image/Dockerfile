@@ -1,7 +1,6 @@
 # OpenAgent — shared general-purpose "machine" image.
-# ONE image for every OpenAgent node in the cluster (spicysparks-openagent,
-# esound-openagent, future agents). The image is agent-agnostic: it holds the
-# OpenAgent runtime, the tailscale daemon+CLI (in-machine networking), the
+# ONE image for every OpenAgent node in the cluster. The agent-agnostic image
+# holds the OpenAgent runtime, the tailscale daemon+CLI (in-machine networking), the
 # claude-sub-proxy model backend, a full Linux userland, and the common heavy
 # runtime deps any agent might need (ffmpeg, fonts, headless-chromium libs, uv,
 # ripgrep). Everything agent-specific — persona, memory vault, repos, keys,
@@ -10,7 +9,7 @@
 #
 # Build (linux/amd64, from THIS dir as context):
 #   docker buildx build --builder oa-builder --platform linux/amd64 \
-#     -t hub.spicysparks.com/spicysparks/openagent:v15 --push .
+#     -t registry.example.invalid/openagent/runtime:v15 --push .
 #
 # glibc >= 2.38 required by the onefile binary -> ubuntu:24.04 (glibc 2.39).
 FROM ubuntu:24.04
