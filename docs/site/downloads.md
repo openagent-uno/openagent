@@ -1,9 +1,9 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.43**, using Core beta 22,
-connector SDK/runner 0.1.6 and Host Tools 1.0.0b6. The current desktop App is
-**v1.1.0-beta.20**, published for macOS, Windows and Linux on ARM64 and x64.
-Its [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
+The current server and CLI build is **v1.1.0-beta.44**, using Core beta 22,
+connector SDK/runner 0.1.7 and Host Tools 1.0.0b6. The current desktop App is
+**v1.1.0-beta.21**, published for macOS, Windows and Linux on ARM64 and x64.
+App21/server44 GUI acceptance is pending. The historical App20 [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
 passed with server 43: 19 official connectors and 30 registry results in one
 grid, nine local provider marks and five keyless connection/control cycles.
 Seven actual screenshots were reviewed. No provider call or model was used.
@@ -22,11 +22,11 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 20 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20)
+The [App beta 21 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
 includes 36 verified assets, six provenance manifests and updater metadata.
 Native packaged checks passed on all six targets; Intel macOS ZIP and DMG
-launches also passed. The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json)
-is separate from marketplace GUI and provider acceptance. Earlier
+launches also passed. The earlier [App20 native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json)
+retains its original scope; App21 publication is separate from marketplace GUI and provider acceptance. Earlier
 [App 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json) and
 [App 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
 trials retain their original versions, screenshots and failure evidence.
@@ -74,14 +74,14 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 43.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 44.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
-  — nineteen official adapters plus Custom MCP, including five keyless providers; Python/MCP transport, platform manifests and checksums.
+- [Shared connector module/runner 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
+  — twenty-two official adapters plus Custom MCP, including five keyless providers and the Calendar/mail subset; Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
   — separate operator release; ClickUp, GitHub and Notion enrollment is deployed
   as a limited public beta. Other provider gates remain independent.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.44/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints

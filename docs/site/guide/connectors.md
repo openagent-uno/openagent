@@ -3,8 +3,7 @@
 ::: info Published releases and activation gates
 Current published Python components are **SDK/runner 0.1.7 and server/CLI beta44**,
 with 22 official connectors plus Custom MCP. **App beta20/server43/SDK16** remain
-the visually qualified pair shown below; App21 native builds and 21/44 GUI
-acceptance are pending.
+the visually qualified pair shown below; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending.
 The catalog contains 19 official adapters plus Custom MCP. The normal public
 installer and limited product workflow lifecycle passed independently. The
 [actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
@@ -35,7 +34,7 @@ code, packages and isolated protocol fixtures. Real Google/Microsoft OAuth and
 provider operations remain pending, and common enrollment for these providers
 is closed. [Server/CLI44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 with 22 entries and [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call.
-App21 builds and 21/44 GUI acceptance remain pending; the existing screenshots
+[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending; the existing screenshots
 show the actually qualified App20/server43 pair.
 
 After a receiving host adopts and qualifies SDK17 and an operator configures an

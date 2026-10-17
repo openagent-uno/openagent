@@ -3,8 +3,7 @@
 Status updated on **17 October 2026**. Current published Python components are
 **SDK/runner 0.1.7 and server/CLI beta44**, with 22 official connectors plus Custom
 MCP, Core beta22 and Host Tools 1.0.0b6. **App beta20/server43/SDK16** remain the
-visually qualified pair with 19 entries; App21 native builds and 21/44 GUI acceptance
-are pending. A card, component
+visually qualified pair with 19 entries; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending. A card, component
 release or health check does not establish provider access or application
 composition features; each boundary below has its own receipt.
 
@@ -15,7 +14,7 @@ composition features; each boundary below has its own receipt.
 | Shared Go module, runner and Python/MCP | SDK 0.1.7 public: 22 official connectors plus Custom MCP, 11 verified assets, race/vet/vulnerability, six-target/twelve-binary and Python/Linux-native checks | Google/Microsoft real OAuth and API acceptance; execution on every native target |
 | Server/CLI | Beta44 public from `162bff96`, Core22/SDK0.1.7/B6;168 installed fixtures, source/acquisition/provenance guards and the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed | Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
-| Standalone App | Beta 20 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
+| Standalone App | Beta 21 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual Linux x64 marketplace/local controls remain qualified on App20/server43 | App21/server44 GUI, Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
 | Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
 
@@ -73,7 +72,7 @@ evidence; **no real Google/Microsoft consent, provider read or mutation is quali
 
 [Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
-entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. App21 native builds and 21/44 GUI acceptance are pending.
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending.
 App20/server43 remain the visually qualified pair with 19 entries and their
 existing screenshots. Publishing a component never upgrades an installation
 or enables a provider.

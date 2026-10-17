@@ -45,7 +45,7 @@ Git tag is `packages/connectors/v0.1.7`; the runner release is
 `connectors-v0.1.7`. Each receiving host still qualifies its own credential
 storage, scope policy and product deployment.
 [Server/CLI44 is now public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44),
-with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call. App21 native/GUI qualification remains pending. The visually qualified
+with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI qualification remains pending. The visually qualified
 server43/App20 retain the SDK16 assembly and acceptance below.
 
 The new adapters bind each account to its own local connection. Google sync
