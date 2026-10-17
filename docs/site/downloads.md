@@ -1,11 +1,15 @@
 # Download OpenAgent
 
 The current server and CLI build is **v1.1.0-beta.42**. The latest desktop App
-is **v1.1.0-beta.18**, published for macOS, Windows and Linux on ARM64 and x64.
+is **v1.1.0-beta.19**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
-App beta 19 is still unpublished; its native ARM recovery and GUI qualification
-do not change the current App download.
+App beta 19 is published with six qualified native targets. Its
+[Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+with server beta 42 passed: 16 official entries and 30 registry results share
+one grid; Exa/Firecrawl local connection controls passed without provider calls.
+Hosted Electron used `--no-sandbox`; sandbox security and Mac/Windows marketplace
+GUI or provider acceptance are not established.
 
 Product source and server/CLI releases come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Desktop
@@ -19,10 +23,12 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 18 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
+The [App beta 19 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
 includes installer checksums, six platform provenance manifests and verified
-update metadata. Native packaged launches passed on all six targets.
-The separately recorded [Linux x64 marketplace trial](./guide/connector-status.md#what-the-tests-establish)
+update metadata. Native packaged launches passed on all six targets; Intel
+macOS ZIP and DMG launches also passed. The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json)
+retains the original failed ARM stapling run and its successful recovery.
+The historical, separately recorded [Linux x64 marketplace trial](./guide/connector-status.md#what-the-tests-establish)
 uses App beta 18 with server beta 40 and the published 0.1.4 catalog; this is
 not Mac or Windows marketplace/provider acceptance. App beta 17 remains
 available as a [historical release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17).

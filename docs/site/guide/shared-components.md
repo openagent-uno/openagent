@@ -74,8 +74,12 @@ installed fixture tests, 15 acquisition cases and
 passed. Separately, the
 [beta 41 lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
 passed four normal product reads across a real restart and local disconnect;
-beta 42 preserves that provider implementation unchanged. App beta 19 remains
-unpublished with native ARM recovery and GUI acceptance pending. The historical
+beta 42 preserves that provider implementation unchanged. [App beta 19 is
+published](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
+with six qualified native targets. Its [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+with server beta 42 loaded 16 official entries and 30 registry results in one
+grid and passed local Exa/Firecrawl controls, without provider calls or a model.
+Hosted `--no-sandbox` is not sandbox-security or Mac/Windows GUI acceptance. The historical
 beta 40/App beta 18 trial above continues to describe SDK 0.1.4 and 14 entries.
 
 A keyless connector still has a host-authorized connection and tool source.

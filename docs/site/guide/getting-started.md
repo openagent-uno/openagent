@@ -3,8 +3,9 @@
 OpenAgent can be used as the complete standalone product or embedded as a
 library. The current server and CLI build is **v1.1.0-beta.42**, using Core beta
 22, connector SDK/runner 0.1.5 and Host Tools B6. The latest published desktop
-App is **v1.1.0-beta.18**; App beta 19 remains unpublished and its native/GUI
-qualification is pending. See the
+App is **v1.1.0-beta.19**, published for six qualified native targets. Its
+Linux x64 marketplace and local keyless controls passed with server beta 42;
+Mac/Windows marketplace GUI and sandbox security remain separate. See the
 [downloads page](../downloads) for its qualification status and available
 platforms.
 
@@ -13,11 +14,14 @@ platforms.
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your operating system and CPU, launch OpenAgent, and
-connect it to an existing standalone server. App beta 18 publishes artifacts
+connect it to an existing standalone server. App beta 19 publishes artifacts
 for macOS, Windows and Linux on ARM64 and x64; both macOS builds are signed and
 notarized. Native package checks do not establish marketplace GUI or provider
-acceptance on every platform. The recorded Linux x64 marketplace trial uses
-App beta 18/server beta 40 and remains historical evidence. The app
+acceptance on every platform. The [Linux x64 App beta 19/server beta 42 trial](./connector-status.md#what-the-tests-establish)
+loaded 16 official entries and 30 registry results and exercised local keyless
+controls without provider calls. Hosted Electron used `--no-sandbox`, which
+does not establish sandbox security. The App beta 18/server beta 40 trial
+remains historical evidence. The app
 registers dashboard and local-computer capabilities only for its authenticated
 device turns; Telegram, scheduled work and other clients do not inherit them.
 

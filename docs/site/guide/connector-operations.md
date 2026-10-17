@@ -2,8 +2,10 @@
 
 This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
 public beta; other providers retain their [qualification gates](./connector-status.md).
-SDK/runner 0.1.5 and server/CLI beta 42 are public. App beta 19 remains
-unpublished, with native ARM recovery and GUI qualification pending. The
+SDK/runner 0.1.5, server/CLI beta 42 and App beta 19 are public. App beta 19
+has six qualified native targets; its Linux x64 marketplace and local keyless
+controls passed with server beta 42. This used hosted `--no-sandbox` and made
+no provider calls; Mac/Windows GUI and sandbox security are not qualified. The
 [fresh public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
 passed across distinct filesystems. The
 [limited keyless lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
@@ -145,7 +147,11 @@ passed. Published server/CLI beta 42 adopts SDK 0.1.5. Two normal connections,
 four public reads across a real restart and both local disconnects passed on
 beta 41 through certified CLI/Iroh/gateway workflows. The provider code is
 unchanged in beta 42; this does not relabel those reads as beta 42 provider
-tests. App beta 19 publication and native GUI acceptance remain pending. The
+tests. App beta 19 is published; its [Linux x64 marketplace and local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+passed with server beta 42, separately from provider reads. Exa and Firecrawl
+each passed Connect, disable/re-enable and disconnect without credential forms
+or OAuth controls. No provider call or model was used; hosted `--no-sandbox`
+does not qualify sandbox security or Mac/Windows GUI. The
 historical beta 40/App beta 18 trial retains SDK 0.1.4 and its 14-entry catalog.
 Their official hosted MCP services offer limited access without an account or
 API key. This mode exposes only the reviewed read tools: Exa search/fetch and
@@ -154,7 +160,7 @@ automatic authenticated fallback. See the provider's current
 [Exa contract](https://exa.ai/docs/get-started/exa-mcp) and
 [Firecrawl contract](https://docs.firecrawl.dev/mcp-server/keyless) for limits.
 
-The pending App beta 19 uses **Install** on the normal marketplace card and
+The published App beta 19 uses **Install** on the normal marketplace card and
 then **Connect**. On the published beta 42 CLI/server, run `openagent-cli connectors connect exa`
 or `openagent-cli connectors connect firecrawl`. No key, OAuth page or token
 prompt is required. Enable/disable and disconnect remain local controls, and

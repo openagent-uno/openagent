@@ -2,6 +2,20 @@
 
 Notable changes, newest first.
 
+## App v1.1.0-beta.19
+
+- [Published desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
+  with 36 verified assets across six macOS/Windows/Linux native targets. Both
+  macOS architectures are signed and notarized; Intel ZIP and DMG launches passed.
+- The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json)
+  preserves the original ARM stapling failure and successful bounded recovery.
+- The [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+  passed with server beta 42: 16 official entries and 30 registry results in
+  the same grid, plus Exa/Firecrawl Connect, disable/re-enable and disconnect
+  without credential forms or OAuth controls. No provider call or model was
+  used. Hosted `--no-sandbox` is not sandbox-security or Mac/Windows GUI
+  acceptance; beta 41 provider reads retain their separate scope.
+
 ## v1.1.0-beta.42
 
 - Connector acquisition handles distinct installation/temporary filesystems
@@ -28,9 +42,10 @@ Notable changes, newest first.
   and same-prefix `TMPDIR` recovery remain recorded, distinct from beta 42's
   fresh installation proof. Private harness errors are separately preserved.
 - [Release record](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.41.md).
-  App beta 18 remains the published desktop release; beta 19 native/GUI
-  qualification is pending. These server releases do not establish new native
-  App or provider-wide acceptance.
+  At this server release checkpoint, App beta 18 was the published desktop
+  release and beta 19 native/GUI qualification was pending. The later App beta
+  19 publication is recorded above. These server releases alone do not establish
+  native App or provider-wide acceptance.
 
 ## v1.1.0-beta.34
 

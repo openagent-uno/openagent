@@ -4,8 +4,11 @@
 As of 17 October 2026, shared library/runner **0.1.5 is published** with
 16 official adapters plus Custom MCP. [Server/CLI beta 42](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
 is published with SDK 0.1.5, Core beta 22 and Host Tools B6. The current
-released App is beta 18; App beta 19 is not public and its native ARM recovery
-and GUI qualification remain pending. The fresh public beta 42 installer passed
+released App is beta 19, with six qualified native targets. Its marketplace
+GUI qualification passed on Linux x64 with server beta 42: 16 official entries
+and 30 registry results share one grid. Local Exa/Firecrawl controls passed
+without provider calls; hosted `--no-sandbox` does not qualify sandbox security.
+The fresh public beta 42 installer passed
 across distinct filesystems. The limited keyless product lifecycle passed on
 beta 41; beta 42 preserves that provider implementation unchanged.
 Beta 40 pins connector 0.1.4 and B6; older installations retain their own pins
@@ -21,7 +24,7 @@ Postiz is registered, with credential rotation required before activation. See
 [release status and remaining gates](./connector-status.md).
 :::
 
-OpenAgent provides one shared connector implementation for the standalone server, independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
+OpenAgent provides one shared connector implementation for the standalone server and independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
 The shared authentication service accepts ClickUp, GitHub and Notion enrollment. On released server beta 40, operators enable these providers with `connectors.official_providers: [clickup, github, notion]` or `OPENAGENT_CONNECTOR_AUTH_PROVIDERS=clickup,github,notion`. Server beta 41 defaults to those three only when neither setting is supplied. An explicit empty list or empty environment value remains an opt-out; listing a provider creates no connection, broker registration or grant. Every OAuth connection still requires local authorization and the provider's consent. See the [configuration precedence](./connector-operations.md#standalone-configuration). Shopify enrollment is currently disabled: the published opt-in privacy processor covers a fresh canonical text-history cohort, with additional storage and real-provider acceptance gates still required. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback.
 
@@ -41,8 +44,11 @@ operations, limited real QA receipts and remaining gates. SDK 0.1.5 adds Exa
 and Firecrawl keyless reads, adopted by published server/CLI beta 42.
 Their limited workflow/restart/disconnect lifecycle passed on beta 41; the
 [receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
-retains its exact scope. App beta 19 publication and GUI acceptance remain
-pending. Installing SDK 0.1.5 alone does not update beta 40 or beta 18.
+retains its exact scope. [App beta 19 is published](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19);
+its [limited Linux x64 marketplace and local keyless controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+passed with server beta 42. This made no provider calls and does not establish
+Mac/Windows GUI, sandbox security or all-tool acceptance. Installing SDK 0.1.5
+alone does not update beta 40 or beta 18.
 
 The table describes published SDK 0.1.5. Exa and Firecrawl require a receiving
 product with the keyless connection contract; the released beta 40/beta 18
@@ -65,8 +71,8 @@ rollout remain separate from library availability.
 | Notion | Public OAuth with selected pages | Search, pages, blocks and profiles; 8 operations |
 | Slack | Confidential user OAuth | Conversations/history, profiles and text post/update/delete; 9 operations |
 | Atlassian / Jira | Resource-level OAuth and verified site selection | Projects, JQL search, issues and comments; 9 operations; secret custody/consent pending |
-| Exa | Keyless, no account or API key | Public search/fetch; 2 read tools; fetch/workflow/restart/disconnect passed on beta 41, not all-tool or native App acceptance |
-| Firecrawl | Keyless, no account or API key | Public search/Markdown scrape; 2 read tools; scrape/workflow/restart/disconnect passed on beta 41, not all-tool or native App acceptance |
+| Exa | Keyless, no account or API key | Public search/fetch; 2 read tools; fetch/workflow/restart/disconnect passed on beta 41, not all-tool or native App provider-call acceptance |
+| Firecrawl | Keyless, no account or API key | Public search/Markdown scrape; 2 read tools; scrape/workflow/restart/disconnect passed on beta 41, not all-tool or native App provider-call acceptance |
 
 Custom MCP servers remain available alongside official connectors. Embedding products retain their own controls over who may install connectors, which agents may use them, and whether they may make changes.
 
@@ -85,7 +91,7 @@ shared catalog enabled:
    the result through outgoing requests.
 4. For token/account authentication, enter the dedicated API key or account/app
    password on the receiving server's setup screen. Never put it in a chat.
-   With server beta 42 and the pending App beta 19, Exa and Firecrawl use the same
+   With published server beta 42 and App beta 19, Exa and Firecrawl use the same
    card's **Install → Connect** flow without a token prompt or OAuth page.
 5. Open **Manage** on the connected card to enable/disable tools, authorize
    changes where the integration supports them, reconnect or disconnect locally.
@@ -95,16 +101,32 @@ be broader; a local read-only choice does not rewrite the provider's grant.
 A token connection being saved as Connected does not prove a successful
 provider API call; verify access with an appropriate authorized operation.
 
-![Released App beta 18 with server beta 40: official connectors and registry MCPs share the same marketplace grid](/connectors/app18-server40-marketplace-top.png)
+![Released App beta 19 with server beta 42: 16 official connectors share the same marketplace grid as registry MCPs](/connectors/app19-server42-marketplace-top.png)
 
-![Released App beta 18 with server beta 40: provider logos use the same cards as registry MCPs](/connectors/app18-server40-marketplace-scroll.png)
+![App beta 19 with server beta 42: official provider logos and registry MCPs use the same cards](/connectors/app19-server42-marketplace-scroll.png)
 
-These actual Linux x64 screenshots show the released App beta 18 connected to
-server beta 40 through normal authenticated membership. The marketplace loaded
-14 official entries and 30 real registry results in one
-grid, without a dedicated official tab, label or divider. No provider OAuth
-consent or API access is inferred from these images. See the
-[qualification scope](./connector-status.md#what-the-tests-establish).
+![Exa connected through the normal App beta 19 marketplace without a credential form](/connectors/app19-server42-exa-connected.png)
+
+![Firecrawl connected through the normal App beta 19 marketplace without OAuth controls](/connectors/app19-server42-firecrawl-connected.png)
+
+These actual Linux x64 screenshots show public App beta 19 connected to public
+server beta 42 through ordinary Join/SRP, device certification and native Iroh.
+The marketplace loaded 16 official entries and 30 real registry results in one
+grid without an official tab, label or divider; six local provider icons were
+verified. Exa and Firecrawl each passed Connect, disable/re-enable and local
+disconnect without a credential form, OAuth page, provider call or model.
+The worker used Electron `--no-sandbox`; this does not establish sandbox
+security, Mac/Windows GUI acceptance or provider tool parity. See the
+[visual receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+for exact versions, hashes, cleanup and preserved harness failures. The four
+real provider reads across restart remain attributed to the separate beta 41
+receipt.
+
+The [App beta 18/server beta 40 trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
+remains historical evidence with 14 official entries. Its
+[top screenshot](/connectors/app18-server40-marketplace-top.png) and
+[scrolled screenshot](/connectors/app18-server40-marketplace-scroll.png)
+are retained unchanged.
 
 ::: details Historical App beta 17 / server beta 39 screenshots
 
@@ -160,8 +182,9 @@ passed two normal connections, four authorized public reads across an actual
 restart, and local disconnect/tombstone/source removal. Beta 42 leaves that
 provider code unchanged and separately passed its
 [fresh cross-filesystem public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json).
-Neither receipt establishes native App acceptance or all tools. Search API
-success alone does not prove result relevance.
+Neither receipt establishes native App provider-call acceptance or all tools.
+The separate Linux x64 GUI trial above qualifies marketplace presentation and
+local controls only. Search API success alone does not prove result relevance.
 
 Each server keeps its own encrypted token copy. Connecting the same Shopify shop to another server requires a fresh verified Shopify consent and explicit authorization of that recipient. Token rotation is serialized per app/shop and synchronized in temporary encrypted messages. A server that missed a message can request a current peer copy; if none is available it needs a new consent.
 
@@ -190,7 +213,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 
 | Service | Setup details |
 | --- | --- |
-| Exa, Firecrawl | Keyless connection on server/CLI beta 42; limited lifecycle proved on beta 41; App beta 19 pending; no account, key, OAuth consent or provider refresh; anonymous quotas apply |
+| Exa, Firecrawl | Keyless connection on server/CLI beta 42; limited lifecycle proved on beta 41; App beta 19 published; Linux x64 GUI/local controls passed; no account, key, OAuth consent or provider refresh; anonymous quotas apply |
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |

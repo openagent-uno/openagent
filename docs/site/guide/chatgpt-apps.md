@@ -39,8 +39,11 @@ Beta 42 preserves that provider implementation unchanged; its 149 installed
 fixtures, 15 acquisition cases and
 [fresh cross-filesystem public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
 passed separately without repeating provider calls. The initial beta 41 EXDEV
-and same-prefix `TMPDIR` recovery remain in its receipt. App beta 19 remains
-unpublished with native ARM recovery and GUI qualification pending; its source
+and same-prefix `TMPDIR` recovery remain in its receipt. App beta 19 is
+[published for six qualified native targets](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19);
+its [Linux x64 marketplace and local keyless controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+passed with server beta 42. No provider call or model was used; hosted
+`--no-sandbox` is not sandbox-security or Mac/Windows GUI acceptance. It
 uses the same marketplace cards. A local
 connection still binds the authenticated owner, tenant and tool grants; empty
 credentials never downgrade another provider to anonymous access. There is no
@@ -162,7 +165,18 @@ authorized league and WPVibe WordPress authorization. Their exact registration
 details and the documented source-access limitations remain explicit in the
 receipt. None is a documented new public-read keyless subset. No provider
 registration, grant, MCP/API call or SDK implementation was performed; App beta
-19's pending native/GUI qualification is unchanged.
+19 is now published and its limited Linux x64 marketplace/local controls have
+separate acceptance; none of this implements the six researched interfaces.
+
+### Parallel Search: metadata preparation only
+
+[Interface preparation](https://github.com/openagent-uno/openagent-tools/blob/main/docs/parallel-search-preparation.md)
+and its [metadata receipt](https://github.com/openagent-uno/openagent-tools/blob/main/docs/qualification/parallel-search-interface-2026-10-17.json)
+record anonymous initialize/initialized/tools-list responses only. No search,
+fetch, account, OAuth grant or `tools/call` was performed. Parallel Search is
+neither implemented nor listed in the official catalog or published by OpenAgent. This
+preparation does not change the 16-adapter catalog or the 32-name primary-source
+research count.
 
 ## Integration paths and remaining work
 
@@ -175,8 +189,9 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 The table preserves the initial Popular editorial order, with published SDK
 0.1.5 and released server/CLI beta 42 distinguished from the historical beta
 40/App beta 18 trial. The limited keyless lifecycle passed on beta 41 with
-unchanged provider code in beta 42; App beta 19 publication and GUI acceptance
-remain pending. Public OAuth availability is limited
+unchanged provider code in beta 42. App beta 19 is published and its
+Linux x64 marketplace/local controls passed with server beta 42, without new
+provider calls. Mac/Windows GUI and full tool parity remain unqualified. Public OAuth availability is limited
 to the separately deployed ClickUp/GitHub/Notion beta.
 
 | Position | App | OpenAgent baseline | Verified interface |
@@ -190,9 +205,9 @@ to the separately deployed ClickUp/GitHub/Notion beta.
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
-| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5/server 42 public; fresh installer PASS; limited scrape/workflow/restart/disconnect passed on 41; App 19 pending | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
+| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5/server 42 public; fresh installer PASS; limited scrape/workflow/restart/disconnect passed on 41; App 19 published; Linux x64 GUI/local controls passed, no App provider calls | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |
-| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5/server 42 public; fresh installer PASS; limited fetch/workflow/restart/disconnect passed on 41; App 19 pending | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
+| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5/server 42 public; fresh installer PASS; limited fetch/workflow/restart/disconnect passed on 41; App 19 published; Linux x64 GUI/local controls passed, no App provider calls | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | [Official MCP guide](https://www.upwork.com/ai/mcp); [vendor manifest](https://github.com/upwork/upwork-agent-plugin/blob/master/mcp.json) |
 | 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |

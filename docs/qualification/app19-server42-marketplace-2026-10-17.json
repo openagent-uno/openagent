@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "reviewed_at": "2026-10-17T08:27:14.141339+00:00",
+  "qualifier_source": "8ddddd091cc12b066e6bc90be4e0f39b72e8f842",
+  "app_source": "f01b946105857c92fcf14d8f7a83bcbf2fdad11a",
+  "app_version": "1.1.0-beta.19",
+  "server_version": "1.1.0b42",
+  "public_app_release": "https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19",
+  "native_release_receipt": "app19-native-release-2026-10-17.json",
+  "app_deb_sha256": "6f56a04c483eded1e4781bb52720f036881158513ebac3ff43fe68fe912368bd",
+  "public_installer_url": "https://openagent.uno/install.sh",
+  "public_installer_sha256": "93f5e78b2693afab52d0f87206ab3017b49a7f2ad7d7e37f938f5377ea6a68af",
+  "catalog_sha256": "bf6102e8f0aaec29b64e106f0883f634b7917014c9430ecd44affc877e1f5a8f",
+  "installed_versions": {
+    "openagent-framework": "1.1.0b42",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.5",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "ui": {
+    "status": "passed",
+    "appVersion": "1.1.0-beta.19",
+    "serverVersion": "1.1.0b42",
+    "verifiedLocalProviderIcons": [
+      "github",
+      "notion",
+      "slack-import",
+      "atlassian",
+      "exa",
+      "firecrawl"
+    ],
+    "officialLabelOrTabAbsent": true,
+    "unlabelledDividerAcceptance": "screenshot review only",
+    "officialCount": 16,
+    "officialIds": [
+      "atlassian",
+      "billingbear",
+      "clickup",
+      "exa",
+      "firecrawl",
+      "github",
+      "gmail",
+      "google-analytics",
+      "google-drive",
+      "imap_smtp",
+      "notion",
+      "pipeboard",
+      "postiz",
+      "replio",
+      "shopify",
+      "slack-import"
+    ],
+    "registryCount": 30,
+    "transport": "ordinary UI join/SRP/device certificate/native Iroh proxy",
+    "backendMocked": false,
+    "modelInvoked": false,
+    "cookieOrTokenExported": false,
+    "hostedElectronSandboxDisabled": true,
+    "sandboxSecurityAcceptance": false,
+    "profilePolicy": "packaged --local-e2e isolates temp profile/updater only; authentication unchanged",
+    "apiStatus": {
+      "/api/connectors": 200,
+      "/api/marketplace/official": 200,
+      "/api/marketplace/search": 200
+    },
+    "keylessLifecycle": [
+      {
+        "id": "exa",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "firecrawl",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      }
+    ],
+    "guiScope": "real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance",
+    "clientExitCode": 0,
+    "clientExitSignal": null,
+    "clientCleanupConfirmed": true
+  },
+  "visual_review": {
+    "four_actual_screenshots_opened": true,
+    "official_and_registry_cards_share_grid": true,
+    "official_divider_absent": true,
+    "provider_icons_visible": true,
+    "management_screens_have_enabled_and_disconnect_controls": true,
+    "credential_form_absent_for_keyless": true
+  },
+  "images": {
+    "app19-server42-marketplace-top.png": {
+      "url": "https://openagent.uno/connectors/app19-server42-marketplace-top.png",
+      "bytes": 162241,
+      "sha256": "0f525b4576ac5491b58dacd35b17cce0488739a2ffcde1a2f67b91df57b7941a"
+    },
+    "app19-server42-marketplace-scroll.png": {
+      "url": "https://openagent.uno/connectors/app19-server42-marketplace-scroll.png",
+      "bytes": 172418,
+      "sha256": "df507653ad6c8ed8337bb264f2589eb2115c8d2b32c841e63df4ed07107e09f2"
+    },
+    "app19-server42-exa-connected.png": {
+      "url": "https://openagent.uno/connectors/app19-server42-exa-connected.png",
+      "bytes": 64769,
+      "sha256": "4ef52d69017c12c8f78a7c7d3c4c1dca7f45667cc636d2546087a424f86f4ba4"
+    },
+    "app19-server42-firecrawl-connected.png": {
+      "url": "https://openagent.uno/connectors/app19-server42-firecrawl-connected.png",
+      "bytes": 67290,
+      "sha256": "34118d7624edbcc5e89234f3cb0729405f83cb31eaacf9cbd18d1682c8de18e6"
+    }
+  },
+  "owned_staging_cleanup": true,
+  "owned_runtime_process_cleanup": "passed; separate guarded cleanup also stopped the init host-tools helper",
+  "owned_process_cleanup_receipt_sha256": "1d98461fdce56e4280fe2f651c11cf1f2863eb22146dcbb7b3c884e15e2578da",
+  "previous_harness_failures": [
+    {
+      "status": "failed",
+      "phase": "connect-exa-through-marketplace",
+      "reason": "actual-ui-contract-failed",
+      "error_class": null,
+      "receipt_sha256": "53ef02ba3722ac2057b34e1480512263b18c61c1e71bba19b0df64b07a996c07"
+    },
+    {
+      "status": "failed",
+      "phase": "install-exa-through-marketplace",
+      "reason": "actual-ui-contract-failed",
+      "error_class": "TimeoutError",
+      "receipt_sha256": "a18783deb6af7fa1d3decde49b0a77694033a3a231db8c3f9ac9aadc08eee4ff"
+    }
+  ],
+  "qualifier_correction": "The shared Button renders uppercase text alongside decorative glyphs. The successful driver binds each unique button to its exact visible label Text child; the public App/server bytes were unchanged.",
+  "limits": [
+    "Actual packaged Linux x64 UI with normal Join/SRP/device certificate/native Iroh transport; no mock, source overlay or model.",
+    "This GUI trial made no provider API call or OAuth grant. Real provider reads/restart remain attributed to the separate beta41 receipt.",
+    "Hosted Electron used --no-sandbox; sandbox security and Mac/Windows marketplace GUI acceptance are not claimed.",
+    "Sixteen implemented adapters and thirty registry results do not establish complete ChatGPT app or provider tool parity."
+  ],
+  "qualification_worker_cleanup": {
+    "owned_pod_deleted_and_not_found": true,
+    "owned_master_temporary_tools_removed": true,
+    "master_temporary_bytes_removed": 110812175,
+    "private_cleanup_receipt_sha256": "9b3ad15d920923dad8c2f7e21226fd12c551fe23ccf31a27593a5380685a40c4",
+    "secrets_persistent_volumes_other_workloads_changed": false
+  }
+}
