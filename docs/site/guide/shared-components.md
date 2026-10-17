@@ -35,6 +35,25 @@ release is [connectors-v0.1.6](https://github.com/openagent-uno/openagent-tools/
 Each host pins and qualifies its own assembly; publishing a component never
 silently updates another installation or attests its data-processing coverage.
 
+The latest shared component is now [SDK/runner **0.1.7**](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7),
+with **22 official connectors plus Custom MCP**. It adds Google Calendar (7),
+Outlook Mail (9, separately authorized send) and Outlook Calendar (7). Its
+[SDK qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) does not qualify actual Google/Microsoft access.
+Go hosts can pin
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.7`. The module
+Git tag is `packages/connectors/v0.1.7`; the runner release is
+`connectors-v0.1.7`. Each receiving host still qualifies its own credential
+storage, scope policy and product deployment.
+Server/CLI44 and App21 are preparation, not published releases. Current public
+server43/App20 retain the SDK16 assembly and acceptance below.
+
+The new adapters bind each account to its own local connection. Google sync
+checkpoints and Graph page cursors do not become shared application state:
+hosts persist projections/checkpoints, resolve 410 resets and 412 version
+conflicts, and implement synchronization explicitly. The adapters perform one
+HTTP attempt and do not replay an uncertain write. They add no calendar UI,
+mail client or required application service. See [operation limits](./connector-operations.md#calendar-and-mail-sdk-017).
+
 The qualified boundaries are separate:
 
 - [SDK 0.1.6](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json): race/vet/vulnerability checks, six-target packaging, Python/native smoke and six limited real runner reads for Parallel, Context7 and CoinGecko. Cross-compilation is not execution on every target.

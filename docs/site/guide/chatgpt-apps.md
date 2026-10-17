@@ -6,7 +6,12 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-## Current published connector cohort
+The latest shared component is [SDK17](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7),
+with 22 official connectors plus Custom MCP and isolated Calendar/Outlook
+qualification. Its [publication and boundaries](#published-sdk-017-calendars-and-mail)
+are separate from the currently published standalone assembly below.
+
+## Current published standalone assembly
 
 [SDK/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
 is public from source `2ec7c114a49b72460addc00fc8e8d6547a683b59`, with 19 official
@@ -176,13 +181,35 @@ These are distinct executions, not retrospective metadata acceptance. The
 original 4219 occurrences/4133 names and 32-name primary research checkpoint
 remain historical observations; adding an adapter does not change that snapshot.
 
-## Next source candidate: calendars and mail
+## Published SDK 0.1.7: calendars and mail
 
-The Tools SDK **0.1.7 source candidate on main** contains Google Calendar
-(7 typed tools), Outlook Mail (9) and Outlook Calendar (7). Remote qualification
-is pending; this candidate is **not published** and is not part of the current
-SDK 0.1.6/server 43/App 20 catalog. Common-app registration and real OAuth
-acceptance are not complete. See the [candidate contract and gates](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
+[SDK/runner 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
+is published from `f2cecfe3672e48a7724324fef5e41072cde697bf`, with **22 official
+connectors plus Custom MCP** and 11 verified release assets. Manifest SHA256:
+`65af35daccdf93278bd31a61ff00fbaf907ab62ed4afe89ff77d1f0d18890a56`.
+The [exact SDK qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) records race/vet/vulnerability
+checks, six-target/twelve-binary packaging, Python and Linux-native runner/broker
+fixtures, and public installed-host acquisition. Other targets have cross-build
+evidence; **no real Google/Microsoft consent, provider read or mutation is qualified**.
+
+| SDK connector | Typed operations | Consent and execution boundary |
+| --- | --- | --- |
+| Google Calendar | 7: CalendarList list/get; events list/get/create/update/delete | Per-account connection; CalendarList read scope plus event scope; local write admission |
+| Outlook Mail | 9: folders list/get; messages list/get; attachments list/get; drafts create/update; message send | `Mail.ReadWrite` does not grant `Mail.Send`; send requires its own scope and publish admission |
+| Outlook Calendar | 7: calendars list/get; events list/get/create/update/delete | Per-account Graph binding; finite UTC writes with version preconditions |
+
+Server/CLI **43** and App **20** remain the current published standalone assembly
+on SDK **0.1.6**, with **19** official entries and their existing screenshots.
+Server/CLI44 and App21 are source preparation only; publication, installed-product
+qualification and their GUI acceptance are pending. Publishing SDK17 does not
+upgrade an installed product or enable a provider.
+
+Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
+remains **off**. Google Calendar API enablement/new scopes and real consent,
+Microsoft app registration/terms/real consent, and applicable provider reviews
+remain gates. An operator-owned app requires its own valid registration and
+qualified receiving host. See [setup and recovery](./connector-operations.md#calendar-and-mail-sdk-017)
+and the [versioned SDK contract and limits](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
 ## Integration paths and remaining work
 
@@ -207,7 +234,7 @@ marketplace GUI remain unqualified.
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | [Documented independent-client OAuth MCP](https://wpvibe.ai/docs/ai-client-setup/) |
 | 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
-| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
+| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK 0.1.7 published: 9 typed mail operations; separate send scope; common registration and real OAuth/API qualification pending; server43/App20 retain SDK16 | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
 | 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |

@@ -23,6 +23,24 @@ OpenAgent provides one shared connector implementation for the standalone server
 
 The shared authentication service accepts ClickUp, GitHub and Notion enrollment. On released server beta 40, operators enable these providers with `connectors.official_providers: [clickup, github, notion]` or `OPENAGENT_CONNECTOR_AUTH_PROVIDERS=clickup,github,notion`. Server beta 43 defaults to those three only when neither setting is supplied. An explicit empty list or empty environment value remains an opt-out; listing a provider creates no connection, broker registration or grant. Every OAuth connection still requires local authorization and the provider's consent. See the [configuration precedence](./connector-operations.md#standalone-configuration). Shopify enrollment is currently disabled: the published opt-in privacy processor covers a fresh canonical text-history cohort, with additional storage and real-provider acceptance gates still required. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback.
 
+## Calendar and mail SDK availability
+
+[SDK 0.1.7 is public](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
+with 22 official connectors plus Custom MCP, including Google Calendar (7 tools),
+Outlook Mail (9) and Outlook Calendar (7). The [SDK receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) qualifies
+code, packages and isolated protocol fixtures. Real Google/Microsoft OAuth and
+provider operations remain pending, and common enrollment for these providers
+is closed. Public server43/App20 still show their 19-entry SDK16 catalog;
+server44/App21 are being prepared and are not yet published.
+
+After a receiving host adopts and qualifies SDK17 and an operator configures an
+approved OAuth app, each account uses a separate connection through the same
+marketplace/API/CLI controls. Read access, local permission to change data and
+provider scopes remain independent. Outlook sending additionally requires
+`Mail.Send`; preparing a draft does not send it. See [Calendar/mail setup and
+recovery](./connector-operations.md#calendar-and-mail-sdk-017) for scopes,
+account binding and the bounded first-release operations.
+
 ## Shared components
 
 The [architecture guide](./shared-components.md) explains which parts are

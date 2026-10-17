@@ -103,11 +103,12 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 ## Pinning the shared implementation
 
 A Go host consumes
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.6`; its
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.7`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
-platform archive and wheel hashes.
+platform archive and wheel hashes. Public server43 still pins SDK16; the SDK17
+consumer lock in the server44 source candidate does not update that release.
 
 From a source checkout containing the candidate acquisition script:
 
@@ -221,7 +222,9 @@ mail and durable events. Its contract is
 
 Google, ClickUp and Postiz own-app configuration uses the shared provider
 descriptor array, with client identity, a protected secret-file reference,
-registered endpoints, redirect, scopes and PKCE settings. The standalone's
+registered endpoints, redirect, scopes and PKCE settings. SDK17 additionally
+supports `google_calendar`, `outlook_mail` and `outlook_calendar`; adopting
+server44/App21 remain unpublished candidates. Public server43/App20 retain SDK16. The standalone's
 own-app redirect must use the explicitly configured loopback callback supported
 by that provider. Multiple agents on one machine need separate reserved callback
 ports. Product-local own-app credentials stay local.
@@ -231,6 +234,83 @@ instance, so acquisition/refresh can be coordinated per app and shop. Existing
 Embedding hosts' registrations retain their existing compatible own-app paths.
 A connection's issuer remains the app that minted its credentials; swapping a
 client ID or copying a secret is not a credential migration.
+
+## Calendar and mail SDK 0.1.7
+
+[SDK17 is published](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
+with an [exact qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json).
+It adds reusable operations, not a calendar app, email client or synchronization
+service. Public server43/App20 still consume SDK16; server44/App21 adoption and
+real Google/Microsoft account acceptance remain pending. Common enrollment for
+all three new provider IDs is closed. Adding them to `official_providers`
+cannot activate a disabled central registration.
+
+| Catalog / provider | Typed operations | Scope contract |
+| --- | --- | --- |
+| `google-calendar` / `google_calendar` | `files.google_calendar.` + `calendars.list/get`, `events.list/get/create/update/delete` | `https://www.googleapis.com/auth/calendar.calendarlist.readonly` and `https://www.googleapis.com/auth/calendar.events` for the canonical full subset |
+| `outlook-mail` / `outlook_mail` | `outreach.outlook_mail.` + `folders.list/get`, `messages.list/get`, `attachments.list/get`, `drafts.create/update`, `messages.send` | `offline_access`, `User.Read`, `Mail.ReadWrite`; separately request `Mail.Send` to expose send |
+| `outlook-calendar` / `outlook_calendar` | `files.outlook_calendar.` + `calendars.list/get`, `events.list/get/create/update/delete` | `offline_access`, `User.Read`, `Calendars.ReadWrite` for the canonical full subset |
+
+The adapters recognize documented method-specific read-only scopes and broader
+provider scopes; they do not equate unrelated scope names. Local read/write
+admission remains independent. `Mail.ReadWrite` authorizes drafts, never send;
+`messages.send` also requires local publish admission. HTTP202 records acceptance,
+not delivery. Outlook Calendar writes accept UTC times. This subset excludes
+Graph delta sync, arbitrary OData, recurrence expansion, invitations, uploads
+and MIME; Google writes exclude attendees and conferencing parameters. Editing
+or deleting an existing meeting may still notify its existing guests.
+
+For an operator-owned app on a qualified SDK17 host:
+
+1. Register the app under the operator's actual identity, enable the required
+   provider API, and register the callback supported by that app type. Google
+   Calendar requires Calendar API enablement and accepted Calendar scopes.
+   Microsoft requires the appropriate account/tenant audience and delegated
+   Graph permissions; registration, terms and real consent remain pending for
+   the common app. No existing user tokens migrate to another app automatically.
+2. Store app secrets in protected server-owned files. Set
+   `connectors.oauth_providers_file` to the provider descriptor array using
+   `id`, `app_id`, `client_id`, `secret_file`, `authorization_url`, `token_url`,
+   `redirect_uri`, `scopes` and `pkce: true`. SDK17 own-app callbacks bind only
+   `http://127.0.0.1:<reserved-port>/<registered-path>` on the receiving server.
+   The browser callback must reach that server; separate local servers reserve
+   different ports. Do not expose a private descriptor as tool arguments.
+3. Use fixed Google authorize/token endpoints or Microsoft's global-cloud
+   `https://login.microsoftonline.com/common/oauth2/v2.0/authorize` and `/token`.
+   Request Microsoft Graph resource-prefixed scopes; `offline_access` remains
+   unprefixed. Sovereign-cloud and arbitrary tenant authorities are outside this
+   SDK subset. The SDK verifies Microsoft `/me` with `User.Read` and retains the
+   account ID through refresh; a different account requires a new connection.
+4. Connect each account independently through the qualified host's normal
+   marketplace/API/CLI controls. Recheck authorization before storing the
+   result. Keep each connection's issuer, scopes and local enabled/write state.
+   Perform real read/write/refresh/restart/disconnect qualification before
+   enabling common enrollment. Source fixtures do not establish that acceptance.
+
+Google hosts must store the query profile, page cursor and final `nextSyncToken`
+with their own projection/checkpoint transaction. Preserve cancellation
+tombstones and the documented query restrictions across pages. A 410
+`sync_reset_required` requests an explicit host decision: the adapter does not
+silently clear state or run a full resynchronization. Graph page envelopes bind
+connection, verified account, operation and fixed resource path; they cannot be
+reused for another source. Neither cursor implements an application sync engine.
+
+Google Calendar and Outlook Calendar event updates/deletes, and Outlook Mail
+draft updates, require the provider ETag. Google requires a strong ETag;
+Microsoft accepts the validated provider ETag. A 412 `version_conflict` requires
+a fresh read and explicit reconciliation, with no automatic overwrite. Every
+operation makes one HTTP attempt; uncertain writes are not replayed. Go hosts
+receive a bounded `ProviderError`; Python exposes `ConnectorError.code` and an
+optional validated `provider_status`. No provider error body, header, credential
+or request ID is exported through that error contract. Microsoft conditional
+write behavior still needs real provider qualification. Local disconnect
+removes only that product connection; this implementation does not expose a
+Microsoft-wide consent-revocation endpoint.
+
+See the [published SDK contract](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md),
+[Google Calendar authorization](https://developers.google.com/workspace/calendar/api/guides/auth),
+[incremental sync](https://developers.google.com/workspace/calendar/api/guides/sync),
+and [Microsoft authorization-code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
 
 ## Backup and restart boundaries
 

@@ -1,6 +1,6 @@
 # Connector release and qualification status
 
-Status updated on **17 October 2026**. The current published assembly is
+Status updated on **17 October 2026**. The current published standalone assembly is
 **SDK/runner 0.1.6, server/CLI beta 43, Core beta 22, Host Tools 1.0.0b6 and App beta 20**. Its
 catalog contains 19 official connectors plus Custom MCP. A card, component
 release or health check does not establish provider access or application
@@ -10,7 +10,7 @@ composition features; each boundary below has its own receipt.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.6 published with 11 verified assets, six-target/twelve-binary package checks, race/vet/vulnerability and Python/native checks; six limited real runner reads | Execution on every native target, other tools and full provider parity |
+| Shared Go module, runner and Python/MCP | SDK 0.1.7 public: 22 official connectors plus Custom MCP, 11 verified assets, race/vet/vulnerability, six-target/twelve-binary and Python/Linux-native checks | Google/Microsoft real OAuth and API acceptance; adoption by the next standalone release; execution on every native target |
 | Server/CLI | Beta 43 public from `276704b2`, Core beta 22/SDK 0.1.6/B6; 157 installed fixtures, source/acquisition/provenance guards and normal public installer passed | Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta 20 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
@@ -50,20 +50,47 @@ Exa/Firecrawl provider evidence remains attributed to SDK 0.1.5/beta 41, not rel
 as new beta 43 calls. No connector release qualifies the
 [multi-source application composition contracts](./application-composition.md).
 
-## Next source candidate: calendars and mail
+## Published SDK 0.1.7: calendars and mail
 
-The Tools SDK **0.1.7 source candidate on main** contains Google Calendar
-(7 typed tools), Outlook Mail (9) and Outlook Calendar (7). Remote qualification
-is pending; this candidate is **not published** and is not part of the current
-SDK 0.1.6/server 43/App 20 catalog. Common-app registration and real OAuth
-acceptance are not complete. See the [candidate contract and gates](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
+[SDK/runner 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
+is published from `f2cecfe3672e48a7724324fef5e41072cde697bf`, with **22 official
+connectors plus Custom MCP** and 11 verified release assets. Manifest SHA256:
+`65af35daccdf93278bd31a61ff00fbaf907ab62ed4afe89ff77d1f0d18890a56`.
+The [exact SDK qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) records race/vet/vulnerability
+checks, six-target/twelve-binary packaging, Python and Linux-native runner/broker
+fixtures, and public installed-host acquisition. Other targets have cross-build
+evidence; **no real Google/Microsoft consent, provider read or mutation is qualified**.
+
+| SDK connector | Typed operations | Consent and execution boundary |
+| --- | --- | --- |
+| Google Calendar | 7: CalendarList list/get; events list/get/create/update/delete | Per-account connection; CalendarList read scope plus event scope; local write admission |
+| Outlook Mail | 9: folders list/get; messages list/get; attachments list/get; drafts create/update; message send | `Mail.ReadWrite` does not grant `Mail.Send`; send requires its own scope and publish admission |
+| Outlook Calendar | 7: calendars list/get; events list/get/create/update/delete | Per-account Graph binding; finite UTC writes with version preconditions |
+
+Server/CLI **43** and App **20** remain the current published standalone assembly
+on SDK **0.1.6**, with **19** official entries and their existing screenshots.
+Server/CLI44 and App21 are source preparation only; publication, installed-product
+qualification and their GUI acceptance are pending. Publishing SDK17 does not
+upgrade an installed product or enable a provider.
+
+Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
+remains **off**. Google Calendar API enablement/new scopes and real consent,
+Microsoft app registration/terms/real consent, and applicable provider reviews
+remain gates. An operator-owned app requires its own valid registration and
+qualified receiving host. See [setup and recovery](./connector-operations.md#calendar-and-mail-sdk-017)
+and the [versioned SDK contract and limits](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
 ## Provider registration checkpoint
 
 - **Google:** OpenAgent app/client, callbacks, test audience and the existing
   connector scope set are prepared. Gmail, Drive, Analytics Data and Analytics
   Admin APIs were individually enabled and verified. The app remains in Testing;
-  applicable verification and security assessment are not complete.
+  applicable verification and security assessment are not complete. The existing
+  client now includes the Calendar callback; Calendar API enablement, its new
+  scope declaration and real Calendar consent remain pending.
+- **Microsoft:** Outlook Mail and Outlook Calendar adapters are published in SDK17.
+  The shared registration, developer terms, actual account consent and lifecycle
+  qualification remain pending; neither is enabled in common enrollment.
 - **ClickUp:** the existing provider registration and credentials are reused.
   Its common callback completed a real browser round trip on 14 October with
   auth service 0.1.6. The disclosure response now preserves the browser's
