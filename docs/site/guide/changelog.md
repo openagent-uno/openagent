@@ -2,6 +2,36 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.42
+
+- Connector acquisition handles distinct installation/temporary filesystems
+  using a verified destination-side copy and atomic publication. Identical
+  verified wheels are reused; partial or mismatched copies are not promoted.
+- [149 installed fixtures and 15 acquisition cases](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-installed-2026-10-17.json)
+  passed. The [fresh normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+  also passed server-plus-CLI installation across distinct mounts.
+- Core beta 22, SDK 0.1.5 and Host Tools B6 are unchanged. The provider code is
+  identical to beta 41; no new provider calls were made for this repair.
+  [Release record](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.42.md).
+
+## v1.1.0-beta.41
+
+- Published SDK 0.1.5 adds Exa and Firecrawl to the same marketplace/CLI catalog:
+  sixteen official entries plus Custom MCP. The reviewed read tools require no
+  provider key or OAuth; local owner, tenant and tool permissions still apply.
+- ClickUp, GitHub and Notion become eligible by default only when both operator
+  settings are absent. Explicit empty lists/environment opt-outs remain;
+  defaults create no connection, grant or automatic broker registration.
+- The [limited real product lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+  passed two keyless connections, four public reads across an actual restart,
+  local tombstones/source removal and runtime cleanup. Initial installer EXDEV
+  and same-prefix `TMPDIR` recovery remain recorded, distinct from beta 42's
+  fresh installation proof. Private harness errors are separately preserved.
+- [Release record](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.41.md).
+  App beta 18 remains the published desktop release; beta 19 native/GUI
+  qualification is pending. These server releases do not establish new native
+  App or provider-wide acceptance.
+
 ## v1.1.0-beta.34
 
 - Memory authorization failures may only be reported when the same turn has a

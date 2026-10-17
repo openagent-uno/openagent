@@ -1,9 +1,11 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.40**. The latest desktop App
+The current server and CLI build is **v1.1.0-beta.42**. The latest desktop App
 is **v1.1.0-beta.18**, published for macOS, Windows and Linux on ARM64 and x64.
 These are betas of the modular architecture. Provider activation and product
 qualification are recorded separately in [Connector release status](./guide/connector-status.md).
+App beta 19 is still unpublished; its native ARM recovery and GUI qualification
+do not change the current App download.
 
 Product source and server/CLI releases come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Desktop
@@ -30,18 +32,23 @@ available as a [historical release](https://github.com/openagent-uno/openagent-a
 <ReleaseDownloads target="server" />
 
 The beta server is distributed as a Python 3.11+ wheel. The interpreter must
-include `venv` and `ensurepip` (Debian packages this separately as `python3-venv`). Use the complete
-wheelhouse procedure in [Getting Started](./guide/getting-started), because the
-standalone product pins independently released Core and Tools packages.
+include `venv` and `ensurepip` (Debian packages this separately as `python3-venv`).
+Use the verified public installer described in
+[Getting Started](./guide/getting-started), which pins the product, Core, Tools
+and connector SDK releases and acquires the verified local connector runner.
 
 ```bash
-curl -fsSL https://openagent.uno/install.sh | sh
+curl -fsSL https://openagent.uno/install.sh | sh -s -- --server
 ```
 
 The server installer selects `openagent-core[engine,providers,modules]==1.1.0b22`,
 including SQLAlchemy async support. When assembling directly from release wheels,
 install those extras too: the bare Framework wheel is not the qualified
 `NativeProvider` dependency closure. The CLI remains a thin remote client.
+The [fresh beta 42 installer check](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+passed normal server-plus-CLI installation on Linux x64/CPython 3.11.14 with
+temporary and installation directories on different mounts. This is an
+installation boundary, not Windows/macOS server execution or native GUI proof.
 
 ## CLI
 
@@ -62,13 +69,15 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 40.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 42.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.4](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
-  — shared provider adapters, Python/MCP transport, platform manifests and checksums.
+- [Shared connector module/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
+  — sixteen official adapters plus Custom MCP, including Exa/Firecrawl keyless
+  reads; Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
-  — separate operator deployment release; public provider enrollment remains disabled.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.40/manifest.json)
+  — separate operator release; ClickUp, GitHub and Notion enrollment is deployed
+  as a limited public beta. Other provider gates remain independent.
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.42/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
