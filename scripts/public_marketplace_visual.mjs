@@ -35,6 +35,10 @@ try {
     args: ['--no-sandbox', '--local-e2e', `--e2e-user-data-dir=${profile}`],
     env: process.env, timeout: 60000 });
   let page = await app.firstWindow();
+  // Shared Buttons include decorative Feather glyphs in their accessible
+  // name. Bind the unique button to its exact visible Text child instead.
+  const labelledButton = (scope, label) => scope.getByRole('button')
+    .filter({ has: page.getByText(label, { exact: true }) });
   await page.setViewportSize({ width: 1440, height: 1040 });
   await markPhase('wait-for-ordinary-join-form');
   const ticket = page.getByPlaceholder('oa1abcdef… (from `openagent invite`)');
@@ -80,7 +84,7 @@ try {
   await expect.poll(() => responses.has('/api/marketplace/search'), { timeout: 30000 }).toBe(true);
   if (responses.get('/api/marketplace/search').status !== 200) {
     await markPhase('retry-registry-once');
-    await page.getByRole('button', { name: /^Retry$/i }).click();
+    await labelledButton(page, 'RETRY').click();
   }
   await markPhase('wait-for-authenticated-catalog-responses');
   await expect.poll(() => responses.get('/api/marketplace/official')?.status, { timeout: 30000 }).toBe(200);
@@ -134,10 +138,10 @@ try {
       await markPhase(`verify-${id}-keyless-availability`);
       assert(item?.auth === 'none' && item.available);
       const card = page.getByText(item.name, { exact: true }).first().locator('..').locator('..');
-      // The shared Button renders its label in uppercase. Match its actual
-      // accessible name while retaining an anchored, exact action match.
       await markPhase(`install-${id}-through-marketplace`);
-      await card.getByRole('button', { name: /^Install$/i }).click();
+      const install = labelledButton(card, 'INSTALL');
+      await expect(install).toHaveCount(1);
+      await install.click();
       await markPhase(`wait-for-${id}-setup`);
       await expect(page.getByText(`Connect ${item.name}`, { exact: true })).toBeVisible();
       await markPhase(`verify-${id}-credential-form-absence`);
@@ -146,11 +150,11 @@ try {
       await markPhase(`submit-${id}-connection`);
       await page.getByRole('button', { name: 'Connect', exact: true }).click();
       await markPhase(`wait-for-${id}-connected-card`);
-      await expect(card.getByRole('button', { name: /^Manage$/i })).toBeVisible();
+      await expect(labelledButton(card, 'MANAGE')).toBeVisible();
       await markPhase(`verify-${id}-connected-notice`);
       await expect(page.getByText(`${item.name} connected to this server.`, { exact: true })).toBeVisible();
       await markPhase(`manage-${id}-connection`);
-      await card.getByRole('button', { name: /^Manage$/i }).click();
+      await labelledButton(card, 'MANAGE').click();
       await markPhase(`verify-${id}-oauth-controls-absence`);
       await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Refresh access', exact: true })).toHaveCount(0);
@@ -165,8 +169,8 @@ try {
       await markPhase(`disconnect-${id}-through-marketplace`);
       await page.getByRole('button', { name: 'Disconnect from this server', exact: true }).click();
       await expect(page.getByRole('switch', { name: `Enable ${item.name}`, exact: true })).toHaveCount(0);
-      await page.getByRole('button', { name: /^Back to marketplace$/i }).click();
-      await expect(card.getByRole('button', { name: /^Install$/i })).toBeVisible();
+      await labelledButton(page, 'BACK TO MARKETPLACE').click();
+      await expect(labelledButton(card, 'INSTALL')).toBeVisible();
       keylessLifecycle.push({ id, connected: true, disabledAndReenabled: true, disconnected: true,
         credentialFormAbsent: true, oauthControlsAbsent: true, providerCalls: 0 });
     }
