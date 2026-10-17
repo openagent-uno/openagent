@@ -27,8 +27,8 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The current standalone assembly is **server/CLI beta 43, Core beta 22, connector SDK/runner
-0.1.6, Host Tools 1.0.0b6 and App beta 20**. The shared catalog has 19 official adapters
+The visually qualified standalone pair is **server/CLI beta43, Core beta22, connector SDK/runner
+0.1.6, Host Tools 1.0.0b6 and App beta20**. Its catalog has19 official adapters
 plus Custom MCP. Its [versioned Go contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors)
 uses module tag `packages/connectors/v0.1.6`; the independently published runner
 release is [connectors-v0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6).
@@ -44,7 +44,9 @@ Go hosts can pin
 Git tag is `packages/connectors/v0.1.7`; the runner release is
 `connectors-v0.1.7`. Each receiving host still qualifies its own credential
 storage, scope policy and product deployment.
-Server/CLI44 and App21 are preparation, not published releases. Current public
+[Server/CLI44 is now public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44),
+with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. Fresh public-installer44
+acceptance and App21 native/GUI qualification are pending. The visually qualified
 server43/App20 retain the SDK16 assembly and acceptance below.
 
 The new adapters bind each account to its own local connection. Google sync

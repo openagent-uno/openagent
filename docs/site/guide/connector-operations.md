@@ -2,8 +2,9 @@
 
 This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
 public beta; other providers retain their [qualification gates](./connector-status.md).
-The current published assembly is **SDK/runner 0.1.6, server/CLI beta 43 and
-App beta 20**. The [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
+Current published Python components are **SDK/runner 0.1.7 and server/CLI beta 44**.
+App beta 21 native builds and 21/44 GUI acceptance remain pending.
+The visually qualified pair is App beta 20/server 43/SDK 0.1.6. Its [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
 [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
 and [Linux x64 marketplace/local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
 passed separately. The GUI uses hosted `--no-sandbox` and made zero provider
@@ -107,8 +108,8 @@ A Go host consumes
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
-platform archive and wheel hashes. Public server43 still pins SDK16; the SDK17
-consumer lock in the server44 source candidate does not update that release.
+platform archive and wheel hashes. Public server44 pins SDK17; existing
+server43 installations keep SDK16 until explicitly updated.
 
 From a source checkout containing the candidate acquisition script:
 
@@ -224,7 +225,8 @@ Google, ClickUp and Postiz own-app configuration uses the shared provider
 descriptor array, with client identity, a protected secret-file reference,
 registered endpoints, redirect, scopes and PKCE settings. SDK17 additionally
 supports `google_calendar`, `outlook_mail` and `outlook_calendar`; adopting
-server44/App21 remain unpublished candidates. Public server43/App20 retain SDK16. The standalone's
+server44 is published; App21 native builds remain pending. The visually qualified
+App20/server43 pair retains SDK16. The standalone's
 own-app redirect must use the explicitly configured loopback callback supported
 by that provider. Multiple agents on one machine need separate reserved callback
 ports. Product-local own-app credentials stay local.
@@ -240,8 +242,9 @@ client ID or copying a secret is not a credential migration.
 [SDK17 is published](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
 with an [exact qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json).
 It adds reusable operations, not a calendar app, email client or synchronization
-service. Public server43/App20 still consume SDK16; server44/App21 adoption and
-real Google/Microsoft account acceptance remain pending. Common enrollment for
+service. Public server44 adopts SDK17 with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json).
+Fresh public-installer44, App21 native/GUI qualification and real Google/Microsoft
+account acceptance remain pending. Common enrollment for
 all three new provider IDs is closed. Adding them to `official_providers`
 cannot activate a disabled central registration.
 

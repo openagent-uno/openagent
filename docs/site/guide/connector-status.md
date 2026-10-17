@@ -1,8 +1,10 @@
 # Connector release and qualification status
 
-Status updated on **17 October 2026**. The current published standalone assembly is
-**SDK/runner 0.1.6, server/CLI beta 43, Core beta 22, Host Tools 1.0.0b6 and App beta 20**. Its
-catalog contains 19 official connectors plus Custom MCP. A card, component
+Status updated on **17 October 2026**. Current published Python components are
+**SDK/runner 0.1.7 and server/CLI beta44**, with 22 official connectors plus Custom
+MCP, Core beta22 and Host Tools 1.0.0b6. **App beta20/server43/SDK16** remain the
+visually qualified pair with 19 entries; App21 native builds and 21/44 GUI acceptance
+are pending. A card, component
 release or health check does not establish provider access or application
 composition features; each boundary below has its own receipt.
 
@@ -10,14 +12,16 @@ composition features; each boundary below has its own receipt.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.7 public: 22 official connectors plus Custom MCP, 11 verified assets, race/vet/vulnerability, six-target/twelve-binary and Python/Linux-native checks | Google/Microsoft real OAuth and API acceptance; adoption by the next standalone release; execution on every native target |
-| Server/CLI | Beta 43 public from `276704b2`, Core beta 22/SDK 0.1.6/B6; 157 installed fixtures, source/acquisition/provenance guards and normal public installer passed | Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.7 public: 22 official connectors plus Custom MCP, 11 verified assets, race/vet/vulnerability, six-target/twelve-binary and Python/Linux-native checks | Google/Microsoft real OAuth and API acceptance; execution on every native target |
+| Server/CLI | Beta44 public from `162bff96`, Core22/SDK0.1.7/B6;168 installed fixtures and source/acquisition/provenance guards passed | Fresh public installer44 check, Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta 20 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
 | Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
 
-### What qualified in this assembly
+### Current Python release and the visually qualified pair
+
+[Server/CLI44](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44) has 12 verified assets, manifest `f61d94548d22525f06871f9f3884509e4ecbd2e6fdc109548a7fa48c9630df5c`, and its [exact installed qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). Only two wheels were rebuilt; seven components were verified unchanged. These checks make zero provider calls and do not establish native App or fresh public-installer acceptance. The following16/43/20 receipts retain their actual historical boundaries.
 
 - [SDK 0.1.6 real reads and publication](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json): source `2ec7c114`, manifest `a1e87b9469cadfc1c8184e4ad704d0b7ed26ee7233f6145bf15baddfe19789f5`. The early CoinGecko output-ticker rejection and narrow correction are retained; six reads then passed.
 - [Server 43 installed fixtures](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-installed-2026-10-17.json) and [normal public installation](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json): source `276704b2`, 12 verified assets, manifest `0458e049e3bfeafafff7c677670bdc30eeeb7a70ec8e93eac1742f6e45ba5e63`.
@@ -67,11 +71,13 @@ evidence; **no real Google/Microsoft consent, provider read or mutation is quali
 | Outlook Mail | 9: folders list/get; messages list/get; attachments list/get; drafts create/update; message send | `Mail.ReadWrite` does not grant `Mail.Send`; send requires its own scope and publish admission |
 | Outlook Calendar | 7: calendars list/get; events list/get/create/update/delete | Per-account Graph binding; finite UTC writes with version preconditions |
 
-Server/CLI **43** and App **20** remain the current published standalone assembly
-on SDK **0.1.6**, with **19** official entries and their existing screenshots.
-Server/CLI44 and App21 are source preparation only; publication, installed-product
-qualification and their GUI acceptance are pending. Publishing SDK17 does not
-upgrade an installed product or enable a provider.
+[Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
+from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed; the fresh public-installer check
+is pending. App21 native builds and 21/44 GUI acceptance are pending.
+App20/server43 remain the visually qualified pair with 19 entries and their
+existing screenshots. Publishing a component never upgrades an installation
+or enables a provider.
 
 Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
 remains **off**. Google Calendar API enablement/new scopes and real consent,

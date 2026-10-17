@@ -9,9 +9,10 @@ The complete [readable inventory](https://github.com/openagent-uno/openagent-too
 The latest shared component is [SDK17](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7),
 with 22 official connectors plus Custom MCP and isolated Calendar/Outlook
 qualification. Its [publication and boundaries](#published-sdk-017-calendars-and-mail)
-are separate from the currently published standalone assembly below.
+are separate from the visually qualified standalone pair below. Server/CLI44
+is now public on SDK17; App21 native builds and 21/44 GUI acceptance are pending.
 
-## Current published standalone assembly
+## Visually qualified standalone pair and retained provider evidence
 
 [SDK/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
 is public from source `2ec7c114a49b72460addc00fc8e8d6547a683b59`, with 19 official
@@ -198,11 +199,13 @@ evidence; **no real Google/Microsoft consent, provider read or mutation is quali
 | Outlook Mail | 9: folders list/get; messages list/get; attachments list/get; drafts create/update; message send | `Mail.ReadWrite` does not grant `Mail.Send`; send requires its own scope and publish admission |
 | Outlook Calendar | 7: calendars list/get; events list/get/create/update/delete | Per-account Graph binding; finite UTC writes with version preconditions |
 
-Server/CLI **43** and App **20** remain the current published standalone assembly
-on SDK **0.1.6**, with **19** official entries and their existing screenshots.
-Server/CLI44 and App21 are source preparation only; publication, installed-product
-qualification and their GUI acceptance are pending. Publishing SDK17 does not
-upgrade an installed product or enable a provider.
+[Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
+from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed; the fresh public-installer check
+is pending. App21 native builds and 21/44 GUI acceptance are pending.
+App20/server43 remain the visually qualified pair with 19 entries and their
+existing screenshots. Publishing a component never upgrades an installation
+or enables a provider.
 
 Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
 remains **off**. Google Calendar API enablement/new scopes and real consent,
@@ -219,8 +222,9 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 
 ## Popular directory order
 
-The table preserves the original Popular editorial order. The current published
-cohort is SDK 0.1.6/server 43/App beta 20; real provider evidence, local GUI controls and
+The table preserves the original Popular editorial order. SDK 0.1.7/server 44 are
+published; App 21 native builds remain pending. The visually qualified pair is
+SDK 0.1.6/server 43/App beta 20; real provider evidence, local GUI controls and
 common OAuth availability retain separate boundaries. Only ClickUp/GitHub/Notion
 common enrollment is open in the limited beta. Full tool parity and Mac/Windows
 marketplace GUI remain unqualified.
@@ -234,7 +238,7 @@ marketplace GUI remain unqualified.
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | [Documented independent-client OAuth MCP](https://wpvibe.ai/docs/ai-client-setup/) |
 | 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
-| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK 0.1.7 published: 9 typed mail operations; separate send scope; common registration and real OAuth/API qualification pending; server43/App20 retain SDK16 | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
+| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK 0.1.7 published: 9 typed mail operations; separate send scope; common registration and real OAuth/API qualification pending; server44 adopts SDK17; App21 in build | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
 | 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |

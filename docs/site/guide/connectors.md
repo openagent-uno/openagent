@@ -1,7 +1,10 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-The current assembly is **SDK/runner 0.1.6, server/CLI beta 43 and App beta 20**.
+Current published Python components are **SDK/runner 0.1.7 and server/CLI beta44**,
+with 22 official connectors plus Custom MCP. **App beta20/server43/SDK16** remain
+the visually qualified pair shown below; App21 native builds and 21/44 GUI
+acceptance are pending.
 The catalog contains 19 official adapters plus Custom MCP. The normal public
 installer and limited product workflow lifecycle passed independently. The
 [actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
@@ -30,8 +33,10 @@ with 22 official connectors plus Custom MCP, including Google Calendar (7 tools)
 Outlook Mail (9) and Outlook Calendar (7). The [SDK receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) qualifies
 code, packages and isolated protocol fixtures. Real Google/Microsoft OAuth and
 provider operations remain pending, and common enrollment for these providers
-is closed. Public server43/App20 still show their 19-entry SDK16 catalog;
-server44/App21 are being prepared and are not yet published.
+is closed. [Server/CLI44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
+with 22 entries and [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). Fresh public-installer44 acceptance is pending.
+App21 builds and 21/44 GUI acceptance remain pending; the existing screenshots
+show the actually qualified App20/server43 pair.
 
 After a receiving host adopts and qualifies SDK17 and an operator configures an
 approved OAuth app, each account uses a separate connection through the same
@@ -50,8 +55,8 @@ shared and which stay in the receiving product. Operators can use the
 ## Connector library
 
 The [ChatGPT app coverage guide](./chatgpt-apps.md) preserves the complete
-observed directory and its editorial Popular order. Published SDK 0.1.6 contains
-19 implemented official adapters plus Custom MCP, consumed by server/CLI 43.
+observed directory and its editorial Popular order. Published SDK 0.1.7 contains
+22 implemented official adapters plus Custom MCP, consumed by server/CLI 44.
 Library publication is separate from provider activation and each receiving
 host's rollout. See the [SDK read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json),
 [normal product lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)

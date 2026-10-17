@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "status": "passed",
+  "source_commit": "162bff9696c1dbcba0e64d3fc14ee7f59343d56d",
+  "recipe_sha256": "29495211cc905dcb464e9a77979f9fd993827c75f75d30acf92de0094ce088cc",
+  "scope": "installed Python connector consumer plus separate source fixtures; no native App/installer or real provider acceptance",
+  "publication": false,
+  "provider_activation_performed": false,
+  "real_provider_calls": 0,
+  "stages": [
+    "separate-source-provenance-four-pure-guards-before-fetch-and-build",
+    "two-new-wheels-seven-byte-identical-public-components",
+    "separate-source-acquisition-boundary-fixtures",
+    "separate-source-marketplace-cohort-guards-no-gui-acceptance",
+    "normal-install-pipcheck-public-api-catalog-and-copied-tests",
+    "separate-react-source-fixtures-keyless-cards-no-native-acceptance"
+  ]
+}
