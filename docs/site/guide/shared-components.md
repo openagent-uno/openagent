@@ -135,6 +135,33 @@ import provider app secrets, product accounts or the broker implementation.
 Trusted runner IPC carries credentials separately from model tool arguments;
 it is not an unauthenticated network API.
 
+### Register managed sources before run admission
+
+Core beta22 captures the capability catalog revision when a new run is admitted.
+A host must register its trusted managed-source topology before calling public
+`Runtime.submit` or `Runtime.execute_operation`. Preparation uses the host's
+verified actor, session and workspace binding, rechecks current authorization
+across the awaited snapshot, and registers source identities without provider
+I/O, tool execution or an execution grant. An unchanged topology must remain
+idempotent. A source added after admission stays outside that run's captured
+revision; a later newly admitted run can see it. Do not backdate registrations
+or weaken the revision, module-generation or lease checks.
+
+Management inspection remains schema-only: it does not register executable
+sources or issue executable references. Saved workflows retain the exact source
+and tool binding, not a cached opaque `ToolRef` as durable authority. At execution,
+resolve that exact binding in the current authorized catalog and use its fresh
+reference; never substitute another source or bypass the catalog through a raw
+MCP pool. Discovery and every call still recheck current host policy, connection,
+actor and result audience, including revocation after preparation. A prepared
+registration is neither permission to call nor a reusable cross-actor snapshot.
+
+This explains the existing Core beta22 admission contract. Each host's
+implementation and remote workflow acceptance require their own qualification;
+this documentation change establishes no new execution or provider acceptance.
+The calendar, task and file examples in [Composable applications](./application-composition.md)
+remain architectural acceptance cases rather than newly delivered features.
+
 ## Data and authorization boundaries
 
 The host supplies a connection binding, current credential, operation ID and
