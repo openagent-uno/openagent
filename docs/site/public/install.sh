@@ -61,7 +61,7 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.41", "manifest.json", "39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad"),
+    ("openagent-uno/openagent", "v1.1.0-beta.42", "manifest.json", "e6887ceb907bbabe844419d2de90d72c36c48205aa524bc6629f56a80cfb4af8"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.22", "manifest.json", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.5", "manifest.json", "d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752"),
@@ -142,10 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b41"
+    DIST="openagent-framework==1.1.0b42"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b41"
+    DIST="openagent-cli==1.1.0b42"
     COMMAND="openagent-cli"
 fi
 

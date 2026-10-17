@@ -1,0 +1,28 @@
+{
+  "format": 1,
+  "status": "passed",
+  "source_commit": "a16643449b9a5fc027eb9d0f3ee7326ecd302654",
+  "recipe_sha256": "60cc958686f25023cc5ffc2635b8dd3c58e362352718977b1c09824f16de6d0e",
+  "scope": "installed Python connector consumer plus separate source fixtures; no native App/installer or real provider acceptance",
+  "publication": true,
+  "provider_activation_performed": false,
+  "real_provider_calls": 0,
+  "stages": [
+    "separate-source-provenance-four-pure-guards-before-fetch-and-build",
+    "two-new-wheels-seven-byte-identical-public-components",
+    "separate-source-acquisition-boundary-fixtures",
+    "separate-source-marketplace-cohort-guards-no-gui-acceptance",
+    "normal-install-pipcheck-public-api-catalog-and-copied-tests",
+    "separate-react-source-fixtures-keyless-cards-no-native-acceptance"
+  ],
+  "product_release": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42",
+  "manifest_sha256": "e6887ceb907bbabe844419d2de90d72c36c48205aa524bc6629f56a80cfb4af8",
+  "public_assets_verified": 12,
+  "installed_python_tests": 149,
+  "source_acquisition_cases": 15,
+  "source_visual_guard_cases": 9,
+  "source_provenance_cases": 4,
+  "react_source_cases": 8,
+  "public_installer_acceptance": "pending",
+  "native_app_acceptance": "pending"
+}

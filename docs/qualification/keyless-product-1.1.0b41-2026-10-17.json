@@ -1,0 +1,133 @@
+{
+  "format": 1,
+  "date": "2026-10-17",
+  "status": "passed-installed-keyless-lifecycle-with-preserved-setup-failures",
+  "product": {
+    "server": "1.1.0b41",
+    "cli": "1.1.0b41",
+    "source_commit": "f01b946105857c92fcf14d8f7a83bcbf2fdad11a",
+    "release": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41",
+    "manifest_sha256": "39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad",
+    "sdk": "0.1.5",
+    "core": "1.1.0b22"
+  },
+  "boundary": {
+    "new_owned_qa_profile": true,
+    "ordinary_cli_srp_join": true,
+    "certified_iroh_gateway": true,
+    "normal_owner_authorized_mcp_workflows": true,
+    "imports_verified_under_public_installation_prefix": true,
+    "models_invoked": false,
+    "provider_keys_or_oauth_grants_used": false,
+    "direct_runner_or_provider_http_client": false,
+    "provider_write_calls": 0,
+    "provider_read_calls": 4,
+    "automatic_provider_retry": false,
+    "production_identity_or_database_modified": false
+  },
+  "catalog": {
+    "official_entries": 16,
+    "keyless_providers": [
+      "exa",
+      "firecrawl"
+    ],
+    "auth": "none",
+    "capability": "files",
+    "create_without_token_or_credentials": true,
+    "immediately_connected_without_oauth": true,
+    "allow_write": false
+  },
+  "public_resource": "https://openagent.uno/guide/connectors",
+  "operations": [
+    {
+      "provider": "exa",
+      "operation": "files.exa.fetch",
+      "phase": "read",
+      "recorded_at": "2026-10-17T07:17:35.728095+00:00",
+      "status": "passed",
+      "response_bytes": 6223,
+      "response_sha256": "93f1fa5e5502e318eefa20473228084a99f56929bccaea7b7ace353e11bad786",
+      "workflow_cleanup": "confirmed"
+    },
+    {
+      "provider": "exa",
+      "operation": "files.exa.fetch",
+      "phase": "restart-read",
+      "recorded_at": "2026-10-17T07:20:28.544239+00:00",
+      "status": "passed",
+      "response_bytes": 6224,
+      "response_sha256": "a02456c51a19057ddf0091cae8dd7ae778c39b223974cc128151cc3fb4d5598c",
+      "workflow_cleanup": "confirmed"
+    },
+    {
+      "provider": "firecrawl",
+      "operation": "files.firecrawl.scrape",
+      "phase": "read",
+      "recorded_at": "2026-10-17T07:17:50.845035+00:00",
+      "status": "passed",
+      "response_bytes": 37585,
+      "response_sha256": "5dcdc93a3f44966357c9cd3acab6d9ae4f31e1a4e9c2c7a5a7e8a9c75dd83312",
+      "workflow_cleanup": "confirmed"
+    },
+    {
+      "provider": "firecrawl",
+      "operation": "files.firecrawl.scrape",
+      "phase": "restart-read",
+      "recorded_at": "2026-10-17T07:20:38.666386+00:00",
+      "status": "passed",
+      "response_bytes": 37488,
+      "response_sha256": "22b06a805f0ee0917ee45d6b209d06c01099c6200a435dcac312cc81fad26f2c",
+      "workflow_cleanup": "confirmed"
+    }
+  ],
+  "restart": {
+    "same_connection_ids_preserved": true,
+    "actual_owned_server_process_generation_changed": true,
+    "identity_file_metadata_unchanged": true,
+    "both_public_reads_passed_after_restart": true
+  },
+  "disconnect": {
+    "both_local_tombstones_listed": true,
+    "both_connections_disabled": true,
+    "both_official_mcp_sources_removed": true,
+    "provider_revocation_claimed": false
+  },
+  "normal_public_installer": {
+    "sha256": "4d02815ef824a829fead066e4fd5c768952ad58498f1488459ffcb4a21d83ef7",
+    "python": "3.11.14",
+    "initial_fresh_attempt": "failed",
+    "initial_failure": "EXDEV in connector runner acquisition when installation and temporary wheelhouse were on different mounts",
+    "same_public_script_follow_up": "passed-server-and-cli-same-prefix",
+    "follow_up_environment": "owned TMPDIR on the installation mount",
+    "script_or_installed_source_modified": false,
+    "dependency_check": "passed",
+    "fresh_cross_filesystem_acceptance": false
+  },
+  "preserved_private_harness_failures": [
+    {
+      "phase": "bootstrap cleanup",
+      "error": "AttributeError from private helper calling close instead of the public GatewayClient.disconnect method",
+      "recovery": "private helper corrected; original normal CLI join and successful catalog checks preserved; later certified catalog and lifecycle checks passed"
+    },
+    {
+      "phase": "restart readiness wait",
+      "error": "private controller timed out waiting for a fresh invitation on an already enrolled server",
+      "recovery": "actual changed process generation and unchanged identity verified; certified post-restart reads passed without another bootstrap"
+    }
+  ],
+  "cleanup": {
+    "all_four_owned_workflows_deleted_after_terminal_observation": true,
+    "owned_server_process_group_stopped": true,
+    "owned_cli_host_tools_broker_stopped": true,
+    "no_active_owned_qa_process_remained": true,
+    "private_evidence_copied_and_hash_verified": true,
+    "other_worker_outputs_or_caches_removed": false
+  },
+  "not_claimed": [
+    "fresh cross-filesystem installer success",
+    "native App or GUI acceptance",
+    "all provider tools or quotas",
+    "OAuth/provider enrollment or broader provider qualification",
+    "acceptance of a later product version"
+  ]
+}
