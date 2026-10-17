@@ -91,15 +91,23 @@ class WorkerContracts(unittest.TestCase):
 
     def test_keyless_cohort_requires_matching_app_server_sdk_and_catalog(self):
         value = self.contract()
-        value.update(appVersion='1.1.0-beta.19', serverVersion='1.1.0b41', sdkVersion='0.1.5',
+        value.update(appVersion='1.1.0-beta.19', sdkVersion='0.1.5',
                      appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.19/',
                      appDEB='openagent-app-1.1.0-beta.19-linux-amd64.deb',
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.5/catalog.json')
-        self.assertEqual(self.load(value), value)
-        for field, replacement in (('serverVersion', '1.1.0b40'), ('sdkVersion', '0.1.4'),
-                                   ('appRelease', self.contract()['appRelease'])):
-            with self.subTest(field=field), self.assertRaises(ValueError):
-                self.load(dict(value, **{field: replacement}))
+        # App19 bytes/source stay fixed while the server-only42 installer fix
+        # gains its own finite acceptance cohort; preserve historical19/41.
+        for server in ('1.1.0b41', '1.1.0b42'):
+            value['serverVersion'] = server
+            with self.subTest(server=server):
+                self.assertEqual(self.load(value), value)
+                for field, replacement in (('serverVersion', '1.1.0b40'), ('serverVersion', '1.1.0b43'),
+                                           ('sdkVersion', '0.1.4'), ('hostToolsVersion', '1.0.0b7'),
+                                           ('appRelease', self.contract()['appRelease'])):
+                    with self.subTest(field=field), self.assertRaises(ValueError):
+                        self.load(dict(value, **{field: replacement}))
+        with self.assertRaises(ValueError):
+            self.load(dict(self.contract(), serverVersion='1.1.0b42'))
         values = [{'id': 'provider-' + str(i)} for i in range(14)] + [{'id': 'exa'}, {'id': 'firecrawl'}]
         self.assertEqual(len(qualifier.catalog_ids(values, '0.1.5')), 16)
         for changed in (values[:-1], values[:-1] + [{'id': 'other'}], values + [{'id': 'exa'}]):

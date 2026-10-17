@@ -1,4 +1,4 @@
-"""Finite beta41 Python release candidate; no publication, provider grant or App build.
+"""Finite beta42 Python release candidate; no publication, provider grant or App build.
 
 Build only server/CLI; reuse unchanged public components byte for byte. Run on
 one approved Linux worker, with a clean frozen product checkout and fresh output.
@@ -20,15 +20,15 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://github.com/openagent-uno/"
 PUBLIC = (
-    ("openagent", "v1.1.0-beta.40", "8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c"),
+    ("openagent", "v1.1.0-beta.41", "39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad"),
     ("openagent-core", "v1.1.0-beta.22", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-tools", "v1.0.0-beta.4", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-tools", "connectors-v0.1.5", "d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752"),
 )
-# beta40 reused these wheel bytes but omitted their source hashes from its
-# top-level inventory. Fetch beta39 only as the pinned provenance document;
-# wheel acquisition and installation still use the verified beta40 release.
-SOURCE_PROVENANCE = ("openagent", "v1.1.0-beta.39", "772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97")
+# Public beta41 carries the complete aggregate source inventory. Its seven
+# reused wheel rows remain bound to its reviewed beta40 origin; no older
+# manifest is fetched or used as an alternate source of release bytes.
+REUSED_ORIGIN = ("v1.1.0-beta.40", "8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c")
 REUSED_PREFIXES = ("apps/mcp-bridge/", "packages/identity/", "packages/dashboards/",
                    "packages/client-transport/", "packages/product-config/", "packages/integrations/support/")
 REBUILT = {"openagent-framework", "openagent-cli"}
@@ -44,7 +44,7 @@ def fetch(repository, tag, name, expected):
     if Path(name).name != name:
         raise ValueError("Unsafe release asset name")
     request = urllib.request.Request(BASE + repository + "/releases/download/" + tag + "/" + name,
-                                     headers={"User-Agent": "openagent-product41-qualification"})
+                                     headers={"User-Agent": "openagent-product42-qualification"})
     with urllib.request.urlopen(request, timeout=60) as response:
         data = response.read((32 << 20) + 1)
     if len(data) > 32 << 20 or digest(data) != expected:
@@ -61,19 +61,19 @@ def source_digest(sources):
     return digest(json.dumps(sources, sort_keys=True, separators=(",", ":")).encode())
 
 
-def verified_reused_sources(root, baseline, provenance, tracked):
+def verified_reused_sources(root, baseline, tracked):
     record = baseline["reused_product_components"]
-    if (record["release"] != SOURCE_PROVENANCE[1]
-            or record["manifest_sha256"] != SOURCE_PROVENANCE[2]):
+    if (record["release"] != REUSED_ORIGIN[0]
+            or record["manifest_sha256"] != REUSED_ORIGIN[1]):
         raise ValueError("Baseline reused-component provenance differs")
-    wheels = {row["file"]: row for row in baseline["wheels"] if row["name"] not in REBUILT}
-    prior = {row["file"]: row for row in provenance["wheels"] if row["name"] not in REBUILT}
+    wheel_rows = [row for row in baseline["wheels"] if row["name"] not in REBUILT]
+    wheels = {row["file"]: row for row in wheel_rows}
     recorded = {row["file"]: row for row in record["wheels"]}
-    if len(wheels) != 7 or wheels != prior or wheels != recorded:
-        raise ValueError("Reused wheel metadata differs across baseline/source provenance")
-    if source_digest(provenance["sources"]) != provenance["source_sha256"]:
-        raise ValueError("Source provenance inventory digest differs")
-    sources = {name: sha for name, sha in provenance["sources"].items() if name.startswith(REUSED_PREFIXES)}
+    if len(wheel_rows) != 7 or len(wheels) != 7 or len(record["wheels"]) != 7 or wheels != recorded:
+        raise ValueError("Reused wheel metadata differs from baseline source proof")
+    if source_digest(baseline["sources"]) != baseline["source_sha256"]:
+        raise ValueError("Baseline source inventory digest differs")
+    sources = {name: sha for name, sha in baseline["sources"].items() if name.startswith(REUSED_PREFIXES)}
     if len(sources) != 109 or record["verified_source_files"] != len(sources) or set(tracked) != set(sources):
         raise ValueError("Reused component source inventory drift")
     for name, expected in sources.items():
@@ -142,12 +142,9 @@ def main():
             body = fetch(repository, tag, "manifest.json", expected)
             manifests[tag] = json.loads(body)
             (evidence / (tag + "-manifest.json")).write_bytes(body)
-        baseline = manifests["v1.1.0-beta.40"]
-        provenance_body = fetch(*SOURCE_PROVENANCE[:2], "manifest.json", SOURCE_PROVENANCE[2])
-        provenance = json.loads(provenance_body)
-        (evidence / (SOURCE_PROVENANCE[1] + "-source-provenance-manifest.json")).write_bytes(provenance_body)
+        baseline = manifests["v1.1.0-beta.41"]
         current = subprocess.check_output(["git", "ls-files", "-z", *REUSED_PREFIXES], cwd=ROOT).decode().split("\0")
-        expected_sources = verified_reused_sources(ROOT, baseline, provenance, set(current) - {""})
+        expected_sources = verified_reused_sources(ROOT, baseline, set(current) - {""})
         lock = json.loads((ROOT / "apps/server/connectors.lock.json").read_text())
         sdk = manifests["connectors-v0.1.5"]
         if lock["version"] != "0.1.5" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
@@ -164,14 +161,14 @@ def main():
             else:
                 entries = manifest["files"]
             for name, metadata in entries.items():
-                if not name.endswith(".whl") or (tag == "v1.1.0-beta.40" and metadata["name"] in REBUILT):
+                if not name.endswith(".whl") or (tag == "v1.1.0-beta.41" and metadata["name"] in REBUILT):
                     continue
                 body = fetch(repository, tag, name, metadata["sha256"])
                 if "bytes" in metadata and len(body) != metadata["bytes"]:
                     raise ValueError("Public wheel size mismatch")
-                target = wheels if tag == "v1.1.0-beta.40" else public
+                target = wheels if tag == "v1.1.0-beta.41" else public
                 (target / name).write_bytes(body)
-                if tag == "v1.1.0-beta.40":
+                if tag == "v1.1.0-beta.41":
                     reused.append(metadata)
         if len(reused) != 7:
             raise ValueError("Unexpected immutable product component set")
@@ -180,17 +177,18 @@ def main():
         run([sys.executable, ROOT / "scripts/build_wheels.py", "--out", rebuilt, "--components", "server", "cli"], "build-two-wheels.log")
         helpers = runpy.run_path(str(ROOT / "scripts/build_wheels.py"))
         candidate = json.loads((rebuilt / "manifest.json").read_text())
-        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b41" for row in candidate["wheels"]):
+        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b42" for row in candidate["wheels"]):
             raise ValueError("New component version/source mismatch")
         for path in rebuilt.glob("*.whl"):
             shutil.copyfile(path, wheels / path.name)
         helpers["verify_ownership"](sorted(wheels.glob("*.whl")))
         candidate["wheels"].extend(reused)
         candidate["upstream_components"] = baseline.get("upstream_components", {})
-        candidate["reused_product_components"] = {"release": "v1.1.0-beta.40", "manifest_sha256": PUBLIC[0][2],
+        candidate["reused_product_components"] = {"release": "v1.1.0-beta.41", "manifest_sha256": PUBLIC[0][2],
                                                    "verified_source_files": len(expected_sources), "wheels": reused,
-                                                   "source_provenance": {"release": SOURCE_PROVENANCE[1],
-                                                                         "manifest_sha256": SOURCE_PROVENANCE[2]}}
+                                                   "source_provenance": {"release": "v1.1.0-beta.41",
+                                                                         "manifest_sha256": PUBLIC[0][2],
+                                                                         "source_sha256": baseline["source_sha256"]}}
         merge_source_provenance(candidate, expected_sources)
         receipt["stages"].append("two-new-wheels-seven-byte-identical-public-components")
         installed = output / "installed"
@@ -225,7 +223,7 @@ print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'othe
 ''')
         probe = fixtures / "installed_probe.py"
         probe.write_text('''import asyncio,importlib,importlib.metadata as m,json,pathlib,sys
-for name,version in {'openagent-framework':'1.1.0b41','openagent-cli':'1.1.0b41','openagent-connectors':'0.1.5','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
+for name,version in {'openagent-framework':'1.1.0b42','openagent-cli':'1.1.0b42','openagent-connectors':'0.1.5','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
 for name in ('openagent_server','openagent_cli','openagent_connectors','openagent_core','openagent_host_tools'):
  module=importlib.import_module(name);assert pathlib.Path(sys.prefix).resolve() in pathlib.Path(module.__file__).resolve().parents
 from openagent_server.connector_acquisition import acquire

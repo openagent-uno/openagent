@@ -3,6 +3,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import errno
 from pathlib import Path
 import tarfile
 
@@ -98,3 +99,85 @@ def test_existing_bundle_is_reverified_and_tampering_or_symlinks_are_rejected(tm
 def test_packaged_consumer_lock_matches_the_release_build_lock():
     packaged = SCRIPT.parents[1] / "src/openagent_server/connectors.lock.json"
     assert packaged.read_bytes() == (SCRIPT.parents[1] / "connectors.lock.json").read_bytes()
+
+
+def test_wheel_publication_stays_on_target_filesystem(tmp_path, monkeypatch):
+    source, lock = assets(tmp_path)
+    wheelhouse = tmp_path / "separate-filesystem" / "wheels"
+    replace = acquisition._module.os.replace
+    replacements = []
+
+    def same_filesystem_replace(src, dst):
+        src, dst = Path(src), Path(dst)
+        if src.parent != dst.parent:
+            raise OSError(errno.EXDEV, "Cross-device link")
+        assert src.stat().st_mode & 0o077 == 0
+        replacements.append((src, dst))
+        return replace(src, dst)
+
+    monkeypatch.setattr(acquisition._module.os, "replace", same_filesystem_replace)
+    bundle = acquisition.acquire(lock, "linux-x64", tmp_path / "verified", wheelhouse, source)
+    assert bundle.is_dir()
+    assert len(replacements) == 1
+    wheel = wheelhouse / "openagent_connectors-0.1.0-py3-none-any.whl"
+    assert wheel.read_bytes() == b"fixture-wheel-never-installed"
+    assert set(wheelhouse.iterdir()) == {wheel}
+
+
+def test_identical_existing_wheel_is_not_replaced(tmp_path, monkeypatch):
+    source, lock = assets(tmp_path)
+    wheelhouse = tmp_path / "wheels"
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "openagent_connectors-0.1.0-py3-none-any.whl"
+    wheel.write_bytes(b"fixture-wheel-never-installed")
+    inode = wheel.stat().st_ino
+
+    def never_replace(*args):
+        pytest.fail("Identical wheel must not be replaced")
+
+    monkeypatch.setattr(acquisition._module.os, "replace", never_replace)
+    acquisition.acquire(lock, "linux-x64", tmp_path / "verified", wheelhouse, source)
+    assert wheel.stat().st_ino == inode
+    assert set(wheelhouse.iterdir()) == {wheel}
+
+
+def test_different_existing_wheel_is_preserved_without_bundle_promotion(tmp_path):
+    source, lock = assets(tmp_path)
+    wheelhouse = tmp_path / "wheels"
+    wheelhouse.mkdir()
+    wheel = wheelhouse / "openagent_connectors-0.1.0-py3-none-any.whl"
+    wheel.write_bytes(b"existing-other-wheel")
+    with pytest.raises(ValueError, match="Existing connector wheel differs"):
+        acquisition.acquire(lock, "linux-x64", tmp_path / "rejected", wheelhouse, source)
+    assert wheel.read_bytes() == b"existing-other-wheel"
+    assert set(wheelhouse.iterdir()) == {wheel}
+    assert not (tmp_path / "rejected").exists()
+
+
+@pytest.mark.parametrize("failure", ["partial-copy", "corrupt-copy", "fsync", "replace"])
+def test_failed_wheel_publication_leaves_no_partial_wheel_or_bundle(tmp_path, monkeypatch, failure):
+    source, lock = assets(tmp_path)
+    wheelhouse = tmp_path / "wheels"
+    copy = acquisition._module.shutil.copyfileobj
+
+    def copying(src, dst, *args):
+        if Path(dst.name).parent == wheelhouse:
+            assert Path(dst.name).stat().st_mode & 0o077 == 0
+            if failure == "partial-copy":
+                dst.write(b"partial")
+                raise OSError("Fixture copy interrupted")
+            if failure == "corrupt-copy":
+                dst.write(b"fixture-wheel-never-installeX")
+                return
+        return copy(src, dst, *args)
+
+    def fail(*args):
+        raise OSError("Fixture publication interrupted")
+
+    monkeypatch.setattr(acquisition._module.shutil, "copyfileobj", copying)
+    if failure in ("fsync", "replace"):
+        monkeypatch.setattr(acquisition._module.os, failure, fail)
+    with pytest.raises((OSError, ValueError)):
+        acquisition.acquire(lock, "linux-x64", tmp_path / "rejected", wheelhouse, source)
+    assert list(wheelhouse.iterdir()) == []
+    assert not (tmp_path / "rejected").exists()

@@ -9,7 +9,7 @@ const require = createRequire(path.join(driverRoot, 'package.json'));
 const { _electron: electron, expect } = require('@playwright/test');
 const expected = expectationPath ? JSON.parse(await readFile(expectationPath, 'utf8'))
   : { appVersion: '1.1.0-beta.17', serverVersion: '1.1.0b39', officialIds: null };
-assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41']
+assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41', '1.1.0-beta.19/1.1.0b42']
   .includes(`${expected.appVersion}/${expected.serverVersion}`));
 const keylessCohort = expected.appVersion === '1.1.0-beta.19';
 const expectedCount = keylessCohort ? 16 : 14;

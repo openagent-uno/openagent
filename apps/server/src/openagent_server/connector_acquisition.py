@@ -110,9 +110,34 @@ def acquire(lock_path: Path, target: str, output: Path, wheelhouse: Path, assets
         verify_bundle(lock, target, bundle)
         wheelhouse.mkdir(parents=True, exist_ok=True)
         existing = wheelhouse / wheel_name
-        if existing.exists() and digest(existing) != lock["assets"][wheel_name]["sha256"]:
-            raise ValueError("Existing connector wheel differs from the consumer lock")
-        os.replace(wheel, existing)
+        expected_wheel = lock["assets"][wheel_name]
+
+        def existing_wheel_matches() -> bool:
+            if not existing.exists() and not existing.is_symlink():
+                return False
+            if existing.is_symlink() or not existing.is_file() or existing.stat().st_size != expected_wheel["bytes"] or digest(existing) != expected_wheel["sha256"]:
+                raise ValueError("Existing connector wheel differs from the consumer lock")
+            return True
+
+        if not existing_wheel_matches():
+            # Acquisition and the installer's wheelhouse can be on different
+            # filesystems. Only publish a flushed, verified copy on the target
+            # filesystem; never replace an already verified wheel unnecessarily.
+            temporary_wheel = None
+            try:
+                with tempfile.NamedTemporaryFile(dir=wheelhouse, prefix=f".{wheel_name}.", suffix=".tmp", delete=False) as stream:
+                    temporary_wheel = Path(stream.name)
+                    with wheel.open("rb") as source:
+                        shutil.copyfileobj(source, stream)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                if temporary_wheel.stat().st_size != expected_wheel["bytes"] or digest(temporary_wheel) != expected_wheel["sha256"]:
+                    raise ValueError("Copied connector wheel differs from the consumer lock")
+                if not existing_wheel_matches():
+                    os.replace(temporary_wheel, existing)
+            finally:
+                if temporary_wheel is not None:
+                    temporary_wheel.unlink(missing_ok=True)
         os.rename(bundle, output)
     return output
 

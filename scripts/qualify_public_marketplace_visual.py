@@ -51,6 +51,7 @@ def release_contract(path=None, digest=None):
     require((value['appVersion'], value['serverVersion'], value['coreVersion'], value['sdkVersion'], value['hostToolsVersion']) in {
         ('1.1.0-beta.18', '1.1.0b40', '1.1.0b22', '0.1.4', '1.0.0b6'),
         ('1.1.0-beta.19', '1.1.0b41', '1.1.0b22', '0.1.5', '1.0.0b6'),
+        ('1.1.0-beta.19', '1.1.0b42', '1.1.0b22', '0.1.5', '1.0.0b6'),
     })
     require(value['appRelease'] == 'https://github.com/openagent-uno/openagent-app/releases/download/v' + value['appVersion'] + '/'
             and value['appDEB'] == 'openagent-app-' + value['appVersion'] + '-linux-amd64.deb'
