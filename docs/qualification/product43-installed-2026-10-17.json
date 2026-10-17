@@ -37,6 +37,7 @@
     "normal_public_installer": "product43-public-installer-2026-10-17.json",
     "real_product_provider_lifecycle": "keyless-product-1.1.0b43-2026-10-17.json",
     "sdk_six_tool_reads": "keyless-sdk-0.1.6-2026-10-17.json",
-    "native_app": "pending"
+    "native_app": "pending",
+    "native_release": "app20-native-release-2026-10-17.json"
   }
 }
