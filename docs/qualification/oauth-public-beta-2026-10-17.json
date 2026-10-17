@@ -1,0 +1,85 @@
+{
+  "format": 1,
+  "at": "2026-10-17T06:39:42.530986+00:00",
+  "status": "public-beta3-rollout-passed",
+  "service": "https://auth.openagent.uno",
+  "providers": [
+    "clickup",
+    "github",
+    "notion"
+  ],
+  "health": {
+    "configured_providers": 3,
+    "contract": "openagent-connectors/v1",
+    "enrollment": "public",
+    "ok": true
+  },
+  "readiness_status": 200,
+  "image_digest": "sha256:be7e7028c42b69547b5a14e07234117a06e24f2927764ee9ebfded24be35f702",
+  "source_commit": "e2d3336710dcbde0b2092f095d854b3b4fc6dec7",
+  "single_writer_max_observed": 1,
+  "new_grants": 0,
+  "same_secret_metadata": true,
+  "same_durable_state": true,
+  "metadata_backup_validated": true,
+  "rollback": "same image, state and keys, providers disabled; no prior-state restore",
+  "scope": "Configuration deployment and public readiness, not a new provider lifecycle or throughput qualification",
+  "separate_gates": {
+    "slack": "public distribution disabled",
+    "atlassian": "secret custody and real consent pending",
+    "google": "verification and real qualification pending",
+    "shopify": "real shop, privacy and two-server acceptance pending",
+    "postiz": "credential rotation and qualification pending"
+  },
+  "admission_smoke": {
+    "registration": "passed-normal-signed-runner",
+    "identity": "new explicitly substituted disposable QA installation; original temporary identity unavailable",
+    "client_version": "0.1.4",
+    "runner_sha256": "28deced298b711257ea6fe2f1979be51577bbf82bfcfe478fd757922bbde4aac",
+    "providers": {
+      "clickup": {
+        "start": "passed",
+        "disclosure_http": 200,
+        "recipient_bound": true,
+        "provider_bound": true,
+        "scopes": [],
+        "status": "pending-not-approved",
+        "expires_at": "2026-10-17T06:51:47.404398007Z",
+        "polling_continued": false,
+        "cancel_endpoint_exists": false,
+        "cleanup_policy": "expire-without-consent"
+      },
+      "github": {
+        "start": "passed",
+        "disclosure_http": 200,
+        "recipient_bound": true,
+        "provider_bound": true,
+        "scopes": [],
+        "status": "pending-not-approved",
+        "expires_at": "2026-10-17T06:51:47.415060408Z",
+        "polling_continued": false,
+        "cancel_endpoint_exists": false,
+        "cleanup_policy": "expire-without-consent"
+      },
+      "notion": {
+        "start": "passed",
+        "disclosure_http": 200,
+        "recipient_bound": true,
+        "provider_bound": true,
+        "scopes": [],
+        "status": "pending-not-approved",
+        "expires_at": "2026-10-17T06:51:47.422571642Z",
+        "polling_continued": false,
+        "cancel_endpoint_exists": false,
+        "cleanup_policy": "expire-without-consent"
+      }
+    },
+    "provider_consents": 0,
+    "provider_api_calls": 0,
+    "consent_posts": 0,
+    "private_key_exported": false,
+    "cleanup": "temporary transactions expire without consent; no durable cancellation or provider revocation claimed",
+    "cleanup_confirmed_after_expiry": true,
+    "private_identity_removed": true
+  }
+}

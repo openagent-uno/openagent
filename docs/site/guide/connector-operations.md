@@ -1,9 +1,11 @@
 # Connector setup, embedding and recovery
 
-This guide is for server operators and embedding products. Common app
-activation is still gated by the [qualification status](./connector-status.md).
-The examples describe the candidate implementation; do not assume an older
-public standalone or native host release already contains these settings.
+This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
+public beta; other providers retain their [qualification gates](./connector-status.md).
+SDK/runner 0.1.5 and server/CLI beta 41 are public. App beta 19 publication
+remains pending. The normal installer and two-keyless-connector product workflow
+and restart trial are in progress. The release contract is recorded in source
+[`f01b9461`](https://github.com/openagent-uno/openagent/commit/f01b946105857c92fcf14d8f7a83bcbf2fdad11a).
 
 ## Standalone configuration
 
@@ -16,8 +18,9 @@ on the client displaying the marketplace.
 connectors:
   runner_path: /opt/openagent/connectors/bin/openagent-connector-runner
   auth_url: https://auth.openagent.uno
-  # Keep empty until common providers are qualified and the host opts in.
-  official_providers: []
+  # Released server beta 40: explicitly enable the public beta providers.
+  # Use [] to disable common OAuth enrollment on this server.
+  official_providers: [clickup, github, notion]
   # Optional, for the operator's own app registrations:
   # oauth_providers_file: /private/openagent/oauth-providers.json
 ```
@@ -28,11 +31,28 @@ runner. If it is missing, the authenticated catalog remains visible but marks
 operations unavailable.
 
 `official_providers` uses provider IDs: `gmail`, `google_drive`,
-`google_analytics`, `clickup`, `shopify` and `postiz`. These differ from display
+`google_analytics`, `clickup`, `github`, `notion`, `atlassian`,
+`slack_import`, `shopify` and `postiz`. These differ from display
 catalog IDs such as `google-drive`. A nonempty list does not configure the
 central provider or bypass product policy. Standalone Shopify is independently
 blocked until the local privacy processor is qualified. An empty OAuth list
 does not disable token/account connectors that are configured locally.
+
+Server beta 41 resolves common OAuth availability in this order:
+
+1. An explicit `connectors.official_providers` list wins, including `[]`.
+2. Otherwise, a present `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` value supplies the
+   comma-separated list. An empty value disables common OAuth enrollment.
+3. Only when both settings are absent, it defaults to `clickup`, `github` and
+   `notion`.
+
+This changes catalog eligibility, not consent. It creates no connection,
+provider grant or automatic broker registration. A fresh keyless-only server
+also does not poll the broker. Existing OAuth installations may continue their
+registered synchronization. The released beta 40 keeps its earlier explicit
+opt-in requirement; use the YAML list above or the environment variable to opt
+in. The three-provider broker beta was deployed separately, without new grants.
+Empty OAuth lists do not disable local token/account or keyless connections.
 
 The candidate Shopify setup asks for the canonical store domain, for example
 `your-store.myshopify.com`, in the App or CLI. The authenticated create request
@@ -66,7 +86,9 @@ OPENAGENT_CONNECTOR_AUTH_URL=https://auth.openagent.uno
 OPENAGENT_CONNECTOR_AUTH_PROVIDERS=<qualified provider IDs, comma-separated>
 ```
 
-Do not set the allowlist until provider and product acceptance gates pass.
+Enable only the providers accepted for that receiving host. The shared service
+currently accepts `clickup`, `github` and `notion`; listing a disabled provider
+locally cannot activate it centrally.
 A native host supervisor passes only these public configuration values to its
 API process, and only when an identity path is supplied. It does not inherit
 app secrets or all environment variables into that child. New credentials still
@@ -79,7 +101,7 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 ## Pinning the shared implementation
 
 A Go host consumes
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.2`; its
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.5`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
@@ -100,7 +122,49 @@ The shared Python package exposes `ConnectorRunner` and the optional
 `openagent_connectors.mcp.serve_connector` surface. An embedding host supplies
 an authorizing connector factory and credential/connection context. Do not
 publish the raw runner protocol or credentials as a model-controlled MCP
-endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors).
+endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors).
+
+## Keyless connectors
+
+[SDK 0.1.5 is public](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
+with 16 official adapters plus Custom MCP. Its remote SDK qualification and
+[four limited real reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
+passed. Published server/CLI beta 41 adopts SDK 0.1.5; App beta 19 publication
+and product-level workflow/restart/disconnect acceptance remain pending. The
+historical beta 40/App beta 18 trial retains SDK 0.1.4 and its 14-entry catalog.
+Their official hosted MCP services offer limited access without an account or
+API key. This mode exposes only the reviewed read tools: Exa search/fetch and
+Firecrawl search/Markdown scrape. It does not include paid features or an
+automatic authenticated fallback. See the provider's current
+[Exa contract](https://exa.ai/docs/get-started/exa-mcp) and
+[Firecrawl contract](https://docs.firecrawl.dev/mcp-server/keyless) for limits.
+
+The pending App beta 19 uses **Install** on the normal marketplace card and
+then **Connect**. On the published beta 41 CLI/server, run `openagent-cli connectors connect exa`
+or `openagent-cli connectors connect firecrawl`. No key, OAuth page or token
+prompt is required. Enable/disable and disconnect remain local controls, and
+multiple connections keep separate local owner/tenant bindings and grants.
+These four tools are read-only; a local changes toggle does not add writes.
+There is no provider credential to refresh or revoke for a keyless connection.
+
+The authenticated create request contains only the ordinary connection fields:
+
+```json
+{"catalog_id":"exa","allow_write":false,"config":{}}
+```
+
+Keyless connections reject token fields and provider configuration. The host
+stores no provider token, credential nonce or OAuth app ID for them. An embedding host passes the
+explicit runner credential `{"kind":"none"}` only for a trusted catalog entry
+whose reviewed adapter declares this contract. An absent or empty credential
+never downgrades an authenticated connector to keyless access. Tenant, owner,
+audience, enabled state and tool grants are checked on every invocation.
+
+The receiving server calls the compiled provider endpoint directly. The broker
+does not register or receive traffic from a fresh keyless-only installation.
+Provider quotas and outages remain possible; calls make one attempt and do not
+retry a quota failure or switch plans. Endpoints and remote tool names cannot
+be supplied by model arguments; adding tools requires a reviewed SDK release.
 
 ## Authenticated standalone management API
 
@@ -123,7 +187,7 @@ clients must not substitute another connection, installation or principal.
 The broker has a separate signed `/v1` contract for installation registration,
 transactions, redemption, refresh/revoke, group commits/recovery, temporary
 mail and durable events. Its contract is
-[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.2/packages/connectors).
+[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors).
 
 ## Own provider apps
 

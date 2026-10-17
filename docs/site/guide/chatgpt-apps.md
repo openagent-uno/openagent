@@ -6,9 +6,43 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
+## Exa and Firecrawl: public SDK, product qualification pending
+
+[SDK/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
+is published from source `7967195e9e45502c2d8b4f82414f7da780788045` with
+16 official adapters plus Custom MCP. It adds the following compiled read-only
+subset of the providers' official hosted MCPs. No account, API key or new OAuth
+registration is required; anonymous provider quotas apply.
+
+| Connector | OpenAgent tools | Reviewed upstream tools and limits |
+| --- | --- | --- |
+| [Exa](https://exa.ai/docs/get-started/exa-mcp) | `files.exa.search`, `files.exa.fetch` | `web_search_exa`, `web_fetch_exa`; up to 10 search results or 5 public HTTP(S) URLs, with bounded text |
+| [Firecrawl](https://docs.firecrawl.dev/mcp-server/keyless) | `files.firecrawl.search`, `files.firecrawl.scrape` | `firecrawl_search`, `firecrawl_scrape`; up to 10 search results or one URL scraped as Markdown; no actions, file upload or Parse |
+
+Remote source qualification, six-platform packaging, Python/native smoke and
+prior-server acquisition passed. The
+[limited real-read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
+records four normal runner calls, each HTTP 200 with one attempt. Exa search
+returned output but no OpenAgent reference; that success does not establish
+result relevance. Provider output was not persisted. These reads do not prove
+an installed server/App workflow, connection lifecycle or native GUI acceptance.
+
+Published [server/CLI beta 41](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
+adopts SDK 0.1.5 and adds keyless setup with `connectors connect exa` and
+`connectors connect firecrawl`. App beta 19 publication and the new installed
+product workflow/restart/disconnect and visual trials remain pending. Its
+candidate uses the same marketplace cards. A local
+connection still binds the authenticated owner, tenant and tool grants; empty
+credentials never downgrade another provider to anonymous access. There is no
+paid fallback, OAuth refresh or automatic broker enrollment for keyless reads.
+See [setup and configuration precedence](./connector-operations.md).
+
 ## First implementation batch: GitHub and Notion
 
-**SDK/runner 0.1.4 is published.** The [qualified shared prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4) contains the GitHub, Notion, Slack and Jira adapters. Server/CLI beta 40 adopts this library; other installed products retain their own version pins until updated. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment remains disabled. GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
+**SDK/runner 0.1.4 is published.** The [qualified shared prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4) contains the GitHub, Notion, Slack and Jira adapters. Server/CLI beta 40 adopts this library; other installed products retain their own version pins until updated. The two provider registrations were created under OpenAgent; app secrets are held in encrypted production storage. Common enrollment opened for ClickUp, GitHub and Notion on 17 October as a
+limited public beta. Server beta 40 requires an explicit provider allowlist;
+each connection still requires local authorization and provider consent.
+GitHub and Notion completed the limited authorized standalone QA lifecycles described below. Registration and source fixtures alone do not prove real access.
 
 | Provider | Candidate tools | Boundaries |
 | --- | --- | --- |
@@ -35,8 +69,9 @@ path handled temporary readiness with typed `503 warming` responses; no history
 fallback or automatic provider-write retry was used. The
 [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/notion-oauth-2026-10-16.json)
 records stages and evidence hashes. This qualifies only that page lifecycle;
-remaining tools, native App provider acceptance, receiving-product release/adoption and general
-enrollment remain pending.
+remaining tools and native App provider acceptance remain separate. Common
+Notion enrollment opened in the independent three-provider beta on 17 October;
+that configuration rollout adds no new provider lifecycle qualification.
 
 ## GitHub real-provider QA
 
@@ -63,7 +98,8 @@ The published 0.1.4 library contains **9 Slack Web API tools** and **9 Jira REST
 | Slack | Token identity, conversations/list/info/history/replies, user information, text post/update/delete | Confidential OAuth user tokens, no bot-token fallback or impersonation. Preserves catalog ID `slack-import`. The workspace comes from Slack and cannot be changed during renewal. History and replies return at most 15 messages per page; no automatic retry. Unlisted commercial-app rate limits apply. |
 | Atlassian / Jira | Accessible sites, projects/list/get, enhanced JQL search, issues/get/create/update and comments/list/create | Resource-level OAuth app, classic read/write Jira scopes and rotating refresh. The server lists granted sites and verifies the selected `cloud_id` against the provider before saving it. Tools cannot provide another site or API URL. Supports a bounded field/text subset; no Confluence, admin operations or Rovo parity claim. |
 
-The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; one authorized receiving installation completed the limited lifecycle below. Neither provider is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
+The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; one authorized receiving installation completed the limited lifecycle below. Slack public distribution remains disabled. Jira secret custody and real
+consent remain pending; neither is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
 
 ### Slack real-provider QA
 
@@ -105,7 +141,11 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 
 ## Popular directory order
 
-The table preserves the initial Popular directory order, with implementation status updated for SDK 0.1.4 and server/CLI beta 40. It is not a public enrollment claim.
+The table preserves the initial Popular editorial order, with published SDK
+0.1.5 and released server/CLI beta 41 distinguished from the historical beta
+40/App beta 18 trial. App beta 19 and the new product-level keyless lifecycle
+remain pending. Public OAuth availability is limited
+to the separately deployed ClickUp/GitHub/Notion beta.
 
 | Position | App | OpenAgent baseline | Verified interface |
 | ---: | --- | --- | --- |
@@ -114,16 +154,16 @@ The table preserves the initial Popular directory order, with implementation sta
 | 3 | [Flaim Fantasy](https://chatgpt.com/plugins/plugin_asdk_app_69a8f78087e081919e52cacacf00ff36) | Not implemented/qualified | Not researched |
 | 4 | [Atlassian](https://chatgpt.com/plugins/plugin_asdk_app_6a83901dde988191b3f3cefdcc19acfa) | SDK 0.1.4/server 40 published: 9 Jira tools; secret custody and real qualification pending | [MCP with commercial conditions](https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/) |
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | Not researched |
-| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance and enrollment pending | [Documented official MCP](https://github.com/github/github-mcp-server) |
+| 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
-| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | Not implemented/qualified | [Documented official MCP](https://docs.firecrawl.dev/mcp-server) |
+| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5 published; two limited keyless reads passed; server/CLI 41 published; App 19 and product-level acceptance pending | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | Not researched |
-| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | Not implemented/qualified | [Documented official MCP](https://exa.ai/docs/get-started/exa-mcp) |
+| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5 published; two limited keyless reads passed; server/CLI 41 published; App 19 and product-level acceptance pending | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
-| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance and enrollment pending | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
+| 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
 | 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App 18 published; native App provider acceptance and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
@@ -147,7 +187,7 @@ The table preserves the initial Popular directory order, with implementation sta
 | 36 | [IOL invertironline](https://chatgpt.com/plugins/plugin_asdk_app_6a207f00eed0819181227b2ea257ff0b) | Not implemented/qualified | Not researched |
 | 37 | [Fathom](https://chatgpt.com/plugins/plugin_asdk_app_69d88b99c5c481918e8da9225737e1e9) | Not implemented/qualified | Not researched |
 | 38 | [Fireflies](https://chatgpt.com/plugins/plugin_connector_6912075cb358819187346bcafb601db8) | Not implemented/qualified | Not researched |
-| 39 | [ClickUp](https://chatgpt.com/plugins/plugin_asdk_app_69431e6d26b88191b4029488aeb42f5b) | Adapter exists; qualification separate | [Documented public API](https://developer.clickup.com/) |
+| 39 | [ClickUp](https://chatgpt.com/plugins/plugin_asdk_app_69431e6d26b88191b4029488aeb42f5b) | Adapter exists; limited lifecycle recorded; common OAuth beta open | [Documented public API](https://developer.clickup.com/) |
 | 40 | [Interactive Brokers (IBKR)](https://chatgpt.com/plugins/plugin_asdk_app_69bc11db874881918718abaca20b68ce) | Not implemented/qualified | Not researched |
 | 41 | [Todoist: To Do List & Calendar](https://chatgpt.com/plugins/plugin_asdk_app_6943b73823548191a9f9216c6790c453) | Not implemented/qualified | Not researched |
 | 42 | [Opera Browser Connector](https://chatgpt.com/plugins/plugin_asdk_app_69d669e1d5c88191957786fbcd38b411) | Not implemented/qualified | Not researched |

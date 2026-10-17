@@ -27,19 +27,23 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The shared connector release is `0.1.4`, with Go module tag
-`packages/connectors/v0.1.4` and runner release `connectors-v0.1.4`.
-[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.4/packages/connectors)
-and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
+The shared connector release is `0.1.5`, with Go module tag
+`packages/connectors/v0.1.5` and runner release `connectors-v0.1.5`. Its catalog
+contains 16 official adapters plus Custom MCP.
+[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors)
+and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
 are independently versioned from the standalone product. The platform release
 is a qualification prerelease, not native signing or provider acceptance.
 Its `qualification.json` records the tested boundaries alongside the source,
 platform manifests and checksums. The deployed broker is independently released
 as [auth-only 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6).
-The current QA deployment includes a later reviewed Slack refresh fix recorded
+The deployed service includes a later reviewed Slack refresh fix recorded
 in the [release checkpoint](./connector-status.md).
-This does not change the version pinned by an installed product or enable public provider enrollment;
-Provider grants remain restricted to cryptographically allowlisted QA installations.
+This does not change the version pinned by an installed product. A separate
+configuration rollout on 17 October opened ClickUp, GitHub and Notion as a
+limited public beta. The receiving host still authorizes each connection and
+the user completes provider consent. Other providers retain their activation
+gates; no general throughput or additional provider acceptance is inferred.
 
 The standalone [server/CLI beta 40](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
 assembles public Core beta 22, connector 0.1.4 and
@@ -58,6 +62,27 @@ Mac or Windows marketplace GUI acceptance.
 Each host owns its locked dependency assembly, installation, enabled storage
 surfaces and release qualification. A public component release never silently
 updates another host or attests its data-processing coverage.
+
+SDK 0.1.5 adds Exa and Firecrawl through their official hosted MCPs, with
+two compiled read tools each. The
+[four real keyless reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
+qualify the SDK runner only. Published
+[server/CLI beta 41](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
+adopts SDK 0.1.5 and exposes 16 official entries plus Custom MCP. App beta 19
+publication, the new product workflow/restart lifecycle and visual acceptance
+remain pending. The historical beta 40/App beta 18 trial above continues to
+describe SDK 0.1.4 and 14 entries.
+
+A keyless connector still has a host-authorized connection and tool source.
+Only a reviewed no-auth adapter accepts the explicit `{"kind":"none"}` contract;
+an omitted token is never a fallback. Fixed provider endpoints and tool names
+remain in the adapter, while owner/tenant grants, enable/disable, disconnect and
+audit remain with the receiving host. No provider token is stored and no OAuth
+refresh or broker exchange is needed. Server beta 41 defaults to public
+ClickUp/GitHub/Notion catalog eligibility only when operator settings are absent;
+explicit empty settings stay disabled and no default creates a grant. Fresh
+keyless-only servers do not register with or poll the broker. See
+[configuration precedence](./connector-operations.md#standalone-configuration).
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
 must update its catalog entry, schemas, operation implementation and tests;

@@ -1,6 +1,6 @@
 # Connector release and qualification status
 
-Status updated on **16 October 2026**. This page distinguishes implemented
+Status updated on **17 October 2026**. This page distinguishes implemented
 code, published artifacts, deployed services and real provider acceptance.
 A visible card or a passing health check alone does not make a connector ready
 for production. It is a qualification checkpoint, not a promise that an older
@@ -15,29 +15,54 @@ a recorded 503 and explicit recovery, a post-restart read and local disconnect;
 its owned runtime was stopped. See
 [ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The shared SDK/runner 0.1.4 has since been independently qualified and published.
 Server/CLI beta 40 now adopts the published library. App beta 18 is separately
-published, with a recorded Linux x64 marketplace trial against server beta 40. Neither publication nor these private trials open public OAuth enrollment. They also do not qualify the
+published, with a recorded Linux x64 marketplace trial against server beta 40. On 17 October, the shared authentication service separately opened ClickUp,
+GitHub and Notion as a limited public beta. This does not qualify the
 [multi-source application composition contracts](./application-composition.md).
+
+**SDK checkpoint, 17 October:** [connector SDK/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
+is public from source `7967195e9e45502c2d8b4f82414f7da780788045`, with
+16 official adapters plus Custom MCP. All 11 release assets matched the
+qualified API digests; the anonymous manifest SHA-256 is
+`d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752`.
+Remote race/vet/vulnerability checks, six-platform/twelve-binary packaging,
+Python/native smoke and prior-server acquisition passed. Six-platform native
+execution is not claimed. Exa search/fetch and Firecrawl search/scrape each
+completed one limited real read with HTTP 200 and one attempt. The
+[read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
+qualifies the normal runner path only; Exa search did not contain the expected
+OpenAgent reference, so API success does not establish search relevance.
+**Server/CLI beta 41 is now published. App beta 19 publication, the new
+product-level keyless workflow/restart lifecycle and visual acceptance remain
+pending; the normal public installer trial is also in progress.** The published beta 40/beta 18 evidence
+below retains its exact SDK 0.1.4 and 14-entry scope.
 
 ## Delivery checkpoint
 
 | Surface | Confirmed | Still required |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.4`; fourteen implemented official adapters, plus the custom MCP descriptor; preserved IDs/tool contracts | Continue versioned adapter compatibility and release qualification |
-| Runner and Python/MCP adapter | Published checksum/manifest prerelease for six OS/architecture targets; public acquisition and Linux x64 runner/broker smoke verified | Other native targets and signing acceptance remain separate |
-| Standalone server/CLI | Published `1.1.0-beta.40`; normal installed-product qualification with Core beta 22, connector runner/adapter `0.1.4` and Host Tools B6; real runner catalog verifies 14 official entries plus one custom descriptor | Real provider consent and API operations; receiving hosts qualify their own rollout |
+| Shared Go connector module | Published `0.1.5`; sixteen implemented official adapters plus Custom MCP; preserved prior IDs/tool contracts and four new keyless read tools | Receiving-product adoption and acceptance; no full provider or ChatGPT parity claim |
+| Runner and Python/MCP adapter | Published `0.1.5` with six-target manifests/checksums, remote source qualification, Python/native smoke and four limited keyless runner reads | Other native targets and signing acceptance; server 41 keyless workflow/lifecycle and App 19 publication/acceptance remain pending |
+| Standalone server/CLI | Published `1.1.0-beta.41` from canonical source `f01b9461`, with Core beta 22, connector SDK/runner `0.1.5`, Host Tools B6 and 16 official entries plus Custom MCP; installed-wheel qualification passed | Normal public installer trial and new keyless workflow/restart/disconnect acceptance in progress; native App remains separate |
 | Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
 | Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
 | Standalone App | Published `1.1.0-beta.18` for six macOS/Windows/Linux targets; macOS ARM64 and Intel are signed and notarized; real Linux x64 marketplace GUI acceptance with server beta 40 and 14 official entries | Real provider consent and API operations; Mac/Windows marketplace GUI acceptance and the earlier renderer-reload UX limitation below |
-| Common authentication service | Auth-only `0.1.6` published; the QA deployment now uses the reviewed Slack refresh fix from source `e2d3336710dcbde0b2092f095d854b3b4fc6dec7`; connector module/runner `0.1.4` published independently; isolated Linux restore and QA health verified; encrypted Secret storage retained | Provider exchange/rotation/privacy capacity qualification and public provider activation |
-| Common provider enrollment | Provider grants enabled only for named, cryptographically allowlisted QA installations; public enrollment remains unavailable | ClickUp real consent, read, reversible write, restart and disconnect passed; remaining activation gates apply before public enrollment |
+| Common authentication service | Same reviewed image from source `e2d3336710dcbde0b2092f095d854b3b4fc6dec7`; public ClickUp/GitHub/Notion configuration deployed on 17 October; public health and readiness passed; unchanged encrypted secrets and durable metadata | Further provider activation and higher-volume capacity qualification |
+| Common provider enrollment | Limited public beta for ClickUp, GitHub and Notion; signed installation registration, transaction start and receiving-installation disclosure checked for all three without new grants | Provider consent for each connection; other providers retain independent gates |
 
 Host products qualify their own deployments and client distributions. Their
 version pins, release receipts and private deployment inventories remain with
 those operators; they are not part of the standalone product's release proof.
-Common OAuth remains closed to the public. ClickUp now has a successful real
-browser consent and installed-product trial, as recorded below.
+The deployed three-provider beta is separate from product installation. Released
+server beta 40 requires `connectors.official_providers: [clickup, github, notion]`
+or the matching environment variable. Server beta 41 defaults to those
+three only when both settings are absent; explicit `[]` and an empty environment
+value remain opt-outs. Defaults create no connection, broker registration or
+provider grant. Fresh keyless-only installations do not poll the broker.
+The [activation receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/oauth-public-beta-2026-10-17.json)
+records deployment and disclosure checks; no new provider grant was created.
+ClickUp, GitHub and Notion retain their earlier limited real lifecycle receipts.
 
-The [connector prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
+The preceding [connector 0.1.4 prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
 is distinct from [standalone product downloads](../downloads.md).
 Its eleven assets were published from clean source
 `709e6634edbf71c6d53711b01482a0509eb7bfa0`; all uploaded API digests and sizes
@@ -54,7 +79,19 @@ establish real provider access or final product acceptance.
 Provider availability is reported by the authenticated server catalog, not
 inferred from a downloaded binary or logo.
 
-The [current server/CLI release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
+The [current server/CLI beta 41 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
+publishes 12 verified assets from canonical source
+`f01b946105857c92fcf14d8f7a83bcbf2fdad11a`. Its manifest SHA-256 is
+`39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad`.
+Its installed-wheel qualification passed 149 installed tests, 8 acquisition
+checks, 9 visual-source guards, 8 React source fixtures, 4 source-provenance
+checks and the workflow-readiness regression. Source guards and React fixtures
+are not native marketplace screenshots or provider acceptance. The
+[release record](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.41.md)
+binds this assembly to public SDK 0.1.5. The normal public installer and new
+keyless product workflow/restart/disconnect trials remain in progress.
+
+The preceding [server/CLI beta 40 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
 publishes twelve verified assets from clean canonical source
 `a5623534956d0ff3b1ad0f4c926d1b4cc6040a98`.
 Manifest SHA-256:
@@ -270,8 +307,9 @@ and privacy backlog load remain separate qualification.
    Encrypted production app-secret storage and matching backups are now
    verified. Bootstrap health is not the availability gate for a loaded
    production service.
-3. Finish provider review/verification and test Google, ClickUp, Shopify and
-   Postiz using their real callback/consent flows. Complete real cancel, read,
+3. Finish provider review/verification and remaining Google, Shopify and
+   Postiz callback/consent flows; preserve the separately recorded limited
+   ClickUp/GitHub/Notion trials and public beta. Complete real cancel, read,
    authorized write, renewal, restart and local disconnection in all products.
 4. Activate the central Shopify webhook path only after the legacy compatibility
    delivery and each product's local privacy processing are tested, including
@@ -279,7 +317,11 @@ and privacy backlog load remain separate qualification.
 5. Test two real servers on one Shopify shop: simultaneous acquisition/refresh,
    offline peer, expired/lost envelope, recovery and fresh consent. Coordinate
    any remaining legacy app-token issuers during the transition.
-6. Build, sign and qualify supported product releases, preserve existing IDs,
+6. Complete the public server 41 keyless workflow and installer trials and
+   publish/qualify App 19 through the normal authenticated product workflow,
+   restart, read and disconnect paths,
+   with separate marketplace visual evidence. Preserve the SDK-only read scope.
+   Build, sign and qualify supported product releases, preserve existing IDs,
    credentials and update paths, then opt receiving products into the qualified
    common app registrations. Migrate old connections through explicit consent.
 
