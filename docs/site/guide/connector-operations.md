@@ -2,16 +2,12 @@
 
 This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
 public beta; other providers retain their [qualification gates](./connector-status.md).
-SDK/runner 0.1.5, server/CLI beta 42 and App beta 19 are public. App beta 19
-has six qualified native targets; its Linux x64 marketplace and local keyless
-controls passed with server beta 42. This used hosted `--no-sandbox` and made
-no provider calls; Mac/Windows GUI and sandbox security are not qualified. The
-[fresh public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-passed across distinct filesystems. The
-[limited keyless lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
-passed on beta 41; beta 42 changes acquisition only and preserves that provider
-implementation. Its release source is
-[`a1664344`](https://github.com/openagent-uno/openagent/commit/a16643449b9a5fc027eb9d0f3ee7326ecd302654).
+The current published assembly is **SDK/runner 0.1.6, server/CLI beta 43 and
+App beta 20**. The [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
+[three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
+and [Linux x64 marketplace/local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
+passed separately. The GUI uses hosted `--no-sandbox` and made zero provider
+calls; Mac/Windows marketplace GUI and sandbox security are unqualified.
 
 ## Standalone configuration
 
@@ -44,7 +40,7 @@ central provider or bypass product policy. Standalone Shopify is independently
 blocked until the local privacy processor is qualified. An empty OAuth list
 does not disable token/account connectors that are configured locally.
 
-Server beta 41 and beta 42 resolve common OAuth availability in this order:
+Server beta 43 resolves common OAuth availability in this order:
 
 1. An explicit `connectors.official_providers` list wins, including `[]`.
 2. Otherwise, a present `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` value supplies the
@@ -107,7 +103,7 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 ## Pinning the shared implementation
 
 A Go host consumes
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.5`; its
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.6`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
@@ -124,49 +120,60 @@ Use a fresh output directory. Targets are `darwin-arm64`, `darwin-x64`,
 local release directory for an offline build while preserving checksum checks.
 Acquisition does not install Python dependencies or qualify native signing.
 
-Beta 42 also handles an installation and temporary wheelhouse on distinct
-filesystems. Its
-[fresh public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-records the ordinary server-plus-CLI installer and dependency checks with no
-source overlay or same-mount workaround. Beta 41's first EXDEV failure and
-same-prefix recovery with owned same-mount `TMPDIR` remain historical evidence;
-they are not relabeled as fresh installer success.
+The [normal beta 43 installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
+passed with default HOME/TMPDIR, using the public manifest and pinned runner.
+The [beta 42 acquisition repair](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+retains its distinct-mount proof. The [initial beta 41 EXDEV and recovery](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+remain historical evidence; neither is relabeled as a new provider test.
 
 The shared Python package exposes `ConnectorRunner` and the optional
 `openagent_connectors.mcp.serve_connector` surface. An embedding host supplies
 an authorizing connector factory and credential/connection context. Do not
 publish the raw runner protocol or credentials as a model-controlled MCP
-endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors).
+endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors).
 
 ## Keyless connectors
 
-[SDK 0.1.5 is public](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
-with 16 official adapters plus Custom MCP. Its remote SDK qualification and
-[four limited real reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
-passed. Published server/CLI beta 42 adopts SDK 0.1.5. Two normal connections,
-four public reads across a real restart and both local disconnects passed on
-beta 41 through certified CLI/Iroh/gateway workflows. The provider code is
-unchanged in beta 42; this does not relabel those reads as beta 42 provider
-tests. App beta 19 is published; its [Linux x64 marketplace and local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
-passed with server beta 42, separately from provider reads. Exa and Firecrawl
-each passed Connect, disable/re-enable and disconnect without credential forms
-or OAuth controls. No provider call or model was used; hosted `--no-sandbox`
-does not qualify sandbox security or Mac/Windows GUI. The
-historical beta 40/App beta 18 trial retains SDK 0.1.4 and its 14-entry catalog.
-Their official hosted MCP services offer limited access without an account or
-API key. This mode exposes only the reviewed read tools: Exa search/fetch and
-Firecrawl search/Markdown scrape. It does not include paid features or an
-automatic authenticated fallback. See the provider's current
-[Exa contract](https://exa.ai/docs/get-started/exa-mcp) and
-[Firecrawl contract](https://docs.firecrawl.dev/mcp-server/keyless) for limits.
+[SDK 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
+contains 19 official adapters plus Custom MCP. Five providers have reviewed
+keyless read-only contracts: Exa search/fetch, Firecrawl search/scrape, Parallel
+search/excerpt fetch, Context7 library resolution/docs, and CoinGecko bounded
+prices/global aggregates. Public fixed MCP endpoints and tool schemas are
+compiled into the shared adapter; there is no arbitrary remote tool, SDK code,
+paid fallback or client-selected endpoint.
 
-The published App beta 19 uses **Install** on the normal marketplace card and
-then **Connect**. On the published beta 42 CLI/server, run `openagent-cli connectors connect exa`
-or `openagent-cli connectors connect firecrawl`. No key, OAuth page or token
-prompt is required. Enable/disable and disconnect remain local controls, and
-multiple connections keep separate local owner/tenant bindings and grants.
-These four tools are read-only; a local changes toggle does not add writes.
-There is no provider credential to refresh or revoke for a keyless connection.
+| Provider | Local bounds and qualification |
+| --- | --- |
+| [Exa](https://exa.ai/docs/get-started/exa-mcp) | Up to 10 results or 5 public URLs; limited SDK reads and beta 41 fetch workflow lifecycle |
+| [Firecrawl](https://docs.firecrawl.dev/mcp-server/keyless) | Up to 10 results or one public-page Markdown scrape; limited SDK reads and beta 41 scrape workflow lifecycle |
+| [Parallel Search](https://docs.parallel.ai/integrations/mcp/search-mcp) | Up to 3 search queries or 5 public URLs; failed per-URL results fail the operation; both SDK reads and beta 43 fetch workflow lifecycle |
+| [Context7](https://github.com/upstash/context7) | Typed library resolution/query; bounded text and exact library ID; both SDK reads and beta 43 query workflow lifecycle |
+| [CoinGecko](https://docs.coingecko.com/docs/mcp-server) | Up to 10 coin IDs and 3 currencies, or global aggregates; fixed server-owned SDK templates; both SDK reads and beta 43 global workflow lifecycle |
+
+The [SDK six-read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json)
+and [beta 43 six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
+retain separate transport and telemetry scopes. [App beta 20/server 43 Linux GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
+passed all five local connection/control cycles without provider calls. Earlier
+[SDK 0.1.5](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json),
+[beta 41 provider reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+and [App beta 19/server 42 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+remain immutable historical evidence. None establishes full provider parity,
+Mac/Windows marketplace GUI or hosted sandbox security.
+
+In App beta 20 use **Install → Connect** on the normal marketplace card. On server/CLI beta 43:
+
+```sh
+openagent-cli connectors connect exa
+openagent-cli connectors connect firecrawl
+openagent-cli connectors connect parallel-search
+openagent-cli connectors connect context7
+openagent-cli connectors connect coingecko
+```
+
+No key, OAuth page or token prompt is required. Enable/disable and disconnect
+remain local owner/tenant controls; multiple connections retain independent
+bindings and tool grants. These tools are read-only and a changes toggle cannot
+add writes. There is no provider credential to refresh or revoke.
 
 The authenticated create request contains only the ordinary connection fields:
 
@@ -208,7 +215,7 @@ clients must not substitute another connection, installation or principal.
 The broker has a separate signed `/v1` contract for installation registration,
 transactions, redemption, refresh/revoke, group commits/recovery, temporary
 mail and durable events. Its contract is
-[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors).
+[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors).
 
 ## Own provider apps
 

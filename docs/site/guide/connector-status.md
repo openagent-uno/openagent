@@ -1,173 +1,62 @@
 # Connector release and qualification status
 
-Status updated on **17 October 2026**. This page distinguishes implemented
-code, published artifacts, deployed services and real provider acceptance.
-A visible card or a passing health check alone does not make a connector ready
-for production. It is a qualification checkpoint, not a promise that an older
-installed client already includes the candidate UI.
-
-**Subsequent candidate QA, 16 October:** the private GitHub candidate passed a
-selected-repository lifecycle, and Notion passed consent to one empty private QA
-page, read, reversible title write with exact cleanup, owner refresh, read after
-a real server restart and local disconnect. Slack subsequently passed scoped
-reads, an approved message create/read/delete with cleanup, owner refresh after
-a recorded 503 and explicit recovery, a post-restart read and local disconnect;
-its owned runtime was stopped. See
-[ChatGPT app coverage](./chatgpt-apps.md) for receipts and limits. The shared SDK/runner 0.1.4 has since been independently qualified and published.
-Server/CLI beta 40 now adopts the published library. App beta 18 is separately
-published, with a recorded Linux x64 marketplace trial against server beta 40. On 17 October, the shared authentication service separately opened ClickUp,
-GitHub and Notion as a limited public beta. This does not qualify the
-[multi-source application composition contracts](./application-composition.md).
-
-**SDK checkpoint, 17 October:** [connector SDK/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
-is public from source `7967195e9e45502c2d8b4f82414f7da780788045`, with
-16 official adapters plus Custom MCP. All 11 release assets matched the
-qualified API digests; the anonymous manifest SHA-256 is
-`d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752`.
-Remote race/vet/vulnerability checks, six-platform/twelve-binary packaging,
-Python/native smoke and prior-server acquisition passed. Six-platform native
-execution is not claimed. Exa search/fetch and Firecrawl search/scrape each
-completed one limited real read with HTTP 200 and one attempt. The
-[read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
-qualifies the normal runner path only; Exa search did not contain the expected
-OpenAgent reference, so API success does not establish search relevance.
-**Server/CLI beta 42 is public. Its fresh cross-filesystem public installer
-passed; the limited keyless product lifecycle passed on beta 41 and its
-provider implementation is unchanged in beta 42. App beta 19 is published
-with six qualified native targets; Linux x64 marketplace and local keyless
-controls passed with server beta 42, without provider calls or models. Hosted
-`--no-sandbox` is not sandbox-security or Mac/Windows GUI acceptance.** The published beta 40/beta 18 evidence
-below retains its exact SDK 0.1.4 and 14-entry scope.
+Status updated on **17 October 2026**. The current published assembly is
+**SDK/runner 0.1.6, server/CLI beta 43, Core beta 22, Host Tools 1.0.0b6 and App beta 20**. Its
+catalog contains 19 official connectors plus Custom MCP. A card, component
+release or health check does not establish provider access or application
+composition features; each boundary below has its own receipt.
 
 ## Delivery checkpoint
 
-| Surface | Confirmed | Still required |
+| Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go connector module | Published `0.1.5`; sixteen implemented official adapters plus Custom MCP; preserved prior IDs/tool contracts and four new keyless read tools; adopted by server/CLI 42 | Independent host rollout; no full provider or ChatGPT parity claim |
-| Runner and Python/MCP adapter | Published `0.1.5` with six-target manifests/checksums, remote source qualification, Python/native smoke and four limited keyless runner reads; limited beta 41 workflow/restart/disconnect passed | Other native targets and signing acceptance; remaining tools and native App provider-call acceptance |
-| Standalone server/CLI | Published `1.1.0-beta.42` from source `a1664344`, with Core beta 22, SDK `0.1.5`, B6 and 16 official entries plus Custom MCP; 149 installed fixtures, 15 acquisition cases and fresh cross-filesystem public installer passed | Provider lifecycle evidence remains scoped to beta 41 with unchanged provider code; native App remains separate |
-| Core privacy services | Published Core beta 22; installed-wheel qualification for a fresh canonical text-history cohort | Historical content, media, Vault/files and custom callbacks need qualified host coverage |
-| Host Tools | Published `1.0.0b6` from canonical source; six native targets qualified, both macOS bundles signed and notarized | Windows Authenticode is not claimed; Linux ARM64 browser navigation is outside the recorded checks |
-| Standalone App | Published `1.1.0-beta.19` with 36 assets for six macOS/Windows/Linux targets; both macOS architectures signed/notarized and Intel ZIP/DMG launches passed; Linux x64 marketplace/local controls passed with server beta 42, 16 official entries and 30 registry results | Hosted sandbox security, native App provider operations, Mac/Windows marketplace GUI acceptance and the earlier renderer-reload limitation; historical beta 18/server beta 40 evidence retains its 14-entry scope |
-| Common authentication service | Same reviewed image from source `e2d3336710dcbde0b2092f095d854b3b4fc6dec7`; public ClickUp/GitHub/Notion configuration deployed on 17 October; public health and readiness passed; unchanged encrypted secrets and durable metadata | Further provider activation and higher-volume capacity qualification |
-| Common provider enrollment | Limited public beta for ClickUp, GitHub and Notion; signed installation registration, transaction start and receiving-installation disclosure checked for all three without new grants | Provider consent for each connection; other providers retain independent gates |
+| Shared Go module, runner and Python/MCP | SDK 0.1.6 published with 11 verified assets, six-target/twelve-binary package checks, race/vet/vulnerability and Python/native checks; six limited real runner reads | Execution on every native target, other tools and full provider parity |
+| Server/CLI | Beta 43 public from `276704b2`, Core beta 22/SDK 0.1.6/B6; 157 installed fixtures, source/acquisition/provenance guards and normal public installer passed | Windows/macOS server execution and independent host rollout |
+| Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
+| Standalone App | Beta 20 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
+| Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
+| Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
 
-Host products qualify their own deployments and client distributions. Their
-version pins, release receipts and private deployment inventories remain with
-those operators; they are not part of the standalone product's release proof.
-The deployed three-provider beta is separate from product installation. Released
-server beta 40 requires `connectors.official_providers: [clickup, github, notion]`
-or the matching environment variable. Server beta 41 and beta 42 default to those
-three only when both settings are absent; explicit `[]` and an empty environment
-value remain opt-outs. Defaults create no connection, broker registration or
-provider grant. Fresh keyless-only installations do not poll the broker.
-The [activation receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/oauth-public-beta-2026-10-17.json)
-records deployment and disclosure checks; no new provider grant was created.
-ClickUp, GitHub and Notion retain their earlier limited real lifecycle receipts.
+### What qualified in this assembly
 
-The preceding [connector 0.1.4 prerelease](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.4)
-is distinct from [standalone product downloads](../downloads.md).
-Its eleven assets were published from clean source
-`709e6634edbf71c6d53711b01482a0509eb7bfa0`; all uploaded API digests and sizes
-matched the qualified files, and the anonymous manifest download was verified.
-Manifest SHA-256:
-`b8aa9fec6f5fc495b13325ad5c2db0a6a7ed5f1b450ad484401bc31629e0fd41`.
-The bounded serial Linux qualification passed race/vet, govulncheck, twelve
-compiled binary checks, nine provider-privacy schema tests, normal isolated
-Python-wheel installation, native Linux x64 runner/broker fixtures and the
-public beta 39 host acquisition contract. Other native targets have
-cross-compilation/checksum/toolchain coverage only. The published
-`qualification.json` records scope and evidence hashes. These checks do not
-establish real provider access or final product acceptance.
-Provider availability is reported by the authenticated server catalog, not
-inferred from a downloaded binary or logo.
+- [SDK 0.1.6 real reads and publication](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json): source `2ec7c114`, manifest `a1e87b9469cadfc1c8184e4ad704d0b7ed26ee7233f6145bf15baddfe19789f5`. The early CoinGecko output-ticker rejection and narrow correction are retained; six reads then passed.
+- [Server 43 installed fixtures](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-installed-2026-10-17.json) and [normal public installation](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json): source `276704b2`, 12 verified assets, manifest `0458e049e3bfeafafff7c677670bdc30eeeb7a70ec8e93eac1742f6e45ba5e63`.
+- [Product 43 workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json): ordinary public install, CLI/SRP/device certification/Iroh/gateway; three read-only owner-authorized sources, six reads, real process restart and complete local disconnect/cleanup. No model or direct provider client.
+- [App beta 20 native release](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json): source `276704b2`, all 10 original workflow jobs passed, six native manifests, 10 primary installers and 4 updater YAMLs, zero Actions artifacts.
+- [App beta 20/server 43 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json): 19 official entries and 30 actual registry results in the same grid, nine local marks, five keyless local control cycles and seven reviewed images; no provider call/model/source overlay. Exact owned process and staging cleanup passed. Hosted `--no-sandbox` is not sandbox-security acceptance.
 
-The [current server/CLI beta 42 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
-publishes twelve verified assets from source
-`a16643449b9a5fc027eb9d0f3ee7326ecd302654`. Its manifest SHA-256 is
-`e6887ceb907bbabe844419d2de90d72c36c48205aa524bc6629f56a80cfb4af8`.
-Its [installed fixture receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-installed-2026-10-17.json)
-records 149 installed tests and 15 acquisition cases, alongside the existing
-source/provenance/readiness checks. A
-[fresh normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-passed server and CLI installation with `TMPDIR=/tmp` on a mount distinct from
-the new installation prefix, confirmed by an actual tiny EXDEV probe. No
-same-mount workaround or provider calls were used in beta 42 qualification.
-The provider implementation is byte-identical to beta 41; its limited real
-provider evidence remains explicitly on beta 41, not a new beta 42 test.
+### Common enrollment and retained history
 
-The preceding [server/CLI beta 41 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
-publishes 12 verified assets from canonical source
-`f01b946105857c92fcf14d8f7a83bcbf2fdad11a`. Its manifest SHA-256 is
-`39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad`.
-Its installed-wheel qualification passed 149 installed tests, 8 acquisition
-checks, 9 visual-source guards, 8 React source fixtures, 4 source-provenance
-checks and the workflow-readiness regression. Source guards and React fixtures
-are not native marketplace screenshots or provider acceptance. The
-[release record](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.41.md)
-binds this assembly to public SDK 0.1.5. Its first public installer failed
-EXDEV; a normal same-prefix follow-up with owned same-mount `TMPDIR` passed.
-The [limited product lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
-passed two keyless connections, four authorized public reads before/after a real
-restart and both local disconnect/tombstone/source-removal checks. Private
-harness errors and their recovery remain recorded separately. These results
-do not qualify native App presentation or all provider tools.
+[ClickUp/GitHub/Notion public beta](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/oauth-public-beta-2026-10-17.json)
+is an independent configuration rollout, creating no new provider grant.
+Server 43 defaults to those three only when both operator settings are absent;
+explicit `[]` or an empty environment value disables common enrollment. Fresh
+keyless-only servers neither register with nor poll the broker. Released
+server 40 needs the explicit allowlist. Host operators preserve their own
+version pins, storage, grants, deployment receipts and release qualification.
 
-The preceding [server/CLI beta 40 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
-publishes twelve verified assets from clean canonical source
-`a5623534956d0ff3b1ad0f4c926d1b4cc6040a98`.
-Manifest SHA-256:
-`8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c`.
-Only Framework and CLI wheels move to beta 40; seven unchanged product wheels
-are byte-identical to beta 39, with 109 source files verified. Normal isolated
-installation passed dependency checks for 154 packages, 100 installed
-server/CLI tests, eight separately identified source acquisition tests, the
-installed workflow-readiness regression and the public SDK 0.1.4 runner catalog.
-The [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/releases/v1.1.0-beta.40.md)
-also records the subsequent normal server-plus-CLI installer bootstrap on
-CPython 3.11.14. Native App and real provider acceptance remain separate.
+Historical receipts remain immutable: [GitHub](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/github-oauth-2026-10-16.json),
+[Notion](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/notion-oauth-2026-10-16.json),
+[Slack](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/slack-oauth-2026-10-16.json),
+[SDK 0.1.5 reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json),
+[beta 41 workflows/initial EXDEV](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json),
+[beta 42 distinct-filesystem installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json),
+[App beta 19 native/recovery](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json),
+[App beta 19/server 42 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+and [App beta 18/server 40 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json).
+The source/publication manifest and qualification files in each release retain
+the older component test matrices and signing/updater transition evidence.
+Exa/Firecrawl provider evidence remains attributed to SDK 0.1.5/beta 41, not relabeled
+as new beta 43 calls. No connector release qualifies the
+[multi-source application composition contracts](./application-composition.md).
 
-The preceding [server/CLI beta 39 release](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.39)
-publishes 14 assets from source `7a4c7954566b443537248ef1627af79bfca09eba`.
-All asset API digests/sizes and anonymous downloads were verified. Its manifest
-SHA-256 is `772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97`.
-Its normal installed dependency closure uses public Core beta 22, connector
-runner/adapter 0.1.3 and Host Tools B6 through public APIs. The server installer and service environment use a
-product-local runner; users do not need a Go compiler or a manually configured
-runner path. The connector release remains independently pinned and verified.
-These packaging checks do not establish provider consent, API access or privacy
-processing.
+## Next source candidate: calendars and mail
 
-The [App beta 16 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.16)
-contains 36 verified assets for six targets. Ten CI jobs passed, including native
-packaged launches, macOS signing/notarization, Intel ZIP/DMG launches and exact
-post-upload checksum verification. The signing/updater executor remains the
-historical App repository; its payload comes from canonical source
-`721e90feb0e4ae3bb719e23cf5983e064464f782`. Existing updater identities are
-preserved. The [App beta 17 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
-is published from canonical source `0b00b5bde99fbbe5685f7906a7d1596c6e0d85fb`;
-its [native qualification run](https://github.com/openagent-uno/openagent-app/actions/runs/38479698733)
-is separate from the [historical Linux x64 marketplace visual acceptance](https://github.com/openagent-uno/openagent/actions/runs/38513332981)
-with released server beta 39. The earlier App beta 16/server beta 38 management
-checks remain historical evidence.
-Canonical product source remains in this repository.
-
-[Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-publishes 16 verified assets from source `aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0`.
-Its release-index SHA-256 is
-`a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
-The [six-target native run](https://github.com/openagent-uno/openagent/actions/runs/38457527270),
-both successful [Mac signing/archive gates](https://github.com/openagent-uno/openagent-app/actions/runs/38467343111)
-and [final assembly](https://github.com/openagent-uno/openagent-app/actions/runs/38471673047)
-are recorded separately. Assembly reused the qualified signatures; the four
-other native archives and Python wheel stayed byte-identical. No provider grant
-or user-profile acceptance is inferred from publication.
-
-[Auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
-is a separate deployment release. It does not replace connector module/runner
-versions in already installed products or activate public enrollment. Publishing
-Core beta 22 and server/CLI beta 39 does not migrate a receiving host or attest
-its production privacy processing.
+The Tools SDK **0.1.7 source candidate on main** contains Google Calendar
+(7 typed tools), Outlook Mail (9) and Outlook Calendar (7). Remote qualification
+is pending; this candidate is **not published** and is not part of the current
+SDK 0.1.6/server 43/App 20 catalog. Common-app registration and real OAuth
+acceptance are not complete. See the [candidate contract and gates](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
 ## Provider registration checkpoint
 
@@ -204,6 +93,10 @@ its production privacy processing.
   configuration is implemented; dummy-token tests do not validate a real account.
 
 ## What the tests establish
+
+The current SDK 0.1.6/server 43/App beta 20 boundaries and receipts are listed above.
+The following detailed trials are historical; their exact versions, original
+failures, provider gates and renderer-reload limitations remain unchanged.
 
 The [App beta 19 native release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
 publishes 36 verified assets for six native targets from canonical source
@@ -359,11 +252,11 @@ and privacy backlog load remain separate qualification.
 5. Test two real servers on one Shopify shop: simultaneous acquisition/refresh,
    offline peer, expired/lost envelope, recovery and fresh consent. Coordinate
    any remaining legacy app-token issuers during the transition.
-6. Preserve the completed Linux x64 App beta 19/server beta 42 marketplace
-   and local keyless-control scope. Qualify remaining native GUI platforms,
-   sandbox security and native App provider operations independently. Keep
-   beta 41 provider workflows, beta 42 fresh installation and SDK-only reads
-   attributed to their actual executions rather than extending GUI evidence.
+6. Preserve the completed Linux x64 App beta 20/server 43 marketplace
+   and five local keyless-control cycles. Qualify remaining native GUI platforms,
+   sandbox security and native App provider operations independently. Keep SDK-only reads, beta 41 and beta 43 provider workflows, and each normal
+   installer receipt attributed to their actual executions rather than
+   extending GUI evidence.
    Build, sign and qualify supported product releases, preserve existing IDs,
    credentials and update paths, then opt receiving products into the qualified
    common app registrations. Migrate old connections through explicit consent.

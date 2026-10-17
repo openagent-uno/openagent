@@ -27,71 +27,44 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The shared connector release is `0.1.5`, with Go module tag
-`packages/connectors/v0.1.5` and runner release `connectors-v0.1.5`. Its catalog
-contains 16 official adapters plus Custom MCP.
-[Source and contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.5/packages/connectors)
-and [platform artifacts](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
-are independently versioned from the standalone product. The platform release
-is a qualification prerelease, not native signing or provider acceptance.
-Its `qualification.json` records the tested boundaries alongside the source,
-platform manifests and checksums. The deployed broker is independently released
-as [auth-only 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6).
-The deployed service includes a later reviewed Slack refresh fix recorded
-in the [release checkpoint](./connector-status.md).
-This does not change the version pinned by an installed product. A separate
-configuration rollout on 17 October opened ClickUp, GitHub and Notion as a
-limited public beta. The receiving host still authorizes each connection and
-the user completes provider consent. Other providers retain their activation
-gates; no general throughput or additional provider acceptance is inferred.
+The current standalone assembly is **server/CLI beta 43, Core beta 22, connector SDK/runner
+0.1.6, Host Tools 1.0.0b6 and App beta 20**. The shared catalog has 19 official adapters
+plus Custom MCP. Its [versioned Go contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors)
+uses module tag `packages/connectors/v0.1.6`; the independently published runner
+release is [connectors-v0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6).
+Each host pins and qualifies its own assembly; publishing a component never
+silently updates another installation or attests its data-processing coverage.
 
-The standalone [server/CLI beta 40](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.40)
-assembles public Core beta 22, connector 0.1.4 and
-[Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6).
-B6 has six qualified native targets and signed/notarized macOS bundles; its
-release-index SHA-256 is
-`a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0`.
-[App beta 18](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
-is released independently. Its recorded Linux x64 marketplace trial uses
-server beta 40 and SDK/runner 0.1.4, with 14 official entries and registry MCPs
-in the same grid. Native release qualification and marketplace presentation
-acceptance remain separate from provider consent and API operations. The
-[earlier App beta 17](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17)
-trial with server beta 39 remains historical evidence; neither trial establishes
-Mac or Windows marketplace GUI acceptance.
-Each host owns its locked dependency assembly, installation, enabled storage
-surfaces and release qualification. A public component release never silently
-updates another host or attests its data-processing coverage.
+The qualified boundaries are separate:
 
-SDK 0.1.5 adds Exa and Firecrawl through their official hosted MCPs, with
-two compiled read tools each. The
-[four real keyless reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
-qualify the SDK runner only. Published
-[server/CLI beta 42](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
-adopts SDK 0.1.5 and exposes 16 official entries plus Custom MCP. Its 149
-installed fixture tests, 15 acquisition cases and
-[fresh public installer across distinct filesystems](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-passed. Separately, the
-[beta 41 lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
-passed four normal product reads across a real restart and local disconnect;
-beta 42 preserves that provider implementation unchanged. [App beta 19 is
-published](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
-with six qualified native targets. Its [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
-with server beta 42 loaded 16 official entries and 30 registry results in one
-grid and passed local Exa/Firecrawl controls, without provider calls or a model.
-Hosted `--no-sandbox` is not sandbox-security or Mac/Windows GUI acceptance. The historical
-beta 40/App beta 18 trial above continues to describe SDK 0.1.4 and 14 entries.
+- [SDK 0.1.6](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json): race/vet/vulnerability checks, six-target packaging, Python/native smoke and six limited real runner reads for Parallel, Context7 and CoinGecko. Cross-compilation is not execution on every target.
+- [Server 43 installed fixtures](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-installed-2026-10-17.json) and [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json): 157 installed tests, explicit source/acquisition guards and ordinary pinned installation.
+- [Normal server 43 workflows](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json): three connections, six reads across an actual restart, local tombstones/source removal and owned cleanup. Workflow-result metrics are distinct from provider HTTP telemetry.
+- [App beta 20 native release](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json) and [Linux x64 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json): six native targets; 19 official entries with 30 registry results in one grid, nine marks, five local control cycles and seven reviewed images. GUI provider calls were zero; hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows marketplace GUI.
 
-A keyless connector still has a host-authorized connection and tool source.
-Only a reviewed no-auth adapter accepts the explicit `{"kind":"none"}` contract;
-an omitted token is never a fallback. Fixed provider endpoints and tool names
-remain in the adapter, while owner/tenant grants, enable/disable, disconnect and
-audit remain with the receiving host. No provider token is stored and no OAuth
-refresh or broker exchange is needed. Server beta 41 and beta 42 default to public
-ClickUp/GitHub/Notion catalog eligibility only when operator settings are absent;
-explicit empty settings stay disabled and no default creates a grant. Fresh
-keyless-only servers do not register with or poll the broker. See
-[configuration precedence](./connector-operations.md#standalone-configuration).
+Exa/Firecrawl real-provider evidence remains in the historical
+[SDK 0.1.5](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json) and
+[server 41](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+receipts. [App beta 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+and [App beta 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
+retain their original counts, screenshots and failures.
+
+The separately deployed [auth-only 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
+service includes the reviewed Slack refresh correction recorded in
+[release status](./connector-status.md). Its 17 October configuration rollout
+opened only ClickUp/GitHub/Notion as a limited beta, creating no new grant.
+Each receiving host authorizes local access and every OAuth connection requires
+provider consent. Other providers retain their activation gates.
+
+A keyless connector still has an authorized connection and tool source. Only a
+reviewed no-auth adapter accepts explicit `{"kind":"none"}`; an omitted token
+never downgrades another provider. Fixed endpoints and tools remain in the
+adapter; owner/tenant grants, storage, enable/disable, disconnection and audit
+remain with the host. No provider token, refresh or broker exchange is needed.
+Server 43 defaults to ClickUp/GitHub/Notion catalog eligibility only when both
+operator settings are absent. Explicit empty settings stay disabled and no
+default creates a grant or automatic broker registration. Fresh keyless-only
+servers do not poll the broker. See [configuration precedence](./connector-operations.md#standalone-configuration).
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
 must update its catalog entry, schemas, operation implementation and tests;

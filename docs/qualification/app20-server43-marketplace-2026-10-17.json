@@ -1,0 +1,223 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "reviewed_at": "2026-10-17T10:48:08.265851+00:00",
+  "qualifier_source": "276704b2be1f403c9e2796e04c5c3e31530690c1",
+  "app_source": "276704b2be1f403c9e2796e04c5c3e31530690c1",
+  "app_version": "1.1.0-beta.20",
+  "server_version": "1.1.0b43",
+  "public_app_release": "https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20",
+  "native_release_receipt": "app20-native-release-2026-10-17.json",
+  "app_deb_sha256": "4d979562966b3688797f8e54c71f13a570398942146b117f903dbeab101fe729",
+  "app_deb_bytes": 198266424,
+  "app_linux_manifest_sha256": "7e38d97c22f85b0ac6b9c0f31df82a51ee8e433d2c935e3faf8b75b0fd1dad77",
+  "public_installer_url": "https://openagent.uno/install.sh",
+  "public_installer_sha256": "f391fa93fa6aac1e1036461471c31731aa3c668a64e64838a4cdecec2470e807",
+  "catalog_sha256": "34a671a2b930c164c948548ee3e1fa0bceb806335bdd47287f4672d0dd6a8d12",
+  "installed_versions": {
+    "openagent-framework": "1.1.0b43",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.6",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "ui": {
+    "status": "passed",
+    "appVersion": "1.1.0-beta.20",
+    "serverVersion": "1.1.0b43",
+    "verifiedLocalProviderIcons": [
+      "github",
+      "notion",
+      "slack-import",
+      "atlassian",
+      "exa",
+      "firecrawl",
+      "parallel-search",
+      "context7",
+      "coingecko"
+    ],
+    "officialLabelOrTabAbsent": true,
+    "unlabelledDividerAcceptance": "screenshot review only",
+    "officialCount": 19,
+    "officialIds": [
+      "atlassian",
+      "billingbear",
+      "clickup",
+      "coingecko",
+      "context7",
+      "exa",
+      "firecrawl",
+      "github",
+      "gmail",
+      "google-analytics",
+      "google-drive",
+      "imap_smtp",
+      "notion",
+      "parallel-search",
+      "pipeboard",
+      "postiz",
+      "replio",
+      "shopify",
+      "slack-import"
+    ],
+    "registryCount": 30,
+    "transport": "ordinary UI join/SRP/device certificate/native Iroh proxy",
+    "backendMocked": false,
+    "modelInvoked": false,
+    "cookieOrTokenExported": false,
+    "hostedElectronSandboxDisabled": true,
+    "sandboxSecurityAcceptance": false,
+    "profilePolicy": "packaged --local-e2e isolates temp profile/updater only; authentication unchanged",
+    "apiStatus": {
+      "/api/connectors": 200,
+      "/api/marketplace/official": 200,
+      "/api/marketplace/search": 200
+    },
+    "keylessLifecycle": [
+      {
+        "id": "exa",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "firecrawl",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "parallel-search",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "context7",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "coingecko",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      }
+    ],
+    "guiScope": "real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance",
+    "clientExitCode": 0,
+    "clientExitSignal": null,
+    "clientCleanupConfirmed": true
+  },
+  "visual_review": {
+    "seven_actual_screenshots_opened": true,
+    "official_and_registry_cards_share_grid": true,
+    "official_divider_absent": true,
+    "provider_icons_visible": true,
+    "management_screens_have_enabled_and_disconnect_controls": true,
+    "credential_forms_absent_for_five_keyless": true,
+    "observations": [
+      "Official provider cards share the alphabetic marketplace grid with registry entries.",
+      "No official-only tab, divider or badge is visible.",
+      "ClickUp, CoinGecko, Context7, Exa and Firecrawl marks render in the shared card design.",
+      "Five keyless connected screens show enabled state and product-local disconnection controls."
+    ]
+  },
+  "images": {
+    "app20-server43-coingecko-connected.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-coingecko-connected.png",
+      "bytes": 69859,
+      "sha256": "6124874c7983787cd1c0940072666fe94f13c3783b7c0b4eb687b0a59ff7559d"
+    },
+    "app20-server43-context7-connected.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-context7-connected.png",
+      "bytes": 67681,
+      "sha256": "18ba5ad2d422c9a0fcd8fb588b90d482ce5ee48440c6fa566c0f0ddd6d900c82"
+    },
+    "app20-server43-exa-connected.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-exa-connected.png",
+      "bytes": 64769,
+      "sha256": "4ef52d69017c12c8f78a7c7d3c4c1dca7f45667cc636d2546087a424f86f4ba4"
+    },
+    "app20-server43-firecrawl-connected.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-firecrawl-connected.png",
+      "bytes": 67411,
+      "sha256": "bb6ca9a81a595dc7898f76e6610340687f7f7fdba67ea85efb225a0583776494"
+    },
+    "app20-server43-marketplace-scroll.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-marketplace-scroll.png",
+      "bytes": 174290,
+      "sha256": "6f356effe23e4095a43892a64155f98e625ad9f47ea96b65e909f7740fe6deb6"
+    },
+    "app20-server43-marketplace-top.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-marketplace-top.png",
+      "bytes": 162241,
+      "sha256": "0f525b4576ac5491b58dacd35b17cce0488739a2ffcde1a2f67b91df57b7941a"
+    },
+    "app20-server43-parallel-search-connected.png": {
+      "url": "https://openagent.uno/connectors/app20-server43-parallel-search-connected.png",
+      "bytes": 68257,
+      "sha256": "7861821a7f764f28440766a99c7c969639a75db0466f4fd751d3e3b2daa8f455"
+    }
+  },
+  "cleanup": {
+    "owned_staging_removed": true,
+    "client_closed": true,
+    "extra_broker_cleanup": "passed",
+    "all_owned_runtime_children_stopped": true,
+    "all_worker_lanes_quiescent_at_handoff": true,
+    "other_lane_processes_signalled": 0,
+    "signals_only_exact_owned_pid": true,
+    "uid_executable_command_environment_starttime_pgid_sid_guards": true,
+    "zombies_treated_as_stopped": true,
+    "oom_events": 0,
+    "initial_guard_failure_preserved": true,
+    "initial_guard_failure_reason": "Expected init profile while the remaining App broker correctly used its isolated desktop network profile; stopped before any signal. A source-verified exact-profile assertion was corrected and reviewed.",
+    "canonical_gui_reruns": 0,
+    "owned_worker_removed": true,
+    "worker_delete_uid_and_resource_version_fenced": true,
+    "worker_force_deleted": false
+  },
+  "evidence_sha256": {
+    "receipt.json": "51e7fd4d5ebbb986f3e5da912378bf13d2796de828e498f428f9612008e61c46",
+    "ui-receipt.json": "5facc83c304b1b603cb2411dc21e41d4746c345a02e2fda887acae03162b51dc",
+    "root-visual-review.json": "853cc66ed35f4403db2674b74d912904f8c5556aa8062f8850af3198dfb5af64",
+    "owned-process-cleanup.json": "76a487dbd9a739a7016bc9f51574548bc081fa536479d7ec2cc913ed05cccbf8",
+    "structural-acceptance.json": "d3db8e862fe5365ebaef84caa3f9d5177524fa78321d9e73c4afa811d3cd5de5",
+    "copy-index.complete.json": "c79cf92e17c58d178fe93b48b829fe19c700ca55eb2f3fda1c6ae54045e0ad9d",
+    "worker-cleanup.json": "ff9ceda741d5cc6a6aebd2a3652f73f041dcb9dc0fcbaf5fec6ddf5e5a8e4640"
+  },
+  "cleanup_script_sha256": "c963062eeafe0cf590e72c69d983cd14c5f1d1e95025ae772edd2f73aebf65e0",
+  "real_provider_calls": 0,
+  "model_invocations": 0,
+  "source_overlay": false,
+  "backend_mocked": false,
+  "personal_profiles_used": false,
+  "provider_content_or_credentials_exported": false,
+  "separate_provider_receipts": [
+    "keyless-sdk-0.1.6-2026-10-17.json",
+    "keyless-product-1.1.0b43-2026-10-17.json",
+    "keyless-product-1.1.0b41-2026-10-17.json"
+  ],
+  "limits": [
+    "Actual packaged GUI acceptance is Linux x64 only.",
+    "Hosted Electron used --no-sandbox; sandbox security is not qualified.",
+    "No provider OAuth grant or API operation was exercised by these UI-local controls.",
+    "Mac/Windows marketplace GUI and all-tool/provider parity require separate acceptance."
+  ]
+}

@@ -1,15 +1,14 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.42**. The latest desktop App
-is **v1.1.0-beta.19**, published for macOS, Windows and Linux on ARM64 and x64.
-These are betas of the modular architecture. Provider activation and product
-qualification are recorded separately in [Connector release status](./guide/connector-status.md).
-App beta 19 is published with six qualified native targets. Its
-[Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
-with server beta 42 passed: 16 official entries and 30 registry results share
-one grid; Exa/Firecrawl local connection controls passed without provider calls.
-Hosted Electron used `--no-sandbox`; sandbox security and Mac/Windows marketplace
-GUI or provider acceptance are not established.
+The current server and CLI build is **v1.1.0-beta.43**, using Core beta 22,
+connector SDK/runner 0.1.6 and Host Tools 1.0.0b6. The current desktop App is
+**v1.1.0-beta.20**, published for macOS, Windows and Linux on ARM64 and x64.
+Its [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
+passed with server 43: 19 official connectors and 30 registry results in one
+grid, nine local provider marks and five keyless connection/control cycles.
+Seven actual screenshots were reviewed. No provider call or model was used.
+Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows marketplace GUI.
+Provider activation and remaining gates are recorded in [Connector release status](./guide/connector-status.md).
 
 Product source and server/CLI releases come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Desktop
@@ -23,15 +22,14 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 19 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
-includes installer checksums, six platform provenance manifests and verified
-update metadata. Native packaged launches passed on all six targets; Intel
-macOS ZIP and DMG launches also passed. The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json)
-retains the original failed ARM stapling run and its successful recovery.
-The historical, separately recorded [Linux x64 marketplace trial](./guide/connector-status.md#what-the-tests-establish)
-uses App beta 18 with server beta 40 and the published 0.1.4 catalog; this is
-not Mac or Windows marketplace/provider acceptance. App beta 17 remains
-available as a [historical release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.17).
+The [App beta 20 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20)
+includes 36 verified assets, six provenance manifests and updater metadata.
+Native packaged checks passed on all six targets; Intel macOS ZIP and DMG
+launches also passed. The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json)
+is separate from marketplace GUI and provider acceptance. Earlier
+[App 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json) and
+[App 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
+trials retain their original versions, screenshots and failure evidence.
 
 ## Standalone server
 
@@ -51,10 +49,11 @@ The server installer selects `openagent-core[engine,providers,modules]==1.1.0b22
 including SQLAlchemy async support. When assembling directly from release wheels,
 install those extras too: the bare Framework wheel is not the qualified
 `NativeProvider` dependency closure. The CLI remains a thin remote client.
-The [fresh beta 42 installer check](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-passed normal server-plus-CLI installation on Linux x64/CPython 3.11.14 with
-temporary and installation directories on different mounts. This is an
-installation boundary, not Windows/macOS server execution or native GUI proof.
+The [normal public beta 43 installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
+passed server-plus-CLI installation and dependency checks on Linux x64/CPython
+3.11.14 with default HOME/TMPDIR. This does not qualify Windows/macOS server
+execution. The earlier [beta 42 cross-filesystem repair](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+retains its distinct-mount probe and original scope.
 
 ## CLI
 
@@ -75,15 +74,14 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 42.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 43.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
-  — sixteen official adapters plus Custom MCP, including Exa/Firecrawl keyless
-  reads; Python/MCP transport, platform manifests and checksums.
+- [Shared connector module/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
+  — nineteen official adapters plus Custom MCP, including five keyless providers; Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
   — separate operator release; ClickUp, GitHub and Notion enrollment is deployed
   as a limited public beta. Other provider gates remain independent.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.42/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints

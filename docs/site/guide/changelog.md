@@ -2,6 +2,17 @@
 
 Notable changes, newest first.
 
+## App v1.1.0-beta.20
+
+- [Public desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20) with 36 verified assets/six native targets; all 10 workflow jobs and mandatory Intel ZIP/DMG launches passed. [Native receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json).
+- [Actual Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json) with server 43: 19 official entries and 30 registry results in one grid, nine marks, five keyless local control cycles and seven reviewed screenshots. Ordinary Join/SRP/device-cert/Iroh; zero provider/model calls. Owned cleanup passed. Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows GUI.
+
+## v1.1.0-beta.43 and connector SDK 0.1.6
+
+- Published SDK 0.1.6 adds Parallel Search, Context7 and CoinGecko through their official fixed MCP endpoints: 19 official adapters plus Custom MCP, including five keyless providers. The [six actual SDK reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json) passed after the preserved narrow output-ticker compatibility repair.
+- Server/CLI beta 43 pins SDK 0.1.6/Core beta 22/B6. [157 installed fixtures and source guards](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-installed-2026-10-17.json), the [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json), and [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json) passed separately. Workflow reads crossed ordinary certified APIs before/after a real server restart; local disconnect removed sources and retained tombstones.
+- Explicit empty common-provider settings remain opt-outs; defaults create no grant or automatic broker registration. Keyless-only servers do not poll the broker. Native packaging, GUI, provider reads and privacy acceptance remain separate.
+
 ## App v1.1.0-beta.19
 
 - [Published desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)

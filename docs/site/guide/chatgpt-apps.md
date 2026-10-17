@@ -6,48 +6,46 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-## Exa and Firecrawl: public SDK and limited product lifecycle
+## Current published connector cohort
 
-[SDK/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
-is published from source `7967195e9e45502c2d8b4f82414f7da780788045` with
-16 official adapters plus Custom MCP. It adds the following compiled read-only
-subset of the providers' official hosted MCPs. No account, API key or new OAuth
-registration is required; anonymous provider quotas apply.
+[SDK/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
+is public from source `2ec7c114a49b72460addc00fc8e8d6547a683b59`, with 19 official
+adapters plus Custom MCP. [Server/CLI beta 43](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.43)
+adopts it with Core beta 22 and Host Tools 1.0.0b6. [App beta 20](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20)
+is independently published for six native targets.
 
-| Connector | OpenAgent tools | Reviewed upstream tools and limits |
+| Keyless connector | Typed read tools | Actual qualification |
 | --- | --- | --- |
-| [Exa](https://exa.ai/docs/get-started/exa-mcp) | `files.exa.search`, `files.exa.fetch` | `web_search_exa`, `web_fetch_exa`; up to 10 search results or 5 public HTTP(S) URLs, with bounded text |
-| [Firecrawl](https://docs.firecrawl.dev/mcp-server/keyless) | `files.firecrawl.search`, `files.firecrawl.scrape` | `firecrawl_search`, `firecrawl_scrape`; up to 10 search results or one URL scraped as Markdown; no actions, file upload or Parse |
+| [Exa](https://exa.ai/docs/get-started/exa-mcp) | `files.exa.search`, `files.exa.fetch` | SDK 0.1.5 reads; beta 41 fetch workflow lifecycle |
+| [Firecrawl](https://docs.firecrawl.dev/mcp-server/keyless) | `files.firecrawl.search`, `files.firecrawl.scrape` | SDK 0.1.5 reads; beta 41 scrape workflow lifecycle |
+| [Parallel Search](https://docs.parallel.ai/integrations/mcp/search-mcp) | `files.parallel.search`, `files.parallel.fetch` | Both SDK 0.1.6 reads; beta 43 fetch before/after restart |
+| [Context7](https://github.com/upstash/context7) | `files.context7.resolve_library`, `files.context7.query_docs` | Both SDK 0.1.6 reads using an actually resolved library ID; beta 43 query before/after restart |
+| [CoinGecko](https://docs.coingecko.com/docs/mcp-server) | `files.coingecko.price`, `files.coingecko.global` | Both SDK 0.1.6 reads; beta 43 global before/after restart |
 
-Remote source qualification, six-platform packaging, Python/native smoke and
-prior-server acquisition passed. The
-[limited real-read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
-records four normal runner calls, each HTTP 200 with one attempt. Exa search
-returned output but no OpenAgent reference; that success does not establish
-result relevance. Provider output was not persisted. These reads do not prove
-an installed server/App workflow, connection lifecycle or native GUI acceptance.
+The [SDK 0.1.6 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json)
+records remote source/package qualification and six real bounded reads, each
+HTTP200/one attempt. An initial global-ticker output rejection remains recorded;
+a narrow output-only compatibility fix passed the complete six-read rerun.
+The [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
+and [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
+passed separately. Workflows crossed normal certified CLI/Iroh/gateway APIs,
+preserved connection IDs across a real restart, then disconnected with local
+source removal and cleanup. Workflow-result byte metrics do not imply observed
+provider HTTP/attempt telemetry.
 
-Published [server/CLI beta 42](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
-adopts SDK 0.1.5 and adds keyless setup with `connectors connect exa` and
-`connectors connect firecrawl`. The
-[beta 41 limited lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
-passed two normal connections and four public-document reads through certified
-CLI/Iroh/gateway workflows: Exa fetch and Firecrawl scrape before and after an
-actual server restart, then both local tombstones/source removal and runtime
-cleanup. No provider keys, OAuth grant, LLM or direct runner calls were used.
-Beta 42 preserves that provider implementation unchanged; its 149 installed
-fixtures, 15 acquisition cases and
-[fresh cross-filesystem public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
-passed separately without repeating provider calls. The initial beta 41 EXDEV
-and same-prefix `TMPDIR` recovery remain in its receipt. App beta 19 is
-[published for six qualified native targets](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19);
-its [Linux x64 marketplace and local keyless controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
-passed with server beta 42. No provider call or model was used; hosted
-`--no-sandbox` is not sandbox-security or Mac/Windows GUI acceptance. It
-uses the same marketplace cards. A local
-connection still binds the authenticated owner, tenant and tool grants; empty
-credentials never downgrade another provider to anonymous access. There is no
-paid fallback, OAuth refresh or automatic broker enrollment for keyless reads.
+[App beta 20/server 43 Linux x64 GUI](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
+passed 19 official entries with 30 real registry results in one grid, nine marks,
+five local keyless control cycles and seven reviewed screenshots. The GUI made
+zero provider calls or model turns. Hosted `--no-sandbox` does not establish
+sandbox security or Mac/Windows marketplace GUI acceptance.
+
+Keyless mode needs no account, API key or OAuth grant; anonymous quotas and local
+owner/tenant permissions still apply. There is no paid fallback, token refresh
+or automatic broker enrollment. [SDK 0.1.5](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json),
+[beta 41](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+and [App beta 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
+retain their exact historical scope. Exa's earlier search returned output
+without the expected OpenAgent reference; API success is not result relevance.
 See [setup and configuration precedence](./connector-operations.md).
 
 ## First implementation batch: GitHub and Notion
@@ -164,19 +162,27 @@ Remote Desktop Commander also needs an authorized paired device, Flaim an
 authorized league and WPVibe WordPress authorization. Their exact registration
 details and the documented source-access limitations remain explicit in the
 receipt. None is a documented new public-read keyless subset. No provider
-registration, grant, MCP/API call or SDK implementation was performed; App beta
-19 is now published and its limited Linux x64 marketplace/local controls have
-separate acceptance; none of this implements the six researched interfaces.
+registration, grant, MCP/API call or SDK implementation was performed by that
+audit. The current App beta 20 GUI acceptance does not implement those six interfaces.
 
-### Parallel Search: metadata preparation only
+### Parallel Search: published adapter and separate metadata history
 
-[Interface preparation](https://github.com/openagent-uno/openagent-tools/blob/main/docs/parallel-search-preparation.md)
-and its [metadata receipt](https://github.com/openagent-uno/openagent-tools/blob/main/docs/qualification/parallel-search-interface-2026-10-17.json)
-record anonymous initialize/initialized/tools-list responses only. No search,
-fetch, account, OAuth grant or `tools/call` was performed. Parallel Search is
-neither implemented nor listed in the official catalog or published by OpenAgent. This
-preparation does not change the 16-adapter catalog or the 32-name primary-source
-research count.
+The [preparation record](https://github.com/openagent-uno/openagent-tools/blob/main/docs/parallel-search-preparation.md)
+preserves its original three metadata-only requests. That observation alone
+made no search/fetch call. The subsequent SDK 0.1.6 now publishes two compiled
+read tools with [two actual SDK reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json)
+and [two beta 43 fetch workflows across restart](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json).
+These are distinct executions, not retrospective metadata acceptance. The
+original 4219 occurrences/4133 names and 32-name primary research checkpoint
+remain historical observations; adding an adapter does not change that snapshot.
+
+## Next source candidate: calendars and mail
+
+The Tools SDK **0.1.7 source candidate on main** contains Google Calendar
+(7 typed tools), Outlook Mail (9) and Outlook Calendar (7). Remote qualification
+is pending; this candidate is **not published** and is not part of the current
+SDK 0.1.6/server 43/App 20 catalog. Common-app registration and real OAuth
+acceptance are not complete. See the [candidate contract and gates](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
 ## Integration paths and remaining work
 
@@ -186,13 +192,11 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 
 ## Popular directory order
 
-The table preserves the initial Popular editorial order, with published SDK
-0.1.5 and released server/CLI beta 42 distinguished from the historical beta
-40/App beta 18 trial. The limited keyless lifecycle passed on beta 41 with
-unchanged provider code in beta 42. App beta 19 is published and its
-Linux x64 marketplace/local controls passed with server beta 42, without new
-provider calls. Mac/Windows GUI and full tool parity remain unqualified. Public OAuth availability is limited
-to the separately deployed ClickUp/GitHub/Notion beta.
+The table preserves the original Popular editorial order. The current published
+cohort is SDK 0.1.6/server 43/App beta 20; real provider evidence, local GUI controls and
+common OAuth availability retain separate boundaries. Only ClickUp/GitHub/Notion
+common enrollment is open in the limited beta. Full tool parity and Mac/Windows
+marketplace GUI remain unqualified.
 
 | Position | App | OpenAgent baseline | Verified interface |
 | ---: | --- | --- | --- |
@@ -205,14 +209,14 @@ to the separately deployed ClickUp/GitHub/Notion beta.
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
-| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5/server 42 public; fresh installer PASS; limited scrape/workflow/restart/disconnect passed on 41; App 19 published; Linux x64 GUI/local controls passed, no App provider calls | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
+| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |
-| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5/server 42 public; fresh installer PASS; limited fetch/workflow/restart/disconnect passed on 41; App 19 published; Linux x64 GUI/local controls passed, no App provider calls | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
+| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | [Official MCP guide](https://www.upwork.com/ai/mcp); [vendor manifest](https://github.com/upwork/upwork-agent-plugin/blob/master/mcp.json) |
 | 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
 | 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App 18 published; native App provider acceptance and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
-| 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | Not implemented/qualified | Not researched |
+| 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | SDK 0.1.6/server 43/App beta 20 public; two SDK reads and beta 43 fetch/restart/disconnect lifecycle passed; Linux x64 local controls passed | [Official public Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | [Official OAuth/DCR MCP](https://docs.granola.ai/help-center/sharing/integrations/mcp) |
 | 20 | [Klaviyo](https://chatgpt.com/plugins/plugin_asdk_app_694421e60cc88191a1e5bb4aa79950e4) | Not implemented/qualified | [Documented public API](https://developers.klaviyo.com/en/reference/api_overview) |
