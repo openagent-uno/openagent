@@ -175,24 +175,27 @@ async def test_token_sent_only_to_authenticated_server_and_cleared():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("provider", ["exa", "firecrawl"])
-async def test_keyless_connection_never_prompts_for_credentials_or_opens_oauth(provider):
+@pytest.mark.parametrize("catalog_id,provider", [("exa", "exa"), ("firecrawl", "firecrawl"),
+    ("parallel-search", "parallel_search"), ("context7", "context7"), ("coingecko", "coingecko")])
+async def test_keyless_connection_never_prompts_for_credentials_or_opens_oauth(catalog_id, provider):
     client = AsyncMock()
-    client.rest_get.return_value = {"connectors": [{"id": provider, "provider": provider,
+    client.rest_get.return_value = {"connectors": [{"id": catalog_id, "provider": provider,
         "capability": "files", "auth": "none", "available": True}]}
     client.rest_post.return_value = {"connection": {"id": "conn", "status": "connected"}}
     with patch("openagent_cli.connectors.Prompt.ask") as prompt, patch("openagent_cli.connectors.webbrowser.open") as browser:
-        await connect(client, provider, False, Console(file=io.StringIO()))
+        await connect(client, catalog_id, False, Console(file=io.StringIO()))
         prompt.assert_not_called()
         browser.assert_not_called()
     client.rest_post.assert_awaited_once_with("/api/connectors", {
-        "catalog_id": provider, "allow_write": False, "config": {}})
+        "catalog_id": catalog_id, "allow_write": False, "config": {}})
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("item", [
     {"id": "replio", "provider": "replio", "capability": "outreach", "auth": "none"},
     {"id": "exa", "provider": "other", "capability": "files", "auth": "none"},
+    {"id": "parallel-search", "provider": "parallel-search", "capability": "files", "auth": "none"},
+    {"id": "context7", "provider": "parallel_search", "capability": "files", "auth": "none"},
     {"id": "exa", "provider": "exa", "capability": "outreach", "auth": "none"},
     {"id": "exa", "provider": "exa", "capability": "files", "auth": "unknown"},
 ])

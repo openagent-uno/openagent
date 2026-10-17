@@ -106,5 +106,26 @@
     "discovered_on": "https://www.firecrawl.dev",
     "retrieved": "2026-10-17",
     "sha256": "bc43ca6a2eae73684ec65bb7ba1f74ae13d8bad5763aa6b8676d4fe0b232107f"
+  },
+  {
+    "id": "parallel-search",
+    "file": "parallel-search.png",
+    "source": "https://parallel.ai/apple-icon.png?apple-icon.ea4d2091.png",
+    "retrieved": "2026-10-17",
+    "sha256": "c58ef509050d979286cdeeb392cc0fe62a1878a6176c8c30b4c8dda6b35650ed"
+  },
+  {
+    "id": "context7",
+    "file": "context7.svg",
+    "source": "https://context7.com/context7-icon-green.svg",
+    "retrieved": "2026-10-17",
+    "sha256": "c4faba14bc804b8a2a1f9a3815ca2c2300dd1081d570867a873cae82b5e4d97d"
+  },
+  {
+    "id": "coingecko",
+    "file": "coingecko.svg",
+    "source": "https://static.coingecko.com/gecko-logo-new-color.svg",
+    "retrieved": "2026-10-17",
+    "sha256": "6e4913fab13b0852fcb4c7672513073e852bb45bccd4bb2c94705d0ecd7a6858"
   }
 ]

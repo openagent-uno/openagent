@@ -52,9 +52,9 @@ const passed=[];
  const rejected=['http://github.com/login/oauth/authorize','https://github.com.evil.example/authorize','https://github.com@evil.example/authorize','https://user@github.com/authorize','https://api.notion.com.evil.example/authorize','https://slack.com.evil.example/authorize','https://auth.atlassian.com.evil.example/authorize','https://unreviewed.example/authorize','https://github.com/login/oauth/authorize#fragment'];
  for(const url of rejected){await mount();connectImpl=async()=>({connection,authorization_mode:'own-app',authorization_url:url,expires_at:'2099-01-01T00:00:00Z'});await fire(presses('Reconnect')[0]);await flush();assert.deepEqual(opened,[]);assert.equal(calls.poll,0);await unmount();}
  passed.push('own-app-nine-unsafe-urls-rejected-before-browser-or-poll');
- for(const provider of ['exa','firecrawl']){
+ for(const provider of ['exa','firecrawl','parallel-search','context7','coingecko']){
   resetApi();state={config:config('A'),activeAccountId:'account-A'};
-  Object.assign(connector,{id:provider,name:provider,auth:'none',provider,capability:'files',readTools:[`files.${provider}.search`],agentTools:[]});
+  Object.assign(connector,{id:provider,name:provider,auth:'none',provider:provider==='parallel-search'?'parallel_search':provider,capability:'files',readTools:[({exa:'files.exa.search',firecrawl:'files.firecrawl.search','parallel-search':'files.parallel.search',context7:'files.context7.query_docs',coingecko:'files.coingecko.global'})[provider]],agentTools:[]});
   let connected=false;const created=[];
   api.catalog=async()=>({available:true,connectors:[connector]});
   api.list=async()=>({available:true,connections:connected?[connection]:[]});
@@ -75,15 +75,18 @@ const passed=[];
   await fire(presses('Disconnect from this server')[0]);await flush();assert.equal(connection.status,'disconnected');
   await unmount();
  }
- passed.push('two-keyless-connectors-reuse-marketplace-without-credentials-or-oauth');
+ passed.push('five-keyless-connectors-reuse-marketplace-without-credentials-or-oauth');
  const marks=JSON.parse(fs.readFileSync(path.join(root,'apps/app/universal/assets/connectors/sources.json'),'utf8'));
  const logo=fs.readFileSync(path.join(root,'apps/app/universal/components/mcps/ConnectorLogo.tsx'),'utf8');
- for(const provider of ['exa','firecrawl']){
-  const mark=marks.find(x=>x.id===provider);assert.ok(mark);assert.ok(mark.source.startsWith(provider==='exa'?'https://exa.ai/':'https://www.firecrawl.dev/'));
+ const vectors=fs.readFileSync(path.join(root,'apps/app/universal/components/mcps/connector-vectors.ts'),'utf8');
+ const origins={exa:'https://exa.ai/',firecrawl:'https://www.firecrawl.dev/','parallel-search':'https://parallel.ai/',context7:'https://context7.com/',coingecko:'https://static.coingecko.com/'};
+ for(const provider of Object.keys(origins)){
+  const mark=marks.find(x=>x.id===provider);assert.ok(mark);assert.ok(mark.source.startsWith(origins[provider]));
   const bytes=fs.readFileSync(path.join(root,'apps/app/universal/assets/connectors',mark.file));
   assert.equal(require('crypto').createHash('sha256').update(bytes).digest('hex'),mark.sha256);
-  assert.ok(logo.includes(`require('../../assets/connectors/${provider}.png')`));
+  if(mark.file.endsWith('.png'))assert.ok(logo.includes(`require('../../assets/connectors/${provider}.png')`));
+  else assert.ok(vectors.includes(JSON.stringify(bytes.toString('utf8'))));
  }
- passed.push('two-keyless-provider-marks-match-official-provenance');
+ passed.push('five-keyless-provider-marks-match-official-provenance');
  const receipt={status:'PASS',scope:'actual TS/TSX syntax transpile and actual React component with mocked RN/transport; not native/GUI/provider acceptance',tests:passed,transpiled_files:[component,apiFile],react:require('react/package.json').version,typescript:ts.version};writeReceipt(receipt);console.log(JSON.stringify({status:'PASS',component_tests:passed.length}));
 })().catch(async error=>{writeReceipt({status:'FAIL',failure_class:error.constructor.name,scope:'source component test; no native acceptance'});console.error(error);process.exitCode=1});

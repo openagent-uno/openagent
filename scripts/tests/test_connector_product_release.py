@@ -21,8 +21,8 @@ class ReusedComponentProvenance(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(str(index).encode())
             sources[name] = recipe.digest(path.read_bytes())
-        # Public41 also records rebuilt server/CLI sources; these may change in
-        # beta42, but must still be covered by the baseline's aggregate digest.
+        # Public42 also records rebuilt server/CLI sources; these may change in
+        # beta43, but must still be covered by the baseline's aggregate digest.
         aggregate = {**sources, "apps/server/prior.py": "d" * 64, "apps/cli/prior.py": "e" * 64}
         wheels = [{"file": "component-" + str(index) + ".whl", "name": "component-" + str(index),
                    "version": "1", "sha256": "a" * 64, "bytes": 100} for index in range(7)]

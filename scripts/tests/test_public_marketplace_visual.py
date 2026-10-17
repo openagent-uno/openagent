@@ -116,6 +116,28 @@ class WorkerContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             qualifier.catalog_ids(values, '0.1.6')
 
+    def test_next_keyless_cohort_preserves_exact_release_and_catalog_binding(self):
+        value = self.contract()
+        value.update(appVersion='1.1.0-beta.20', serverVersion='1.1.0b43', sdkVersion='0.1.6',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.20/',
+                     appDEB='openagent-app-1.1.0-beta.20-linux-amd64.deb',
+                     catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.6/catalog.json')
+        self.assertEqual(self.load(value), value)
+        for field, changed in (('appVersion', '1.1.0-beta.19'), ('serverVersion', '1.1.0b44'),
+                               ('sdkVersion', '0.1.5'), ('coreVersion', '1.1.0b23'),
+                               ('hostToolsVersion', '1.0.0b7')):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.load(dict(value, **{field: changed}))
+        ids = ['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
+               'github', 'gmail', 'google-analytics', 'google-drive', 'imap_smtp', 'notion',
+               'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import']
+        catalog = [{'id': item} for item in ids]
+        self.assertEqual(qualifier.catalog_ids(catalog, '0.1.6'), sorted(ids))
+        for changed in (catalog[:-1], catalog + [{'id': 'context7'}],
+                        [dict(item, id='unreviewed') if item['id'] == 'context7' else item for item in catalog]):
+            with self.assertRaises(ValueError):
+                qualifier.catalog_ids(changed, '0.1.6')
+
     def worker_args(self):
         return argparse.Namespace(execution_context='worker-linux', release_contract=Path('/contract.json'),
                                   worker_uid=65532, worker_pod_uid='12345678-1234-1234-1234-123456789abc',

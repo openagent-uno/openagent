@@ -78,7 +78,11 @@ class OfficialConnectors:
     # New keyless adapters reuse this lifecycle after their pinned catalog and
     # provider/capability contract have been reviewed; credentials are never
     # inferred from an empty token or a user-editable MCP declaration.
-    _keyless_bindings = frozenset({("exa", "exa", "files"), ("firecrawl", "firecrawl", "files")})
+    _keyless_bindings = frozenset({
+        ("exa", "exa", "files"), ("firecrawl", "firecrawl", "files"),
+        ("parallel-search", "parallel_search", "files"), ("context7", "context7", "files"),
+        ("coingecko", "coingecko", "files"),
+    })
     _binding_fields = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
                        "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
                        "credential", "nonce", "token_version", "transaction_id")

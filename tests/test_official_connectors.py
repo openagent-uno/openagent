@@ -52,20 +52,28 @@ class Runner:
         return {"ok": True}
 
 
+KEYLESS_CASES = [("exa", "exa", "files.exa.search"),
+                 ("firecrawl", "firecrawl", "files.firecrawl.search"),
+                 ("parallel-search", "parallel_search", "files.parallel.search"),
+                 ("context7", "context7", "files.context7.query_docs"),
+                 ("coingecko", "coingecko", "files.coingecko.global")]
+
+
 def keyless_catalog(runner):
     """Controlled official-catalog fixture, not real provider acceptance."""
     original = runner.call
     runner.keyless_items = [
-        {"id": provider, "name": provider.title(), "auth": "none", "available": True,
+        {"id": catalog_id, "name": catalog_id.title(), "auth": "none", "available": True,
          "provider": provider, "capability": "files"}
-        for provider in ("exa", "firecrawl")]
+        for catalog_id, provider, _ in KEYLESS_CASES]
 
     async def call(method, params=None):
         if method == "catalog":
             return await original(method, params) + runner.keyless_items
-        if method == "tools" and params["catalog_id"] in {"exa", "firecrawl"}:
+        if method == "tools" and params["catalog_id"] in {row[0] for row in KEYLESS_CASES}:
             runner.calls.append((method, params))
-            return [{"name": f"files.{params['catalog_id']}.search", "description": "Search public web",
+            tool = next(row[2] for row in KEYLESS_CASES if row[0] == params["catalog_id"])
+            return [{"name": tool, "description": "Read public information",
                      "risk": "read", "inputSchema": {"type": "object"}}]
         return await original(method, params)
 
@@ -94,11 +102,11 @@ async def fixture(tmp_path):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("provider", ["exa", "firecrawl"])
-async def test_keyless_connection_lifecycle_has_no_stored_token(fixture, provider):
+@pytest.mark.parametrize("catalog_id,provider,tool", KEYLESS_CASES)
+async def test_keyless_connection_lifecycle_has_no_stored_token(fixture, catalog_id, provider, tool):
     service, context, runner, _ = fixture
     keyless_catalog(runner)
-    setup = await service.create(context, {"catalog_id": provider, "config": {}})
+    setup = await service.create(context, {"catalog_id": catalog_id, "config": {}})
     connection_id = setup["connection"]["id"]
     row = await service.record(connection_id)
     assert row["status"] == "connected" and row["enabled"] == 1
@@ -106,8 +114,8 @@ async def test_keyless_connection_lifecycle_has_no_stored_token(fixture, provide
     assert row["token_version"] == 0 and service.decrypt(row) == {}
     assert "authorization_url" not in setup and "credential" not in setup["connection"]
     source = service.sources[connection_id]
-    assert (await source.discover(context))[0].name == f"files.{provider}.search"
-    assert await source.call_tool(f"files.{provider}.search", {"query": "public documentation"}, context) == {"ok": True}
+    assert (await source.discover(context))[0].name == tool
+    assert await source.call_tool(tool, {"query": "public documentation"}, context) == {"ok": True}
     invoke = [params for method, params in runner.calls if method == "invoke"][-1]
     assert invoke["credential"] == {"kind": "none"}
     assert invoke["binding"]["connection"]["id"] == connection_id
@@ -118,23 +126,23 @@ async def test_keyless_connection_lifecycle_has_no_stored_token(fixture, provide
     count = len([method for method, _ in runner.calls if method == "invoke"])
     assert await source.discover(context) == ()
     with pytest.raises(PermissionError):
-        await source.call_tool(f"files.{provider}.search", {}, context)
+        await source.call_tool(tool, {}, context)
     assert len([method for method, _ in runner.calls if method == "invoke"]) == count
     await service.update(context, connection_id, {"enabled": True})
     with pytest.raises(PermissionError):
-        await source.call_tool(f"files.{provider}.search", {}, context)
+        await source.call_tool(tool, {}, context)
     restarted = OfficialConnectors(service.runtime, runner=runner)
     await restarted.start()
     try:
         await restarted.attach_sources()
         current = restarted.sources[connection_id]
-        assert await current.call_tool(f"files.{provider}.search", {}, context) == {"ok": True}
+        assert await current.call_tool(tool, {}, context) == {"ok": True}
         assert (await restarted.record(connection_id))["credential"] is None
         await restarted.disconnect(context, connection_id)
         assert (await restarted.record(connection_id))["status"] == "disconnected"
         assert await current.discover(context) == ()
         with pytest.raises(PermissionError):
-            await current.call_tool(f"files.{provider}.search", {}, context)
+            await current.call_tool(tool, {}, context)
     finally:
         await restarted.close()
     assert not any(method.startswith("auth.") for method, _ in runner.calls)

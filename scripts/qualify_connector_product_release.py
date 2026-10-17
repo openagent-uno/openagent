@@ -1,4 +1,4 @@
-"""Finite beta42 Python release candidate; no publication, provider grant or App build.
+"""Finite beta43 Python release candidate; no publication, provider grant or App build.
 
 Build only server/CLI; reuse unchanged public components byte for byte. Run on
 one approved Linux worker, with a clean frozen product checkout and fresh output.
@@ -20,15 +20,15 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://github.com/openagent-uno/"
 PUBLIC = (
-    ("openagent", "v1.1.0-beta.41", "39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad"),
+    ("openagent", "v1.1.0-beta.42", "e6887ceb907bbabe844419d2de90d72c36c48205aa524bc6629f56a80cfb4af8"),
     ("openagent-core", "v1.1.0-beta.22", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-tools", "v1.0.0-beta.4", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-tools", "connectors-v0.1.5", "d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752"),
+    ("openagent-tools", "connectors-v0.1.6", "a1e87b9469cadfc1c8184e4ad704d0b7ed26ee7233f6145bf15baddfe19789f5"),
 )
-# Public beta41 carries the complete aggregate source inventory. Its seven
-# reused wheel rows remain bound to its reviewed beta40 origin; no older
+# Public beta42 carries the complete aggregate source inventory. Its seven
+# reused wheel rows remain bound to its reviewed beta41 origin; no older
 # manifest is fetched or used as an alternate source of release bytes.
-REUSED_ORIGIN = ("v1.1.0-beta.40", "8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c")
+REUSED_ORIGIN = ("v1.1.0-beta.41", "39529200b2221026263d6dba621d31ff1372818709ee36f49d449978dc27d2ad")
 REUSED_PREFIXES = ("apps/mcp-bridge/", "packages/identity/", "packages/dashboards/",
                    "packages/client-transport/", "packages/product-config/", "packages/integrations/support/")
 REBUILT = {"openagent-framework", "openagent-cli"}
@@ -44,7 +44,7 @@ def fetch(repository, tag, name, expected):
     if Path(name).name != name:
         raise ValueError("Unsafe release asset name")
     request = urllib.request.Request(BASE + repository + "/releases/download/" + tag + "/" + name,
-                                     headers={"User-Agent": "openagent-product42-qualification"})
+                                     headers={"User-Agent": "openagent-product43-qualification"})
     with urllib.request.urlopen(request, timeout=60) as response:
         data = response.read((32 << 20) + 1)
     if len(data) > 32 << 20 or digest(data) != expected:
@@ -103,7 +103,7 @@ def main():
     if sys.platform != "linux" or sys.version_info[:2] != (3, 11):
         raise ValueError("Use the approved Linux Python3.11 worker")
     if any(not re.fullmatch(r"[0-9a-f]{64}", expected) for _, _, expected in PUBLIC):
-        raise ValueError("SDK0.1.5 public manifest checksum is pending; qualification cannot run")
+        raise ValueError("SDK0.1.6 public manifest checksum is pending; qualification cannot run")
     node = args.node_runtime.resolve(strict=True)
     node_modules = args.node_modules.resolve(strict=True)
     if not node.is_file() or not node_modules.is_dir():
@@ -118,7 +118,7 @@ def main():
     for path in (evidence, wheels, public):
         path.mkdir(mode=0o700)
     env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", UV_CONCURRENT_BUILDS="1",
-               UV_CONCURRENT_DOWNLOADS="2", UV_CONCURRENT_INSTALLS="1", PYTHONDONTWRITEBYTECODE="1")
+               UV_CONCURRENT_DOWNLOADS="1", UV_CONCURRENT_INSTALLS="1", PYTHONDONTWRITEBYTECODE="1")
     env.pop("PYTHONPATH", None)
     env["NODE_PATH"] = str(node_modules)
     env["NODE_OPTIONS"] = "--max-old-space-size=512"
@@ -142,12 +142,12 @@ def main():
             body = fetch(repository, tag, "manifest.json", expected)
             manifests[tag] = json.loads(body)
             (evidence / (tag + "-manifest.json")).write_bytes(body)
-        baseline = manifests["v1.1.0-beta.41"]
+        baseline = manifests["v1.1.0-beta.42"]
         current = subprocess.check_output(["git", "ls-files", "-z", *REUSED_PREFIXES], cwd=ROOT).decode().split("\0")
         expected_sources = verified_reused_sources(ROOT, baseline, set(current) - {""})
         lock = json.loads((ROOT / "apps/server/connectors.lock.json").read_text())
-        sdk = manifests["connectors-v0.1.5"]
-        if lock["version"] != "0.1.5" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
+        sdk = manifests["connectors-v0.1.6"]
+        if lock["version"] != "0.1.6" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
             raise ValueError("SDK consumer lock differs from public release")
         if (ROOT / "apps/server/connectors.lock.json").read_bytes() != (ROOT / "apps/server/src/openagent_server/connectors.lock.json").read_bytes():
             raise ValueError("Packaged and build connector locks differ")
@@ -161,14 +161,14 @@ def main():
             else:
                 entries = manifest["files"]
             for name, metadata in entries.items():
-                if not name.endswith(".whl") or (tag == "v1.1.0-beta.41" and metadata["name"] in REBUILT):
+                if not name.endswith(".whl") or (tag == "v1.1.0-beta.42" and metadata["name"] in REBUILT):
                     continue
                 body = fetch(repository, tag, name, metadata["sha256"])
                 if "bytes" in metadata and len(body) != metadata["bytes"]:
                     raise ValueError("Public wheel size mismatch")
-                target = wheels if tag == "v1.1.0-beta.41" else public
+                target = wheels if tag == "v1.1.0-beta.42" else public
                 (target / name).write_bytes(body)
-                if tag == "v1.1.0-beta.41":
+                if tag == "v1.1.0-beta.42":
                     reused.append(metadata)
         if len(reused) != 7:
             raise ValueError("Unexpected immutable product component set")
@@ -177,16 +177,16 @@ def main():
         run([sys.executable, ROOT / "scripts/build_wheels.py", "--out", rebuilt, "--components", "server", "cli"], "build-two-wheels.log")
         helpers = runpy.run_path(str(ROOT / "scripts/build_wheels.py"))
         candidate = json.loads((rebuilt / "manifest.json").read_text())
-        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b42" for row in candidate["wheels"]):
+        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b43" for row in candidate["wheels"]):
             raise ValueError("New component version/source mismatch")
         for path in rebuilt.glob("*.whl"):
             shutil.copyfile(path, wheels / path.name)
         helpers["verify_ownership"](sorted(wheels.glob("*.whl")))
         candidate["wheels"].extend(reused)
         candidate["upstream_components"] = baseline.get("upstream_components", {})
-        candidate["reused_product_components"] = {"release": "v1.1.0-beta.41", "manifest_sha256": PUBLIC[0][2],
+        candidate["reused_product_components"] = {"release": "v1.1.0-beta.42", "manifest_sha256": PUBLIC[0][2],
                                                    "verified_source_files": len(expected_sources), "wheels": reused,
-                                                   "source_provenance": {"release": "v1.1.0-beta.41",
+                                                   "source_provenance": {"release": "v1.1.0-beta.42",
                                                                          "manifest_sha256": PUBLIC[0][2],
                                                                          "source_sha256": baseline["source_sha256"]}}
         merge_source_provenance(candidate, expected_sources)
@@ -223,7 +223,7 @@ print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'othe
 ''')
         probe = fixtures / "installed_probe.py"
         probe.write_text('''import asyncio,importlib,importlib.metadata as m,json,pathlib,sys
-for name,version in {'openagent-framework':'1.1.0b42','openagent-cli':'1.1.0b42','openagent-connectors':'0.1.5','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
+for name,version in {'openagent-framework':'1.1.0b43','openagent-cli':'1.1.0b43','openagent-connectors':'0.1.6','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
 for name in ('openagent_server','openagent_cli','openagent_connectors','openagent_core','openagent_host_tools'):
  module=importlib.import_module(name);assert pathlib.Path(sys.prefix).resolve() in pathlib.Path(module.__file__).resolve().parents
 from openagent_server.connector_acquisition import acquire
@@ -233,10 +233,10 @@ async def main():
  runner=ConnectorRunner(bundle/'bin/openagent-connector-runner',identity_file=root/'probe-identity.json',product='generic-host',name='Release fixture')
  try:
   items=await runner.call('catalog');official=[row for row in items if not row.get('nativeKind')];custom=[row for row in items if row.get('nativeKind')]
-  assert len(official)==16 and len(items)==17 and [(row['id'],row['nativeKind']) for row in custom]==[('custom-mcp','custom_mcp')]
-  assert {'github','notion','slack-import','atlassian','exa','firecrawl'}<=set(row['id'] for row in official)
-  for provider in ('exa','firecrawl'):
-   item=next(row for row in official if row['id']==provider)
+  assert len(official)==19 and len(items)==20 and [(row['id'],row['nativeKind']) for row in custom]==[('custom-mcp','custom_mcp')]
+  assert {'github','notion','slack-import','atlassian','exa','firecrawl','parallel-search','context7','coingecko'}<=set(row['id'] for row in official)
+  for catalog_id,provider in (('exa','exa'),('firecrawl','firecrawl'),('parallel-search','parallel_search'),('context7','context7'),('coingecko','coingecko')):
+   item=next(row for row in official if row['id']==catalog_id)
    assert item['auth']=='none' and item['provider']==provider and item['capability']=='files' and not item['agentTools']
   print(json.dumps({'official':len(official),'custom':len(custom),'provider_calls':0,'imports_from_installed_prefix':True}))
  finally:await runner.close()
