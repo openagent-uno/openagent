@@ -168,7 +168,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     {selected && <>
       <Button variant="ghost" size="sm" label="Back to marketplace" icon="arrow-left" disabled={busy} onPress={() => { setSelected(null); setToken(''); setMail({ mailbox: 'INBOX' }); }} />
       <View style={styles.row}><ConnectorLogo id={selected.id} /><Text style={styles.title}>{selected.name}</Text></View>
-      <Text style={styles.subtitle}>{selected.description} Your server stores credentials and connects directly to the service.</Text>
+      <Text style={styles.subtitle}>{selected.description} {selected.auth === 'none' ? 'Your server connects directly to this service without an API key.' : 'Your server stores credentials and connects directly to the service.'}</Text>
       {!available && <Text style={styles.subtitle}>This server cannot manage these connections yet.</Text>}
     </>}
     {selected && connections.filter(c => c.catalog_id === selected.id && c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
@@ -186,9 +186,9 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
           {sites.items.map(site => <Button key={site.id} variant={site.id === sites.selectedId ? 'secondary' : 'ghost'} size="sm" label={`${site.name}${site.id === sites.selectedId ? ' (selected)' : ''}`} disabled={busy} onPress={() => void action(async expected => { const epoch = generation.current; await api.selectSite(c.id, site.id); if (epoch === generation.current && expected === currentTarget() && expected === boundTarget.current) await loadSites(c.id, expected); })} />)}
         </View>}
       </>}
-      <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>
+      {selected.auth !== 'none' && <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>}
     </View>)}
-    {selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label="Connect another account" disabled={busy} onPress={() => setShowSetup(true)} />}
+    {selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label={selected.auth === 'none' ? 'Add another connection' : 'Connect another account'} disabled={busy} onPress={() => setShowSetup(true)} />}
     {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; operation.current++; busyRef.current = false; setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
     {selected && showSetup && !pending && <View style={styles.card}>
       <Text style={styles.name}>Connect {selected.name}</Text>

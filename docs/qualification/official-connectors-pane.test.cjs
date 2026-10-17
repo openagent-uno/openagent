@@ -52,5 +52,38 @@ const passed=[];
  const rejected=['http://github.com/login/oauth/authorize','https://github.com.evil.example/authorize','https://github.com@evil.example/authorize','https://user@github.com/authorize','https://api.notion.com.evil.example/authorize','https://slack.com.evil.example/authorize','https://auth.atlassian.com.evil.example/authorize','https://unreviewed.example/authorize','https://github.com/login/oauth/authorize#fragment'];
  for(const url of rejected){await mount();connectImpl=async()=>({connection,authorization_mode:'own-app',authorization_url:url,expires_at:'2099-01-01T00:00:00Z'});await fire(presses('Reconnect')[0]);await flush();assert.deepEqual(opened,[]);assert.equal(calls.poll,0);await unmount();}
  passed.push('own-app-nine-unsafe-urls-rejected-before-browser-or-poll');
+ for(const provider of ['exa','firecrawl']){
+  resetApi();state={config:config('A'),activeAccountId:'account-A'};
+  Object.assign(connector,{id:provider,name:provider,auth:'none',provider,capability:'files',readTools:[`files.${provider}.search`],agentTools:[]});
+  let connected=false;const created=[];
+  api.catalog=async()=>({available:true,connectors:[connector]});
+  api.list=async()=>({available:true,connections:connected?[connection]:[]});
+  api.create=async body=>{created.push(JSON.parse(JSON.stringify(body)));connected=true;connection={id:'keyless-A',catalog_id:provider,display_name:provider,status:'connected',enabled:true,allow_write:false,app_id:null,created_at:'2026-10-17T00:00:00Z'};return {connection}};
+  await act(async()=>{view=Renderer.create(React.createElement(Pane,{registryResults:[{name:'public-registry-mcp',title:'Registry MCP',description:'QA'}]}))});await flush();
+  const tiles=view.root.findAllByType('tile');assert.equal(tiles.length,2,'keyless official and registry cards use the same MarketplaceTile');
+  await act(async()=>tiles.find(x=>x.props.card.name===provider).props.onInstall());
+  assert.equal(view.root.findAllByType('input').length,0,'keyless setup has no token/account form');
+  await fire(presses('Connect')[0]);await flush();
+  assert.deepEqual(created,[{catalog_id:provider,allow_write:false,config:{}}]);
+  assert.deepEqual(opened,[]);assert.equal(calls.poll,0,'keyless connection never starts OAuth');
+  assert.equal(view.root.findAllByType('tile').find(x=>x.props.card.name===provider).props.installed,true);
+  await act(async()=>view.root.findAllByType('tile').find(x=>x.props.card.name===provider).props.onManage());
+  assert.equal(presses('Reconnect').length,0);assert.equal(presses('Refresh access').length,0);
+  assert.equal(buttons('Add another connection').length,1);
+  await act(async()=>view.root.findAllByType('switch')[0].props.onValueChange(false));await flush();
+  assert.equal(calls.update,1);assert.equal(connection.enabled,false);
+  await fire(presses('Disconnect from this server')[0]);await flush();assert.equal(connection.status,'disconnected');
+  await unmount();
+ }
+ passed.push('two-keyless-connectors-reuse-marketplace-without-credentials-or-oauth');
+ const marks=JSON.parse(fs.readFileSync(path.join(root,'apps/app/universal/assets/connectors/sources.json'),'utf8'));
+ const logo=fs.readFileSync(path.join(root,'apps/app/universal/components/mcps/ConnectorLogo.tsx'),'utf8');
+ for(const provider of ['exa','firecrawl']){
+  const mark=marks.find(x=>x.id===provider);assert.ok(mark);assert.ok(mark.source.startsWith(provider==='exa'?'https://exa.ai/':'https://www.firecrawl.dev/'));
+  const bytes=fs.readFileSync(path.join(root,'apps/app/universal/assets/connectors',mark.file));
+  assert.equal(require('crypto').createHash('sha256').update(bytes).digest('hex'),mark.sha256);
+  assert.ok(logo.includes(`require('../../assets/connectors/${provider}.png')`));
+ }
+ passed.push('two-keyless-provider-marks-match-official-provenance');
  const receipt={status:'PASS',scope:'actual TS/TSX syntax transpile and actual React component with mocked RN/transport; not native/GUI/provider acceptance',tests:passed,transpiled_files:[component,apiFile],react:require('react/package.json').version,typescript:ts.version};writeReceipt(receipt);console.log(JSON.stringify({status:'PASS',component_tests:passed.length}));
 })().catch(async error=>{writeReceipt({status:'FAIL',failure_class:error.constructor.name,scope:'source component test; no native acceptance'});console.error(error);process.exitCode=1});

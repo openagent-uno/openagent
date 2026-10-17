@@ -9,11 +9,14 @@ const require = createRequire(path.join(driverRoot, 'package.json'));
 const { _electron: electron, expect } = require('@playwright/test');
 const expected = expectationPath ? JSON.parse(await readFile(expectationPath, 'utf8'))
   : { appVersion: '1.1.0-beta.17', serverVersion: '1.1.0b39', officialIds: null };
-assert(/^1\.1\.0-beta\.(17|18)$/.test(expected.appVersion));
-assert(/^1\.1\.0b(39|40)$/.test(expected.serverVersion));
+assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41']
+  .includes(`${expected.appVersion}/${expected.serverVersion}`));
+const keylessCohort = expected.appVersion === '1.1.0-beta.19';
+const expectedCount = keylessCohort ? 16 : 14;
 assert(expected.officialIds === null || (Array.isArray(expected.officialIds)
-  && expected.officialIds.length === 14 && new Set(expected.officialIds).size === 14
+  && expected.officialIds.length === expectedCount && new Set(expected.officialIds).size === expectedCount
   && expected.officialIds.every(id => typeof id === 'string' && /^[a-z0-9_-]{1,64}$/.test(id))));
+assert(!keylessCohort || expected.officialIds?.includes('exa') && expected.officialIds?.includes('firecrawl'));
 const screenshotPrefix = `app${expected.appVersion.split('.').at(-1)}-server${expected.serverVersion.split('b').at(-1)}`;
 
 let input = '';
@@ -94,7 +97,7 @@ try {
   const verifiedIcons = [];
   if (expected.officialIds) {
     await markPhase('verify-new-provider-local-images');
-    for (const id of ['github', 'notion', 'slack-import', 'atlassian']) {
+    for (const id of ['github', 'notion', 'slack-import', 'atlassian', ...(keylessCohort ? ['exa', 'firecrawl'] : [])]) {
       const item = official.find(connector => connector.id === id); assert(item);
       const logo = page.getByText(item.name, { exact: true }).first().locator('..').locator('img').first();
       await expect.poll(() => logo.evaluate((image, reference) => {
@@ -122,6 +125,41 @@ try {
   await page.mouse.wheel(0, 850); await page.waitForTimeout(500);
   await markPhase('capture-authenticated-marketplace-scroll');
   await page.screenshot({ path: path.join(evidence, `${screenshotPrefix}-marketplace-scroll.png`) });
+  const keylessLifecycle = [];
+  if (keylessCohort) {
+    // These are local connections to public keyless tools, without provider
+    // grants or API calls. Every action goes through the real packaged UI.
+    for (const id of ['exa', 'firecrawl']) {
+      const item = official.find(connector => connector.id === id);
+      assert(item?.auth === 'none' && item.available);
+      const card = page.getByText(item.name, { exact: true }).first().locator('..').locator('..');
+      await markPhase(`connect-${id}-through-marketplace`);
+      await card.getByRole('button', { name: 'Install', exact: true }).click();
+      await expect(page.getByText(`Connect ${item.name}`, { exact: true })).toBeVisible();
+      await expect(page.getByPlaceholder('API token')).toHaveCount(0);
+      await expect(page.locator('input[type="password"]')).toHaveCount(0);
+      await page.getByRole('button', { name: 'Connect', exact: true }).click();
+      await expect(card.getByRole('button', { name: 'Manage', exact: true })).toBeVisible();
+      await expect(page.getByText(`${item.name} connected to this server.`, { exact: true })).toBeVisible();
+      await card.getByRole('button', { name: 'Manage', exact: true }).click();
+      await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Refresh access', exact: true })).toHaveCount(0);
+      const enabled = page.getByRole('switch', { name: `Enable ${item.name}`, exact: true });
+      await expect(enabled).toBeChecked();
+      await enabled.click(); await expect(enabled).not.toBeChecked();
+      await expect(enabled).toBeEnabled();
+      await enabled.click(); await expect(enabled).toBeChecked();
+      await expect(enabled).toBeEnabled();
+      await page.screenshot({ path: path.join(evidence, `${screenshotPrefix}-${id}-connected.png`) });
+      await markPhase(`disconnect-${id}-through-marketplace`);
+      await page.getByRole('button', { name: 'Disconnect from this server', exact: true }).click();
+      await expect(page.getByRole('switch', { name: `Enable ${item.name}`, exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Back to marketplace', exact: true }).click();
+      await expect(card.getByRole('button', { name: 'Install', exact: true })).toBeVisible();
+      keylessLifecycle.push({ id, connected: true, disabledAndReenabled: true, disconnected: true,
+        credentialFormAbsent: true, oauthControlsAbsent: true, providerCalls: 0 });
+    }
+  }
   receipt = { status: 'passed', appVersion: expected.appVersion, serverVersion: expected.serverVersion,
     verifiedLocalProviderIcons: verifiedIcons, officialLabelOrTabAbsent: true,
     unlabelledDividerAcceptance: 'screenshot review only',
@@ -130,7 +168,7 @@ try {
     backendMocked: false, modelInvoked: false, cookieOrTokenExported: false,
     hostedElectronSandboxDisabled: true, sandboxSecurityAcceptance: false,
     profilePolicy: 'packaged --local-e2e isolates temp profile/updater only; authentication unchanged',
-    apiStatus: Object.fromEntries([...responses].map(([key, value]) => [key, value.status])),
+    apiStatus: Object.fromEntries([...responses].map(([key, value]) => [key, value.status])), keylessLifecycle,
     guiScope: 'real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance' };
 } catch {
   receipt = { status: 'failed', phase, reason: 'actual-ui-contract-failed' };

@@ -175,6 +175,38 @@ async def test_token_sent_only_to_authenticated_server_and_cleared():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["exa", "firecrawl"])
+async def test_keyless_connection_never_prompts_for_credentials_or_opens_oauth(provider):
+    client = AsyncMock()
+    client.rest_get.return_value = {"connectors": [{"id": provider, "provider": provider,
+        "capability": "files", "auth": "none", "available": True}]}
+    client.rest_post.return_value = {"connection": {"id": "conn", "status": "connected"}}
+    with patch("openagent_cli.connectors.Prompt.ask") as prompt, patch("openagent_cli.connectors.webbrowser.open") as browser:
+        await connect(client, provider, False, Console(file=io.StringIO()))
+        prompt.assert_not_called()
+        browser.assert_not_called()
+    client.rest_post.assert_awaited_once_with("/api/connectors", {
+        "catalog_id": provider, "allow_write": False, "config": {}})
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("item", [
+    {"id": "replio", "provider": "replio", "capability": "outreach", "auth": "none"},
+    {"id": "exa", "provider": "other", "capability": "files", "auth": "none"},
+    {"id": "exa", "provider": "exa", "capability": "outreach", "auth": "none"},
+    {"id": "exa", "provider": "exa", "capability": "files", "auth": "unknown"},
+])
+async def test_unreviewed_keyless_catalog_cannot_create_or_request_a_token(item):
+    client = AsyncMock()
+    client.rest_get.return_value = {"connectors": [{**item, "available": True}]}
+    with patch("openagent_cli.connectors.Prompt.ask") as prompt:
+        with pytest.raises(click.ClickException, match="Unsupported"):
+            await connect(client, item["id"], False, Console(file=io.StringIO()))
+        prompt.assert_not_called()
+    client.rest_post.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_authorization_rejects_other_receiver_before_browser_or_poll():
     client = AsyncMock()
     with patch("openagent_cli.connectors.webbrowser.open") as browser:

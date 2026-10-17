@@ -2,6 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import aiosqlite
 import pytest
@@ -51,6 +52,26 @@ class Runner:
         return {"ok": True}
 
 
+def keyless_catalog(runner):
+    """Controlled official-catalog fixture, not real provider acceptance."""
+    original = runner.call
+    runner.keyless_items = [
+        {"id": provider, "name": provider.title(), "auth": "none", "available": True,
+         "provider": provider, "capability": "files"}
+        for provider in ("exa", "firecrawl")]
+
+    async def call(method, params=None):
+        if method == "catalog":
+            return await original(method, params) + runner.keyless_items
+        if method == "tools" and params["catalog_id"] in {"exa", "firecrawl"}:
+            runner.calls.append((method, params))
+            return [{"name": f"files.{params['catalog_id']}.search", "description": "Search public web",
+                     "risk": "read", "inputSchema": {"type": "object"}}]
+        return await original(method, params)
+
+    runner.call = call
+
+
 @pytest.fixture
 async def fixture(tmp_path):
     authorizer = Allow()
@@ -70,6 +91,234 @@ async def fixture(tmp_path):
     context = SimpleNamespace(tenant_id="tenant", initiator=principal, audience=(principal,))
     yield service, context, runner, authorizer
     await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["exa", "firecrawl"])
+async def test_keyless_connection_lifecycle_has_no_stored_token(fixture, provider):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    setup = await service.create(context, {"catalog_id": provider, "config": {}})
+    connection_id = setup["connection"]["id"]
+    row = await service.record(connection_id)
+    assert row["status"] == "connected" and row["enabled"] == 1
+    assert all(row[key] is None for key in ("credential", "nonce", "app_id", "group_id", "transaction_id"))
+    assert row["token_version"] == 0 and service.decrypt(row) == {}
+    assert "authorization_url" not in setup and "credential" not in setup["connection"]
+    source = service.sources[connection_id]
+    assert (await source.discover(context))[0].name == f"files.{provider}.search"
+    assert await source.call_tool(f"files.{provider}.search", {"query": "public documentation"}, context) == {"ok": True}
+    invoke = [params for method, params in runner.calls if method == "invoke"][-1]
+    assert invoke["credential"] == {"kind": "none"}
+    assert invoke["binding"]["connection"]["id"] == connection_id
+    assert invoke["binding"]["connection"]["provider"] == provider
+    assert invoke["binding"]["connection"]["scopes"] == []
+    assert invoke["binding"]["allow_write"] is False
+    await service.update(context, connection_id, {"enabled": False})
+    count = len([method for method, _ in runner.calls if method == "invoke"])
+    assert await source.discover(context) == ()
+    with pytest.raises(PermissionError):
+        await source.call_tool(f"files.{provider}.search", {}, context)
+    assert len([method for method, _ in runner.calls if method == "invoke"]) == count
+    await service.update(context, connection_id, {"enabled": True})
+    with pytest.raises(PermissionError):
+        await source.call_tool(f"files.{provider}.search", {}, context)
+    restarted = OfficialConnectors(service.runtime, runner=runner)
+    await restarted.start()
+    try:
+        await restarted.attach_sources()
+        current = restarted.sources[connection_id]
+        assert await current.call_tool(f"files.{provider}.search", {}, context) == {"ok": True}
+        assert (await restarted.record(connection_id))["credential"] is None
+        await restarted.disconnect(context, connection_id)
+        assert (await restarted.record(connection_id))["status"] == "disconnected"
+        assert await current.discover(context) == ()
+        with pytest.raises(PermissionError):
+            await current.call_tool(f"files.{provider}.search", {}, context)
+    finally:
+        await restarted.close()
+    assert not any(method.startswith("auth.") for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+async def test_keyless_source_remains_owner_tenant_and_audience_bound(fixture):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    setup = await service.create(context, {"catalog_id": "exa"})
+    source = service.sources[setup["connection"]["id"]]
+    other = PrincipalRef("openagent", "tenant", "other")
+    for target in (SimpleNamespace(tenant_id="tenant", initiator=other, audience=(other,)),
+                   SimpleNamespace(tenant_id="other-tenant", initiator=context.initiator, audience=context.audience),
+                   SimpleNamespace(tenant_id="tenant", initiator=context.initiator, audience=(context.initiator, other))):
+        assert await source.discover(target) == ()
+        with pytest.raises(PermissionError):
+            await source.call_tool("files.exa.search", {}, target)
+        if target.tenant_id != context.tenant_id or target.initiator != context.initiator:
+            with pytest.raises(PermissionError):
+                await service.disconnect(target, setup["connection"]["id"])
+    assert not any(method == "invoke" for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra", [{"token": None}, {"token": ""}, {"token": "fake"},
+                                  {"credentials": None}, {"credentials": {}}, {"auth": "none"},
+                                  {"config": {"endpoint": "https://other.example"}},
+                                  {"config": None}, {"config": []}])
+async def test_keyless_setup_rejects_credentials_and_caller_auth_override(fixture, extra):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    with pytest.raises(ValueError):
+        await service.create(context, {"catalog_id": "exa", **extra})
+    assert (await service.list(context))["connections"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("catalog_changes", [{"provider": "replio"}, {"capability": "outreach"},
+                                            {"id": "custom", "provider": "custom"}, {"auth": "unknown"}])
+async def test_keyless_catalog_contract_cannot_downgrade_another_binding(fixture, catalog_changes):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    runner.keyless_items[0].update(catalog_changes)
+    with pytest.raises(ValueError):
+        await service.create(context, {"catalog_id": runner.keyless_items[0]["id"]})
+    assert (await service.list(context))["connections"] == []
+
+
+@pytest.mark.asyncio
+async def test_keyless_calls_recheck_the_official_catalog_before_io(fixture):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    setup = await service.create(context, {"catalog_id": "exa"})
+    source = service.sources[setup["connection"]["id"]]
+    runner.keyless_items[0]["auth"] = "token"
+    with pytest.raises(PermissionError, match="official catalog"):
+        await source.call_tool("files.exa.search", {}, context)
+    with pytest.raises(PermissionError, match="official catalog"):
+        await source.discover(context)
+    assert not any(method == "invoke" for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+async def test_keyless_connections_never_accept_saved_or_refreshed_credentials(fixture):
+    service, context, runner, _ = fixture
+    keyless_catalog(runner)
+    setup = await service.create(context, {"catalog_id": "firecrawl"})
+    row = await service.record(setup["connection"]["id"])
+    with pytest.raises(ValueError, match="do not accept credentials"):
+        await service.save(row, {"access_token": "fake", "app_id": "personal-token"})
+    with pytest.raises(ValueError, match="no refresh credential"):
+        await service.refresh(context, row["id"])
+    with pytest.raises(ValueError):
+        service.credential(row, {"access_token": "fake"})
+    row["app_id"] = "personal-token"
+    with pytest.raises(PermissionError, match="keyless"):
+        service.decrypt(row)
+    assert (await service.record(row["id"]))["credential"] is None
+    assert not any(method.startswith("auth.") for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+async def test_missing_oauth_or_token_credentials_are_not_keyless(fixture):
+    service, context, runner, _ = fixture
+    with pytest.raises(ValueError, match="token"):
+        await service.create(context, {"catalog_id": "replio"})
+    setup = await service.create(context, {"catalog_id": "clickup"})
+    row = await service.record(setup["connection"]["id"])
+    with pytest.raises(RuntimeError, match="authorization"):
+        service.decrypt(row)
+    assert not any(method == "invoke" for method, _ in runner.calls)
+
+
+@pytest.mark.asyncio
+async def test_revocation_during_keyless_setup_prevents_registration(fixture):
+    service, context, runner, authorizer = fixture
+    keyless_catalog(runner)
+    runner.after_catalog = lambda: setattr(authorizer, "allowed", False)
+    with pytest.raises(PermissionError):
+        await service.create(context, {"catalog_id": "exa"})
+    async with aiosqlite.connect(service.db_path) as db:
+        assert (await (await db.execute("SELECT COUNT(*) FROM official_connector_connections")).fetchone())[0] == 0
+
+
+@pytest.mark.parametrize("config,environment,expected", [
+    ({}, {}, {"clickup", "github", "notion"}),
+    ({"official_providers": []}, {}, set()),
+    ({}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": ""}, set()),
+    ({"official_providers": []}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": "clickup"}, set()),
+    ({"official_providers": ["github"]}, {}, {"github"}),
+    ({}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": "notion"}, {"notion"}),
+    ({"official_providers": None}, {}, set()),
+    ({"official_providers": "clickup"}, {}, set()),
+    ({"official_providers": {"github": True}}, {}, set()),
+    ({}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": None}, set()),
+])
+def test_default_common_providers_preserve_explicit_opt_out(tmp_path, config, environment, expected):
+    runner = Runner()
+    agent = SimpleNamespace(name="Test", config={"connectors": config},
+                            product_environment=environment,
+                            memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite"))
+    service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
+    assert service.official_providers == expected
+    assert runner.calls == []
+    assert all(not service.authorization_available(provider)
+               for provider in ("gmail", "google_drive", "google_analytics", "slack_import", "postiz", "shopify"))
+
+
+def test_explicit_common_opt_out_preserves_local_own_apps(tmp_path):
+    providers = tmp_path / "own-providers.json"
+    providers.write_text(json.dumps([{"id": "google_drive"}]))
+    agent = SimpleNamespace(name="Test", config={"connectors": {"official_providers": [],
+                            "oauth_providers_file": str(providers)}}, product_environment={},
+                            memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite"))
+    runner = Runner()
+    service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
+    assert service.official_providers == set() and service.authorization_available("google_drive")
+    assert runner.calls == []
+
+
+@pytest.mark.asyncio
+async def test_fresh_and_keyless_servers_never_poll_the_broker(fixture):
+    service, context, runner, _ = fixture
+    service.process_privacy_events = AsyncMock()
+    async def background_cycle():
+        sleeps = 0
+        async def sleep(_):
+            nonlocal sleeps
+            sleeps += 1
+            if sleeps > 1:
+                raise asyncio.CancelledError
+        with patch("openagent_server.official_connectors.asyncio.sleep", side_effect=sleep):
+            with pytest.raises(asyncio.CancelledError):
+                await service._synchronize()
+    runner.calls.clear()
+    await background_cycle()
+    assert runner.calls == []
+    service.process_privacy_events.assert_awaited_once_with()
+    keyless_catalog(runner)
+    await service.create(context, {"catalog_id": "exa"})
+    runner.calls.clear()
+    await background_cycle()
+    assert runner.calls == []
+    await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
+                                   "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    runner.calls.clear()
+    await background_cycle()
+    assert runner.calls == []
+    assert service.process_privacy_events.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_explicit_oauth_start_and_existing_grants_keep_background_sync(fixture):
+    service, context, _, _ = fixture
+    assert not await service._has_broker_registration()
+    setup = await service.create(context, {"catalog_id": "clickup"})
+    assert await service._has_broker_registration()
+    await service.poll(context, setup["connection"]["id"])
+    assert await service._has_broker_registration()
+    # A local disconnect retains the original issuer/group metadata so that
+    # previously enrolled privacy delivery is not silently abandoned.
+    await service.disconnect(context, setup["connection"]["id"])
+    assert await service._has_broker_registration()
 
 
 @pytest.mark.asyncio

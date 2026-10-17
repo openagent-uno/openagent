@@ -35,7 +35,8 @@ class OfficialConnectorSource:
         row = await self.service.record(self.connection_id)
         if not self.service.can_use(context, row):
             return ()
-        token = self.service.decrypt(row)
+        token = (await self.service.current_token(row, context=context)
+                 if self.service.keyless_binding(row) else self.service.decrypt(row))
         tools = await self.service.runner.call("tools", self.service.binding(row, token))
         return tuple(ToolDefinition(tool["name"], tool["description"], tool["inputSchema"],
                                     frozenset() if tool["risk"] == "read" else frozenset({"mutating"}))
@@ -74,6 +75,10 @@ class OfficialConnectorSource:
 
 
 class OfficialConnectors:
+    # New keyless adapters reuse this lifecycle after their pinned catalog and
+    # provider/capability contract have been reviewed; credentials are never
+    # inferred from an empty token or a user-editable MCP declaration.
+    _keyless_bindings = frozenset({("exa", "exa", "files"), ("firecrawl", "firecrawl", "files")})
     _binding_fields = ("id", "tenant_id", "owner_key", "catalog_id", "provider", "capability",
                        "display_name", "config", "enabled", "allow_write", "status", "app_id", "group_id",
                        "credential", "nonce", "token_version", "transaction_id")
@@ -84,7 +89,13 @@ class OfficialConnectors:
         self.db_path = Path(self.agent.memory_db.db_path)
         config = self.agent.config.get("connectors") or {}
         environment = dict(getattr(self.agent, "product_environment", os.environ))
-        enabled = config.get("official_providers", environment.get("OPENAGENT_CONNECTOR_AUTH_PROVIDERS", "").split(","))
+        if "official_providers" in config:
+            enabled = config["official_providers"]
+        elif "OPENAGENT_CONNECTOR_AUTH_PROVIDERS" in environment:
+            value = environment["OPENAGENT_CONNECTOR_AUTH_PROVIDERS"]
+            enabled = value.split(",") if isinstance(value, str) else []
+        else:
+            enabled = ["clickup", "github", "notion"]
         self.official_providers = {value.strip() for value in enabled if value.strip()} if isinstance(enabled, list) and all(isinstance(value, str) for value in enabled) else set()
         self.own_providers = set()
         if config.get("oauth_providers_file"):
@@ -268,6 +279,13 @@ class OfficialConnectors:
         item = catalog.get(payload.get("catalog_id"))
         if not item or not item["available"] or item.get("nativeKind"):
             raise ValueError("Connector is unavailable")
+        if item["auth"] not in {"oauth", "token", "credentials", "none"}:
+            raise ValueError("Unsupported connector authentication")
+        keyless = item["auth"] == "none"
+        if keyless and (not self.keyless_binding(item) or "token" in payload or "credentials" in payload):
+            raise ValueError("Keyless connectors do not accept credentials")
+        if keyless and (not isinstance(payload.get("config", {}), dict) or payload.get("config", {})):
+            raise ValueError("Keyless connector configuration must be empty")
         if item["auth"] == "oauth" and not self.authorization_available(item["provider"]):
             raise PermissionError("Connector authorization is not enabled")
         connection_id = uuid.uuid4().hex
@@ -284,7 +302,7 @@ class OfficialConnectors:
                 raise ValueError("Invalid mail credentials")
             token = "gp_imap_v1." + base64.urlsafe_b64encode(json.dumps(credentials).encode()).decode().rstrip("=")
 
-        if item["auth"] != "oauth" and (not isinstance(token, str) or not token or len(token) > 65536 or any(ord(c) < 33 or ord(c) > 126 for c in token)):
+        if item["auth"] in {"token", "credentials"} and (not isinstance(token, str) or not token or len(token) > 65536 or any(ord(c) < 33 or ord(c) > 126 for c in token)):
             raise ValueError("Invalid connector token")
         if item["provider"] == "replio" and not re.fullmatch(r"rpl_[A-Za-z0-9_-]{32,128}", token):
             raise ValueError("Invalid Replio token")
@@ -303,6 +321,18 @@ class OfficialConnectors:
         if item["auth"] == "oauth":
             return await self.connect(context, connection_id)
         await self.owned(context, connection_id)
+        if keyless:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute(
+                    "UPDATE official_connector_connections SET status='connected' WHERE "
+                    + " AND ".join(key + " IS ?" for key in self._binding_fields)
+                    + " AND status='pending' AND credential IS NULL AND nonce IS NULL",
+                    tuple(row[key] for key in self._binding_fields))
+                if cursor.rowcount != 1:
+                    raise PermissionError("Connector binding changed during setup")
+                await db.commit()
+            await self.register_source(connection_id)
+            return {"connection": self.public(await self.record(connection_id))}
         await self.save(row, {"access_token": token, "scopes": [], "app_id": "personal-token"})
         return {"connection": self.public(await self.record(connection_id))}
 
@@ -311,7 +341,9 @@ class OfficialConnectors:
         # Host setup accepts only reviewed public connection fields. Unknown or
         # nested metadata must never become an accidental plaintext secret store.
         provider = item["provider"]
-        if provider == "shopify":
+        if item["auth"] == "none":
+            valid = OfficialConnectors.keyless_binding(item) and not config
+        elif provider == "shopify":
             valid = set(config) == {"shop"} and OfficialConnectors.valid_shop(config["shop"])
         elif item["auth"] == "oauth":
             valid = not config
@@ -396,7 +428,28 @@ class OfficialConnectors:
                 await self.runner.call("auth.publish", rotation)
             return {"status": "connected", "connection": self.public(await self.record(connection_id))}
 
+    @classmethod
+    def keyless_binding(cls, row):
+        return (row.get("catalog_id", row.get("id")), row.get("provider"), row.get("capability")) in cls._keyless_bindings
+
+    async def require_keyless_catalog(self, row):
+        # Only the installed, pinned official runner supplies this catalog.
+        # Neither a request payload nor mutable custom MCP metadata can opt in.
+        items = [item for item in await self.runner.call("catalog")
+                 if item.get("id") == row["catalog_id"]]
+        if (len(items) != 1 or items[0].get("auth") != "none"
+                or not items[0].get("available") or items[0].get("nativeKind")
+                or not self.keyless_binding(items[0])):
+            raise PermissionError("Keyless connector is not admitted by the official catalog")
+
     def decrypt(self, row):
+        if self.keyless_binding(row):
+            if (row["status"] != "connected" or json.loads(row["config"]) != {}
+                    or any(row.get(key) is not None for key in
+                           ("credential", "nonce", "app_id", "group_id", "transaction_id"))
+                    or row["token_version"] != 0):
+                raise PermissionError("Invalid keyless connector state")
+            return {}
         if not row["credential"]:
             raise RuntimeError("Connector needs authorization")
         aad = f'{row["tenant_id"]}/{row["owner_key"]}/{row["id"]}/{row["catalog_id"]}'.encode()
@@ -431,6 +484,8 @@ class OfficialConnectors:
         return old.tzinfo is not None and new.tzinfo is not None and old == new
 
     async def save(self, row, token, *, authorization_transaction=None, renewal=False):
+        if self.keyless_binding(row):
+            raise ValueError("Keyless connections do not accept credentials")
         if row["provider"] == "shopify":
             shop = json.loads(row["config"]).get("shop")
             if shop is not None and token.get("external_id") != shop:
@@ -464,6 +519,10 @@ class OfficialConnectors:
     async def register_source(self, connection_id):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if catalog and self.runner:
+            row = await self.record(connection_id)
+            if self.keyless_binding(row):
+                await self.require_keyless_catalog(row)
+                self.decrypt(row)
             catalog.revoke(self.source_id(connection_id))
             self.sources.pop(connection_id, None)
             source = OfficialConnectorSource(self, connection_id, registered=True)
@@ -535,6 +594,10 @@ class OfficialConnectors:
 
     @staticmethod
     def credential(row, token):
+        if OfficialConnectors.keyless_binding(row):
+            if token:
+                raise ValueError("Keyless connections do not accept credentials")
+            return {"kind": "none"}
         personal = token["app_id"] == "personal-token"
         return {"kind": "api_token" if personal else "oauth2_bearer", "secret": token["access_token"],
                 "header": "X-Shopify-Access-Token" if row["catalog_id"] == "shopify" else "Authorization",
@@ -661,6 +724,12 @@ class OfficialConnectors:
                 raise PermissionError("Connector binding is unavailable")
             if context is not None and self.source_snapshot(admitted) != self.source_snapshot(row):
                 raise PermissionError("Connector consent or permissions changed before authentication")
+            if self.keyless_binding(row):
+                await self.require_keyless_catalog(row)
+                current = await self.record(row["id"])
+                if (any(row[key] != current[key] for key in self._binding_fields)
+                        or context is not None and not self.can_use(context, current)):
+                    raise PermissionError("Connector binding changed before invocation")
             token = self.decrypt(row)
             if force_refresh:
                 if context is None:
@@ -697,6 +766,14 @@ class OfficialConnectors:
             await db.execute("INSERT INTO official_connector_audit VALUES(?,?,?,?,?,?,?)",
                              (uuid.uuid4().hex, row["id"], row["owner_key"], tool, invocation_id, phase, datetime.now(timezone.utc).isoformat()))
             await db.commit()
+
+    async def _has_broker_registration(self):
+        async with aiosqlite.connect(self.db_path) as db:
+            consent = await (await db.execute("""SELECT EXISTS(
+                SELECT 1 FROM official_connector_connections WHERE transaction_id IS NOT NULL
+                OR (app_id IS NOT NULL AND app_id!='personal-token')
+                OR (group_id IS NOT NULL AND group_id!=''))""")).fetchone()
+        return bool(consent[0])
 
     async def synchronize(self):
         mail = await self.runner.call("sync.mail")
@@ -843,7 +920,10 @@ class OfficialConnectors:
             await asyncio.sleep(15)
             try:
                 async with self.lock:
-                    await self.synchronize()
+                    # Catalog availability is not enrollment. Fresh/keyless/
+                    # personal-token servers do not poll the central broker.
+                    if await self._has_broker_registration():
+                        await self.synchronize()
             except asyncio.CancelledError:
                 raise
             except Exception:

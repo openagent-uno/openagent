@@ -1,66 +1,66 @@
 {
   "format": 1,
-  "version": "0.1.4",
+  "version": "0.1.5",
   "source_repository": "openagent-uno/openagent-tools",
-  "source_ref": "connectors-v0.1.4",
-  "source_commit": "709e6634edbf71c6d53711b01482a0509eb7bfa0",
-  "manifest_sha256": "b8aa9fec6f5fc495b13325ad5c2db0a6a7ed5f1b450ad484401bc31629e0fd41",
+  "source_ref": "connectors-v0.1.5",
+  "source_commit": "7967195e9e45502c2d8b4f82414f7da780788045",
+  "manifest_sha256": "d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752",
   "assets": {
     "catalog.json": {
-      "sha256": "964cf46c08012a8655dd6d06f4b06d04a60236f3a8617a66c5e81b03ad6e40ed",
-      "bytes": 12149
+      "sha256": "bf6102e8f0aaec29b64e106f0883f634b7917014c9430ecd44affc877e1f5a8f",
+      "bytes": 13019
     },
-    "openagent-connectors-0.1.4-darwin-arm64.tar.gz": {
-      "sha256": "650826a1b79e7dad82f3099f91c81e147187e15faeb1eb2615cec920dc68dde0",
-      "bytes": 6755485
+    "openagent-connectors-0.1.5-darwin-arm64.tar.gz": {
+      "sha256": "196b29d0e37b64a151037aa699086ed01c7b1993e32b7c4dcef648ad7a9578c9",
+      "bytes": 6771495
     },
-    "openagent-connectors-0.1.4-darwin-x64.tar.gz": {
-      "sha256": "21dbddb2e13ecee9ebc7446ccb6211cea1900bcf3c3c67f41edb69165c101f73",
-      "bytes": 7340382
+    "openagent-connectors-0.1.5-darwin-x64.tar.gz": {
+      "sha256": "10d6ba71592fef83f664bf20df3dbf5f811407bcca990c0f2719253e3c723310",
+      "bytes": 7356500
     },
-    "openagent-connectors-0.1.4-linux-arm64.tar.gz": {
-      "sha256": "901358d2e2e2c44493e13cab5c973c1bb54b388138f4c287e3074ae77b408fef",
-      "bytes": 6512133
+    "openagent-connectors-0.1.5-linux-arm64.tar.gz": {
+      "sha256": "63b70fa6a1b7c35b2d483dd9a13c19beb9d054dd0694082c023baa61b0490545",
+      "bytes": 6525087
     },
-    "openagent-connectors-0.1.4-linux-x64.tar.gz": {
-      "sha256": "af559b7fae4ef75188b6b6c0db0e4f0bf733b2941eb05a28da65511e9f209d8a",
-      "bytes": 7228357
+    "openagent-connectors-0.1.5-linux-x64.tar.gz": {
+      "sha256": "3b011b06a9461eacab9b27f715d6ed2eddda8d28d489052089f6133d11cebbef",
+      "bytes": 7242123
     },
-    "openagent-connectors-0.1.4-win32-arm64.tar.gz": {
-      "sha256": "e65ae4b33720fd35e4a93802b3f259cfa619023a40d3564b7a94e823aaa2b138",
-      "bytes": 6574395
+    "openagent-connectors-0.1.5-win32-arm64.tar.gz": {
+      "sha256": "94adbb4eb71b290ba3f8a029b093d678830452325a3c183f362e7b8d662dbd34",
+      "bytes": 6588976
     },
-    "openagent-connectors-0.1.4-win32-x64.tar.gz": {
-      "sha256": "c83ef7fcb72db62fe797bddc5922c32e0ba95cbbc7f977eb37ec24289f2603c1",
-      "bytes": 7378236
+    "openagent-connectors-0.1.5-win32-x64.tar.gz": {
+      "sha256": "6be2735db0a9940b3b58e0cb419778c40bbaf12e38aba767b416e79a8f01dcdb",
+      "bytes": 7393050
     },
-    "openagent_connectors-0.1.4-py3-none-any.whl": {
-      "sha256": "7a5920c04cbed25037755185b30376df1cfb5bcb6e38921ce3a15c62e76a8603",
-      "bytes": 9048
+    "openagent_connectors-0.1.5-py3-none-any.whl": {
+      "sha256": "e272efc605424cb2345c91f595718183313ea73a2d7e8b1926e90e3846716d10",
+      "bytes": 9209
     },
     "qualification.json": {
       "bytes": 4064,
-      "sha256": "f3251081ca395bef5beb7b955843615a69ac779a40601016d16b055e62feb568"
+      "sha256": "ad92abddaf270ad195fc48ddb7be36d2779143538f88325d4a2c3cea212d9894"
     }
   },
   "platforms": {
-    "darwin-x64": {
-      "manifest_sha256": "9932002da9d2b9e81271fffd97e00068b24435e87df388196d51f9f7a89bf243"
-    },
-    "darwin-arm64": {
-      "manifest_sha256": "31d8deac452a903d6dd7f0f8fe56a00302db16636cfa8a26632b1d16eaae1306"
+    "win32-x64": {
+      "manifest_sha256": "e09577f78685e0364be1d786b093cf00ec30f59fbfc5b338c47b61629751ff1f"
     },
     "win32-arm64": {
-      "manifest_sha256": "b45d6f103eaea70b2274835854d62ef43bc1869733a577b20e616d2c7065ff98"
+      "manifest_sha256": "3725a8eca957cc457ceda639420f001e83fbd781506097620c940c5af1dc3033"
     },
-    "linux-arm64": {
-      "manifest_sha256": "1a03cdc97d3bf46dfcf4498230a0072d31fef8ca93c15c002323bb8ceac54348"
+    "darwin-arm64": {
+      "manifest_sha256": "d2fd98e14041ec26228d4c39a6bc2679a647ee3e2719307250737476b6d5c3cd"
+    },
+    "darwin-x64": {
+      "manifest_sha256": "b7ef4741e980944278a4abebcf4da90219394f2f81991ccb97b8de8a5825c408"
     },
     "linux-x64": {
-      "manifest_sha256": "d8ac9441d426801171a4e23535ae75ae8a878aeb2974f4c03d40b176adf9d8b6"
+      "manifest_sha256": "071b019756412dfc3d63308c3d4736ddcf46f7c23c036821b89c0f8bf3582af4"
     },
-    "win32-x64": {
-      "manifest_sha256": "2abf7d8f6025f2f1901c2b82157de31bdaa39f609d50dc1468cbf9144ed6f54d"
+    "linux-arm64": {
+      "manifest_sha256": "2866450bfddc3231291dd49432fadbeb9fb4c6ad6db827a96921665d579e30d8"
     }
   }
 }

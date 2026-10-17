@@ -1,4 +1,4 @@
-"""Finite beta40 Python release candidate; no publication, provider grant or App build.
+"""Finite beta41 Python release candidate; no publication, provider grant or App build.
 
 Build only server/CLI; reuse unchanged public components byte for byte. Run on
 one approved Linux worker, with a clean frozen product checkout and fresh output.
@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import shutil
 import subprocess
@@ -19,11 +20,15 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://github.com/openagent-uno/"
 PUBLIC = (
-    ("openagent", "v1.1.0-beta.39", "772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97"),
+    ("openagent", "v1.1.0-beta.40", "8a0458ff6166c1f61bd089af1746ac55c3b466e53bca30398c7c65a0857aca0c"),
     ("openagent-core", "v1.1.0-beta.22", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-tools", "v1.0.0-beta.4", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-tools", "connectors-v0.1.4", "b8aa9fec6f5fc495b13325ad5c2db0a6a7ed5f1b450ad484401bc31629e0fd41"),
+    ("openagent-tools", "connectors-v0.1.5", "d65a794b91e6b0a3f085dd332dd1aeee2c76b2415260241cc9bc6193ecb39752"),
 )
+# beta40 reused these wheel bytes but omitted their source hashes from its
+# top-level inventory. Fetch beta39 only as the pinned provenance document;
+# wheel acquisition and installation still use the verified beta40 release.
+SOURCE_PROVENANCE = ("openagent", "v1.1.0-beta.39", "772b455753fe99fd97165134ab9739d0d40ac1650f73c20018b1ac561a335c97")
 REUSED_PREFIXES = ("apps/mcp-bridge/", "packages/identity/", "packages/dashboards/",
                    "packages/client-transport/", "packages/product-config/", "packages/integrations/support/")
 REBUILT = {"openagent-framework", "openagent-cli"}
@@ -34,10 +39,12 @@ def digest(data):
 
 
 def fetch(repository, tag, name, expected):
+    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+        raise ValueError("A reviewed public asset checksum is required: " + tag)
     if Path(name).name != name:
         raise ValueError("Unsafe release asset name")
     request = urllib.request.Request(BASE + repository + "/releases/download/" + tag + "/" + name,
-                                     headers={"User-Agent": "openagent-product40-qualification"})
+                                     headers={"User-Agent": "openagent-product41-qualification"})
     with urllib.request.urlopen(request, timeout=60) as response:
         data = response.read((32 << 20) + 1)
     if len(data) > 32 << 20 or digest(data) != expected:
@@ -49,16 +56,58 @@ def write(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n")
 
 
+def source_digest(sources):
+    # Exact algorithm used by scripts/build_wheels.py.
+    return digest(json.dumps(sources, sort_keys=True, separators=(",", ":")).encode())
+
+
+def verified_reused_sources(root, baseline, provenance, tracked):
+    record = baseline["reused_product_components"]
+    if (record["release"] != SOURCE_PROVENANCE[1]
+            or record["manifest_sha256"] != SOURCE_PROVENANCE[2]):
+        raise ValueError("Baseline reused-component provenance differs")
+    wheels = {row["file"]: row for row in baseline["wheels"] if row["name"] not in REBUILT}
+    prior = {row["file"]: row for row in provenance["wheels"] if row["name"] not in REBUILT}
+    recorded = {row["file"]: row for row in record["wheels"]}
+    if len(wheels) != 7 or wheels != prior or wheels != recorded:
+        raise ValueError("Reused wheel metadata differs across baseline/source provenance")
+    if source_digest(provenance["sources"]) != provenance["source_sha256"]:
+        raise ValueError("Source provenance inventory digest differs")
+    sources = {name: sha for name, sha in provenance["sources"].items() if name.startswith(REUSED_PREFIXES)}
+    if len(sources) != 109 or record["verified_source_files"] != len(sources) or set(tracked) != set(sources):
+        raise ValueError("Reused component source inventory drift")
+    for name, expected in sources.items():
+        path = root / name
+        if path.is_symlink() or not path.is_file() or digest(path.read_bytes()) != expected:
+            raise ValueError("Reused component source changed: " + name)
+    return sources
+
+
+def merge_source_provenance(candidate, reused_sources):
+    if set(candidate["sources"]) & set(reused_sources):
+        raise ValueError("Rebuilt and reused component source inventories overlap")
+    candidate["sources"] = dict(sorted({**candidate["sources"], **reused_sources}.items()))
+    candidate["source_sha256"] = source_digest(candidate["sources"])
+
+
 def main():
     global ROOT
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, type=Path, help="Clean frozen payload checkout, separate from this executor")
     parser.add_argument("--source-sha", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--node-runtime", required=True, type=Path, help="Existing approved Node24 executable; never installed by this recipe")
+    parser.add_argument("--node-modules", required=True, type=Path, help="Isolated React/renderer/TypeScript source-fixture dependencies")
     args = parser.parse_args()
     ROOT = args.source.resolve()
     if sys.platform != "linux" or sys.version_info[:2] != (3, 11):
         raise ValueError("Use the approved Linux Python3.11 worker")
+    if any(not re.fullmatch(r"[0-9a-f]{64}", expected) for _, _, expected in PUBLIC):
+        raise ValueError("SDK0.1.5 public manifest checksum is pending; qualification cannot run")
+    node = args.node_runtime.resolve(strict=True)
+    node_modules = args.node_modules.resolve(strict=True)
+    if not node.is_file() or not node_modules.is_dir():
+        raise ValueError("Existing approved Node fixture tools are required")
     if subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip() != args.source_sha:
         raise ValueError("Source differs from reviewed frozen commit")
     if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT).strip():
@@ -71,10 +120,12 @@ def main():
     env = dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1", UV_CONCURRENT_BUILDS="1",
                UV_CONCURRENT_DOWNLOADS="2", UV_CONCURRENT_INSTALLS="1", PYTHONDONTWRITEBYTECODE="1")
     env.pop("PYTHONPATH", None)
+    env["NODE_PATH"] = str(node_modules)
+    env["NODE_OPTIONS"] = "--max-old-space-size=512"
     receipt = {"format": 1, "status": "started", "source_commit": args.source_sha,
                "recipe_sha256": digest(Path(__file__).read_bytes()),
-               "scope": "installed Python connector consumer; no native App/installer or real provider acceptance",
-               "publication": False, "common_enrollment": False, "stages": []}
+               "scope": "installed Python connector consumer plus separate source fixtures; no native App/installer or real provider acceptance",
+               "publication": False, "provider_activation_performed": False, "real_provider_calls": 0, "stages": []}
 
     def run(command, log, cwd=ROOT):
         with (evidence / log).open("w") as stream:
@@ -82,22 +133,24 @@ def main():
                            stdout=stream, stderr=subprocess.STDOUT, check=True)
 
     try:
+        run([sys.executable, "-I", "-m", "unittest", "discover", "-s", ROOT / "scripts/tests",
+             "-p", "test_connector_product_release.py", "-v"], "source-provenance-guards.log")
+        receipt["stages"].append("separate-source-provenance-four-pure-guards-before-fetch-and-build")
+        run([node, "-e", "const assert=require('assert/strict');assert.equal(process.versions.node.split('.')[0],'24');assert.equal(require('react/package.json').version,'19.0.0');assert.equal(require('react-test-renderer/package.json').version,'19.0.0');assert.equal(require('typescript/package.json').version,'5.9.3');console.log(JSON.stringify({node:process.versions.node,react:require('react/package.json').version,renderer:require('react-test-renderer/package.json').version,typescript:require('typescript/package.json').version}));"], "node-source-fixture-tools.log")
         manifests = {}
         for repository, tag, expected in PUBLIC:
             body = fetch(repository, tag, "manifest.json", expected)
             manifests[tag] = json.loads(body)
             (evidence / (tag + "-manifest.json")).write_bytes(body)
-        baseline = manifests["v1.1.0-beta.39"]
-        expected_sources = {name: sha for name, sha in baseline["sources"].items() if name.startswith(REUSED_PREFIXES)}
+        baseline = manifests["v1.1.0-beta.40"]
+        provenance_body = fetch(*SOURCE_PROVENANCE[:2], "manifest.json", SOURCE_PROVENANCE[2])
+        provenance = json.loads(provenance_body)
+        (evidence / (SOURCE_PROVENANCE[1] + "-source-provenance-manifest.json")).write_bytes(provenance_body)
         current = subprocess.check_output(["git", "ls-files", "-z", *REUSED_PREFIXES], cwd=ROOT).decode().split("\0")
-        if set(current) - {""} != set(expected_sources):
-            raise ValueError("Reused component source inventory drift")
-        for name, expected in expected_sources.items():
-            if digest((ROOT / name).read_bytes()) != expected:
-                raise ValueError("Reused component source changed: " + name)
+        expected_sources = verified_reused_sources(ROOT, baseline, provenance, set(current) - {""})
         lock = json.loads((ROOT / "apps/server/connectors.lock.json").read_text())
-        sdk = manifests["connectors-v0.1.4"]
-        if lock["version"] != "0.1.4" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
+        sdk = manifests["connectors-v0.1.5"]
+        if lock["version"] != "0.1.5" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
             raise ValueError("SDK consumer lock differs from public release")
         if (ROOT / "apps/server/connectors.lock.json").read_bytes() != (ROOT / "apps/server/src/openagent_server/connectors.lock.json").read_bytes():
             raise ValueError("Packaged and build connector locks differ")
@@ -111,14 +164,14 @@ def main():
             else:
                 entries = manifest["files"]
             for name, metadata in entries.items():
-                if not name.endswith(".whl") or (tag == "v1.1.0-beta.39" and metadata["name"] in REBUILT):
+                if not name.endswith(".whl") or (tag == "v1.1.0-beta.40" and metadata["name"] in REBUILT):
                     continue
                 body = fetch(repository, tag, name, metadata["sha256"])
                 if "bytes" in metadata and len(body) != metadata["bytes"]:
                     raise ValueError("Public wheel size mismatch")
-                target = wheels if tag == "v1.1.0-beta.39" else public
+                target = wheels if tag == "v1.1.0-beta.40" else public
                 (target / name).write_bytes(body)
-                if tag == "v1.1.0-beta.39":
+                if tag == "v1.1.0-beta.40":
                     reused.append(metadata)
         if len(reused) != 7:
             raise ValueError("Unexpected immutable product component set")
@@ -127,15 +180,18 @@ def main():
         run([sys.executable, ROOT / "scripts/build_wheels.py", "--out", rebuilt, "--components", "server", "cli"], "build-two-wheels.log")
         helpers = runpy.run_path(str(ROOT / "scripts/build_wheels.py"))
         candidate = json.loads((rebuilt / "manifest.json").read_text())
-        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b40" for row in candidate["wheels"]):
+        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b41" for row in candidate["wheels"]):
             raise ValueError("New component version/source mismatch")
         for path in rebuilt.glob("*.whl"):
             shutil.copyfile(path, wheels / path.name)
         helpers["verify_ownership"](sorted(wheels.glob("*.whl")))
         candidate["wheels"].extend(reused)
         candidate["upstream_components"] = baseline.get("upstream_components", {})
-        candidate["reused_product_components"] = {"release": "v1.1.0-beta.39", "manifest_sha256": PUBLIC[0][2],
-                                                   "verified_source_files": len(expected_sources), "wheels": reused}
+        candidate["reused_product_components"] = {"release": "v1.1.0-beta.40", "manifest_sha256": PUBLIC[0][2],
+                                                   "verified_source_files": len(expected_sources), "wheels": reused,
+                                                   "source_provenance": {"release": SOURCE_PROVENANCE[1],
+                                                                         "manifest_sha256": SOURCE_PROVENANCE[2]}}
+        merge_source_provenance(candidate, expected_sources)
         receipt["stages"].append("two-new-wheels-seven-byte-identical-public-components")
         installed = output / "installed"
         run(["uv", "venv", "--python", "3.11", installed], "venv.log")
@@ -148,6 +204,7 @@ def main():
         run(["uv", "pip", "check", "--python", python], "pip-check.log")
         fixtures = output / "fixtures"
         for source, target in (("tests/test_official_connectors.py", "server/test_official_connectors.py"),
+                               ("tests/test_connector_privacy_receipts.py", "server/test_connector_privacy_receipts.py"),
                                ("apps/cli/tests/test_official_connectors.py", "cli/test_official_connectors.py")):
             path = fixtures / target
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +225,7 @@ print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'othe
 ''')
         probe = fixtures / "installed_probe.py"
         probe.write_text('''import asyncio,importlib,importlib.metadata as m,json,pathlib,sys
-for name,version in {'openagent-framework':'1.1.0b40','openagent-cli':'1.1.0b40','openagent-connectors':'0.1.4','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
+for name,version in {'openagent-framework':'1.1.0b41','openagent-cli':'1.1.0b41','openagent-connectors':'0.1.5','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
 for name in ('openagent_server','openagent_cli','openagent_connectors','openagent_core','openagent_host_tools'):
  module=importlib.import_module(name);assert pathlib.Path(sys.prefix).resolve() in pathlib.Path(module.__file__).resolve().parents
 from openagent_server.connector_acquisition import acquire
@@ -178,8 +235,11 @@ async def main():
  runner=ConnectorRunner(bundle/'bin/openagent-connector-runner',identity_file=root/'probe-identity.json',product='generic-host',name='Release fixture')
  try:
   items=await runner.call('catalog');official=[row for row in items if not row.get('nativeKind')];custom=[row for row in items if row.get('nativeKind')]
-  assert len(official)==14 and len(items)==15 and [(row['id'],row['nativeKind']) for row in custom]==[('custom-mcp','custom_mcp')]
-  assert {'github','notion','slack-import','atlassian'}<=set(row['id'] for row in official)
+  assert len(official)==16 and len(items)==17 and [(row['id'],row['nativeKind']) for row in custom]==[('custom-mcp','custom_mcp')]
+  assert {'github','notion','slack-import','atlassian','exa','firecrawl'}<=set(row['id'] for row in official)
+  for provider in ('exa','firecrawl'):
+   item=next(row for row in official if row['id']==provider)
+   assert item['auth']=='none' and item['provider']==provider and item['capability']=='files' and not item['agentTools']
   print(json.dumps({'official':len(official),'custom':len(custom),'provider_calls':0,'imports_from_installed_prefix':True}))
  finally:await runner.close()
 asyncio.run(main())
@@ -190,7 +250,12 @@ asyncio.run(main())
         # This fixture intentionally imports the source acquisition wrapper; do not call it installed-wheel evidence.
         run([python, "-I", "-m", "pytest", "-q", ROOT / "tests/test_connector_acquisition.py"], "source-acquisition-tests.log")
         receipt["stages"].append("separate-source-acquisition-boundary-fixtures")
+        run([python, "-I", "-m", "pytest", "-q", ROOT / "scripts/tests/test_public_marketplace_visual.py"], "source-marketplace-cohort-guards.log")
+        receipt["stages"].append("separate-source-marketplace-cohort-guards-no-gui-acceptance")
         receipt["stages"].append("normal-install-pipcheck-public-api-catalog-and-copied-tests")
+        run([node, ROOT / "docs/qualification/official-connectors-pane.test.cjs", ROOT,
+             evidence / "source-component-qualification.json"], "source-component-tests.log")
+        receipt["stages"].append("separate-react-source-fixtures-keyless-cards-no-native-acceptance")
         receipt["status"] = "passed"
         write(evidence / "qualification.json", receipt)
         shutil.copyfile(evidence / "qualification.json", wheels / "qualification.json")

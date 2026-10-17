@@ -89,6 +89,25 @@ class WorkerContracts(unittest.TestCase):
             with self.assertRaises(ValueError):
                 qualifier.catalog_ids(changed)
 
+    def test_keyless_cohort_requires_matching_app_server_sdk_and_catalog(self):
+        value = self.contract()
+        value.update(appVersion='1.1.0-beta.19', serverVersion='1.1.0b41', sdkVersion='0.1.5',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.19/',
+                     appDEB='openagent-app-1.1.0-beta.19-linux-amd64.deb',
+                     catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.5/catalog.json')
+        self.assertEqual(self.load(value), value)
+        for field, replacement in (('serverVersion', '1.1.0b40'), ('sdkVersion', '0.1.4'),
+                                   ('appRelease', self.contract()['appRelease'])):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.load(dict(value, **{field: replacement}))
+        values = [{'id': 'provider-' + str(i)} for i in range(14)] + [{'id': 'exa'}, {'id': 'firecrawl'}]
+        self.assertEqual(len(qualifier.catalog_ids(values, '0.1.5')), 16)
+        for changed in (values[:-1], values[:-1] + [{'id': 'other'}], values + [{'id': 'exa'}]):
+            with self.assertRaises(ValueError):
+                qualifier.catalog_ids(changed, '0.1.5')
+        with self.assertRaises(ValueError):
+            qualifier.catalog_ids(values, '0.1.6')
+
     def worker_args(self):
         return argparse.Namespace(execution_context='worker-linux', release_contract=Path('/contract.json'),
                                   worker_uid=65532, worker_pod_uid='12345678-1234-1234-1234-123456789abc',

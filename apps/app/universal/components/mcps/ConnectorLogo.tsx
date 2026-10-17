@@ -7,6 +7,8 @@ import { connectorVectors } from './connector-vectors';
 
 // Bundled provider marks shared by connector cards; no remote fetches.
 const images: Readonly<Record<string, ImageSourcePropType>> = {
+  exa: require('../../assets/connectors/exa.png'),
+  firecrawl: require('../../assets/connectors/firecrawl.png'),
   replio: require('../../assets/connectors/replio.png'),
   billingbear: require('../../assets/connectors/billingbear.png'),
   pipeboard: require('../../assets/connectors/pipeboard.png'),

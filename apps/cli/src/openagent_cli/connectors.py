@@ -65,6 +65,11 @@ async def connect(client, catalog_id, allow_write, console):
         raise click.ClickException("Unknown official connector. Use marketplace official to list services.")
     if not item.get("available"):
         raise click.ClickException(item.get("unavailableReason") or "Connector is unavailable.")
+    if item.get("auth") not in {"oauth", "token", "credentials", "none"}:
+        raise click.ClickException("Unsupported connector authentication.")
+    if item["auth"] == "none" and (catalog_id not in {"exa", "firecrawl"}
+            or item.get("provider") != catalog_id or item.get("capability") != "files"):
+        raise click.ClickException("Unsupported keyless connector.")
     payload = {"catalog_id": catalog_id, "allow_write": allow_write, "config": {}}
     if item["auth"] == "token":
         payload["token"] = Prompt.ask("API token", password=True)

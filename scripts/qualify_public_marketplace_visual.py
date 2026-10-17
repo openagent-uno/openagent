@@ -48,12 +48,14 @@ def release_contract(path=None, digest=None):
     value = json.loads(data)
     require(isinstance(value, dict) and set(value) == set(historical))
     # This worker cohort is explicit; it does not accept arbitrary executables or installers.
-    require((value['appVersion'], value['serverVersion'], value['coreVersion'], value['sdkVersion'], value['hostToolsVersion'])
-            == ('1.1.0-beta.18', '1.1.0b40', '1.1.0b22', '0.1.4', '1.0.0b6'))
-    require(value['appRelease'] == 'https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.18/'
-            and value['appDEB'] == 'openagent-app-1.1.0-beta.18-linux-amd64.deb'
+    require((value['appVersion'], value['serverVersion'], value['coreVersion'], value['sdkVersion'], value['hostToolsVersion']) in {
+        ('1.1.0-beta.18', '1.1.0b40', '1.1.0b22', '0.1.4', '1.0.0b6'),
+        ('1.1.0-beta.19', '1.1.0b41', '1.1.0b22', '0.1.5', '1.0.0b6'),
+    })
+    require(value['appRelease'] == 'https://github.com/openagent-uno/openagent-app/releases/download/v' + value['appVersion'] + '/'
+            and value['appDEB'] == 'openagent-app-' + value['appVersion'] + '-linux-amd64.deb'
             and value['installerURL'] == 'https://openagent.uno/install.sh'
-            and value['catalogURL'] == 'https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.4/catalog.json')
+            and value['catalogURL'] == 'https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v' + value['sdkVersion'] + '/catalog.json')
     require(isinstance(value['appSource'], str) and re.fullmatch('[0-9a-f]{40}', value['appSource']))
     for key in ('appDEBSHA256', 'appManifestSHA256', 'hostToolsIndexSHA256', 'installerSHA256', 'catalogSHA256'):
         require(isinstance(value[key], str) and re.fullmatch('[0-9a-f]{64}', value[key]))
@@ -62,11 +64,14 @@ def release_contract(path=None, digest=None):
     return value
 
 
-def catalog_ids(catalog):
+def catalog_ids(catalog, sdk_version='0.1.4'):
+    require(sdk_version in {'0.1.4', '0.1.5'})
     require(isinstance(catalog, list) and all(isinstance(item, dict) for item in catalog))
     ids = [item.get('id') for item in catalog if not item.get('nativeKind')]
     require(all(isinstance(item, str) and re.fullmatch('[a-z0-9_-]{1,64}', item) for item in ids))
-    require(len(ids) == len(set(ids)) == 14)
+    require(len(ids) == len(set(ids)) == (16 if sdk_version == '0.1.5' else 14))
+    if sdk_version == '0.1.5':
+        require({'exa', 'firecrawl'} <= set(ids))
     return sorted(ids)
 
 
@@ -178,7 +183,7 @@ def main():
         if args.execution_context == 'worker-linux':
             acquire(release['catalogURL'], root / 'catalog.json', release['catalogSHA256'], 1 << 20, release['catalogBytes'])
             catalog = json.loads((root / 'catalog.json').read_bytes())
-            expected_ids = catalog_ids(catalog)
+            expected_ids = catalog_ids(catalog, release['sdkVersion'])
             receipt['catalogSHA256'] = release['catalogSHA256']
         ui_expectation = {'appVersion': release['appVersion'], 'serverVersion': release['serverVersion'], 'officialIds': expected_ids}
         (root / 'ui-expectation.json').write_text(json.dumps(ui_expectation))
