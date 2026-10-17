@@ -80,7 +80,7 @@ try {
   await expect.poll(() => responses.has('/api/marketplace/search'), { timeout: 30000 }).toBe(true);
   if (responses.get('/api/marketplace/search').status !== 200) {
     await markPhase('retry-registry-once');
-    await page.getByRole('button', { name: 'Retry', exact: true }).click();
+    await page.getByRole('button', { name: /^Retry$/i }).click();
   }
   await markPhase('wait-for-authenticated-catalog-responses');
   await expect.poll(() => responses.get('/api/marketplace/official')?.status, { timeout: 30000 }).toBe(200);
@@ -131,19 +131,30 @@ try {
     // grants or API calls. Every action goes through the real packaged UI.
     for (const id of ['exa', 'firecrawl']) {
       const item = official.find(connector => connector.id === id);
+      await markPhase(`verify-${id}-keyless-availability`);
       assert(item?.auth === 'none' && item.available);
       const card = page.getByText(item.name, { exact: true }).first().locator('..').locator('..');
-      await markPhase(`connect-${id}-through-marketplace`);
-      await card.getByRole('button', { name: 'Install', exact: true }).click();
+      // The shared Button renders its label in uppercase. Match its actual
+      // accessible name while retaining an anchored, exact action match.
+      await markPhase(`install-${id}-through-marketplace`);
+      await card.getByRole('button', { name: /^Install$/i }).click();
+      await markPhase(`wait-for-${id}-setup`);
       await expect(page.getByText(`Connect ${item.name}`, { exact: true })).toBeVisible();
+      await markPhase(`verify-${id}-credential-form-absence`);
       await expect(page.getByPlaceholder('API token')).toHaveCount(0);
       await expect(page.locator('input[type="password"]')).toHaveCount(0);
+      await markPhase(`submit-${id}-connection`);
       await page.getByRole('button', { name: 'Connect', exact: true }).click();
-      await expect(card.getByRole('button', { name: 'Manage', exact: true })).toBeVisible();
+      await markPhase(`wait-for-${id}-connected-card`);
+      await expect(card.getByRole('button', { name: /^Manage$/i })).toBeVisible();
+      await markPhase(`verify-${id}-connected-notice`);
       await expect(page.getByText(`${item.name} connected to this server.`, { exact: true })).toBeVisible();
-      await card.getByRole('button', { name: 'Manage', exact: true }).click();
+      await markPhase(`manage-${id}-connection`);
+      await card.getByRole('button', { name: /^Manage$/i }).click();
+      await markPhase(`verify-${id}-oauth-controls-absence`);
       await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Refresh access', exact: true })).toHaveCount(0);
+      await markPhase(`toggle-${id}-connection`);
       const enabled = page.getByRole('switch', { name: `Enable ${item.name}`, exact: true });
       await expect(enabled).toBeChecked();
       await enabled.click(); await expect(enabled).not.toBeChecked();
@@ -154,8 +165,8 @@ try {
       await markPhase(`disconnect-${id}-through-marketplace`);
       await page.getByRole('button', { name: 'Disconnect from this server', exact: true }).click();
       await expect(page.getByRole('switch', { name: `Enable ${item.name}`, exact: true })).toHaveCount(0);
-      await page.getByRole('button', { name: 'Back to marketplace', exact: true }).click();
-      await expect(card.getByRole('button', { name: 'Install', exact: true })).toBeVisible();
+      await page.getByRole('button', { name: /^Back to marketplace$/i }).click();
+      await expect(card.getByRole('button', { name: /^Install$/i })).toBeVisible();
       keylessLifecycle.push({ id, connected: true, disabledAndReenabled: true, disconnected: true,
         credentialFormAbsent: true, oauthControlsAbsent: true, providerCalls: 0 });
     }
@@ -170,8 +181,10 @@ try {
     profilePolicy: 'packaged --local-e2e isolates temp profile/updater only; authentication unchanged',
     apiStatus: Object.fromEntries([...responses].map(([key, value]) => [key, value.status])), keylessLifecycle,
     guiScope: 'real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance' };
-} catch {
+} catch (error) {
   receipt = { status: 'failed', phase, reason: 'actual-ui-contract-failed' };
+  // Never persist arbitrary exception text: it can include login form values.
+  if (['Error', 'TimeoutError', 'AssertionError'].includes(error?.name)) receipt.errorClass = error.name;
 } finally {
   try {
     if (app) {
