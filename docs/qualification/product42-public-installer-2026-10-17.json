@@ -1,0 +1,41 @@
+{
+  "status": "passed",
+  "scope": "fresh normal public42 combined server CLI install, real cross-mount regression",
+  "source": "a16643449b9a5fc027eb9d0f3ee7326ecd302654",
+  "no_home_override": true,
+  "source_overlay": false,
+  "tmpdir": "/tmp",
+  "provider_calls": 0,
+  "runtime_started": false,
+  "stages": [
+    "owned-tiny-cross-mount-probe-cleaned",
+    "normal-public-installer-server",
+    "normal-public-installer-cli"
+  ],
+  "rename_probe": {
+    "status": "cross-device",
+    "errno": 18,
+    "real_exdev_acceptance_possible": true
+  },
+  "recorded_at": "2026-10-17T07:28:46.332116+00:00",
+  "installer_sha256": "93f5e78b2693afab52d0f87206ab3017b49a7f2ad7d7e37f938f5377ea6a68af",
+  "installer_bytes": 8722,
+  "versions": {
+    "openagent-framework": "1.1.0b42",
+    "openagent-cli": "1.1.0b42",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.5",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "format": 1,
+  "product_release": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42",
+  "manifest_sha256": "e6887ceb907bbabe844419d2de90d72c36c48205aa524bc6629f56a80cfb4af8",
+  "installer_url": "https://openagent.uno/install.sh",
+  "private_receipt_sha256": "ac9827435cb2b35abef76b27239eedbf6585a8b5c1a23c11a6fe0c2142783bb9",
+  "fresh_installation": true,
+  "temporary_wheelhouse_and_installation_mounts_distinct": true,
+  "device_number_equality_did_not_imply_same_mount": true,
+  "probe_files_cleaned": true,
+  "dependency_check": "passed",
+  "native_app_acceptance": "not_claimed"
+}

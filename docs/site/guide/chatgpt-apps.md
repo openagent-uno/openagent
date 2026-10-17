@@ -6,7 +6,7 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-## Exa and Firecrawl: public SDK, product qualification pending
+## Exa and Firecrawl: public SDK and limited product lifecycle
 
 [SDK/runner 0.1.5](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.5)
 is published from source `7967195e9e45502c2d8b4f82414f7da780788045` with
@@ -27,11 +27,21 @@ returned output but no OpenAgent reference; that success does not establish
 result relevance. Provider output was not persisted. These reads do not prove
 an installed server/App workflow, connection lifecycle or native GUI acceptance.
 
-Published [server/CLI beta 41](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
+Published [server/CLI beta 42](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
 adopts SDK 0.1.5 and adds keyless setup with `connectors connect exa` and
-`connectors connect firecrawl`. App beta 19 publication and the new installed
-product workflow/restart/disconnect and visual trials remain pending. Its
-candidate uses the same marketplace cards. A local
+`connectors connect firecrawl`. The
+[beta 41 limited lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+passed two normal connections and four public-document reads through certified
+CLI/Iroh/gateway workflows: Exa fetch and Firecrawl scrape before and after an
+actual server restart, then both local tombstones/source removal and runtime
+cleanup. No provider keys, OAuth grant, LLM or direct runner calls were used.
+Beta 42 preserves that provider implementation unchanged; its 149 installed
+fixtures, 15 acquisition cases and
+[fresh cross-filesystem public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+passed separately without repeating provider calls. The initial beta 41 EXDEV
+and same-prefix `TMPDIR` recovery remain in its receipt. App beta 19 remains
+unpublished with native ARM recovery and GUI qualification pending; its source
+uses the same marketplace cards. A local
 connection still binds the authenticated owner, tenant and tool grants; empty
 credentials never downgrade another provider to anonymous access. There is no
 paid fallback, OAuth refresh or automatic broker enrollment for keyless reads.
@@ -123,8 +133,9 @@ installation; it was not automatically retried during recovery. An initial
 certified-client connection also disconnected before startup readiness; the
 later attempt passed after 43 seconds. These failures and their recovery are
 retained in the [lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/slack-oauth-2026-10-16.json).
-The shared 0.1.4 artifacts are now published. Remaining tools, native App provider acceptance,
-receiving-product release/adoption and general enrollment remain separate. This does not qualify Slack's separate
+The shared 0.1.4 artifacts and their server/CLI consumers are now published.
+Remaining tools, native App provider acceptance, independent-host rollout and
+general enrollment remain separate. This does not qualify Slack's separate
 MCP service or provider-wide app revocation.
 
 ### Candidate setup and renewal
@@ -142,8 +153,9 @@ Slack's official MCP requires a Marketplace or internal app; unlisted apps are n
 ## Popular directory order
 
 The table preserves the initial Popular editorial order, with published SDK
-0.1.5 and released server/CLI beta 41 distinguished from the historical beta
-40/App beta 18 trial. App beta 19 and the new product-level keyless lifecycle
+0.1.5 and released server/CLI beta 42 distinguished from the historical beta
+40/App beta 18 trial. The limited keyless lifecycle passed on beta 41 with
+unchanged provider code in beta 42; App beta 19 publication and GUI acceptance
 remain pending. Public OAuth availability is limited
 to the separately deployed ClickUp/GitHub/Notion beta.
 
@@ -158,9 +170,9 @@ to the separately deployed ClickUp/GitHub/Notion beta.
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
 | 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
-| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5 published; two limited keyless reads passed; server/CLI 41 published; App 19 and product-level acceptance pending | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
+| 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.5/server 42 public; fresh installer PASS; limited scrape/workflow/restart/disconnect passed on 41; App 19 pending | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | Not researched |
-| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5 published; two limited keyless reads passed; server/CLI 41 published; App 19 and product-level acceptance pending | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
+| 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.5/server 42 public; fresh installer PASS; limited fetch/workflow/restart/disconnect passed on 41; App 19 pending | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
 | 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | Not researched |
 | 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |

@@ -45,9 +45,9 @@
       "phase": "read",
       "recorded_at": "2026-10-17T07:17:35.728095+00:00",
       "status": "passed",
-      "response_bytes": 6223,
-      "response_sha256": "93f1fa5e5502e318eefa20473228084a99f56929bccaea7b7ace353e11bad786",
-      "workflow_cleanup": "confirmed"
+      "workflow_cleanup": "confirmed",
+      "workflow_result_bytes": 6223,
+      "workflow_result_sha256": "93f1fa5e5502e318eefa20473228084a99f56929bccaea7b7ace353e11bad786"
     },
     {
       "provider": "exa",
@@ -55,9 +55,9 @@
       "phase": "restart-read",
       "recorded_at": "2026-10-17T07:20:28.544239+00:00",
       "status": "passed",
-      "response_bytes": 6224,
-      "response_sha256": "a02456c51a19057ddf0091cae8dd7ae778c39b223974cc128151cc3fb4d5598c",
-      "workflow_cleanup": "confirmed"
+      "workflow_cleanup": "confirmed",
+      "workflow_result_bytes": 6224,
+      "workflow_result_sha256": "a02456c51a19057ddf0091cae8dd7ae778c39b223974cc128151cc3fb4d5598c"
     },
     {
       "provider": "firecrawl",
@@ -65,9 +65,9 @@
       "phase": "read",
       "recorded_at": "2026-10-17T07:17:50.845035+00:00",
       "status": "passed",
-      "response_bytes": 37585,
-      "response_sha256": "5dcdc93a3f44966357c9cd3acab6d9ae4f31e1a4e9c2c7a5a7e8a9c75dd83312",
-      "workflow_cleanup": "confirmed"
+      "workflow_cleanup": "confirmed",
+      "workflow_result_bytes": 37585,
+      "workflow_result_sha256": "5dcdc93a3f44966357c9cd3acab6d9ae4f31e1a4e9c2c7a5a7e8a9c75dd83312"
     },
     {
       "provider": "firecrawl",
@@ -75,9 +75,9 @@
       "phase": "restart-read",
       "recorded_at": "2026-10-17T07:20:38.666386+00:00",
       "status": "passed",
-      "response_bytes": 37488,
-      "response_sha256": "22b06a805f0ee0917ee45d6b209d06c01099c6200a435dcac312cc81fad26f2c",
-      "workflow_cleanup": "confirmed"
+      "workflow_cleanup": "confirmed",
+      "workflow_result_bytes": 37488,
+      "workflow_result_sha256": "22b06a805f0ee0917ee45d6b209d06c01099c6200a435dcac312cc81fad26f2c"
     }
   ],
   "restart": {
@@ -129,5 +129,6 @@
     "all provider tools or quotas",
     "OAuth/provider enrollment or broader provider qualification",
     "acceptance of a later product version"
-  ]
+  ],
+  "result_measurement": "Size and SHA256 of the serialized MCP result envelope observed in the authorized workflow; not raw provider HTTP bytes."
 }

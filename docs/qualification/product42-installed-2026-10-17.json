@@ -23,6 +23,7 @@
   "source_visual_guard_cases": 9,
   "source_provenance_cases": 4,
   "react_source_cases": 8,
-  "public_installer_acceptance": "pending",
-  "native_app_acceptance": "pending"
+  "public_installer_acceptance": "passed-fresh-cross-mount-separate-receipt",
+  "native_app_acceptance": "pending",
+  "public_installer_receipt": "product42-public-installer-2026-10-17.json"
 }

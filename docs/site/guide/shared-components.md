@@ -67,18 +67,23 @@ SDK 0.1.5 adds Exa and Firecrawl through their official hosted MCPs, with
 two compiled read tools each. The
 [four real keyless reads](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.5-2026-10-17.json)
 qualify the SDK runner only. Published
-[server/CLI beta 41](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.41)
-adopts SDK 0.1.5 and exposes 16 official entries plus Custom MCP. App beta 19
-publication, the new product workflow/restart lifecycle and visual acceptance
-remain pending. The historical beta 40/App beta 18 trial above continues to
-describe SDK 0.1.4 and 14 entries.
+[server/CLI beta 42](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.42)
+adopts SDK 0.1.5 and exposes 16 official entries plus Custom MCP. Its 149
+installed fixture tests, 15 acquisition cases and
+[fresh public installer across distinct filesystems](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product42-public-installer-2026-10-17.json)
+passed. Separately, the
+[beta 41 lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b41-2026-10-17.json)
+passed four normal product reads across a real restart and local disconnect;
+beta 42 preserves that provider implementation unchanged. App beta 19 remains
+unpublished with native ARM recovery and GUI acceptance pending. The historical
+beta 40/App beta 18 trial above continues to describe SDK 0.1.4 and 14 entries.
 
 A keyless connector still has a host-authorized connection and tool source.
 Only a reviewed no-auth adapter accepts the explicit `{"kind":"none"}` contract;
 an omitted token is never a fallback. Fixed provider endpoints and tool names
 remain in the adapter, while owner/tenant grants, enable/disable, disconnect and
 audit remain with the receiving host. No provider token is stored and no OAuth
-refresh or broker exchange is needed. Server beta 41 defaults to public
+refresh or broker exchange is needed. Server beta 41 and beta 42 default to public
 ClickUp/GitHub/Notion catalog eligibility only when operator settings are absent;
 explicit empty settings stay disabled and no default creates a grant. Fresh
 keyless-only servers do not register with or poll the broker. See
