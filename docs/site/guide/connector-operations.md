@@ -3,8 +3,8 @@
 This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
 public beta; other providers retain their [qualification gates](./connector-status.md).
 Current published Python components are **SDK/runner 0.1.7 and server/CLI beta 44**.
-[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending.
-The visually qualified pair is App beta 20/server 43/SDK 0.1.6. Its [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
+[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
+The current visually qualified pair is App21/server44/SDK17. The earlier App beta20/server43 [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
 [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
 and [Linux x64 marketplace/local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
 passed separately. The GUI uses hosted `--no-sandbox` and made zero provider
@@ -225,8 +225,7 @@ Google, ClickUp and Postiz own-app configuration uses the shared provider
 descriptor array, with client identity, a protected secret-file reference,
 registered endpoints, redirect, scopes and PKCE settings. SDK17 additionally
 supports `google_calendar`, `outlook_mail` and `outlook_calendar`; adopting
-server44 is published; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending. The visually qualified
-App20/server43 pair retains SDK16. The standalone's
+server44 is published; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The earlier App20/server43 pair retains its SDK16 receipt. The standalone's
 own-app redirect must use the explicitly configured loopback callback supported
 by that provider. Multiple agents on one machine need separate reserved callback
 ports. Product-local own-app credentials stay local.
@@ -243,7 +242,7 @@ client ID or copying a secret is not a credential migration.
 with an [exact qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json).
 It adds reusable operations, not a calendar app, email client or synchronization
 service. Public server44 adopts SDK17 with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json).
-The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, without a source overlay or HOME/TMPDIR override. It started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI qualification and real Google/Microsoft account acceptance remain pending. Common enrollment for
+The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, without a source overlay or HOME/TMPDIR override. It started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed; real Google/Microsoft account acceptance remains pending. Common enrollment for
 all three new provider IDs is closed. Adding them to `official_providers`
 cannot activate a disabled central registration.
 

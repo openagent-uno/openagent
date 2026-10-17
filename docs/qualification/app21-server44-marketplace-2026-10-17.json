@@ -1,0 +1,255 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "reviewed_at": "2026-10-17T14:01:16.314852+00:00",
+  "qualifier_source": "162bff9696c1dbcba0e64d3fc14ee7f59343d56d",
+  "app_source": "162bff9696c1dbcba0e64d3fc14ee7f59343d56d",
+  "app_version": "1.1.0-beta.21",
+  "server_version": "1.1.0b44",
+  "public_app_release": "https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21",
+  "app_deb_sha256": "f1e163f72764011fe5719f57b9ac1a99c3abfaa0f266e93e29b1ab32522463d5",
+  "app_deb_bytes": 198268432,
+  "app_linux_manifest_sha256": "2289412e67133276ec40c6b18644a41186f2c178b2950eac6b1956912955abbf",
+  "public_installer_url": "https://openagent.uno/install.sh",
+  "public_installer_sha256": "dc0c1394848232dfd7fa6a06d88f0cf1dca1d5b815712f4ab5908e9dc47238ce",
+  "catalog_sha256": "ae3e0675d9cebce6f94f6f61fda89595629cfbbeb4d15489dffd7e5c8ba09e85",
+  "installed_versions": {
+    "openagent-framework": "1.1.0b44",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.7",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "ui": {
+    "status": "passed",
+    "appVersion": "1.1.0-beta.21",
+    "serverVersion": "1.1.0b44",
+    "verifiedLocalProviderIcons": [
+      "github",
+      "notion",
+      "slack-import",
+      "atlassian",
+      "exa",
+      "firecrawl",
+      "parallel-search",
+      "context7",
+      "coingecko",
+      "google-calendar",
+      "outlook-mail",
+      "outlook-calendar"
+    ],
+    "officialLabelOrTabAbsent": true,
+    "unlabelledDividerAcceptance": "screenshot review only",
+    "officialCount": 22,
+    "officialIds": [
+      "atlassian",
+      "billingbear",
+      "clickup",
+      "coingecko",
+      "context7",
+      "exa",
+      "firecrawl",
+      "github",
+      "gmail",
+      "google-analytics",
+      "google-calendar",
+      "google-drive",
+      "imap_smtp",
+      "notion",
+      "outlook-calendar",
+      "outlook-mail",
+      "parallel-search",
+      "pipeboard",
+      "postiz",
+      "replio",
+      "shopify",
+      "slack-import"
+    ],
+    "registryCount": 30,
+    "transport": "ordinary UI join/SRP/device certificate/native Iroh proxy",
+    "backendMocked": false,
+    "modelInvoked": false,
+    "cookieOrTokenExported": false,
+    "hostedElectronSandboxDisabled": true,
+    "sandboxSecurityAcceptance": false,
+    "profilePolicy": "packaged --local-e2e isolates temp profile/updater only; authentication unchanged",
+    "apiStatus": {
+      "/api/connectors": 200,
+      "/api/marketplace/official": 200,
+      "/api/marketplace/search": 200
+    },
+    "keylessLifecycle": [
+      {
+        "id": "exa",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "firecrawl",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "parallel-search",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "context7",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      },
+      {
+        "id": "coingecko",
+        "connected": true,
+        "disabledAndReenabled": true,
+        "disconnected": true,
+        "credentialFormAbsent": true,
+        "oauthControlsAbsent": true,
+        "providerCalls": 0
+      }
+    ],
+    "guiScope": "real Linux x64 packaged marketplace; no provider grants or Mac/Windows GUI acceptance",
+    "clientExitCode": 0,
+    "clientExitSignal": null,
+    "clientCleanupConfirmed": true
+  },
+  "visual_review": {
+    "reviewed_at": "2026-10-17T14:01:16.314852+00:00",
+    "original_seven_screenshots_viewed": true,
+    "additional_unique_views_opened": 2,
+    "additional_target_cards_visible": [
+      "google-calendar",
+      "outlook-mail",
+      "outlook-calendar"
+    ],
+    "outlook_duplicate_capture_hash_independently_checked": true,
+    "shared_grid_and_no_official_separator": true,
+    "scope": "Root visual review of all original seven plus the two unique supplementary views; three supplementary files include one byte-identical Outlook viewport."
+  },
+  "focused_capture": {
+    "status": "passed",
+    "target_ids": [
+      "google-calendar",
+      "outlook-mail",
+      "outlook-calendar"
+    ],
+    "image_files": 3,
+    "unique_viewports": 2,
+    "outlook_files_byte_identical": true,
+    "full_card_title_logo_viewport_checks": true,
+    "ordinary_reinstall_reason": "Canonical staging was already removed; focused visibility of three new cards remained unqualified. No lifecycle was repeated.",
+    "harness_source_sha256": "40d626db237e5651a33de05fae6456828fd7aa0802339adfa5590d13da101ec2",
+    "driver_source_sha256": "d0a196649e9a4e164fb6f5918221b22fa25372791bbb3411ee23e5e12a34fe2f",
+    "private_helpers_outside_clean_product_checkout": true,
+    "keyless_lifecycle_repeated": false
+  },
+  "images": {
+    "app21-server44-marketplace-top.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-marketplace-top.png",
+      "bytes": 162241,
+      "sha256": "0f525b4576ac5491b58dacd35b17cce0488739a2ffcde1a2f67b91df57b7941a"
+    },
+    "app21-server44-marketplace-scroll.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-marketplace-scroll.png",
+      "bytes": 174290,
+      "sha256": "6f356effe23e4095a43892a64155f98e625ad9f47ea96b65e909f7740fe6deb6"
+    },
+    "app21-server44-exa-connected.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-exa-connected.png",
+      "bytes": 64769,
+      "sha256": "4ef52d69017c12c8f78a7c7d3c4c1dca7f45667cc636d2546087a424f86f4ba4"
+    },
+    "app21-server44-firecrawl-connected.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-firecrawl-connected.png",
+      "bytes": 67290,
+      "sha256": "34118d7624edbcc5e89234f3cb0729405f83cb31eaacf9cbd18d1682c8de18e6"
+    },
+    "app21-server44-parallel-search-connected.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-parallel-search-connected.png",
+      "bytes": 68257,
+      "sha256": "7861821a7f764f28440766a99c7c969639a75db0466f4fd751d3e3b2daa8f455"
+    },
+    "app21-server44-context7-connected.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-context7-connected.png",
+      "bytes": 67681,
+      "sha256": "18ba5ad2d422c9a0fcd8fb588b90d482ce5ee48440c6fa566c0f0ddd6d900c82"
+    },
+    "app21-server44-coingecko-connected.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-coingecko-connected.png",
+      "bytes": 69859,
+      "sha256": "6124874c7983787cd1c0940072666fe94f13c3783b7c0b4eb687b0a59ff7559d"
+    },
+    "app21-server44-google-calendar-visible.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-google-calendar-visible.png",
+      "bytes": 157572,
+      "sha256": "111e7816987b006bb304ee1aef8c11e3fadd3cd0ef74be28e92f58b7de02c388"
+    },
+    "app21-server44-outlook-mail-visible.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-outlook-mail-visible.png",
+      "bytes": 164702,
+      "sha256": "6aa09216095d35dd7182c3a0f89c48221cd9c841f3804b551d015f8cfeacb276"
+    },
+    "app21-server44-outlook-calendar-visible.png": {
+      "url": "https://openagent.uno/connectors/app21-server44-outlook-calendar-visible.png",
+      "bytes": 164702,
+      "sha256": "6aa09216095d35dd7182c3a0f89c48221cd9c841f3804b551d015f8cfeacb276"
+    }
+  },
+  "cleanup": {
+    "owned_staging_removed": true,
+    "client_closed": true,
+    "all_owned_runtime_children_stopped": true,
+    "signals_only_exact_owned_pid": true,
+    "uid_executable_command_environment_starttime_pgid_sid_guards": true,
+    "zombies_treated_as_stopped": true,
+    "owned_worker_removed": true,
+    "worker_delete_uid_and_resource_version_fenced": true,
+    "worker_force_deleted": false,
+    "memory_max_reclaim_events": 31,
+    "oom_events": 0,
+    "oom_kill_events": 0
+  },
+  "evidence_sha256": {
+    "canonical-receipt": "ee420cb784b32fdfd246a86d8c710ea6653d49df19bc49f020c69b4a81c130f2",
+    "canonical-ui": "420928929f6ca970681f8d61c5366a63a7fb623660dff37e0291426ebdd9e15e",
+    "canonical-owned-cleanup": "0da3b435bb34da78c52b43d724396213c8f62f15ba6cecdc86a0b3ca4d9aad63",
+    "canonical-structural": "79c296a77be0fffbfdcc4f8655014a04409aa01d2fca4d55d3a43e99d9dab07a",
+    "canonical-copy-index": "fdcd3ae17354bb8e5f8f3d68edc8212e2748141f60f6f4f669c6ae3960fb3686",
+    "focused-receipt": "d96df6468648914c57e76fbcfa5aa47e8efa931df5070e02de0294d425da0dd7",
+    "focused-ui": "b6366947d1f40f36b8d6c19ec5a4947a7d2bb20900e992fa1cac9db3c660fbcb",
+    "focused-owned-cleanup": "405b4f125816a3dd5165f9d623c1d70129ea5f3d0d42bf1c61e501a3a4c830f6",
+    "focused-copy-index": "278837853c7d9822a1f3837b3812f6fa4aac593b6c4b8c3d073acb6f29dcb82d",
+    "worker-cleanup": "dbcd56aa709c34094e81867ce045a0addb9457f799c3cbf7147342dfedfc3d0c",
+    "root-visual-review": "e53699061bd1eecda2b7ed23c00de95f0e314b9e2855c396c2dd2bbebf247d7f"
+  },
+  "real_provider_calls": 0,
+  "model_invocations": 0,
+  "source_overlay": false,
+  "backend_mocked": false,
+  "personal_profiles_used": false,
+  "provider_content_or_credentials_exported": false,
+  "historical_receipt_unchanged": "app20-server43-marketplace-2026-10-17.json",
+  "limits": [
+    "Actual packaged marketplace acceptance is Linux x64 only.",
+    "Hosted Electron used --no-sandbox; sandbox security is not qualified.",
+    "Local keyless controls did not invoke provider APIs or create OAuth grants.",
+    "Google/Microsoft common enrollment and real account lifecycle remain unqualified and off.",
+    "Mac/Windows marketplace GUI and all-tool/provider parity remain separate."
+  ]
+}

@@ -27,11 +27,11 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The visually qualified standalone pair is **server/CLI beta43, Core beta22, connector SDK/runner
-0.1.6, Host Tools 1.0.0b6 and App beta20**. Its catalog has19 official adapters
-plus Custom MCP. Its [versioned Go contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors)
-uses module tag `packages/connectors/v0.1.6`; the independently published runner
-release is [connectors-v0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6).
+The visually qualified standalone pair is **server/CLI beta44, Core beta22, connector SDK/runner
+0.1.7, Host Tools 1.0.0b6 and App beta21**. Its catalog has22 official adapters
+plus Custom MCP. Its [versioned Go contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.7/packages/connectors)
+uses module tag `packages/connectors/v0.1.7`; the independently published runner
+release is [connectors-v0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7).
 Each host pins and qualifies its own assembly; publishing a component never
 silently updates another installation or attests its data-processing coverage.
 
@@ -45,8 +45,7 @@ Git tag is `packages/connectors/v0.1.7`; the runner release is
 `connectors-v0.1.7`. Each receiving host still qualifies its own credential
 storage, scope policy and product deployment.
 [Server/CLI44 is now public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44),
-with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI qualification remains pending. The visually qualified
-server43/App20 retain the SDK16 assembly and acceptance below.
+with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The earlier server43/App20 SDK16 assembly and acceptance remain historical below.
 
 The new adapters bind each account to its own local connection. Google sync
 checkpoints and Graph page cursors do not become shared application state:
@@ -57,6 +56,7 @@ mail client or required application service. See [operation limits](./connector-
 
 The qualified boundaries are separate:
 
+- [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json): 22 official entries and 30 registry results, 12 loaded local marks, five keyless local control cycles and seven original images plus three supplementary files (two unique views) showing the Calendar/Outlook cards; zero GUI provider calls/models. Exact owned cleanup and worker deletion passed.
 - [SDK 0.1.6](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json): race/vet/vulnerability checks, six-target packaging, Python/native smoke and six limited real runner reads for Parallel, Context7 and CoinGecko. Cross-compilation is not execution on every target.
 - [Server 43 installed fixtures](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-installed-2026-10-17.json) and [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json): 157 installed tests, explicit source/acquisition guards and ordinary pinned installation.
 - [Normal server 43 workflows](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json): three connections, six reads across an actual restart, local tombstones/source removal and owned cleanup. Workflow-result metrics are distinct from provider HTTP telemetry.

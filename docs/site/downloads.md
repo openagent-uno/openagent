@@ -3,10 +3,7 @@
 The current server and CLI build is **v1.1.0-beta.44**, using Core beta 22,
 connector SDK/runner 0.1.7 and Host Tools 1.0.0b6. The current desktop App is
 **v1.1.0-beta.21**, published for macOS, Windows and Linux on ARM64 and x64.
-App21/server44 GUI acceptance is pending. The historical App20 [Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
-passed with server 43: 19 official connectors and 30 registry results in one
-grid, nine local provider marks and five keyless connection/control cycles.
-Seven actual screenshots were reviewed. No provider call or model was used.
+[App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The current trial loaded 22 official entries and 30 registry results in one grid, with 12 loaded local marks and five keyless connection/control cycles. Seven original screenshots and three supplementary files (two unique views) were reviewed, including all three Calendar/Outlook cards. No provider call or model was used. Historical [App20/server43 evidence](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json) is unchanged.
 Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows marketplace GUI.
 Provider activation and remaining gates are recorded in [Connector release status](./guide/connector-status.md).
 

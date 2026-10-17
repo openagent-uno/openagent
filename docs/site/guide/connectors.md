@@ -2,14 +2,14 @@
 
 ::: info Published releases and activation gates
 Current published Python components are **SDK/runner 0.1.7 and server/CLI beta44**,
-with 22 official connectors plus Custom MCP. **App beta20/server43/SDK16** remain
-the visually qualified pair shown below; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending.
-The catalog contains 19 official adapters plus Custom MCP. The normal public
+with 22 official connectors plus Custom MCP. **App beta21/server44/SDK17** are
+the visually qualified pair shown below; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
+The catalog contains 22 official adapters plus Custom MCP. The normal public
 installer and limited product workflow lifecycle passed independently. The
-[actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
-loaded 19 official entries and 30 registry results in the same grid, verified
-nine local marks and exercised five keyless local connection/control cycles.
-Seven screenshots were reviewed; the GUI made no provider calls or model turns.
+[actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
+loaded 22 official entries and 30 registry results in the same grid, verified
+12 local marks and exercised five keyless local connection/control cycles.
+Seven original screenshots and three supplementary files (two unique views) were reviewed; the GUI made no provider calls or model turns.
 Mac/Windows marketplace GUI and hosted sandbox security remain separate.
 
 Common OAuth enrollment is a limited public beta for ClickUp, GitHub and Notion.
@@ -34,8 +34,7 @@ code, packages and isolated protocol fixtures. Real Google/Microsoft OAuth and
 provider operations remain pending, and common enrollment for these providers
 is closed. [Server/CLI44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 with 22 entries and [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call.
-[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; 21/44 GUI acceptance remains pending; the existing screenshots
-show the actually qualified App20/server43 pair.
+[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed; the current screenshots show App21/server44, with historical App20/server43 evidence retained below.
 
 After a receiving host adopts and qualifies SDK17 and an operator configures an
 approved OAuth app, each account uses a separate connection through the same
@@ -111,6 +110,28 @@ be broader; a local read-only choice does not rewrite the provider's grant.
 A token connection being saved as Connected does not prove a successful
 provider API call; verify access with an appropriate authorized operation.
 
+![App21/server44 shared marketplace grid](/connectors/app21-server44-marketplace-top.png)
+
+![App21/server44 registry and provider cards](/connectors/app21-server44-marketplace-scroll.png)
+
+![Exa local controls](/connectors/app21-server44-exa-connected.png)
+
+![Firecrawl local controls](/connectors/app21-server44-firecrawl-connected.png)
+
+![Parallel Search local controls](/connectors/app21-server44-parallel-search-connected.png)
+
+![Context7 local controls](/connectors/app21-server44-context7-connected.png)
+
+![CoinGecko local controls](/connectors/app21-server44-coingecko-connected.png)
+
+![Google Calendar card and local mark](/connectors/app21-server44-google-calendar-visible.png)
+
+![Outlook Mail and Outlook Calendar cards and local marks](/connectors/app21-server44-outlook-mail-visible.png)
+
+These actual Linux x64 App21/server44 screenshots use ordinary UI/SRP, device certification and native Iroh. The catalog contains 22 official entries and 30 real registry results in one grid, without an official tab, label or divider; 12 local marks passed load/DOM checks. Five keyless providers passed local Connect, disable/re-enable and disconnect without provider calls or model turns. Three additional image files target Calendar/Outlook in two unique views; the [Outlook Calendar capture](/connectors/app21-server44-outlook-calendar-visible.png) is byte-identical to the Outlook Mail view because both cards are fully visible together. The [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) receipt records hashes, visual review and exact owned cleanup. Hosted `--no-sandbox` does not qualify sandbox security, Mac/Windows GUI or real Google/Microsoft access.
+
+::: details Historical App20/server43 screenshots and scope
+
 ![App 20/server 43: official connectors and registry MCPs share the same marketplace cards](/connectors/app20-server43-marketplace-top.png)
 
 ![App 20/server 43: provider marks and registry entries in the mixed grid](/connectors/app20-server43-marketplace-scroll.png)
@@ -137,6 +158,8 @@ Hosted `--no-sandbox` does not qualify sandbox security, Mac/Windows GUI or
 provider tool parity. Earlier [App 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json)
 and [App 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
 screenshots and failures remain historical and unchanged.
+
+:::
 
 ::: details Historical App beta 17 / server beta 39 screenshots
 
