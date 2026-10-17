@@ -1,0 +1,183 @@
+{
+  "format": 1,
+  "status": "passed",
+  "at_utc": "2026-10-17T09:38:03.127672+00:00",
+  "product_version": "1.1.0b43",
+  "source_commit": "276704b2be1f403c9e2796e04c5c3e31530690c1",
+  "publication": {
+    "status": "public-and-digest-verified",
+    "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.43",
+    "release_id": 415703940,
+    "source_commit": "276704b2be1f403c9e2796e04c5c3e31530690c1",
+    "manifest_sha256": "0458e049e3bfeafafff7c677670bdc30eeeb7a70ec8e93eac1742f6e45ba5e63",
+    "public_assets_verified": 12,
+    "verified_at_utc": "2026-10-17T09:32:10Z"
+  },
+  "sdk_version": "0.1.6",
+  "sdk_source_commit": "2ec7c114a49b72460addc00fc8e8d6547a683b59",
+  "sdk_manifest_sha256": "a1e87b9469cadfc1c8184e4ad704d0b7ed26ee7233f6145bf15baddfe19789f5",
+  "versions": {
+    "openagent-framework": "1.1.0b43",
+    "openagent-cli": "1.1.0b43",
+    "openagent-core": "1.1.0b22",
+    "openagent-connectors": "0.1.6",
+    "openagent-host-tools": "1.0.0b6"
+  },
+  "scope": "Three locally authorized keyless connections and six actual bounded reads through installed public CLI/SRP/device certificate/Iroh gateway/workflows, real server restart and reread, local disconnect and owned cleanup. Not native App20 or all-tool/provider parity.",
+  "installer_receipt": "product43-public-installer-2026-10-17.json",
+  "installed_fixture_receipt": "product43-installed-2026-10-17.json",
+  "sdk_receipt": "keyless-sdk-0.1.6-2026-10-17.json",
+  "source_safe_summary_sha256": "fb5274896a59a258c21b84edc0111b98249663bf228da70e3c35689d2c3550f6",
+  "source_postflight_receipt_sha256": "41fcb266262951af3d467717a2e338b9af779d8083884febe8dc67980a0bdc4f",
+  "context7_verified_binding_sha256": "bff18d23f4ce69b9b906d6482dc19ce14ff0677779c01d36d14d7485d4cd2b03",
+  "sdk_live_receipt_sha256": "4e91d75b38b549063432b17e573db9bb45a3c75d4ad6ceb83912732c05a78c9a",
+  "calls": [
+    {
+      "catalog_id": "parallel-search",
+      "operation": "files.parallel.fetch",
+      "phase": "before_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 41201,
+      "workflow_result_sha256": "4e49da837a108eeacf85d546b638d00e4469441ead4f7db6bfdc05b0aa8d898b",
+      "semantic_checks": {
+        "requested_url_present": true,
+        "no_per_url_errors": true,
+        "excerpts_nonempty": true,
+        "openagent_marker_present": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "530749d41e41006cb1538e45e3254ef2b36ba82f648faf08d7e24d31d7a50c0b"
+    },
+    {
+      "catalog_id": "parallel-search",
+      "operation": "files.parallel.fetch",
+      "phase": "after_real_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 41201,
+      "workflow_result_sha256": "e6c565c59a7525b2aa85b4257f53bc5bf25d94ab050c8696a0ee75a6bd6be0da",
+      "semantic_checks": {
+        "requested_url_present": true,
+        "no_per_url_errors": true,
+        "excerpts_nonempty": true,
+        "openagent_marker_present": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "350c9f7643a436fc439cc4760cc624d56eaea3b439d6da0bd0c923c64f87499d"
+    },
+    {
+      "catalog_id": "context7",
+      "operation": "files.context7.query_docs",
+      "phase": "before_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 4024,
+      "workflow_result_sha256": "61c160f50a9a17d0aa33eacdbc1de301b8911e8462838b5e6bd9b1dfb9b79212",
+      "semantic_checks": {
+        "text_nonempty": true,
+        "useeffect_marker_present": true,
+        "cleanup_marker_present": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "ad0bc1eaa452e2e3ae308eb9757bcd0781d7d822be0385a9e0721ebe4a7a2776"
+    },
+    {
+      "catalog_id": "context7",
+      "operation": "files.context7.query_docs",
+      "phase": "after_real_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 4294,
+      "workflow_result_sha256": "f4ab413128f3613ade6ff2f68bc734dc3bab9aaa686234212c508b26ae64356c",
+      "semantic_checks": {
+        "text_nonempty": true,
+        "useeffect_marker_present": true,
+        "cleanup_marker_present": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "bebeba875622cbe130d425884210135033f8dee37601de1d024c0bb17400b8ad"
+    },
+    {
+      "catalog_id": "coingecko",
+      "operation": "files.coingecko.global",
+      "phase": "before_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 3993,
+      "workflow_result_sha256": "36bd87244ab493aa49fbe5540417d70bd3cfca041d5357b4d880caea69308fd1",
+      "semantic_checks": {
+        "compiled_schema_valid": true,
+        "global_active_coins_positive": true,
+        "global_markets_positive": true,
+        "timestamp_valid": true,
+        "timestamp_within_one_hour": true,
+        "total_market_cap_usd_finite_positive": true,
+        "total_volume_usd_finite_positive": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "d501eab45a320a5e782b9874602821f95d85de0735a7a36c5acd1e069b472d35"
+    },
+    {
+      "catalog_id": "coingecko",
+      "operation": "files.coingecko.global",
+      "phase": "after_real_restart",
+      "status": "passed",
+      "workflow_submissions": 1,
+      "workflow_result_bytes": 3993,
+      "workflow_result_sha256": "36bd87244ab493aa49fbe5540417d70bd3cfca041d5357b4d880caea69308fd1",
+      "semantic_checks": {
+        "compiled_schema_valid": true,
+        "global_active_coins_positive": true,
+        "global_markets_positive": true,
+        "timestamp_valid": true,
+        "timestamp_within_one_hour": true,
+        "total_market_cap_usd_finite_positive": true,
+        "total_volume_usd_finite_positive": true
+      },
+      "provider_attempts_observed": null,
+      "provider_http_status_observed": null,
+      "source_private_receipt_sha256": "1c18afd5c5518223ba9d524c1edbe7cc90425529938e49cca203c70a42bc0322"
+    }
+  ],
+  "connection_acceptance": {
+    "new_connections": 3,
+    "credential_kind": "none",
+    "token_or_oauth_grant_submitted": false,
+    "normal_owner_certified_source_authorization": true,
+    "enabled_and_read_only_before_and_after_restart": true,
+    "same_three_connection_ids_preserved": true,
+    "catalog_official_count": 19,
+    "ordinary_cli_srp_certified_iroh": true,
+    "direct_runner_calls": 0,
+    "direct_provider_http_calls": 0,
+    "provider_writes": 0,
+    "model_invocations": 0,
+    "execution_location": "Provider traffic is executed by the product server/runner. Direct-call counters describe harness bypass calls only."
+  },
+  "cleanup": {
+    "three_local_disconnects_passed": true,
+    "disconnected_tombstones_disabled": true,
+    "all_three_mcp_sources_removed": true,
+    "only_owned_terminal_workflows_deleted": true,
+    "pending_owned_workflows": 0,
+    "all_execution_intents_complete": true,
+    "server_and_client_host_tools_groups_stopped": true,
+    "zombies_treated_as_stopped": true,
+    "final_process_scan_passed": true,
+    "quiescent_at_utc": "2026-10-17T09:39:11.950886+00:00",
+    "durable_agent_and_enrolled_profile_preserved": true,
+    "raw_profiles_logs_identity_credentials_exported": false
+  },
+  "metrics_boundary": "workflow_result_bytes/SHA describe serialized adapter Data observed in the workflow trace, not raw HTTP responses. This API omits runner HTTP status/attempt telemetry, so provider_attempts_observed and provider_http_status_observed are null. One-attempt policy is independently qualified in SDK0.1.6; exactly one workflow submission was observed per read.",
+  "limits": [
+    "Only Parallel fetch, Context7 query_docs and CoinGecko global were invoked in product43, each before/after restart; SDK six-tool reads are separate.",
+    "No resource/session/connection/workflow identifiers, handles, profiles, tickets or result bodies are included.",
+    "App20 publication/GUI acceptance remains pending; historical App19/server42 acceptance is not relabeled."
+  ]
+}
