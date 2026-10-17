@@ -269,7 +269,8 @@ def test_default_common_providers_preserve_explicit_opt_out(tmp_path, config, en
     assert service.official_providers == expected
     assert runner.calls == []
     assert all(not service.authorization_available(provider)
-               for provider in ("gmail", "google_drive", "google_analytics", "slack_import", "postiz", "shopify"))
+               for provider in ("gmail", "google_drive", "google_analytics", "slack_import", "postiz", "shopify",
+                                "google_calendar", "outlook_mail", "outlook_calendar"))
 
 
 def test_explicit_common_opt_out_preserves_local_own_apps(tmp_path):
@@ -281,6 +282,40 @@ def test_explicit_common_opt_out_preserves_local_own_apps(tmp_path):
     runner = Runner()
     service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
     assert service.official_providers == set() and service.authorization_available("google_drive")
+    assert runner.calls == []
+
+
+@pytest.mark.parametrize("provider", ["google_calendar", "outlook_mail", "outlook_calendar"])
+def test_calendar_mail_own_apps_do_not_enable_other_providers_or_common_oauth(tmp_path, provider):
+    providers = tmp_path / "own-providers.json"
+    providers.write_text(json.dumps([{"id": provider}]))
+    agent = SimpleNamespace(name="Test", config={"connectors": {"official_providers": [],
+                            "oauth_providers_file": str(providers)}}, product_environment={},
+                            memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite"))
+    runner = Runner()
+    service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
+    assert service.official_providers == set()
+    assert service.authorization_available(provider)
+    assert all(not service.authorization_available(other)
+               for other in {"google_calendar", "outlook_mail", "outlook_calendar", "clickup", "github", "notion"} - {provider})
+    assert runner.calls == []
+
+
+@pytest.mark.asyncio
+async def test_sdk17_offline_catalog_retains_twenty_two_entries_without_enabling_connections(fixture):
+    service, context, runner, _ = fixture
+    service.runner = None
+    catalog = await service.catalog(context)
+    assert catalog["available"] is False
+    assert len(catalog["connectors"]) == 22
+    assert len({item["id"] for item in catalog["connectors"]}) == 22
+    by_id = {item["id"]: item for item in catalog["connectors"]}
+    for identifier, provider, capability in (("google-calendar", "google_calendar", "files"),
+                                               ("outlook-mail", "outlook_mail", "outreach"),
+                                               ("outlook-calendar", "outlook_calendar", "files")):
+        item = by_id[identifier]
+        assert (item["provider"], item["capability"], item["auth"]) == (provider, capability, "oauth")
+        assert item["available"] is False and "runner" in item["unavailableReason"]
     assert runner.calls == []
 
 

@@ -243,12 +243,13 @@ async def test_authorization_polls_exact_connection_until_connected():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("origin", [
     "https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com",
-    "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com",
+    "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com", "https://login.microsoftonline.com",
 ])
 async def test_own_app_authorization_accepts_exact_reviewed_origins(origin):
     client = AsyncMock()
     client.rest_post.return_value = {"status": "connected"}
-    setup = {"authorization_mode": "own-app", "authorization_url": origin + "/oauth/authorize?state=opaque",
+    setup = {"authorization_mode": "own-app", "authorization_url": origin + ("/common/oauth2/v2.0/authorize?state=opaque"
+                                    if origin == "https://login.microsoftonline.com" else "/oauth/authorize?state=opaque"),
              "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(), "connection": {"id": "conn"}}
     with patch("openagent_cli.connectors.webbrowser.open") as browser:
         await authorize(client, setup, Console(file=io.StringIO()))
@@ -263,6 +264,12 @@ async def test_own_app_authorization_accepts_exact_reviewed_origins(origin):
     "https://api.notion.com.evil.example/authorize", "https://slack.com.evil.example/authorize",
     "https://auth.atlassian.com.evil.example/authorize", "https://unreviewed.example/authorize",
     "https://github.com/login/oauth/authorize#fragment",
+    "http://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "https://login.microsoftonline.com.evil.example/common/oauth2/v2.0/authorize",
+    "https://login.microsoftonline.com@evil.example/authorize",
+    "https://user@login.microsoftonline.com/authorize",
+    "https://login.microsoftonline.com:444/common/oauth2/v2.0/authorize",
+    "https://login.microsoftonline.com/common/oauth2/v2.0/authorize#fragment",
 ])
 async def test_own_app_authorization_rejects_other_origins_before_browser_or_poll(url):
     client = AsyncMock()

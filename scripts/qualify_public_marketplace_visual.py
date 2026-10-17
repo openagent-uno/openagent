@@ -53,6 +53,7 @@ def release_contract(path=None, digest=None):
         ('1.1.0-beta.19', '1.1.0b41', '1.1.0b22', '0.1.5', '1.0.0b6'),
         ('1.1.0-beta.19', '1.1.0b42', '1.1.0b22', '0.1.5', '1.0.0b6'),
         ('1.1.0-beta.20', '1.1.0b43', '1.1.0b22', '0.1.6', '1.0.0b6'),
+        ('1.1.0-beta.21', '1.1.0b44', '1.1.0b22', '0.1.7', '1.0.0b6'),
     })
     require(value['appRelease'] == 'https://github.com/openagent-uno/openagent-app/releases/download/v' + value['appVersion'] + '/'
             and value['appDEB'] == 'openagent-app-' + value['appVersion'] + '-linux-amd64.deb'
@@ -67,18 +68,21 @@ def release_contract(path=None, digest=None):
 
 
 def catalog_ids(catalog, sdk_version='0.1.4'):
-    require(sdk_version in {'0.1.4', '0.1.5', '0.1.6'})
+    require(sdk_version in {'0.1.4', '0.1.5', '0.1.6', '0.1.7'})
     require(isinstance(catalog, list) and all(isinstance(item, dict) for item in catalog))
     ids = [item.get('id') for item in catalog if not item.get('nativeKind')]
     require(all(isinstance(item, str) and re.fullmatch('[a-z0-9_-]{1,64}', item) for item in ids))
-    require(len(ids) == len(set(ids)) == {'0.1.4': 14, '0.1.5': 16, '0.1.6': 19}[sdk_version])
-    if sdk_version in {'0.1.5', '0.1.6'}:
+    require(len(ids) == len(set(ids)) == {'0.1.4': 14, '0.1.5': 16, '0.1.6': 19, '0.1.7': 22}[sdk_version])
+    if sdk_version in {'0.1.5', '0.1.6', '0.1.7'}:
         require({'exa', 'firecrawl'} <= set(ids))
-    if sdk_version == '0.1.6':
-        require(set(ids) == {'atlassian', 'billingbear', 'clickup', 'coingecko', 'context7',
+    if sdk_version in {'0.1.6', '0.1.7'}:
+        expected = {'atlassian', 'billingbear', 'clickup', 'coingecko', 'context7',
                             'exa', 'firecrawl', 'github', 'gmail', 'google-analytics',
                             'google-drive', 'imap_smtp', 'notion', 'parallel-search',
-                            'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import'})
+                            'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import'}
+        if sdk_version == '0.1.7':
+            expected |= {'google-calendar', 'outlook-mail', 'outlook-calendar'}
+        require(set(ids) == expected)
     return sorted(ids)
 
 

@@ -37,7 +37,7 @@ async def authorize(client, setup, console):
     import re
     valid = url.scheme == "https" and not url.username and not url.password and not url.fragment
     if own:
-        valid = valid and origin in {"https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com"}
+        valid = valid and origin in {"https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com", "https://login.microsoftonline.com"}
     else:
         valid = valid and origin == setup.get("authorization_origin", "https://auth.openagent.uno") and not url.query and bool(re.fullmatch(r"/authorize/[A-Za-z0-9_-]{43}", url.path))
     if not valid:

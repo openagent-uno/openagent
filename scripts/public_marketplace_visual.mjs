@@ -9,12 +9,13 @@ const require = createRequire(path.join(driverRoot, 'package.json'));
 const { _electron: electron, expect } = require('@playwright/test');
 const expected = expectationPath ? JSON.parse(await readFile(expectationPath, 'utf8'))
   : { appVersion: '1.1.0-beta.17', serverVersion: '1.1.0b39', officialIds: null };
-assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41', '1.1.0-beta.19/1.1.0b42', '1.1.0-beta.20/1.1.0b43']
+assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41', '1.1.0-beta.19/1.1.0b42', '1.1.0-beta.20/1.1.0b43', '1.1.0-beta.21/1.1.0b44']
   .includes(`${expected.appVersion}/${expected.serverVersion}`));
-const nextKeylessCohort = expected.appVersion === '1.1.0-beta.20';
+const calendarMailCohort = expected.appVersion === '1.1.0-beta.21';
+const nextKeylessCohort = calendarMailCohort || expected.appVersion === '1.1.0-beta.20';
 const keylessCohort = nextKeylessCohort || expected.appVersion === '1.1.0-beta.19';
 const keylessIds = keylessCohort ? ['exa', 'firecrawl', ...(nextKeylessCohort ? ['parallel-search', 'context7', 'coingecko'] : [])] : [];
-const expectedCount = nextKeylessCohort ? 19 : keylessCohort ? 16 : 14;
+const expectedCount = calendarMailCohort ? 22 : nextKeylessCohort ? 19 : keylessCohort ? 16 : 14;
 assert(expected.officialIds === null || (Array.isArray(expected.officialIds)
   && expected.officialIds.length === expectedCount && new Set(expected.officialIds).size === expectedCount
   && expected.officialIds.every(id => typeof id === 'string' && /^[a-z0-9_-]{1,64}$/.test(id))));
@@ -103,9 +104,9 @@ try {
   const verifiedIcons = [];
   if (expected.officialIds) {
     await markPhase('verify-new-provider-local-images');
-    for (const id of ['github', 'notion', 'slack-import', 'atlassian', ...keylessIds]) {
+    for (const id of ['github', 'notion', 'slack-import', 'atlassian', ...keylessIds, ...(calendarMailCohort ? ['google-calendar', 'outlook-mail', 'outlook-calendar'] : [])]) {
       const item = official.find(connector => connector.id === id); assert(item);
-      if (['context7', 'coingecko'].includes(id)) {
+      if (['context7', 'coingecko', 'outlook-mail', 'outlook-calendar'].includes(id)) {
         const vector = page.getByText(item.name, { exact: true }).first().locator('..').locator('svg').first();
         await expect(vector).toBeVisible();
         await expect.poll(() => vector.evaluate(svg => svg.viewBox.baseVal.width > 0

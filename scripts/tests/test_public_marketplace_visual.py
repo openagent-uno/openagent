@@ -143,6 +143,31 @@ class WorkerContracts(unittest.TestCase):
                                   worker_uid=65532, worker_pod_uid='12345678-1234-1234-1234-123456789abc',
                                   source_commit='1' * 40, run_id='visual18-40', worker_root=Path('/work/evidence-root'))
 
+    def test_calendar_mail_cohort_requires_exact_twenty_two_ids_and_finite_versions(self):
+        value = self.contract()
+        value.update(appVersion='1.1.0-beta.21', serverVersion='1.1.0b44', sdkVersion='0.1.7',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.21/',
+                     appDEB='openagent-app-1.1.0-beta.21-linux-amd64.deb',
+                     catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.7/catalog.json')
+        self.assertEqual(self.load(value), value)
+        for field, changed in (('appVersion', '1.1.0-beta.20'), ('serverVersion', '1.1.0b43'),
+                               ('sdkVersion', '0.1.6'), ('coreVersion', '1.1.0b23'),
+                               ('hostToolsVersion', '1.0.0b7')):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.load(dict(value, **{field: changed}))
+        ids = ['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
+               'github', 'gmail', 'google-analytics', 'google-calendar', 'google-drive', 'imap_smtp',
+               'notion', 'outlook-calendar', 'outlook-mail', 'parallel-search', 'pipeboard',
+               'postiz', 'replio', 'shopify', 'slack-import']
+        catalog = [{'id': item} for item in ids]
+        self.assertEqual(qualifier.catalog_ids(catalog, '0.1.7'), sorted(ids))
+        for changed in (catalog[:-1], catalog + [{'id': 'outlook-mail'}],
+                        [dict(item, id='unreviewed') if item['id'] == 'google-calendar' else item for item in catalog]):
+            with self.assertRaises(ValueError):
+                qualifier.catalog_ids(changed, '0.1.7')
+        with self.assertRaises(ValueError):
+            qualifier.catalog_ids(catalog, '0.1.6')
+
     def test_worker_rejects_wrong_uid_or_disguised_github_before_git(self):
         for environment, uid in (({'GITHUB_ACTIONS': 'true'}, 65532), ({}, 65531)):
             with patch.dict(os.environ, environment, clear=True), patch.object(qualifier.sys, 'platform', 'linux'), \

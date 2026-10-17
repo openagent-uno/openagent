@@ -85,7 +85,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     }
     if (!setup.expires_at || !Number.isFinite(Date.parse(setup.expires_at)) || Date.parse(setup.expires_at) <= Date.now()) throw new Error('Invalid authorization expiry');
     const url = new URL(setup.authorization_url);
-    if (url.protocol !== "https:" || url.hash || url.username || url.password || (setup.authorization_mode === "own-app" ? !["https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com"].includes(url.origin) : url.origin !== (setup.authorization_origin || "https://auth.openagent.uno") || !/^\/authorize\/[A-Za-z0-9_-]{43}$/.test(url.pathname) || !!url.search)) throw new Error('Invalid authorization link');
+    if (url.protocol !== "https:" || url.hash || url.username || url.password || (setup.authorization_mode === "own-app" ? !["https://accounts.google.com", "https://app.clickup.com", "https://platform.postiz.com", "https://github.com", "https://api.notion.com", "https://slack.com", "https://auth.atlassian.com", "https://login.microsoftonline.com"].includes(url.origin) : url.origin !== (setup.authorization_origin || "https://auth.openagent.uno") || !/^\/authorize\/[A-Za-z0-9_-]{43}$/.test(url.pathname) || !!url.search)) throw new Error('Invalid authorization link');
     setPending(setup);
     if (Platform.OS === 'web') { const tab = window.open(url.toString(), '_blank'); if (tab) tab.opener = null; }
     else await Linking.openURL(url.toString());
