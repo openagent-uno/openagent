@@ -61,10 +61,10 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.44", "manifest.json", "f61d94548d22525f06871f9f3884509e4ecbd2e6fdc109548a7fa48c9630df5c"),
+    ("openagent-uno/openagent", "v1.1.0-beta.45", "manifest.json", "cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.22", "manifest.json", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-uno/openagent-tools", "connectors-v0.1.7", "manifest.json", "65af35daccdf93278bd31a61ff00fbaf907ab62ed4afe89ff77d1f0d18890a56"),
+    ("openagent-uno/openagent-tools", "connectors-v0.1.8", "manifest.json", "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
