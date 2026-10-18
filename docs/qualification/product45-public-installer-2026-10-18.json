@@ -1,0 +1,110 @@
+{
+  "format": 1,
+  "receipt_kind": "sanitized_public_installer_summary",
+  "status": "passed",
+  "scope": "Normal public server installation and separate thin CLI installation, followed by corrected CLI probe acceptance. No server, model or provider was started.",
+  "product_source": "0049bfd95cf722784c835897ce6175a6690a1bc1",
+  "product_manifest_sha256": "cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c",
+  "sdk_version": "0.1.8",
+  "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+  "installed_qualification_receipt": "product45-installed-2026-10-18.json",
+  "installer": {
+    "url": "https://openagent.uno/install.sh",
+    "source_commit": "be42c7712836511e1707eee5530f47ac182678fa",
+    "sha256": "c14f61175ae373330f00d0a8830d9af864d89afe4ce107b64d47dd140ca0d532",
+    "bytes": 8722,
+    "anonymous_live_bytes_verified": true,
+    "downloaded_script_modified": false
+  },
+  "checks": {
+    "server": {
+      "versions": {
+        "openagent-framework": "1.1.0b45",
+        "openagent-core": "1.1.0b22",
+        "openagent-connectors": "0.1.8",
+        "openagent-host-tools": "1.0.0b6",
+        "SQLAlchemy": "2.1.4"
+      },
+      "installed_prefix_imports": true,
+      "async_orm_select_passed": true,
+      "official": 114,
+      "custom": 1,
+      "read_tools": 315,
+      "action_tools": 82,
+      "catalog_matches_published_sdk": true,
+      "provider_calls": 0
+    },
+    "cli": {
+      "versions": {
+        "openagent-cli": "1.1.0b45",
+        "openagent-host-tools": "1.0.0b6",
+        "openagent-client-transport": "1.1.0b39"
+      },
+      "installed_prefix_imports": true,
+      "thin_client_without_server_engine_dependencies": true,
+      "provider_calls": 0
+    },
+    "server_dependency_check": "passed",
+    "cli_dependency_check": "passed",
+    "cli_help": {
+      "status": "passed",
+      "sha256": "e9ecc0fa257ae39612e7413c66bc41f496bba4252781726edea5eb7128b9070b",
+      "bytes": 1287
+    },
+    "server_freeze_sha256": "a494807a3e11d262164935eb0a359b48a6e8f1f0e027694221e4f3d3e0004786",
+    "cli_freeze_sha256": "55a94be52595500dcf6ab471766d8a8b0e6495aceff4a27d71f5e004c2cabc42"
+  },
+  "preserved_failures": {
+    "earlier_installer_guard": "Rejected stale version 44 distribution pins before installation; the accepted script binds version 45 throughout.",
+    "earlier_infrastructure_attempt": {
+      "status": "Evicted",
+      "phase": "server-install",
+      "cause": "Temporary emptyDir usage exceeded its 256 MiB limit. Exit 137 was not classified as an OOM.",
+      "acceptance_claimed": false
+    },
+    "cli_probe": {
+      "original_status": "failed",
+      "original_receipt_sha256": "e37765418946a80591866dd434d48ff572b3fb71329e6b49ad8d39bd9ae74d1d",
+      "cause": "The private probe incorrectly prohibited base Core 22, which public client transport beta 39 explicitly requires. Server/CLI installation and both dependency checks had passed.",
+      "correction": "Allow the required base Core 22. Continue rejecting SQLAlchemy, litellm, openai, torch and the server framework in the separate CLI environment.",
+      "package_install_repeated_for_probe_correction": false,
+      "corrected_probe_sha256": "534178c6aad29cea66cb206aeac4ee1b84cc0593769d19fb4711cbedd50139bc",
+      "corrected_probe_and_help": "passed"
+    }
+  },
+  "bounded_recovery": {
+    "cpu_limit": 1,
+    "memory_limit_bytes": 2147483648,
+    "temporary_volume_limit_bytes": 2147483648,
+    "ephemeral_storage_limit_bytes": 3221225472,
+    "max_duration_seconds": 1200,
+    "home_override": false,
+    "tmpdir_override": false,
+    "source_overlay": false,
+    "fresh_installation_directory": true
+  },
+  "completion": {
+    "finish_receipt_sha256": "e97f0e84d4b506d98a4369d6e41eeeca27c0aa486451679bd3d382d82dd38cb0",
+    "finished_at": "2026-10-18T19:22:03.889530+00:00",
+    "active_owned_processes": 0,
+    "quiescence_sha256": "0ab25a86af21aae1942e179d03dbb01e062bcabfa4ea89bce99184514ab8cf2d",
+    "memory_current_bytes": 1579134976,
+    "memory_events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "cleanup": "Owned worker deleted with fresh UID/resourceVersion preconditions; NotFound verified. Persistent data and earlier evidence retained.",
+    "cleanup_receipt_sha256": "1088cd5198deac3d058ebcbb6ed03dca42b7bdc7bb268f10e12dfb32aea51428"
+  },
+  "acceptance_boundaries": {
+    "server_started": false,
+    "models_started": 0,
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "native_app_or_gui_acceptance": false
+  }
+}

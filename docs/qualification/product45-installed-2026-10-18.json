@@ -1,0 +1,64 @@
+{
+  "format": 1,
+  "receipt_kind": "sanitized_public_qualification_summary",
+  "status": "passed",
+  "product": "Server/CLI 1.1.0-beta.45",
+  "source_commit": "0049bfd95cf722784c835897ce6175a6690a1bc1",
+  "release": {
+    "url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45",
+    "published_at": "2026-10-18T19:08:48Z",
+    "assets": 12
+  },
+  "manifest": {
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.45/manifest.json",
+    "sha256": "cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c"
+  },
+  "public_qualification": {
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.45/qualification.json",
+    "sha256": "874be09d27478e288a035671fcc94a443b8adeff799a5c0d5dee707886605859",
+    "scope": "installed Python connector consumer plus separate source fixtures; no native App/installer or real provider acceptance",
+    "original_receipt_unchanged": true
+  },
+  "dependencies": {
+    "connector_sdk": "0.1.8",
+    "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+    "core": "1.1.0-beta.22",
+    "host_tools": "1.0.0-beta.6"
+  },
+  "checks": {
+    "installed_server_cli_tests": {
+      "passed": 210,
+      "evidence_sha256": "93aad36228b810b705a4b140d284faaf69c33076bc69897cc514cb1d177ae98b"
+    },
+    "separate_react_source_groups": {
+      "passed": 15,
+      "evidence_sha256": "bd535cd3a0d06654da77589610ea1137871c44c49934eb8f6143caf59f9f616f",
+      "scope": "actual TS/TSX syntax transpile and actual React component with mocked RN/transport; not native/GUI/provider acceptance"
+    },
+    "dependency_check": "passed",
+    "installed_catalog": {
+      "official": 114,
+      "custom_mcp": 1,
+      "read_tools": 315,
+      "action_tools": 82,
+      "public_sdk_parity": "passed"
+    },
+    "release_wheels": {
+      "new": 2,
+      "reused_byte_identical": 7
+    },
+    "source_acquisition_boundary_tests": {
+      "passed": 15,
+      "scope": "Separate source fixtures, not public-installer acceptance."
+    }
+  },
+  "acceptance_boundaries": {
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "new_common_oauth_activation": false,
+    "manual_profiles": "90 finite API subsets with 180 typed reads; not full API/MCP or ChatGPT parity and not shared OAuth registrations. Vendor permissions are setup guidance, not verified OAuth scope claims.",
+    "graph": "OneDrive and SharePoint contribute twelve reads; no real Microsoft consent or resource-access acceptance is established here.",
+    "native_app_and_gui": "Not exercised by this qualification. Separate React source fixtures do not establish native or visual acceptance.",
+    "public_installer_receipt": "product45-public-installer-2026-10-18.json"
+  }
+}
