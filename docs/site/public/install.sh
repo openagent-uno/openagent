@@ -142,10 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b44"
+    DIST="openagent-framework==1.1.0b45"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b44"
+    DIST="openagent-cli==1.1.0b45"
     COMMAND="openagent-cli"
 fi
 
