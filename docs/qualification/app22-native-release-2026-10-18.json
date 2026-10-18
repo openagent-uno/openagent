@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "result": "PASS",
+  "component": "OpenAgent App",
+  "version": "1.1.0-beta.22",
+  "published_at": "2026-10-18T20:13:24Z",
+  "checked_at": "2026-10-18T20:12:57.778124+00:00",
+  "url": "https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22",
+  "draft": false,
+  "prerelease": true,
+  "source_commit": "99c67709928a988f5da79f593d8ee861d4521db6",
+  "canonical_source": "99c67709928a988f5da79f593d8ee861d4521db6",
+  "executor_commit": "aae127562690712da6511ff1d91793bce9659d74",
+  "assets_unchanged": 36,
+  "normal_workflow_jobs_passed": 10,
+  "native_platforms": 6,
+  "native_manifests": 6,
+  "primary_installers": 10,
+  "updater_yamls": 4,
+  "small_asset_API_digest_checks": 20,
+  "primary_checksum_files_match_API_digests": 10,
+  "installer_bytes_downloaded_to_operator": 0,
+  "recovery_workflow_used": false,
+  "original_run": {
+    "url": "https://github.com/openagent-uno/openagent-app/actions/runs/39157597879",
+    "conclusion": "success",
+    "successful_jobs": 10,
+    "failed_jobs": 0,
+    "skipped_jobs": 0,
+    "all_jobs_passed": true
+  },
+  "native_gates": {
+    "macos_signing_and_notarization": "passed normal release gates for x64 and arm64",
+    "mandatory_mac_intel_zip_and_dmg_launch": {
+      "result": "passed",
+      "job_id": 117776072903
+    },
+    "windows_authenticode": "not claimed",
+    "staging": "Successful native workflow steps staged verified files without Actions artifact storage."
+  },
+  "host_tools_lock_hashes_verified": {
+    "lf": "a0f85b84e6d98f525c466126df7a5de9437d9628127607517a94f1b61b1889e0",
+    "crlf": "d2dbd675ddf35f428de7b6c003e7b40bfe63f7aee761dc2da0de90c6a1d850de",
+    "platforms": 6
+  },
+  "sdk_version": "0.1.8",
+  "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+  "server_cli_cohort": "1.1.0b45",
+  "server_cli_source_commit": "0049bfd95cf722784c835897ce6175a6690a1bc1",
+  "gui_acceptance": "pending",
+  "provider_acceptance": false,
+  "assets": [
+    {
+      "name": "beta-linux-arm64.yml",
+      "bytes": 600,
+      "sha256": "f37f50a12f1788d15925e97f34daabc825e53cb4f83af26393bfc3d23555625b"
+    },
+    {
+      "name": "beta-linux.yml",
+      "bytes": 602,
+      "sha256": "56e4dcf33fd4b2f4fb096cbb0a308ab3992bb81c2d9d43b81cda5ed0f20d8e51"
+    },
+    {
+      "name": "beta-mac.yml",
+      "bytes": 907,
+      "sha256": "69feab8a298749434890f52abb608cbeea87659459c5d3930929c2156d9666c2"
+    },
+    {
+      "name": "beta.yml",
+      "bytes": 567,
+      "sha256": "622fddee27da26a36451dedc3b543ad590c9092fa9f7c74b5decb162690de4a6"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-amd64.deb",
+      "bytes": 198273704,
+      "sha256": "bafb52c4ffdbee7a4cec69a0275371d43a353c92a0267742a6936e4f696cc713"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-amd64.deb.sha256",
+      "bytes": 110,
+      "sha256": "636eac984b7119febaf8f039a5ef86823dea3189701ae7a5a2323deda0d7119b"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-arm64.AppImage",
+      "bytes": 245648181,
+      "sha256": "70d9eb4f0903d69cb1dc6cbe5ec01bd31a46dc7b5b1a819eae4076197fefeb03"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-arm64.AppImage.sha256",
+      "bytes": 115,
+      "sha256": "0165f2c4ac880798a3d9b38db02bd29fd0914a02b647c690e26ea710404c99e1"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-arm64.deb",
+      "bytes": 188152780,
+      "sha256": "0b86cc346fad24841a49bcb1613e26cd0cf31d52af9860afaadade09f9636884"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-arm64.deb.sha256",
+      "bytes": 110,
+      "sha256": "07f307e036bbd68be843888332944ccc29695c17422d591401470992f577485e"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-x86_64.AppImage",
+      "bytes": 248588754,
+      "sha256": "e19925cc64916a1586cecbe8ea48cc95498d891f66b3b9b4db9bd965928bc4d8"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-linux-x86_64.AppImage.sha256",
+      "bytes": 116,
+      "sha256": "6e0cc6a46b2d132b701948be342636d019b4b468b47fb20c9557aa21f432591f"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.dmg",
+      "bytes": 222977731,
+      "sha256": "be9226cca43f18418db4f01bcb9d1787a794b9cf88963517a20dc8094eddded1"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.dmg.blockmap",
+      "bytes": 233650,
+      "sha256": "97c56d7c42becc07c35d5f6773678c713d7b449f9ab8b699a7fef00b682cc05c"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.dmg.sha256",
+      "bytes": 110,
+      "sha256": "ccacf15dd0f903e89187c2bbf4660bc6460a4d11ceabbb42a64b89f8d47d8483"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.zip",
+      "bytes": 217583348,
+      "sha256": "d9fac3c1dc0d820d738428e222eb2248c084a575cd127997d461d1c79b0d6feb"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.zip.blockmap",
+      "bytes": 226521,
+      "sha256": "d5b2c20e09802f87abb9f5101a777715a9b2f200c5e351b339464bc0893fb4a5"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-arm64.zip.sha256",
+      "bytes": 110,
+      "sha256": "c201089685727545f7e73541450d739623da70c6719ca3fbd1a1f15082df5d6c"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.dmg",
+      "bytes": 218074978,
+      "sha256": "90abaea913ba29bbc3488c8fdfd8126b8e2ee40d2d90a0170e6e0a924b4900e0"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.dmg.blockmap",
+      "bytes": 226483,
+      "sha256": "de96d2d2af70b8b7fa145a7b6ea524e5b1cfba4994175c6e30262c7edb8a2ce9"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.dmg.sha256",
+      "bytes": 108,
+      "sha256": "cd373f3117732ef7bd7146c777a7bac05500cfc56034ca2e5772ecacddf3e944"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.zip",
+      "bytes": 212961094,
+      "sha256": "18883e4cd4d34b29b8b43ae1c6b9ee63b9c3a5d95bc6e78ed08bc05cfe584530"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.zip.blockmap",
+      "bytes": 222426,
+      "sha256": "af786110e7b85f3999351ca6c2e4fecbdab2cc5f726e498e17cd9e62f6a5269b"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-macos-x64.zip.sha256",
+      "bytes": 108,
+      "sha256": "ca08b36e98d972db7a7eded5e0b263e4d0bc371e1855b7bac6c6d2179a6b7c74"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-arm64.exe",
+      "bytes": 167677339,
+      "sha256": "3a09e37f2f0be5f21d64bf7e86a8d54e35a01be29b728dc4c8b3c64cbc197229"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-arm64.exe.blockmap",
+      "bytes": 175355,
+      "sha256": "776b00c485edda46ddc632f55ad30e5621bd7b6fb11cd3a9687da86b195fbc50"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-arm64.exe.sha256",
+      "bytes": 112,
+      "sha256": "2d4f606e6dd3eff1ca697af1389653233f21d477395d5429b715775f0853c5f3"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-x64.exe",
+      "bytes": 178409528,
+      "sha256": "6151bb2e287afa4342cc1b073dfea9d7cab6830a1ffb79f530d20c1e2d0f4363"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-x64.exe.blockmap",
+      "bytes": 187234,
+      "sha256": "89956160a9aa3360ac1d3fbfe1a0ef1373088dc55181974754d1a8d147764a80"
+    },
+    {
+      "name": "openagent-app-1.1.0-beta.22-windows-x64.exe.sha256",
+      "bytes": 110,
+      "sha256": "c86f50e181da9a9ec5a016cda4df86669f7b8155b7812bfe3ebbcc974ef1d836"
+    },
+    {
+      "name": "release-manifest-darwin-arm64.json",
+      "bytes": 1234,
+      "sha256": "0baa5f741e49136273aa56d868c6dcb5e9f8dccfa265e0e90b649c93eec064c3"
+    },
+    {
+      "name": "release-manifest-darwin-x64.json",
+      "bytes": 1216,
+      "sha256": "3e761c849fa5e2a00d86231a670e0a2ce4a6087263f60f9dc22fda0f64ce06e5"
+    },
+    {
+      "name": "release-manifest-linux-arm64.json",
+      "bytes": 1136,
+      "sha256": "4b1eb286b5a2beb0b3bd00a9956a53f30158f08774a973de30fa6836981ed263"
+    },
+    {
+      "name": "release-manifest-linux-x64.json",
+      "bytes": 1131,
+      "sha256": "f09ae097e5be8b8f5bc4a561944a8e3552c32d79c7a3164c346a20bbf3107854"
+    },
+    {
+      "name": "release-manifest-win32-arm64.json",
+      "bytes": 1017,
+      "sha256": "9080ebf801b1d191cda5859654d7350753425b2a66722e621bac83e151eaaa54"
+    },
+    {
+      "name": "release-manifest-win32-x64.json",
+      "bytes": 1007,
+      "sha256": "60287397602c508f9c8c5e3fa650fd5c9706c548a9e6b124257a97e5ed123acc"
+    }
+  ],
+  "native_jobs": [
+    {
+      "platform_job": "desktop (macos-15-intel, build:mac, --x64, darwin-x64)",
+      "job_id": 117764200653,
+      "conclusion": "success"
+    },
+    {
+      "platform_job": "desktop (ubuntu-24.04-arm, build:linux, --arm64, linux-arm64)",
+      "job_id": 117764200665,
+      "conclusion": "success"
+    },
+    {
+      "platform_job": "desktop (windows-2025, build:win, --x64, win32-x64)",
+      "job_id": 117764200708,
+      "conclusion": "success"
+    },
+    {
+      "platform_job": "desktop (windows-11-arm, build:win, --arm64, win32-arm64)",
+      "job_id": 117764200722,
+      "conclusion": "success"
+    },
+    {
+      "platform_job": "desktop (ubuntu-24.04, build:linux, --x64, linux-x64)",
+      "job_id": 117764200731,
+      "conclusion": "success"
+    },
+    {
+      "platform_job": "desktop (macos-15, build:mac, --arm64, darwin-arm64)",
+      "job_id": 117764200762,
+      "conclusion": "success"
+    }
+  ],
+  "limits": [
+    "Six native platform jobs and the mandatory macOS Intel ZIP/DMG launch passed. Operator review used existing release metadata and twenty small files; no installer payload was downloaded for this receipt.",
+    "Native release qualification does not establish marketplace GUI, real provider OAuth, provider API/tool parity or receiving-host rollout acceptance. Google/Microsoft common enrollment remains off."
+  ]
+}
