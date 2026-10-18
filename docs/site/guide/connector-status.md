@@ -15,7 +15,7 @@ boundary has its own evidence.
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
 | Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; Google/Microsoft real OAuth and API acceptance; native execution on every target |
-| Server/CLI | Beta45 public from `0049bfd9`, Core22/SDK0.1.8/B6; 210 installed tests and 15 separate React component source scenarios | Fresh public installer45 trial, Windows/macOS server execution and independent host rollout |
+| Server/CLI | Beta45 public from `0049bfd9`, Core22/SDK0.1.8/B6; 210 installed tests, 15 separate React component source scenarios and the normal public installer45 passed | Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta 21 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App21/server44 Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
@@ -30,8 +30,7 @@ and its 114 official entries plus Custom MCP. Its public release manifest is
 `cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c`.
 The installed qualification passed 210 installed tests and 15 separate React component source scenarios. These are
 installed implementation fixtures, not new real-account provider trials.
-App22 publication/GUI and a fresh public installer45 trial remain separate
-pending gates; no App21 screenshot is relabeled as App22/server45 evidence.
+The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom installed catalog. It started no server/model and made no provider calls. App22 publication/GUI remains pending; no App21 screenshot is relabeled as App22/server45 evidence.
 
 The 90 manual-token profiles expose two compiled reads each. Vendor permissions
 remain setup requirements enforced by the provider; an API token does not

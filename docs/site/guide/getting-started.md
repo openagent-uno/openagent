@@ -56,7 +56,7 @@ Installing server and CLI uses the same default installation root. The
 [historical beta43 public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
 records its successful combined installation and dependency checks with default
 HOME/TMPDIR and without a source overlay. The current installer pins beta45/SDK18;
-its fresh public-install trial is recorded separately in [release status](./connector-status.md).
+its [fresh public-install trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom catalog with default HOME/TMPDIR.
 Installed beta45 qualification passed 210 tests and 15 React source scenarios.
 Neither boundary claims native App GUI acceptance or Windows/macOS server execution.
 

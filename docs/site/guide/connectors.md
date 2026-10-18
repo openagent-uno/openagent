@@ -4,7 +4,7 @@
 Current published Python components are **SDK/runner 0.1.8 and server/CLI beta45**,
 with **114 official connectors plus Custom MCP**. [Server45 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
 from `0049bfd95cf722784c835897ce6175a6690a1bc1`; its installed qualification passed
-210 installed tests and 15 separate React component source scenarios. The new SDK adds 90 token-based connectors
+210 installed tests and 15 separate React component source scenarios. The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) also passed. The new SDK adds 90 token-based connectors
 with two read tools each, plus read-only OneDrive and SharePoint.
 
 **App beta21 remains the published App.** The visually qualified pair below is
