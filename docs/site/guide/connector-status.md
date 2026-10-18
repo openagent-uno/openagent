@@ -1,24 +1,50 @@
 # Connector release and qualification status
 
-Status updated on **17 October 2026**. Current published Python components are
-**SDK/runner 0.1.7 and server/CLI beta44**, with 22 official connectors plus Custom
-MCP, Core beta22 and Host Tools 1.0.0b6. **App beta21/server44/SDK17** are the
-current visually qualified pair with 22 official entries; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. A card, component
-release or health check does not establish provider access or application
-composition features; each boundary below has its own receipt.
+Status updated on **18 October 2026**. Current published Python components are
+**SDK/runner 0.1.8 and server/CLI beta45**, with **114 official connectors plus
+Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
+connectors with two read tools each and read-only OneDrive/SharePoint.
+**App beta21 remains the published App**; App22 publication and actual GUI
+qualification are pending. App21/server44/SDK17 remain the visually qualified
+pair with 22 official entries and the immutable receipts below. A card,
+component release or health check does not establish provider access; each
+boundary has its own evidence.
 
 ## Delivery checkpoint
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.7 public: 22 official connectors plus Custom MCP, 11 verified assets, race/vet/vulnerability, six-target/twelve-binary and Python/Linux-native checks | Google/Microsoft real OAuth and API acceptance; execution on every native target |
-| Server/CLI | Beta44 public from `162bff96`, Core22/SDK0.1.7/B6;168 installed fixtures, source/acquisition/provenance guards and the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed | Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; Google/Microsoft real OAuth and API acceptance; native execution on every target |
+| Server/CLI | Beta45 public from `0049bfd9`, Core22/SDK0.1.8/B6; 210 installed tests and 15 separate React component source scenarios | Fresh public installer45 trial, Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta 21 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App21/server44 Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
 | Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
 
 ### Current Python release and the visually qualified pair
+
+[Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
+is public from `0049bfd95cf722784c835897ce6175a6690a1bc1`, adopting
+[SDK 0.1.8](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8)
+and its 114 official entries plus Custom MCP. Its public release manifest is
+`cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c`.
+The installed qualification passed 210 installed tests and 15 separate React component source scenarios. These are
+installed implementation fixtures, not new real-account provider trials.
+App22 publication/GUI and a fresh public installer45 trial remain separate
+pending gates; no App21 screenshot is relabeled as App22/server45 evidence.
+
+The 90 manual-token profiles expose two compiled reads each. Vendor permissions
+remain setup requirements enforced by the provider; an API token does not
+attest OAuth scopes. HTTP403 is a failure, not an empty successful read. Normal
+host-token discovery/invocation and documented response fixtures do not prove
+that an actual user account has the provider's required permissions.
+
+OneDrive/SharePoint add five/seven read tools, with per-account identity,
+explicit server-verified drive/site selection and bounded file reads. They add
+no file writes, auto-provisioning or selected-permission fallback. Microsoft
+common enrollment and real OAuth/file-read qualification remain closed.
+
+The following App21/server44 evidence retains its original versions and scope.
 
 [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed normal packaged UI/SRP/native Iroh, 22 official entries, 30 registry results, 12 loaded local marks and five local keyless control cycles. Seven original images plus three supplementary image files (two unique views) frame Google Calendar and both Outlook cards. Exact owned process/staging/worker cleanup passed; provider calls and model turns were zero.
 
@@ -55,7 +81,7 @@ Exa/Firecrawl provider evidence remains attributed to SDK 0.1.5/beta 41, not rel
 as new beta 43 calls. No connector release qualifies the
 [multi-source application composition contracts](./application-composition.md).
 
-## Published SDK 0.1.7: calendars and mail
+## Calendar and mail contracts: published since SDK 0.1.7
 
 [SDK/runner 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
 is published from `f2cecfe3672e48a7724324fef5e41072cde697bf`, with **22 official
@@ -126,7 +152,7 @@ and the [versioned SDK contract and limits](https://github.com/openagent-uno/ope
 
 ## What the tests establish
 
-The current SDK 0.1.6/server 43/App beta 20 boundaries and receipts are listed above.
+The current SDK18/server45 boundary and the App21/server44 visual boundary are listed above.
 The following detailed trials are historical; their exact versions, original
 failures, provider gates and renderer-reload limitations remain unchanged.
 

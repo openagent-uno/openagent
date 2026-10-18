@@ -1,29 +1,79 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-Current published Python components are **SDK/runner 0.1.7 and server/CLI beta44**,
-with 22 official connectors plus Custom MCP. **App beta21/server44/SDK17** are
-the visually qualified pair shown below; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
-The catalog contains 22 official adapters plus Custom MCP. The normal public
-installer and limited product workflow lifecycle passed independently. The
-[actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
-loaded 22 official entries and 30 registry results in the same grid, verified
-12 local marks and exercised five keyless local connection/control cycles.
-Seven original screenshots and three supplementary files (two unique views) were reviewed; the GUI made no provider calls or model turns.
-Mac/Windows marketplace GUI and hosted sandbox security remain separate.
+Current published Python components are **SDK/runner 0.1.8 and server/CLI beta45**,
+with **114 official connectors plus Custom MCP**. [Server45 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
+from `0049bfd95cf722784c835897ce6175a6690a1bc1`; its installed qualification passed
+210 installed tests and 15 separate React component source scenarios. The new SDK adds 90 token-based connectors
+with two read tools each, plus read-only OneDrive and SharePoint.
 
-Common OAuth enrollment is a limited public beta for ClickUp, GitHub and Notion.
-Every connection still needs local authorization and provider consent. Slack
-public distribution remains disabled, Jira secret custody/consent remain
-pending, and Shopify remains disabled behind provider and privacy-processing
-gates. Google verification and real qualification remain pending. Postiz needs
-credential rotation before activation. See [remaining gates](./connector-status.md).
+**App beta21 remains the published App.** The visually qualified pair below is
+App21/server44/SDK17: 22 official entries and 30 real registry results in one
+grid, 12 loaded local marks and five local keyless control cycles. App22/server45
+publication and actual GUI qualification are pending; the existing screenshots
+are not evidence of the new 114-entry marketplace. Mac/Windows marketplace GUI
+and hosted sandbox security remain separate.
+
+Common OAuth enrollment remains a limited public beta for ClickUp, GitHub and
+Notion. Every connection needs local authorization and provider consent.
+Google/Microsoft common enrollment and real-provider acceptance are not enabled
+by these releases. Slack distribution, Jira registration/consent, Shopify
+privacy/provider gates and Postiz credential rotation retain their separate
+boundaries. Token credentials require the provider's actual permissions; saving
+a connection is not proof of a successful API call. See [remaining gates](./connector-status.md).
 Older installations retain their version pins until explicitly updated.
 :::
 
 OpenAgent provides one shared connector implementation for the standalone server and independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
 The shared authentication service accepts ClickUp, GitHub and Notion enrollment. On released server beta 40, operators enable these providers with `connectors.official_providers: [clickup, github, notion]` or `OPENAGENT_CONNECTOR_AUTH_PROVIDERS=clickup,github,notion`. Server beta 43 defaults to those three only when neither setting is supplied. An explicit empty list or empty environment value remains an opt-out; listing a provider creates no connection, broker registration or grant. Every OAuth connection still requires local authorization and the provider's consent. See the [configuration precedence](./connector-operations.md#standalone-configuration). Shopify enrollment is currently disabled: the published opt-in privacy processor covers a fresh canonical text-history cohort, with additional storage and real-provider acceptance gates still required. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback.
+
+## Token connectors and Microsoft files
+
+[SDK 0.1.8](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8)
+and [server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
+publish 114 official integrations plus Custom MCP. The 90 new token connectors
+provide two specific reads each: for example, Coda profile/document details,
+Postman collection list/details, and Cloudflare zones/accounts. See the
+[provider API profiles](./connector-api-profiles.md) and the
+[versioned catalog](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.8/catalog.json)
+for each connector's operations and setup guidance.
+
+Use a dedicated API/access token authorized for those reads. The receiving
+server encrypts it locally; the provider checks its real permissions. These
+connections do not fabricate OAuth grants or promise automatic token renewal.
+Documented response fixtures and installed tests qualify the implementation;
+no real-account acceptance is claimed for all 90 providers. App22 adds the
+shared setup guidance and 45 shared provider marks, but its public native
+release and actual GUI checks remain pending.
+
+OneDrive has five read tools for existing drives, file metadata, folder items
+and bounded file contents. SharePoint has seven, adding site search/details and
+site-bound document libraries. There are no file writes or automatic OneDrive
+provisioning. Each Microsoft account has a separate OAuth connection. After an
+operator configures a valid OAuth app and the account authorizes it, select the
+site first for SharePoint, then select its document library; for OneDrive,
+select an existing drive. Only a fresh authorized resource-list result can set
+the binding. Model arguments cannot choose another site, drive or download URL.
+
+OneDrive requests delegated `Files.Read` with identity/renewal scopes;
+SharePoint requests explicit `Sites.Read.All`, which is broader than access to
+one selected site. The local selection narrows tool use; it does not narrow
+the provider's consent. `Sites.Selected` is not silently replaced by a broader
+grant. Common Microsoft enrollment and real OAuth/file-read qualification remain
+pending. The CLI uses the same owner-authorized server resource selection:
+
+```sh
+openagent-cli connectors microsoft-resources <connection-id> --kind drives --json
+openagent-cli connectors select-microsoft-drive <connection-id> <drive-id>
+# SharePoint: search and select a site before listing its drives.
+openagent-cli connectors microsoft-resources <connection-id> --kind sites --query Research --json
+openagent-cli connectors select-microsoft-site <connection-id> <site-id> --query Research
+```
+
+Use the same `--page-token` when selecting a resource from a later page. After
+selection, list again from page one: resource tokens are bound to the connection,
+account, credential generation and current selection.
 
 ## Calendar and mail SDK availability
 
@@ -56,8 +106,8 @@ For the expanding typed API subset, token setup and its qualification boundary,
 see [shared provider API profiles](./connector-api-profiles.md).
 
 The [ChatGPT app coverage guide](./chatgpt-apps.md) preserves the complete
-observed directory and its editorial Popular order. Published SDK 0.1.7 contains
-22 implemented official adapters plus Custom MCP, consumed by server/CLI 44.
+observed directory and its editorial Popular order. Published SDK 0.1.8 contains
+114 implemented official adapters plus Custom MCP, consumed by server/CLI45.
 Library publication is separate from provider activation and each receiving
 host's rollout. See the [SDK read receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-sdk-0.1.6-2026-10-17.json),
 [normal product lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
@@ -66,6 +116,12 @@ for their exact limits. These do not establish full ChatGPT feature parity.
 
 | Connector | Authentication | Shared implementation |
 | --- | --- | --- |
+| OneDrive | OAuth | Existing drives, folder items, file metadata and bounded file contents; 5 read tools; explicit drive selection |
+| SharePoint | OAuth | Authorized site search/details, site-bound document libraries and bounded file reads; 7 read tools |
+| Google Calendar | OAuth | CalendarList and events; 7 tools with local write admission and version checks |
+| Outlook Mail | OAuth | Folders, messages, attachments and drafts; sending requires separate permission; 9 tools |
+| Outlook Calendar | OAuth | Calendars and events; 7 tools with finite UTC writes and version checks |
+| 90 provider API profiles | Dedicated API/access token | Two concrete reads per provider, with setup guidance and provider-enforced permissions |
 | Shopify | OAuth | Products, orders, inventory and permitted store operations |
 | Gmail | OAuth | Messages, threads, attachments, drafts and sending |
 | Google Drive | OAuth | Search, files, folders and permitted file operations |
@@ -246,13 +302,15 @@ A central outage prevents new common-app consents and secret-dependent renewals.
 
 ## Embedding and releases
 
-The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.6/deploy/connector-auth) describes provider registration and activation gates.
+The library is [`openagent-tools/packages/connectors`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.8/packages/connectors), with a local runner and Python/MCP adapter. Versioned platform bundles carry manifests and checksums; product builds pin them. Core integrates through public capability APIs. The [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/connector-auth-v0.1.6/deploy/connector-auth) describes provider registration and activation gates.
 
 ## Connection requirements by service
 
 | Service | Setup details |
 | --- | --- |
-| Exa, Firecrawl, Parallel Search, Context7, CoinGecko | Keyless on server/CLI 43 and App 20; Linux x64 local controls passed; no account, key, OAuth consent or refresh; anonymous quotas and per-tool qualification limits apply |
+| 90 provider API profiles | Dedicated authorized API/access token; two read tools per provider; local encrypted storage and provider permission checks; new App22 setup/GUI remains pending |
+| OneDrive, SharePoint | Authorized Microsoft OAuth app and account consent, followed by server-verified drive/site selection; common enrollment and real-provider qualification remain pending |
+| Exa, Firecrawl, Parallel Search, Context7, CoinGecko | Keyless since server/CLI43 and App20; Linux x64 local controls passed; no account, key, OAuth consent or refresh; anonymous quotas and per-tool qualification limits apply |
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |
