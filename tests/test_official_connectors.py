@@ -302,13 +302,14 @@ def test_calendar_mail_own_apps_do_not_enable_other_providers_or_common_oauth(tm
 
 
 @pytest.mark.asyncio
-async def test_sdk17_offline_catalog_retains_twenty_two_entries_without_enabling_connections(fixture):
+async def test_sdk18_offline_catalog_retains_114_entries_without_enabling_connections(fixture):
     service, context, runner, _ = fixture
     service.runner = None
     catalog = await service.catalog(context)
     assert catalog["available"] is False
-    assert len(catalog["connectors"]) == 22
-    assert len({item["id"] for item in catalog["connectors"]}) == 22
+    assert len(catalog["connectors"]) == 114
+    assert len({item["id"] for item in catalog["connectors"]}) == 114
+    assert all(item["available"] is False for item in catalog["connectors"])
     by_id = {item["id"]: item for item in catalog["connectors"]}
     for identifier, provider, capability in (("google-calendar", "google_calendar", "files"),
                                                ("outlook-mail", "outlook_mail", "outreach"),
@@ -1145,5 +1146,5 @@ async def test_admitted_token_provider_rejects_arbitrary_connection_config(fixtu
     runner.call = catalog_call
     with pytest.raises(ValueError, match='configuration'):
         await service.create(context, {'catalog_id': 'postman', 'token': 'fixture-token', 'config': config})
-    assert await service.list(context) == []
+    assert (await service.list(context))['connections'] == []
     assert not any(method == 'invoke' or method.startswith('auth.') for method, _ in runner.calls)
