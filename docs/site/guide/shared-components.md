@@ -27,27 +27,33 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-The visually qualified standalone pair is **server/CLI beta44, Core beta22, connector SDK/runner
-0.1.7, Host Tools 1.0.0b6 and App beta21**. Its catalog has22 official adapters
-plus Custom MCP. Its [versioned Go contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.7/packages/connectors)
-uses module tag `packages/connectors/v0.1.7`; the independently published runner
-release is [connectors-v0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7).
-Each host pins and qualifies its own assembly; publishing a component never
-silently updates another installation or attests its data-processing coverage.
+Current published Python components are **server/CLI beta45, Core beta22,
+connector SDK/runner 0.1.8 and Host Tools 1.0.0b6**, with **114 official connectors
+plus Custom MCP**. [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8)
+adds 90 manual-token profiles with two specific reads each, plus read-only
+OneDrive/SharePoint with server-verified account/site/drive bindings. Vendor
+permissions remain setup requirements enforced by each provider. Token connections
+do not attest OAuth scopes or promise automatic token renewal. Code and
+documented-response fixtures do not establish real-account acceptance.
 
-The latest shared component is now [SDK/runner **0.1.7**](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7),
-with **22 official connectors plus Custom MCP**. It adds Google Calendar (7),
-Outlook Mail (9, separately authorized send) and Outlook Calendar (7). Its
-[SDK qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) does not qualify actual Google/Microsoft access.
-Go hosts can pin
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.7`. The module
-Git tag is `packages/connectors/v0.1.7`; the runner release is
-`connectors-v0.1.7`. Each receiving host still qualifies its own credential
-storage, scope policy and product deployment.
-[Server/CLI44 is now public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44),
-with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json), SDK17, Core22 and B6. The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The earlier server43/App20 SDK16 assembly and acceptance remain historical below.
+Go hosts pin
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.8`. The module
+Git tag is `packages/connectors/v0.1.8`; the independently versioned runner
+release is `connectors-v0.1.8`. [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
+adopts this public closure. Each host pins and qualifies its own credential
+storage, scope policy and deployment; component publication never updates an
+installation silently or establishes data-processing coverage.
 
-The new adapters bind each account to its own local connection. Google sync
+**App21 remains public; App22 publication and actual GUI qualification are
+pending.** The visually qualified pair is App21/server44/SDK17, with 22 official
+entries, 30 real registry results and 12 local marks. Its [actual Linux x64
+marketplace receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
+retains the original scope. Earlier [SDK17 qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json),
+[server44 installed qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json)
+and [public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json)
+remain historical; they do not qualify App22 or the new 114-entry GUI.
+
+The Calendar/mail adapters introduced in SDK17 bind each account to its own local connection. Google sync
 checkpoints and Graph page cursors do not become shared application state:
 hosts persist projections/checkpoints, resolve 410 resets and 412 version
 conflicts, and implement synchronization explicitly. The adapters perform one

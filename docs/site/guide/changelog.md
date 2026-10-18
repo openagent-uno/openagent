@@ -2,6 +2,12 @@
 
 Notable changes, newest first.
 
+## v1.1.0-beta.45 and connector SDK 0.1.8
+
+- [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8) publishes 114 official connectors plus Custom MCP: 90 manual-token profiles with two specific reads each, plus read-only OneDrive/SharePoint. Token setup guidance and 45 verified shared marks are distributed by the SDK; provider permission and real-account acceptance remain separate.
+- [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45) pins SDK18/Core22/B6. Installed qualification passed 210 tests and 15 React source scenarios. Microsoft resource selection uses fresh authorized account/site/drive discovery and local owner checks; common Google/Microsoft enrollment remains off.
+- App21 remains the published App and [App21/server44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) remains the versioned visual receipt. App22 publication/GUI and the fresh final public installer45 trial are tracked separately in [release status](./connector-status.md); this entry does not qualify new provider calls.
+
 ## App v1.1.0-beta.20
 
 - [Public desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20) with 36 verified assets/six native targets; all 10 workflow jobs and mandatory Intel ZIP/DMG launches passed. [Native receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json).

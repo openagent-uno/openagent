@@ -2,9 +2,9 @@
 
 This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
 public beta; other providers retain their [qualification gates](./connector-status.md).
-Current published Python components are **SDK/runner 0.1.7 and server/CLI beta 44**.
+Current published Python components are **SDK/runner 0.1.8 and server/CLI beta45**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
 [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
-The current visually qualified pair is App21/server44/SDK17. The earlier App beta20/server43 [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
+App22 publication/GUI is pending; the current visually qualified pair remains App21/server44/SDK17. The earlier App beta20/server43 [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
 [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
 and [Linux x64 marketplace/local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
 passed separately. The GUI uses hosted `--no-sandbox` and made zero provider
@@ -104,14 +104,14 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 ## Pinning the shared implementation
 
 A Go host consumes
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.7`; its
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.8`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental
 sibling replacement. The standalone consumer lock is
 `apps/server/connectors.lock.json` and binds the source commit, manifest,
-platform archive and wheel hashes. Public server44 pins SDK17; existing
-server43 installations keep SDK16 until explicitly updated.
+platform archive and wheel hashes. Public server45 pins SDK18; older installations
+retain their existing component versions until explicitly updated.
 
-From a source checkout containing the candidate acquisition script:
+From a matching source checkout containing the acquisition script:
 
 ```sh
 python3.11 apps/server/scripts/acquire-connectors.py   --platform darwin-arm64   --output /tmp/connectors-verified-new   --wheelhouse /tmp/connectors-wheelhouse-new
@@ -132,7 +132,7 @@ The shared Python package exposes `ConnectorRunner` and the optional
 `openagent_connectors.mcp.serve_connector` surface. An embedding host supplies
 an authorizing connector factory and credential/connection context. Do not
 publish the raw runner protocol or credentials as a model-controlled MCP
-endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors).
+endpoint. See the [shared library contract](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.8/packages/connectors).
 
 ## Keyless connectors
 
@@ -217,7 +217,7 @@ clients must not substitute another connection, installation or principal.
 The broker has a separate signed `/v1` contract for installation registration,
 transactions, redemption, refresh/revoke, group commits/recovery, temporary
 mail and durable events. Its contract is
-[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.6/packages/connectors).
+[`openagent-connectors/v1`](https://github.com/openagent-uno/openagent-tools/tree/connectors-v0.1.8/packages/connectors).
 
 ## Own provider apps
 

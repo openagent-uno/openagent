@@ -1,8 +1,10 @@
 # Getting Started
 
 OpenAgent can be used as the complete standalone product or embedded as a
-library. The current assembly is **server/CLI v1.1.0-beta.43**, Core beta 22,
-connector SDK/runner 0.1.6, Host Tools 1.0.0b6 and desktop **App v1.1.0-beta.20**.
+library. Current Python releases are **server/CLI v1.1.0-beta.45**, Core beta22,
+connector SDK/runner 0.1.8 and Host Tools 1.0.0b6: 114 official connectors plus
+Custom MCP, including 90 token profiles with two reads each. Desktop **App
+v1.1.0-beta.21** remains public; App22 publication and actual GUI checks are pending.
 See [downloads](../downloads) and [qualification status](./connector-status.md)
 for the independently recorded installation, provider, packaging and GUI boundaries.
 
@@ -11,12 +13,14 @@ for the independently recorded installation, provider, packaging and GUI boundar
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your operating system and CPU, launch OpenAgent, and
-connect it to an existing standalone server. App 20 has six qualified native
-targets; both macOS builds are signed and notarized. Its
-[Linux x64 App 20/server 43 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
-loaded 19 official connectors and 30 registry results in one grid and exercised
-five keyless connections without provider calls. Hosted Electron used
-`--no-sandbox`; this does not establish sandbox security or Mac/Windows marketplace GUI.
+connect it to an existing standalone server. [App21](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
+has six qualified native targets and 36 verified assets; both macOS builds are
+signed and notarized. Its [Linux x64 App21/server44 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
+loaded 22 official connectors and 30 registry results in one grid, with five
+local keyless control cycles and no provider calls. These screenshots and
+receipts retain their original version scope, rather than qualifying the new
+114-entry App22/server45 GUI. Hosted Electron used `--no-sandbox`; this does not
+establish sandbox security or Mac/Windows marketplace GUI.
 The app registers dashboard and local-computer capabilities only for its
 authenticated device turns; Telegram, scheduled work and other clients do not inherit them.
 
@@ -49,17 +53,19 @@ unrelated command. Server installation also acquires and verifies the SDK-pinned
 native connector runner; users do not need a Go compiler. `--check` verifies the
 wheelhouse without installing dependencies or acquiring the native runner.
 Installing server and CLI uses the same default installation root. The
-[fresh public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
-records successful combined installation and dependency checks with default
-HOME/TMPDIR and without a source overlay. This does not claim
-native App GUI acceptance or Windows/macOS server execution.
+[historical beta43 public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
+records its successful combined installation and dependency checks with default
+HOME/TMPDIR and without a source overlay. The current installer pins beta45/SDK18;
+its fresh public-install trial is recorded separately in [release status](./connector-status.md).
+Installed beta45 qualification passed 210 tests and 15 React source scenarios.
+Neither boundary claims native App GUI acceptance or Windows/macOS server execution.
 
 | Pinned release manifest | SHA-256 |
 | --- | --- |
-| [Product beta 43](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/manifest.json) | `0458e049e3bfeafafff7c677670bdc30eeeb7a70ec8e93eac1742f6e45ba5e63` |
+| [Product beta45](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.45/manifest.json) | `cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c` |
 | [Core beta 22](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.22/manifest.json) | `291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d` |
 | [Tools beta 4](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/manifest.json) | `20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228` |
-| [Connector SDK 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.6/manifest.json) | `a1e87b9469cadfc1c8184e4ad704d0b7ed26ee7233f6145bf15baddfe19789f5` |
+| [Connector SDK 0.1.8](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.8/manifest.json) | `85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916` |
 
 The product manifest also binds the unchanged Host Tools B6 wheel/bundles.
 Embedding products or custom packagers should follow the

@@ -6,11 +6,15 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-The latest shared component is [SDK17](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7),
-with 22 official connectors plus Custom MCP and isolated Calendar/Outlook
-qualification. Its [publication and boundaries](#published-sdk-017-calendars-and-mail)
-are separate from the visually qualified standalone pair below. Server/CLI44
-is now public on SDK17; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
+The latest shared component is [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8),
+with **114 official connectors plus Custom MCP**. [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
+adopts it. Ninety new token profiles each expose two specific reads; read-only
+OneDrive/SharePoint add explicit authorized resource selection. These are
+qualified implementation/protocol fixtures, not 90 new real-account trials or
+full ChatGPT app parity. Provider token permissions and Google/Microsoft OAuth
+activation retain independent gates. [App21](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
+remains public; App22 publication and actual 114-entry GUI qualification are
+pending. The App21/server44/SDK17 visual receipt below remains versioned.
 
 ## Visually qualified standalone pair and retained provider evidence
 
@@ -218,18 +222,19 @@ and the [versioned SDK contract and limits](https://github.com/openagent-uno/ope
 
 Use an official MCP when its transport, authorization and provider conditions support an independent client. Use a shared API adapter when that is the supported interface. Each provider still needs its actual discovery/read/write/refresh/restart/disconnect and tenant-isolation qualification. A paid plan, partner agreement, provider review or unsupported public API is a concrete gate; copying private ChatGPT endpoints or cookies is not an integration path.
 
-Slack's official MCP requires a Marketplace or internal app; unlisted apps are not accepted. Ahrefs documents distinct API and MCP terms, including restrictions on independent scripted MCP clients. Atlassian documents Rovo credit consumption. These constraints are recorded with primary sources in the inventory; they must be resolved before enabling those providers. Other entries need individual provider research and registration as applicable.
+Slack's official MCP requires a Marketplace or internal app; unlisted apps are not accepted. Ahrefs documents distinct API and MCP terms, including restrictions on independent scripted MCP clients. Atlassian documents Rovo credit consumption. These constraints are recorded with primary sources in the inventory; they must be resolved before using the affected API or MCP service. Other entries need individual provider research and registration as applicable.
 
 ## Popular directory order
 
-The table preserves the original Popular editorial order. SDK 0.1.7/server 44 are
-published; [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The current visually qualified pair is
-SDK 0.1.7/server 44/App beta 21; real provider evidence, local GUI controls and
-common OAuth availability retain separate boundaries. Only ClickUp/GitHub/Notion
-common enrollment is open in the limited beta. Full tool parity and Mac/Windows
-marketplace GUI remain unqualified.
+The table preserves the original Popular editorial order. Current Python
+releases are SDK18/server45 with 114 official entries; each new token profile
+has only its two documented reads. App21 remains public and App21/server44/SDK17
+remains the visually qualified pair. Real provider evidence, local GUI controls
+and common OAuth availability are separate. Only ClickUp/GitHub/Notion common
+enrollment is open in the limited beta. App22 publication/GUI, full feature
+parity and Mac/Windows marketplace GUI are not qualified here.
 
-| Position | App | OpenAgent baseline | Verified interface |
+| Position | App | OpenAgent implementation | Verified interface |
 | ---: | --- | --- | --- |
 | 1 | [Remote Desktop Commander](https://chatgpt.com/plugins/plugin_asdk_app_6a057d268ebc81919918d37eec718425) | Not implemented/qualified | [Remote OAuth/PKCE MCP and device pairing](https://github.com/desktop-commander/remote-desktop-commander) |
 | 2 | [Google Drive](https://chatgpt.com/plugins/plugin_connector_1p_ab21a553bfbc81919ea8fd1858e3ffa7) | Adapter exists; qualification separate | [Documented public API](https://developers.google.com/workspace/drive/api/guides/about-sdk) |
@@ -238,46 +243,46 @@ marketplace GUI remain unqualified.
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | [Documented independent-client OAuth MCP](https://wpvibe.ai/docs/ai-client-setup/) |
 | 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
-| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK 0.1.7 published: 9 typed mail operations; separate send scope; common registration and real OAuth/API qualification pending; server44 adopts SDK17; App21 public; Linux x64 GUI passed | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
-| 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | Not implemented/qualified | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
+| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK18/server45: 9 mail tools; separate send permission; common OAuth and real account QA pending; App21/server44 GUI remains historical | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
+| 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | SDK18/server45: list projects and read project details; own token; real-account QA pending | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
 | 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |
 | 12 | [Exa](https://chatgpt.com/plugins/plugin_asdk_app_69ea4ed2cf7c8191b742ef3622479ddd) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://exa.ai/docs/get-started/exa-mcp) |
-| 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | Not implemented/qualified | [Documented official MCP](https://render.com/docs/mcp-server) |
+| 13 | [Render](https://chatgpt.com/plugins/plugin_asdk_app_6a624c56bfe081918f7544f7d58f6faf) | SDK18/server45: list services and review their deployments; own token; real-account QA pending | [Documented official MCP](https://render.com/docs/mcp-server) |
 | 14 | [Upwork](https://chatgpt.com/plugins/plugin_asdk_app_6a75165ed2d8819182548553aa4cb6d5) | Not implemented/qualified | [Official MCP guide](https://www.upwork.com/ai/mcp); [vendor manifest](https://github.com/upwork/upwork-agent-plugin/blob/master/mcp.json) |
 | 15 | [Notion](https://chatgpt.com/plugins/plugin_asdk_app_69c18c28f1188191bf5b8445c4ab0a2e) | SDK 0.1.4/server 40 published; single-page QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://developers.notion.com/guides/mcp/overview) |
 | 16 | [Slack](https://chatgpt.com/plugins/plugin_asdk_app_69a1d78e929881919bba0dbda1f6436d) | SDK 0.1.4/server 40 published; limited lifecycle passed; App 18 published; native App provider acceptance and enrollment pending | [MCP subject to approval/distribution](https://docs.slack.dev/ai/slack-mcp-server/); [Documented public API](https://docs.slack.dev/apis/) |
 | 17 | [Parallel Search](https://chatgpt.com/plugins/plugin_asdk_app_69fb9378663481919a68e8a2109644e5) | SDK 0.1.6/server 43/App beta 20 public; two SDK reads and beta 43 fetch/restart/disconnect lifecycle passed; Linux x64 local controls passed | [Official public Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp) |
 | 18 | [Shopify](https://chatgpt.com/plugins/plugin_asdk_app_69e65c430b3081919aa4d962ab5d1698) | Adapter exists; common OAuth disabled | [Documented public API](https://shopify.dev/docs/api/admin-graphql/latest) |
 | 19 | [Granola](https://chatgpt.com/plugins/plugin_asdk_app_697761cab6f48191b5ed345919a3ce8b) | Not implemented/qualified | [Official OAuth/DCR MCP](https://docs.granola.ai/help-center/sharing/integrations/mcp) |
-| 20 | [Klaviyo](https://chatgpt.com/plugins/plugin_asdk_app_694421e60cc88191a1e5bb4aa79950e4) | Not implemented/qualified | [Documented public API](https://developers.klaviyo.com/en/reference/api_overview) |
+| 20 | [Klaviyo](https://chatgpt.com/plugins/plugin_asdk_app_694421e60cc88191a1e5bb4aa79950e4) | SDK18/server45: list customer profiles and marketing campaigns; own token; real-account QA pending | [Documented public API](https://developers.klaviyo.com/en/reference/api_overview) |
 | 21 | [SentinelX](https://chatgpt.com/plugins/plugin_asdk_app_69f63e01766881919640f03b5e7912a5) | Not implemented/qualified | Not researched |
 | 22 | [TinyFish](https://chatgpt.com/plugins/plugin_asdk_app_695325bae7348191b58ae9349a963d22) | Not implemented/qualified | Not researched |
 | 23 | [Wispr Flow](https://chatgpt.com/plugins/plugin_asdk_app_6a5ae9736be0819199d06d61ac171080) | Not implemented/qualified | Not researched |
-| 24 | [Canva](https://chatgpt.com/plugins/plugin_connector_68df33b1a2d081918778431a9cfca8ba) | Not implemented/qualified | [Documented public API](https://www.canva.dev/docs/apps/rest-apis/) |
-| 25 | [Railway](https://chatgpt.com/plugins/plugin_asdk_app_6a502589384081919c5decf93496c9d1) | Not implemented/qualified | [Documented official MCP](https://docs.railway.com/ai/mcp-server) |
+| 24 | [Canva](https://chatgpt.com/plugins/plugin_connector_68df33b1a2d081918778431a9cfca8ba) | SDK18/server45: list designs and read design details; own token; real-account QA pending | [Documented public API](https://www.canva.dev/docs/apps/rest-apis/) |
+| 25 | [Railway](https://chatgpt.com/plugins/plugin_asdk_app_6a502589384081919c5decf93496c9d1) | SDK18/server45: read your account profile and project details; own token; real-account QA pending | [Documented official MCP](https://docs.railway.com/ai/mcp-server) |
 | 26 | [Adspirer](https://chatgpt.com/plugins/plugin_asdk_app_69461dc91ee48191ae4a14eb9bde1c21) | Not implemented/qualified | Not researched |
-| 27 | [Vercel](https://chatgpt.com/plugins/plugin_connector_690a90ec05c881918afb6a55dc9bbaa1) | Not implemented/qualified | [Documented official MCP](https://vercel.com/docs/agent-resources/vercel-mcp) |
+| 27 | [Vercel](https://chatgpt.com/plugins/plugin_connector_690a90ec05c881918afb6a55dc9bbaa1) | SDK18/server45: list projects and deployments; own token; real-account QA pending | [Documented official MCP](https://vercel.com/docs/agent-resources/vercel-mcp) |
 | 28 | [Otter.ai](https://chatgpt.com/plugins/plugin_asdk_app_695d84e2f06c8191861b9bac9b3fd53b) | Not implemented/qualified | Not researched |
-| 29 | [GitLab (Beta)](https://chatgpt.com/plugins/plugin_connector_1p_5925693c1aa88191a4959257e60d0734) | Not implemented/qualified | [Documented official MCP](https://docs.gitlab.com/user/model_context_protocol/mcp_server/) |
-| 30 | [HubSpot](https://chatgpt.com/plugins/plugin_asdk_app_697acb8e53d88191bf7a79e62012ae14) | Not implemented/qualified | [Documented official MCP](https://developers.hubspot.com/ai-tools/mcp) |
+| 29 | [GitLab (Beta)](https://chatgpt.com/plugins/plugin_connector_1p_5925693c1aa88191a4959257e60d0734) | SDK18/server45: list projects and project issues; own token; real-account QA pending | [Documented official MCP](https://docs.gitlab.com/user/model_context_protocol/mcp_server/) |
+| 30 | [HubSpot](https://chatgpt.com/plugins/plugin_asdk_app_697acb8e53d88191bf7a79e62012ae14) | SDK18/server45: list contacts and companies; own token; real-account QA pending | [Documented official MCP](https://developers.hubspot.com/ai-tools/mcp) |
 | 31 | [GSC Wizard](https://chatgpt.com/plugins/plugin_asdk_app_6a258ab1e0908191aa647c33299ad14c) | Not implemented/qualified | Not researched |
 | 32 | [vidIQ](https://chatgpt.com/plugins/plugin_asdk_app_69dd11f3e50c8191b1ca48d03cf7e2ad) | Not implemented/qualified | Not researched |
-| 33 | [Asana](https://chatgpt.com/plugins/plugin_asdk_app_69616780bd208191b4fb44ba44f72b61) | Not implemented/qualified | [Documented public API](https://developers.asana.com/docs/overview) |
+| 33 | [Asana](https://chatgpt.com/plugins/plugin_asdk_app_69616780bd208191b4fb44ba44f72b61) | SDK18/server45: list projects and tasks; own token; real-account QA pending | [Documented public API](https://developers.asana.com/docs/overview) |
 | 34 | [Metricool](https://chatgpt.com/plugins/plugin_asdk_app_69d73fc8aa5c8191bec1583760b130c7) | Not implemented/qualified | Not researched |
 | 35 | [Superhuman Mail](https://chatgpt.com/plugins/plugin_asdk_app_69a21e4058dc8191a6220fa911310d7b) | Not implemented/qualified | Not researched |
 | 36 | [IOL invertironline](https://chatgpt.com/plugins/plugin_asdk_app_6a207f00eed0819181227b2ea257ff0b) | Not implemented/qualified | Not researched |
-| 37 | [Fathom](https://chatgpt.com/plugins/plugin_asdk_app_69d88b99c5c481918e8da9225737e1e9) | Not implemented/qualified | Not researched |
-| 38 | [Fireflies](https://chatgpt.com/plugins/plugin_connector_6912075cb358819187346bcafb601db8) | Not implemented/qualified | Not researched |
+| 37 | [Fathom](https://chatgpt.com/plugins/plugin_asdk_app_69d88b99c5c481918e8da9225737e1e9) | SDK18/server45: list meetings and read recording transcripts; own token; real-account QA pending | [Documented read API](https://developers.fathom.ai/quickstart) |
+| 38 | [Fireflies](https://chatgpt.com/plugins/plugin_connector_6912075cb358819187346bcafb601db8) | SDK18/server45: list meeting transcripts and read transcript details; own token; real-account QA pending | [Documented read API](https://docs.fireflies.ai/fundamentals/authorization) |
 | 39 | [ClickUp](https://chatgpt.com/plugins/plugin_asdk_app_69431e6d26b88191b4029488aeb42f5b) | Adapter exists; limited lifecycle recorded; common OAuth beta open | [Documented public API](https://developer.clickup.com/) |
 | 40 | [Interactive Brokers (IBKR)](https://chatgpt.com/plugins/plugin_asdk_app_69bc11db874881918718abaca20b68ce) | Not implemented/qualified | Not researched |
-| 41 | [Todoist: To Do List & Calendar](https://chatgpt.com/plugins/plugin_asdk_app_6943b73823548191a9f9216c6790c453) | Not implemented/qualified | Not researched |
+| 41 | [Todoist: To Do List & Calendar](https://chatgpt.com/plugins/plugin_asdk_app_6943b73823548191a9f9216c6790c453) | SDK18/server45: list projects and tasks; own token; real-account QA pending | [Documented read API](https://developer.todoist.com/api/v1/) |
 | 42 | [Opera Browser Connector](https://chatgpt.com/plugins/plugin_asdk_app_69d669e1d5c88191957786fbcd38b411) | Not implemented/qualified | Not researched |
-| 43 | [Ahrefs](https://chatgpt.com/plugins/plugin_asdk_app_6966958473488191b775fdb667c52eab) | Not implemented/qualified | [Commercial MCP with client restrictions](https://docs.ahrefs.com/en/mcp/docs/introduction); [API on commercial plan](https://docs.ahrefs.com/en/api/docs/introduction) |
-| 44 | [monday.com](https://chatgpt.com/plugins/plugin_connector_690aabb71bf481918b8d5b614ed3fd4c) | Not implemented/qualified | [Documented public API](https://developer.monday.com/api-reference/docs/basics) |
+| 43 | [Ahrefs](https://chatgpt.com/plugins/plugin_asdk_app_6966958473488191b775fdb667c52eab) | SDK18/server45: read domain ratings and SEO metrics; own token; real-account QA pending | [Commercial MCP with client restrictions](https://docs.ahrefs.com/en/mcp/docs/introduction); [API on commercial plan](https://docs.ahrefs.com/en/api/docs/introduction) |
+| 44 | [monday.com](https://chatgpt.com/plugins/plugin_connector_690aabb71bf481918b8d5b614ed3fd4c) | SDK18/server45: list boards and read board items; own token; real-account QA pending | [Documented public API](https://developer.monday.com/api-reference/docs/basics) |
 | 45 | [Tredict](https://chatgpt.com/plugins/plugin_asdk_app_69aef5b699a0819184512d57743fc1cd) | Not implemented/qualified | Not researched |
-| 46 | [Webflow](https://chatgpt.com/plugins/plugin_asdk_app_6a0783a98c4c8191841404d786d4a4b9) | Not implemented/qualified | [Documented public API](https://developers.webflow.com/data/reference/rest-introduction) |
+| 46 | [Webflow](https://chatgpt.com/plugins/plugin_asdk_app_6a0783a98c4c8191841404d786d4a4b9) | SDK18/server45: list sites and their collections; own token; real-account QA pending | [Documented public API](https://developers.webflow.com/data/reference/rest-introduction) |
 | 47 | [HYPD AI - Paid Ads & Analytics](https://chatgpt.com/plugins/plugin_asdk_app_6a3170ea7fc88191be6c0b9ff250a4b4) | Not implemented/qualified | Not researched |
-| 48 | [SharePoint](https://chatgpt.com/plugins/plugin_connector_1p_dca009ae2c848191ae14df3a47c5e7fd) | Not implemented/qualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/sharepoint?view=graph-rest-1.0) |
+| 48 | [SharePoint](https://chatgpt.com/plugins/plugin_connector_1p_dca009ae2c848191ae14df3a47c5e7fd) | SDK18/server45: 7 read tools and verified site/library selection; common OAuth and real account QA pending | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/sharepoint?view=graph-rest-1.0) |
 | 49 | [Floot](https://chatgpt.com/plugins/plugin_asdk_app_6a500d350f8c819194e30335a7b134af) | Not implemented/qualified | Not researched |
-| 50 | [Quo](https://chatgpt.com/plugins/plugin_asdk_app_69e6af3297d88191b4925772c50df286) | Not implemented/qualified | Not researched |
+| 50 | [Quo](https://chatgpt.com/plugins/plugin_asdk_app_69e6af3297d88191b4925772c50df286) | SDK18/server45: list phone numbers and conversations; own token; real-account QA pending | [Documented read API](https://www.quo.com/docs/api-reference/introduction/authentication) |
