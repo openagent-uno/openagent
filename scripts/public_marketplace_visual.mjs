@@ -9,13 +9,15 @@ const require = createRequire(path.join(driverRoot, 'package.json'));
 const { _electron: electron, expect } = require('@playwright/test');
 const expected = expectationPath ? JSON.parse(await readFile(expectationPath, 'utf8'))
   : { appVersion: '1.1.0-beta.17', serverVersion: '1.1.0b39', officialIds: null };
-assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41', '1.1.0-beta.19/1.1.0b42', '1.1.0-beta.20/1.1.0b43', '1.1.0-beta.21/1.1.0b44']
+assert(['1.1.0-beta.17/1.1.0b39', '1.1.0-beta.18/1.1.0b40', '1.1.0-beta.19/1.1.0b41', '1.1.0-beta.19/1.1.0b42', '1.1.0-beta.20/1.1.0b43', '1.1.0-beta.21/1.1.0b44', '1.1.0-beta.22/1.1.0b45']
   .includes(`${expected.appVersion}/${expected.serverVersion}`));
-const calendarMailCohort = expected.appVersion === '1.1.0-beta.21';
+const reviewedBatchCohort = expected.appVersion === '1.1.0-beta.22';
+const calendarMailCohort = reviewedBatchCohort || expected.appVersion === '1.1.0-beta.21';
 const nextKeylessCohort = calendarMailCohort || expected.appVersion === '1.1.0-beta.20';
 const keylessCohort = nextKeylessCohort || expected.appVersion === '1.1.0-beta.19';
-const keylessIds = keylessCohort ? ['exa', 'firecrawl', ...(nextKeylessCohort ? ['parallel-search', 'context7', 'coingecko'] : [])] : [];
-const expectedCount = calendarMailCohort ? 22 : nextKeylessCohort ? 19 : keylessCohort ? 16 : 14;
+const availableKeylessIds = keylessCohort ? ['exa', 'firecrawl', ...(nextKeylessCohort ? ['parallel-search', 'context7', 'coingecko'] : [])] : [];
+const keylessIds = reviewedBatchCohort ? ['exa'] : availableKeylessIds;
+const expectedCount = reviewedBatchCohort ? 114 : calendarMailCohort ? 22 : nextKeylessCohort ? 19 : keylessCohort ? 16 : 14;
 assert(expected.officialIds === null || (Array.isArray(expected.officialIds)
   && expected.officialIds.length === expectedCount && new Set(expected.officialIds).size === expectedCount
   && expected.officialIds.every(id => typeof id === 'string' && /^[a-z0-9_-]{1,64}$/.test(id))));
@@ -104,7 +106,7 @@ try {
   const verifiedIcons = [];
   if (expected.officialIds) {
     await markPhase('verify-new-provider-local-images');
-    for (const id of ['github', 'notion', 'slack-import', 'atlassian', ...keylessIds, ...(calendarMailCohort ? ['google-calendar', 'outlook-mail', 'outlook-calendar'] : [])]) {
+    for (const id of ['github', 'notion', 'slack-import', 'atlassian', ...availableKeylessIds, ...(calendarMailCohort ? ['google-calendar', 'outlook-mail', 'outlook-calendar'] : [])]) {
       const item = official.find(connector => connector.id === id); assert(item);
       if (['context7', 'coingecko', 'outlook-mail', 'outlook-calendar'].includes(id)) {
         const vector = page.getByText(item.name, { exact: true }).first().locator('..').locator('svg').first();
@@ -126,6 +128,40 @@ try {
       verifiedIcons.push(id);
     }
   }
+  const sharedBrandmarks = [];
+  const oauthUnavailable = [];
+  if (reviewedBatchCohort) {
+    assert(Array.isArray(expected.reviewedBatchIds) && expected.reviewedBatchIds.length === 90
+      && new Set(expected.reviewedBatchIds).size === 90);
+    for (const id of expected.reviewedBatchIds) {
+      const item = official.find(connector => connector.id === id);
+      assert(item && item.auth === 'token' && item.available && item.readTools?.length === 2
+        && item.agentTools?.length === 0 && typeof item.setupInstructions === 'string' && item.setupInstructions.length > 0);
+    }
+    const shared = official.filter(item => typeof item.logoSvg === 'string' && item.logoSvg.length > 0);
+    assert.equal(shared.length, 45);
+    assert.deepEqual(shared.map(item => item.id).sort(), Object.keys(expected.sharedBrandmarks).sort());
+    for (const item of shared) {
+      assert.equal(item.logoSvg, expected.sharedBrandmarks[item.id]);
+      const match = /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 24 24"><path fill="(#[0-9A-F]{6})" d="([Mm][MmZzLlHhVvCcSsQqTtAa0-9eE.,+ -]*)"\/><\/svg>$/.exec(item.logoSvg);
+      assert(match && match[0].length === item.logoSvg.length && item.logoSvg.length <= 32768);
+      const svg = page.getByText(item.name, { exact: true }).first().locator('..').locator('svg').first();
+      await expect.poll(() => svg.evaluate((node, expected) => {
+        const paths = node.querySelectorAll('path');
+        return node.viewBox.baseVal.width === 24 && node.viewBox.baseVal.height === 24
+          && paths.length === 1 && paths[0].getAttribute('d') === expected.path
+          && paths[0].getAttribute('fill')?.toUpperCase() === expected.fill
+          && node.querySelectorAll('script,foreignObject,image,use,a,style').length === 0
+          && node.getBoundingClientRect().width > 0 && node.getBoundingClientRect().height > 0;
+      }, { path: match[2], fill: match[1] }), { timeout: 15000 }).toBe(true);
+      sharedBrandmarks.push(item.id);
+    }
+    for (const id of ['google-calendar', 'outlook-mail', 'outlook-calendar', 'onedrive', 'sharepoint']) {
+      const item = official.find(connector => connector.id === id);
+      assert(item && item.auth === 'oauth' && !item.available && typeof item.unavailableReason === 'string' && item.unavailableReason.length > 0);
+      oauthUnavailable.push(id);
+    }
+  }
   // Semantic labels/tabs are stable; unlabelled visual dividers remain screenshot evidence.
   await expect(page.getByText(/^official(?: connectors)?$/i)).toHaveCount(0);
   await expect(page.getByRole('tab', { name: /official/i })).toHaveCount(0);
@@ -141,6 +177,39 @@ try {
   await page.mouse.wheel(0, 850); await page.waitForTimeout(500);
   await markPhase('capture-authenticated-marketplace-scroll');
   await page.screenshot({ path: path.join(evidence, `${screenshotPrefix}-marketplace-scroll.png`) });
+  const focusedImages = [];
+  let blankTokenSetup = null;
+  if (reviewedBatchCohort) {
+    for (const id of ['supabase', 'canva', 'postman', 'google-calendar', 'outlook-mail', 'outlook-calendar']) {
+      const item = official.find(connector => connector.id === id); assert(item);
+      const title = page.getByText(item.name, { exact: true }).first();
+      const card = title.locator('..').locator('..');
+      await markPhase(`capture-${id}-visible-card`);
+      await card.scrollIntoViewIfNeeded();
+      await expect(card).toBeInViewport({ ratio: 1 });
+      await expect(title).toBeInViewport({ ratio: 1 });
+      const filename = `${screenshotPrefix}-${id}-visible.png`;
+      await page.screenshot({ path: path.join(evidence, filename) });
+      focusedImages.push({ id, filename, wholeCardInViewport: true });
+    }
+    const postman = official.find(item => item.id === 'postman');
+    assert(postman?.auth === 'token' && postman.available && typeof postman.setupInstructions === 'string' && postman.setupInstructions.length > 0);
+    const card = page.getByText(postman.name, { exact: true }).first().locator('..').locator('..');
+    await card.scrollIntoViewIfNeeded();
+    await labelledButton(card, 'INSTALL').click();
+    await expect(page.getByText(`Connect ${postman.name}`, { exact: true })).toBeVisible();
+    // Password inputs are not always exposed as role=textbox in Chromium.
+    const privateInput = page.getByPlaceholder('API token');
+    await expect(privateInput).toHaveAttribute('type', 'password');
+    await expect(privateInput).toHaveValue('');
+    await expect(page.getByText(postman.setupInstructions, { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Provider API setup', exact: true })).toBeVisible();
+    await page.screenshot({ path: path.join(evidence, `${screenshotPrefix}-postman-token-setup.png`) });
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(privateInput).toHaveCount(0);
+    blankTokenSetup = { id: 'postman', inputBlank: true, inputPrivate: true, setupInstructionsVisible: true,
+      providerSetupLinkVisible: true, submitted: false, providerCalls: 0 };
+  }
   const keylessLifecycle = [];
   if (keylessCohort) {
     // These are local connections to public keyless tools, without provider
@@ -188,7 +257,8 @@ try {
     }
   }
   receipt = { status: 'passed', appVersion: expected.appVersion, serverVersion: expected.serverVersion,
-    verifiedLocalProviderIcons: verifiedIcons, officialLabelOrTabAbsent: true,
+    verifiedLocalProviderIcons: verifiedIcons, verifiedSharedBrandmarks: sharedBrandmarks, oauthUnavailable,
+    focusedImages, blankTokenSetup, officialLabelOrTabAbsent: true,
     unlabelledDividerAcceptance: 'screenshot review only',
     officialCount: official.length, officialIds: official.map(item => item.id).sort(), registryCount: registry.length,
     transport: 'ordinary UI join/SRP/device certificate/native Iroh proxy',

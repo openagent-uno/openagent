@@ -4,6 +4,7 @@ import { SvgXml } from 'react-native-svg';
 import Feather from '@expo/vector-icons/Feather';
 import { colors } from '../../theme';
 import { connectorVectors } from './connector-vectors';
+import { safeSharedBrandmark } from './shared-brandmark';
 
 // Bundled provider marks shared by connector cards; no remote fetches.
 const images: Readonly<Record<string, ImageSourcePropType>> = {
@@ -31,9 +32,12 @@ function scaleAndScope(xml: string, prefix: string) {
   return xml.replace(/id="([^"]+)"/g, `id="${prefix}-$1"`).replace(/url\(#([^)]+)\)/g, `url(#${prefix}-$1)`).replace(/(href=")#([^"]+)"/g, `$1#${prefix}-$2"`);
 }
 
-export default function ConnectorLogo({ id, size = 32 }: { id: string; size?: number }) {
+export default function ConnectorLogo({ id, logoSvg, size = 32 }: { id: string; logoSvg?: string; size?: number }) {
   const prefix = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const vector = useMemo(() => connectorVectors[id] ? scaleAndScope(connectorVectors[id], prefix) : undefined, [id, prefix]);
+  const vector = useMemo(() => {
+    const shared = safeSharedBrandmark(logoSvg);
+    return shared || (connectorVectors[id] ? scaleAndScope(connectorVectors[id], prefix) : undefined);
+  }, [id, logoSvg, prefix]);
   return <View accessible={false} style={{ width: size + 12, height: size + 12, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: id === 'postiz' ? '#1A1A1A' : colors.sidebar }}>
     {vector ? <SvgXml xml={vector} width={size} height={size} /> : images[id] ? <Image source={images[id]} resizeMode="contain" style={{ width: size, height: size }} /> : <Feather name={id === 'imap_smtp' ? 'mail' : 'link-2'} color={colors.primary} size={size * 0.65} />}
   </View>;

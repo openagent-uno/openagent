@@ -1914,10 +1914,14 @@ export async function listServingAccounts(): Promise<ProviderAccounts[]> {
 }
 
 
-export interface OfficialConnector { id: string; name: string; description: string; auth: string; category: string; provider: string; capability: string; icon?: string; available: boolean; unavailableReason?: string; readTools: string[]; agentTools: string[] }
+export interface OfficialConnector { id: string; name: string; description: string; auth: string; category: string; provider: string; capability: string; icon?: string; logoSvg?: string; setupUrl?: string; setupInstructions?: string; available: boolean; unavailableReason?: string; readTools: string[]; agentTools: string[] }
 export interface OfficialConnection { id: string; catalog_id: string; display_name: string; enabled: boolean; allow_write: boolean; status: string; app_id?: string; created_at: string }
 export interface OfficialConnectorSetup { connection: OfficialConnection; authorization_url?: string; expires_at?: string; authorization_mode?: string; authorization_origin?: string }
 export interface OfficialConnectorSite { id: string; name: string; url: string; scopes: string[] }
+export type MicrosoftResourceKind = 'sites' | 'drives';
+export interface MicrosoftConnectorResource { id: string; name: string; drive_type?: string }
+export interface MicrosoftConnectorResources { items: MicrosoftConnectorResource[]; next_page_token?: string; selected_site_id: string | null; selected_drive_id: string | null }
+export interface MicrosoftConnectorSelection { ok: true; selected_site_id: string | null; selected_drive_id: string | null }
 export const officialConnectorsAPI = {
  catalog: () => get<{ available: boolean; connectors: OfficialConnector[] }>('/api/marketplace/official'),
  list: () => get<{ available: boolean; connections: OfficialConnection[] }>('/api/connectors'),
@@ -1928,5 +1932,8 @@ export const officialConnectorsAPI = {
  refreshToken: (id: string) => post<{ status: string; connection: OfficialConnection }>(`/api/connectors/${encodeURIComponent(id)}/refresh`, {}),
  sites: (id: string) => get<{ sites: OfficialConnectorSite[]; selected_cloud_id: string | null }>(`/api/connectors/${encodeURIComponent(id)}/sites`),
  selectSite: (id: string, cloud_id: string) => put<{ ok: boolean; cloud_id: string }>(`/api/connectors/${encodeURIComponent(id)}/site`, { cloud_id }),
+ microsoftResources: (id: string, body: { kind: MicrosoftResourceKind; query?: string; page_token?: string }) => post<MicrosoftConnectorResources>(`/api/connectors/${encodeURIComponent(id)}/microsoft-resources`, body),
+ selectMicrosoftSite: (id: string, body: { site_id: string; query: string; page_token?: string }) => put<MicrosoftConnectorSelection>(`/api/connectors/${encodeURIComponent(id)}/microsoft-site`, body),
+ selectMicrosoftDrive: (id: string, body: { drive_id: string; page_token?: string }) => put<MicrosoftConnectorSelection>(`/api/connectors/${encodeURIComponent(id)}/microsoft-drive`, body),
  disconnect: (id: string) => del(`/api/connectors/${encodeURIComponent(id)}`),
 };

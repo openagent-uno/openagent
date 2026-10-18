@@ -138,6 +138,33 @@ class WorkerContracts(unittest.TestCase):
             with self.assertRaises(ValueError):
                 qualifier.catalog_ids(changed, '0.1.6')
 
+    def test_reviewed_batch_cohort_requires_exact_114_ids_and_public_version_tuple(self):
+        value = self.contract()
+        value.update(appVersion='1.1.0-beta.22', serverVersion='1.1.0b45', sdkVersion='0.1.8',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.22/',
+                     appDEB='openagent-app-1.1.0-beta.22-linux-amd64.deb',
+                     catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.8/catalog.json')
+        self.assertEqual(self.load(value), value)
+        for field, changed in (('appVersion', '1.1.0-beta.21'), ('serverVersion', '1.1.0b44'),
+                               ('sdkVersion', '0.1.7'), ('coreVersion', '1.1.0b23'),
+                               ('hostToolsVersion', '1.0.0b7')):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                self.load(dict(value, **{field: changed}))
+        baseline = {'atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
+                    'github', 'gmail', 'google-analytics', 'google-drive', 'imap_smtp', 'notion',
+                    'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import',
+                    'google-calendar', 'outlook-mail', 'outlook-calendar', 'onedrive', 'sharepoint'}
+        ids = baseline | qualifier.REVIEWED_BATCH_IDS
+        self.assertEqual(len(ids), 114)
+        values = [{'id': ident} for ident in sorted(ids)]
+        self.assertEqual(qualifier.catalog_ids(values + [{'id': 'custom-mcp', 'nativeKind': 'custom_mcp'}], '0.1.8'), sorted(ids))
+        for changed in (values[:-1], values + [values[0]],
+                        [dict(item, id='unreviewed') if item['id'] == 'postman' else item for item in values]):
+            with self.assertRaises(ValueError):
+                qualifier.catalog_ids(changed, '0.1.8')
+        with self.assertRaises(ValueError):
+            qualifier.catalog_ids(values, '0.1.7')
+
     def worker_args(self):
         return argparse.Namespace(execution_context='worker-linux', release_contract=Path('/contract.json'),
                                   worker_uid=65532, worker_pod_uid='12345678-1234-1234-1234-123456789abc',

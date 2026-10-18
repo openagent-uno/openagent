@@ -52,6 +52,9 @@ shared and which stay in the receiving product. Operators can use the
 
 ## Connector library
 
+For the expanding typed API subset, token setup and its qualification boundary,
+see [shared provider API profiles](./connector-api-profiles.md).
+
 The [ChatGPT app coverage guide](./chatgpt-apps.md) preserves the complete
 observed directory and its editorial Popular order. Published SDK 0.1.7 contains
 22 implemented official adapters plus Custom MCP, consumed by server/CLI 44.

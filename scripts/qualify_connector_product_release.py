@@ -1,4 +1,4 @@
-"""Finite beta44 Python release candidate; no publication, provider grant or App build.
+"""Finite beta45 Python release candidate; no publication, provider grant or App build.
 
 Build only server/CLI; reuse unchanged public components byte for byte. Run on
 one approved Linux worker, with a clean frozen product checkout and fresh output.
@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import inspect
 import json
 import os
 from pathlib import Path
@@ -16,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
+import urllib.parse
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://github.com/openagent-uno/"
@@ -23,7 +25,7 @@ PUBLIC = (
     ("openagent", "v1.1.0-beta.43", "0458e049e3bfeafafff7c677670bdc30eeeb7a70ec8e93eac1742f6e45ba5e63"),
     ("openagent-core", "v1.1.0-beta.22", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-tools", "v1.0.0-beta.4", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-tools", "connectors-v0.1.7", "65af35daccdf93278bd31a61ff00fbaf907ab62ed4afe89ff77d1f0d18890a56"),
+    ("openagent-tools", "connectors-v0.1.8", "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916"),
 )
 # Public beta43 carries the complete aggregate source inventory. Its seven
 # reused wheel rows remain bound to its reviewed beta42 origin; no older
@@ -33,18 +35,117 @@ REUSED_PREFIXES = ("apps/mcp-bridge/", "packages/identity/", "packages/dashboard
                    "packages/client-transport/", "packages/product-config/", "packages/integrations/support/")
 REBUILT = {"openagent-framework", "openagent-cli"}
 
+# Finite candidate18 identities; public bytes/digest are required before any execution.
+SDK18_MANUAL = {
+    'agentmail': ('agentmail', 'files', ('files.agentmail.inboxes.list', 'files.agentmail.inboxes.get')),
+    'ahrefs': ('ahrefs', 'files', ('files.ahrefs.domain_rating.get', 'files.ahrefs.metrics.get')),
+    'airtable': ('airtable', 'files', ('files.airtable.bases.list', 'files.airtable.tables.list')),
+    'apollo': ('apollo', 'files', ('files.apollo.organizations.search', 'files.apollo.people.search')),
+    'asana': ('asana', 'files', ('files.asana.projects.list', 'files.asana.tasks.list')),
+    'ashby': ('ashby', 'files', ('files.ashby.jobs.list', 'files.ashby.candidates.list')),
+    'attio': ('attio', 'files', ('files.attio.objects.list', 'files.attio.lists.list')),
+    'beehiiv': ('beehiiv', 'files', ('files.beehiiv.publications.list', 'files.beehiiv.publications.get')),
+    'better-stack': ('better_stack', 'files', ('files.better_stack.monitor_groups.get', 'files.better_stack.monitor_groups.monitors.list')),
+    'box': ('box', 'files', ('files.box.folders.items.list', 'files.box.files.get')),
+    'brevo': ('brevo', 'outreach', ('outreach.brevo.contacts.list', 'outreach.brevo.account.get')),
+    'brex': ('brex', 'files', ('files.brex.users.list', 'files.brex.departments.list')),
+    'cal-com': ('cal_com', 'files', ('files.cal_com.profile.get', 'files.cal_com.bookings.get')),
+    'calendly': ('calendly', 'files', ('files.calendly.users.me', 'files.calendly.event_types.list')),
+    'canva': ('canva', 'files', ('files.canva.designs.list', 'files.canva.designs.get')),
+    'capsule': ('capsule', 'files', ('files.capsule.parties.list', 'files.capsule.opportunities.list')),
+    'close': ('close', 'files', ('files.close.leads.list', 'files.close.contacts.list')),
+    'cloudflare': ('cloudflare', 'files', ('files.cloudflare.zones.list', 'files.cloudflare.accounts.list')),
+    'coda': ('coda', 'files', ('files.coda.identity.get', 'files.coda.docs.get')),
+    'coinmarketcap': ('coinmarketcap', 'files', ('files.coinmarketcap.cryptocurrencies.map', 'files.coinmarketcap.global_metrics.get')),
+    'contentful': ('contentful', 'files', ('files.contentful.content_types.list', 'files.contentful.assets.list')),
+    'courtlistener': ('courtlistener', 'files', ('files.courtlistener.opinions.search', 'files.courtlistener.oral_arguments.search')),
+    'customer-io': ('customer_io', 'files', ('files.customer_io.campaigns.list', 'files.customer_io.campaigns.get')),
+    'digitalocean': ('digitalocean', 'files', ('files.digitalocean.droplets.list', 'files.digitalocean.projects.list')),
+    'dovetail': ('dovetail', 'files', ('files.dovetail.projects.list', 'files.dovetail.projects.get')),
+    'dropbox': ('dropbox', 'files', ('files.dropbox.folders.list', 'files.dropbox.metadata.get')),
+    'elevenlabs': ('elevenlabs', 'files', ('files.elevenlabs.voices.list', 'files.elevenlabs.models.list')),
+    'fathom': ('fathom', 'files', ('files.fathom.meetings.list', 'files.fathom.recordings.transcript')),
+    'figma': ('figma', 'files', ('files.figma.user.get', 'files.figma.files.get')),
+    'financial-datasets': ('financial_datasets', 'files', ('files.financial_datasets.income_statements.list', 'files.financial_datasets.prices.snapshot')),
+    'fireflies': ('fireflies', 'files', ('files.fireflies.transcripts.list', 'files.fireflies.transcripts.get')),
+    'front': ('front', 'files', ('files.front.company.get', 'files.front.inboxes.list')),
+    'gitbook': ('gitbook', 'files', ('files.gitbook.organizations.list', 'files.gitbook.organizations.get')),
+    'gitlab': ('gitlab', 'files', ('files.gitlab.projects.list', 'files.gitlab.issues.list')),
+    'grain': ('grain', 'files', ('files.grain.recordings.list', 'files.grain.recordings.get')),
+    'gusto': ('gusto', 'files', ('files.gusto.token.info', 'files.gusto.companies.get')),
+    'heygen': ('heygen', 'files', ('files.heygen.avatars.list', 'files.heygen.voices.list')),
+    'honeycomb': ('honeycomb', 'files', ('files.honeycomb.datasets.list', 'files.honeycomb.datasets.get')),
+    'hubspot': ('hubspot', 'files', ('files.hubspot.contacts.list', 'files.hubspot.companies.list')),
+    'hugging-face': ('hugging_face', 'files', ('files.hugging_face.models.list', 'files.hugging_face.datasets.list')),
+    'hunter': ('hunter', 'files', ('files.hunter.account.get', 'files.hunter.domains.search')),
+    'incident-io': ('incident_io', 'files', ('files.incident_io.incidents.list', 'files.incident_io.roles.list')),
+    'instantly': ('instantly', 'outreach', ('outreach.instantly.campaigns.list', 'outreach.instantly.campaigns.get')),
+    'klaviyo': ('klaviyo', 'outreach', ('outreach.klaviyo.profiles.list', 'outreach.klaviyo.campaigns.list')),
+    'launchdarkly': ('launchdarkly', 'files', ('files.launchdarkly.projects.list', 'files.launchdarkly.flags.list')),
+    'lemlist': ('lemlist', 'outreach', ('outreach.lemlist.campaigns.list', 'outreach.lemlist.campaigns.get')),
+    'linear': ('linear', 'files', ('files.linear.issues.list', 'files.linear.projects.list')),
+    'lucid': ('lucid', 'files', ('files.lucid.documents.get', 'files.lucid.threads.list')),
+    'mailerlite': ('mailerlite', 'files', ('files.mailerlite.groups.list', 'files.mailerlite.segments.list')),
+    'massive': ('massive', 'files', ('files.massive.tickers.list', 'files.massive.market_status.get')),
+    'miro': ('miro', 'files', ('files.miro.boards.list', 'files.miro.boards.search')),
+    'monday': ('monday', 'files', ('files.monday.boards.list', 'files.monday.items.list')),
+    'neon': ('neon', 'files', ('files.neon.projects.list', 'files.neon.projects.get')),
+    'netlify': ('netlify', 'files', ('files.netlify.sites.list', 'files.netlify.sites.get')),
+    'nifty': ('nifty', 'files', ('files.nifty.projects.list', 'files.nifty.projects.get')),
+    'omnisend': ('omnisend', 'files', ('files.omnisend.campaigns.list', 'files.omnisend.campaigns.get')),
+    'onesignal': ('onesignal', 'files', ('files.onesignal.apps.list', 'files.onesignal.apps.get')),
+    'pandadoc': ('pandadoc', 'files', ('files.pandadoc.documents.list', 'files.pandadoc.documents.details')),
+    'pendo': ('pendo', 'files', ('files.pendo.features.list', 'files.pendo.pages.list')),
+    'posthog': ('posthog', 'files', ('files.posthog.projects.list', 'files.posthog.projects.get')),
+    'postman': ('postman', 'files', ('files.postman.collections.list', 'files.postman.collections.get')),
+    'quo': ('quo', 'files', ('files.quo.phone_numbers.list', 'files.quo.conversations.list')),
+    'railway': ('railway', 'files', ('files.railway.account.get', 'files.railway.projects.get')),
+    'ramp': ('ramp', 'files', ('files.ramp.users.list', 'files.ramp.users.get')),
+    'read-ai': ('read_ai', 'files', ('files.read_ai.meetings.list', 'files.read_ai.meetings.get')),
+    'readwise': ('readwise', 'files', ('files.readwise.books.list', 'files.readwise.highlights.list')),
+    'render': ('render', 'files', ('files.render.services.list', 'files.render.deploys.list')),
+    'resend': ('resend', 'outreach', ('outreach.resend.domains.list', 'outreach.resend.domains.get')),
+    'revenuecat': ('revenuecat', 'files', ('files.revenuecat.projects.list', 'files.revenuecat.apps.list')),
+    'rootly': ('rootly', 'files', ('files.rootly.incidents.list', 'files.rootly.services.list')),
+    'signnow': ('signnow', 'files', ('files.signnow.documents.list', 'files.signnow.documents.get')),
+    'smartsheet': ('smartsheet', 'files', ('files.smartsheet.sheets.list', 'files.smartsheet.sheets.get')),
+    'spotify': ('spotify', 'files', ('files.spotify.playlists.list', 'files.spotify.saved_tracks.list')),
+    'statsig': ('statsig', 'files', ('files.statsig.gates.list', 'files.statsig.experiments.list')),
+    'stripe': ('stripe', 'commerce', ('commerce.stripe.customers.list', 'commerce.stripe.invoices.list')),
+    'supabase': ('supabase', 'files', ('files.supabase.projects.list', 'files.supabase.projects.get')),
+    'surveymonkey': ('surveymonkey', 'files', ('files.surveymonkey.surveys.list', 'files.surveymonkey.surveys.details')),
+    'tally': ('tally', 'files', ('files.tally.forms.list', 'files.tally.submissions.list')),
+    'tavily': ('tavily', 'files', ('files.tavily.search', 'files.tavily.usage.get')),
+    'ticktick': ('ticktick', 'files', ('files.ticktick.projects.list', 'files.ticktick.projects.get')),
+    'todoist': ('todoist', 'files', ('files.todoist.projects.list', 'files.todoist.tasks.list')),
+    'typeform': ('typeform', 'files', ('files.typeform.forms.list', 'files.typeform.responses.list')),
+    'vercel': ('vercel', 'files', ('files.vercel.projects.list', 'files.vercel.deployments.list')),
+    'webex': ('webex', 'files', ('files.webex.people.self', 'files.webex.rooms.list')),
+    'webflow': ('webflow', 'files', ('files.webflow.sites.list', 'files.webflow.collections.list')),
+    'wistia': ('wistia', 'files', ('files.wistia.media.list', 'files.wistia.folders.list')),
+    'workos': ('workos', 'files', ('files.workos.organizations.list', 'files.workos.directories.list')),
+    'wrike': ('wrike', 'files', ('files.wrike.contacts.self', 'files.wrike.tasks.list')),
+    'ynab': ('ynab', 'files', ('files.ynab.user.get', 'files.ynab.plans.list')),
+    'zoom': ('zoom', 'files', ('files.zoom.meetings.list', 'files.zoom.meetings.get')),
+}
+# Manually supplied tokens have no verified OAuth scope claims; vendor permissions remain Setup documentation.
+SDK17_IDS = frozenset(['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl', 'github', 'gmail', 'google-analytics', 'google-calendar', 'google-drive', 'imap_smtp', 'notion', 'outlook-calendar', 'outlook-mail', 'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import'])
+GRAPH_READS = {"onedrive": ("Files.Read", {"drives.list", "drives.get", "items.list", "items.get", "items.content"}), "sharepoint": ("Sites.Read.All", {"sites.search", "sites.get", "drives.list", "drives.get", "items.list", "items.get", "items.content"})}
+BRANDMARK_PROVIDERS = frozenset(['airtable', 'asana', 'better_stack', 'box', 'brevo', 'brex', 'cal_com', 'calendly', 'cloudflare', 'coda', 'coinmarketcap', 'contentful', 'digitalocean', 'dovetail', 'dropbox', 'elevenlabs', 'figma', 'gitbook', 'gitlab', 'gusto', 'hubspot', 'hugging_face', 'linear', 'lucid', 'miro', 'neon', 'netlify', 'posthog', 'postman', 'railway', 'render', 'resend', 'revenuecat', 'spotify', 'stripe', 'supabase', 'surveymonkey', 'ticktick', 'todoist', 'typeform', 'vercel', 'webex', 'webflow', 'wistia', 'zoom'])
+CANONICAL_BRANDMARK = re.compile(r'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#[0-9A-F]{6}" d="[Mm][MmZzLlHhVvCcSsQqTtAa0-9eE.,+ -]*"/></svg>')
+
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
 
 def fetch(repository, tag, name, expected):
-    if not re.fullmatch(r"[0-9a-f]{64}", expected):
+    if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected):
         raise ValueError("A reviewed public asset checksum is required: " + tag)
     if Path(name).name != name:
         raise ValueError("Unsafe release asset name")
     request = urllib.request.Request(BASE + repository + "/releases/download/" + tag + "/" + name,
-                                     headers={"User-Agent": "openagent-product44-qualification"})
+                                     headers={"User-Agent": "openagent-product45-qualification"})
     with urllib.request.urlopen(request, timeout=60) as response:
         data = response.read((32 << 20) + 1)
     if len(data) > 32 << 20 or digest(data) != expected:
@@ -90,6 +191,87 @@ def merge_source_provenance(candidate, reused_sources):
     candidate["source_sha256"] = source_digest(candidate["sources"])
 
 
+def require_public_checksums(releases):
+    if any(not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected)
+           for _, _, expected in releases):
+        raise ValueError("SDK0.1.8 public manifest checksum is pending; qualification cannot run")
+
+
+def verify_catalog_metadata(items, expected):
+    """The installed catalog must equal the checksum-bound public SDK catalog."""
+    if not isinstance(items, list) or items != expected or any(not isinstance(row, dict) for row in items):
+        raise ValueError("Installed catalog differs from public SDK bytes")
+    ids = [row.get("id") for row in items]
+    if len(ids) != 115 or len(set(ids)) != 115:
+        raise ValueError("SDK18 catalog inventory differs")
+    official = {row["id"]: row for row in items if not row.get("nativeKind")}
+    custom = [row for row in items if row.get("nativeKind")]
+    if (set(official) != SDK17_IDS | set(SDK18_MANUAL) | set(GRAPH_READS)
+            or [(row["id"], row["nativeKind"]) for row in custom] != [("custom-mcp", "custom_mcp")]):
+        raise ValueError("SDK18 exact official/custom identities differ")
+    for identifier, (provider, capability, reads) in SDK18_MANUAL.items():
+        row = official[identifier]
+        url, instructions, svg = row.get("setupUrl"), row.get("setupInstructions"), row.get("logoSvg", "")
+        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
+        if (row.get("provider") != provider or row.get("capability") != capability or row.get("auth") != "token"
+                or row.get("available") is not True or row.get("agentTools") != []
+                or not isinstance(row.get("readTools"), list) or len(row["readTools"]) != 2
+                or set(row["readTools"]) != set(reads)):
+            raise ValueError("SDK18 manual read-only catalog contract differs")
+        if (parsed is None or parsed.scheme != "https" or not parsed.hostname
+                or parsed.username is not None or parsed.password is not None or len(url) > 2048
+                or not isinstance(instructions, str) or not 40 <= len(instructions) <= 4096
+                or any(ord(char) < 32 for char in instructions)):
+            raise ValueError("SDK18 setup metadata differs")
+        if provider in BRANDMARK_PROVIDERS:
+            if (not isinstance(svg, str) or len(svg.encode()) > 32768
+                    or CANONICAL_BRANDMARK.fullmatch(svg) is None):
+                raise ValueError("SDK18 brandmark grammar differs")
+        elif svg != "":
+            raise ValueError("SDK18 missing brandmark must remain absent")
+    for provider, (_, suffixes) in GRAPH_READS.items():
+        row = official[provider]
+        reads = {"files." + provider + "." + operation for operation in suffixes}
+        if (row.get("provider") != provider or row.get("capability") != "files" or row.get("auth") != "oauth"
+                or row.get("available") is not True or row.get("agentTools") != []
+                or not isinstance(row.get("readTools"), list) or len(row["readTools"]) != len(reads)
+                or set(row["readTools"]) != reads):
+            raise ValueError("SDK18 Graph read-only catalog contract differs")
+    return {"official": 114, "custom": 1, "manual_read_operations": 180, "graph_read_operations": 12,
+            "brandmarks": 45, "provider_calls": 0}
+
+
+def verify_read_tools(identifier, tools):
+    if identifier in GRAPH_READS:
+        scope, suffixes = GRAPH_READS[identifier]
+        provider, capability = identifier, "files"
+        expected = {"files." + provider + "." + operation: [scope] for operation in suffixes}
+    else:
+        provider, capability, reads = SDK18_MANUAL[identifier]
+        expected = {name: [] for name in reads}
+    if (not isinstance(tools, list) or any(not isinstance(tool, dict) for tool in tools)
+            or len(tools) != len(expected) or {tool.get("name") for tool in tools} != set(expected)):
+        raise ValueError("SDK18 installed read operation identities differ")
+    for tool in tools:
+        schema = tool.get("inputSchema")
+        if (tool.get("provider") != provider or tool.get("capability") != capability
+                or tool.get("mode") != "typed" or tool.get("risk") != "read"
+                or tool.get("required_scopes", []) != expected[tool["name"]]
+                or tool.get("retry", {}).get("max_attempts") != 1
+                or not isinstance(schema, dict) or schema.get("type") != "object"
+                or schema.get("additionalProperties") is not False
+                or not isinstance(schema.get("properties"), dict)):
+            raise ValueError("SDK18 installed read scope/risk/schema/retry differs")
+        properties = schema["properties"]
+        binding = properties.get("provider", {})
+        if identifier not in GRAPH_READS and ("connection_id" not in properties
+                or not (binding.get("const") == provider or binding.get("enum") == [provider])):
+            raise ValueError("SDK18 installed manual read binding differs")
+        if identifier in GRAPH_READS and set(properties) & {"connection_id", "provider", "drive_id", "site_id", "download_host", "bound_site_id", "bound_drive_id", "url", "headers", "access_token"}:
+            raise ValueError("SDK18 Graph host config must not become caller arguments")
+    return {"catalog_id": identifier, "operations": len(tools), "provider_calls": 0}
+
+
 def main():
     global ROOT
     parser = argparse.ArgumentParser(description=__doc__)
@@ -102,8 +284,7 @@ def main():
     ROOT = args.source.resolve()
     if sys.platform != "linux" or sys.version_info[:2] != (3, 11):
         raise ValueError("Use the approved Linux Python3.11 worker")
-    if any(not re.fullmatch(r"[0-9a-f]{64}", expected) for _, _, expected in PUBLIC):
-        raise ValueError("SDK0.1.7 public manifest checksum is pending; qualification cannot run")
+    require_public_checksums(PUBLIC)
     node = args.node_runtime.resolve(strict=True)
     node_modules = args.node_modules.resolve(strict=True)
     if not node.is_file() or not node_modules.is_dir():
@@ -135,19 +316,27 @@ def main():
     try:
         run([sys.executable, "-I", "-m", "unittest", "discover", "-s", ROOT / "scripts/tests",
              "-p", "test_connector_product_release.py", "-v"], "source-provenance-guards.log")
-        receipt["stages"].append("separate-source-provenance-four-pure-guards-before-fetch-and-build")
+        receipt["stages"].append("separate-source-provenance-and-catalog-pure-guards-before-fetch-and-build")
         run([node, "-e", "const assert=require('assert/strict');assert.equal(process.versions.node.split('.')[0],'24');assert.equal(require('react/package.json').version,'19.0.0');assert.equal(require('react-test-renderer/package.json').version,'19.0.0');assert.equal(require('typescript/package.json').version,'5.9.3');console.log(JSON.stringify({node:process.versions.node,react:require('react/package.json').version,renderer:require('react-test-renderer/package.json').version,typescript:require('typescript/package.json').version}));"], "node-source-fixture-tools.log")
         manifests = {}
         for repository, tag, expected in PUBLIC:
             body = fetch(repository, tag, "manifest.json", expected)
             manifests[tag] = json.loads(body)
             (evidence / (tag + "-manifest.json")).write_bytes(body)
+        sdk = manifests["connectors-v0.1.8"]
+        catalog_entry = sdk["files"]["catalog.json"]
+        catalog_bytes = fetch("openagent-tools", "connectors-v0.1.8", "catalog.json", catalog_entry["sha256"])
+        if len(catalog_bytes) != catalog_entry["bytes"]:
+            raise ValueError("Public SDK catalog size differs")
+        public_catalog = json.loads(catalog_bytes)
+        verify_catalog_metadata(public_catalog, public_catalog)
+        (evidence / "sdk18-public-catalog.json").write_bytes(catalog_bytes)
         baseline = manifests["v1.1.0-beta.43"]
         current = subprocess.check_output(["git", "ls-files", "-z", *REUSED_PREFIXES], cwd=ROOT).decode().split("\0")
         expected_sources = verified_reused_sources(ROOT, baseline, set(current) - {""})
         lock = json.loads((ROOT / "apps/server/connectors.lock.json").read_text())
-        sdk = manifests["connectors-v0.1.7"]
-        if lock["version"] != "0.1.7" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
+        sdk = manifests["connectors-v0.1.8"]
+        if lock["version"] != "0.1.8" or lock["manifest_sha256"] != PUBLIC[3][2] or lock["source_commit"] != sdk["source_commit"] or lock["assets"] != sdk["files"]:
             raise ValueError("SDK consumer lock differs from public release")
         if (ROOT / "apps/server/connectors.lock.json").read_bytes() != (ROOT / "apps/server/src/openagent_server/connectors.lock.json").read_bytes():
             raise ValueError("Packaged and build connector locks differ")
@@ -177,7 +366,7 @@ def main():
         run([sys.executable, ROOT / "scripts/build_wheels.py", "--out", rebuilt, "--components", "server", "cli"], "build-two-wheels.log")
         helpers = runpy.run_path(str(ROOT / "scripts/build_wheels.py"))
         candidate = json.loads((rebuilt / "manifest.json").read_text())
-        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b44" for row in candidate["wheels"]):
+        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b45" for row in candidate["wheels"]):
             raise ValueError("New component version/source mismatch")
         for path in rebuilt.glob("*.whl"):
             shutil.copyfile(path, wheels / path.name)
@@ -202,6 +391,8 @@ def main():
         run(["uv", "pip", "check", "--python", python], "pip-check.log")
         fixtures = output / "fixtures"
         for source, target in (("tests/test_official_connectors.py", "server/test_official_connectors.py"),
+                               ("tests/test_official_connector_microsoft_resources.py", "server/test_official_connector_microsoft_resources.py"),
+                               ("apps/cli/tests/test_microsoft_connector_resources.py", "cli/test_microsoft_connector_resources.py"),
                                ("tests/test_connector_privacy_receipts.py", "server/test_connector_privacy_receipts.py"),
                                ("apps/cli/tests/test_official_connectors.py", "cli/test_official_connectors.py")):
             path = fixtures / target
@@ -221,31 +412,49 @@ module=importlib.util.module_from_spec(spec);sys.modules[spec.name]=module;spec.
 asyncio.run(module.t_workflow_detail_warming_response(None))
 print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'other_verified_user_denied':True,'runtime_from_installed_wheels':True,'copied_test_helpers_only':True}))
 ''')
+        contract = fixtures / "catalog_contract.py"
+        contract.write_text("import re,urllib.parse\nSDK18_MANUAL=" + repr(SDK18_MANUAL)
+            + "\nSDK17_IDS=" + repr(SDK17_IDS)
+            + "\nGRAPH_READS=" + repr(GRAPH_READS) + "\nBRANDMARK_PROVIDERS=" + repr(BRANDMARK_PROVIDERS)
+            + "\nCANONICAL_BRANDMARK=re.compile(" + repr(CANONICAL_BRANDMARK.pattern) + ")\n"
+            + inspect.getsource(verify_catalog_metadata) + "\n" + inspect.getsource(verify_read_tools))
         probe = fixtures / "installed_probe.py"
         probe.write_text('''import asyncio,importlib,importlib.metadata as m,json,pathlib,sys
-for name,version in {'openagent-framework':'1.1.0b44','openagent-cli':'1.1.0b44','openagent-connectors':'0.1.7','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
+for name,version in {'openagent-framework':'1.1.0b45','openagent-cli':'1.1.0b45','openagent-connectors':'0.1.8','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
 for name in ('openagent_server','openagent_cli','openagent_connectors','openagent_core','openagent_host_tools'):
  module=importlib.import_module(name);assert pathlib.Path(sys.prefix).resolve() in pathlib.Path(module.__file__).resolve().parents
 from openagent_server.connector_acquisition import acquire
 from openagent_connectors import ConnectorRunner
+import runpy
+contract=runpy.run_path(str(pathlib.Path(__file__).with_name('catalog_contract.py')))
+SDK18_MANUAL=contract['SDK18_MANUAL'];GRAPH_READS=contract['GRAPH_READS']
+verify_catalog_metadata=contract['verify_catalog_metadata'];verify_read_tools=contract['verify_read_tools']
 async def main():
  root=pathlib.Path(sys.argv[1]);bundle=acquire(pathlib.Path(sys.argv[2]),'linux-x64',root/'runner',root/'acquired-wheels')
  runner=ConnectorRunner(bundle/'bin/openagent-connector-runner',identity_file=root/'probe-identity.json',product='generic-host',name='Release fixture')
  try:
   items=await runner.call('catalog');official=[row for row in items if not row.get('nativeKind')];custom=[row for row in items if row.get('nativeKind')]
-  assert len(official)==22 and len(items)==23 and [(row['id'],row['nativeKind']) for row in custom]==[('custom-mcp','custom_mcp')]
-  assert set(row['id'] for row in official)=={'atlassian','billingbear','clickup','coingecko','context7','exa','firecrawl','github','gmail','google-analytics','google-calendar','google-drive','imap_smtp','notion','outlook-calendar','outlook-mail','parallel-search','pipeboard','postiz','replio','shopify','slack-import'}
+  expected=json.loads(pathlib.Path(sys.argv[3]).read_bytes())
+  verify_catalog_metadata(items,expected)
+  contracts=[]
+  for catalog_id,(provider,capability,_) in sorted(SDK18_MANUAL.items()):
+   scopes=[] # Manual token permissions are documentation, not an attested OAuth grant.
+   binding={'catalog_id':catalog_id,'allow_write':False,'principal':{'workspace_id':'metadata-fixture','actor_id':'owner'},'connection':{'id':'metadata-connection','workspace_id':'metadata-fixture','provider':provider,'capability':capability,'enabled':True,'external_id':'metadata-account','scopes':scopes,'config':{}}}
+   contracts.append(verify_read_tools(catalog_id,await runner.call('tools',binding)))
+  for provider,(scope,_) in GRAPH_READS.items():
+   binding={'catalog_id':provider,'allow_write':False,'principal':{'workspace_id':'metadata-fixture','actor_id':'owner'},'connection':{'id':'metadata-connection','workspace_id':'metadata-fixture','provider':provider,'capability':'files','enabled':True,'external_id':'metadata-account','scopes':[scope],'config':{}}}
+   contracts.append(verify_read_tools(provider,await runner.call('tools',binding)))
   for catalog_id,provider in (('exa','exa'),('firecrawl','firecrawl'),('parallel-search','parallel_search'),('context7','context7'),('coingecko','coingecko')):
    item=next(row for row in official if row['id']==catalog_id)
    assert item['auth']=='none' and item['provider']==provider and item['capability']=='files' and not item['agentTools']
   for catalog_id,provider,capability,reads,writes in (('google-calendar','google_calendar','files',4,3),('outlook-mail','outlook_mail','outreach',6,3),('outlook-calendar','outlook_calendar','files',4,3)):
    item=next(row for row in official if row['id']==catalog_id)
    assert item['auth']=='oauth' and item['provider']==provider and item['capability']==capability and len(item['readTools'])==reads and len(item['agentTools'])==writes
-  print(json.dumps({'official':len(official),'custom':len(custom),'provider_calls':0,'imports_from_installed_prefix':True}))
+  print(json.dumps({'official':len(official),'custom':len(custom),'manual_read_operations':180,'graph_read_operations':12,'brandmarks':45,'tools_contracts':contracts,'provider_calls':0,'imports_from_installed_prefix':True}))
  finally:await runner.close()
 asyncio.run(main())
 ''')
-        run([python, "-I", probe, output, ROOT / "apps/server/connectors.lock.json"], "installed-catalog.log", fixtures)
+        run([python, "-I", probe, output, ROOT / "apps/server/connectors.lock.json", evidence / "sdk18-public-catalog.json"], "installed-catalog.log", fixtures)
         run([python, "-I", "-m", "pytest", "--asyncio-mode=auto", "--import-mode=importlib", "-q", fixtures / "server", fixtures / "cli"], "installed-tests.log", fixtures)
         run([python, "-I", readiness_probe], "installed-run-detail-readiness.log", fixtures)
         # This fixture intentionally imports the source acquisition wrapper; do not call it installed-wheel evidence.
