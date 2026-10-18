@@ -1083,3 +1083,67 @@ async def test_public_atlassian_site_routes_are_owner_only_no_store_and_do_not_a
         assert "private-atlassian" not in await listing.text()
     finally:
         await client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider', ['supabase', 'postman'])
+async def test_admitted_token_provider_uses_encrypted_lifecycle_and_manifest_auth(fixture, provider):
+    service, context, runner, _ = fixture
+    original = runner.call
+    tool = f'files.{provider}.projects.list'
+
+    async def catalog_call(method, params=None):
+        if method == 'catalog':
+            return await original(method, params) + [{
+                'id': provider, 'name': provider, 'auth': 'token', 'available': True,
+                'provider': provider, 'capability': 'files', 'readTools': [tool], 'agentTools': [],
+            }]
+        return await original(method, params)
+
+    runner.call = catalog_call
+    token = 'private-fixture-token-123'
+    setup = await service.create(context, {'catalog_id': provider, 'token': token, 'config': {}})
+    connection_id = setup['connection']['id']
+    row = await service.record(connection_id)
+    assert row['status'] == 'connected' and row['allow_write'] == 0
+    assert token.encode() not in row['credential'] and service.decrypt(row)['access_token'] == token
+    assert token not in json.dumps(setup) and token not in json.dumps(await service.list(context))
+    assert await service.sources[connection_id].call_tool(tool, {}, context) == {'ok': True}
+    invocation = [params for method, params in runner.calls if method == 'invoke'][-1]
+    assert invocation['credential']['kind'] == 'api_token'
+    assert 'header' not in invocation['credential'] and 'scheme' not in invocation['credential']
+    assert invocation['binding']['connection']['provider'] == provider
+    assert invocation['binding']['connection']['config'] == {}
+    assert not any(method.startswith('auth.') for method, _ in runner.calls)
+    restarted = OfficialConnectors(service.runtime, runner=runner)
+    await restarted.start()
+    try:
+        await restarted.attach_sources()
+        source = restarted.sources[connection_id]
+        assert await source.call_tool(tool, {}, context) == {'ok': True}
+        await restarted.disconnect(context, connection_id)
+        with pytest.raises(PermissionError):
+            await source.call_tool(tool, {}, context)
+    finally:
+        await restarted.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('config', [{'origin': 'https://other.example'}, {'headers': {}}, {'workspace': 'other'}])
+async def test_admitted_token_provider_rejects_arbitrary_connection_config(fixture, config):
+    service, context, runner, _ = fixture
+    original = runner.call
+
+    async def catalog_call(method, params=None):
+        if method == 'catalog':
+            return await original(method, params) + [{
+                'id': 'postman', 'name': 'Postman', 'auth': 'token', 'available': True,
+                'provider': 'postman', 'capability': 'files',
+            }]
+        return await original(method, params)
+
+    runner.call = catalog_call
+    with pytest.raises(ValueError, match='configuration'):
+        await service.create(context, {'catalog_id': 'postman', 'token': 'fixture-token', 'config': config})
+    assert await service.list(context) == []
+    assert not any(method == 'invoke' or method.startswith('auth.') for method, _ in runner.calls)

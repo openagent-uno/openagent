@@ -375,6 +375,10 @@ class OfficialConnectors:
                 valid = valid and type(config["smtp_port"]) is int and (config["smtp_port"], config["smtp_tls_mode"]) in {(465, "implicit_tls"), (587, "starttls")}
                 valid = valid and 0 < len(config["username"]) <= 320 and 0 < len(config["mailbox"]) <= 512 and all(config[key] == config[key].strip() and not any(char in config[key] for char in "\r\n\x00") for key in ("username", "mailbox"))
                 valid = valid and len(config["smtp_from"]) <= 254 and bool(re.fullmatch(r"[^<>\s@]+@[^<>\s@]+", config["smtp_from"]))
+        elif item["auth"] == "token":
+            # The runner's admitted catalog owns the fixed endpoint/auth profile.
+            # Additional token providers accept no caller-controlled metadata.
+            valid = not config
         else:
             valid = False
         if not valid:
@@ -603,10 +607,15 @@ class OfficialConnectors:
                 raise ValueError("Keyless connections do not accept credentials")
             return {"kind": "none"}
         personal = token["app_id"] == "personal-token"
-        return {"kind": "api_token" if personal else "oauth2_bearer", "secret": token["access_token"],
-                "header": "X-Shopify-Access-Token" if row["catalog_id"] == "shopify" else "Authorization",
-                "scheme": "" if row["catalog_id"] in {"shopify", "imap_smtp", "postiz"} else "Bearer",
-                "version": str(token.get("version", 0)), "expires_at": token.get("expires_at")}
+        credential = {"kind": "api_token" if personal else "oauth2_bearer", "secret": token["access_token"],
+                      "version": str(token.get("version", 0)), "expires_at": token.get("expires_at")}
+        if not personal:
+            credential.update(
+                header="X-Shopify-Access-Token" if row["catalog_id"] == "shopify" else "Authorization",
+                scheme="" if row["catalog_id"] in {"shopify", "imap_smtp", "postiz"} else "Bearer")
+        # For personal tokens the compiled provider manifest selects the header
+        # and scheme. Neither product setup nor invocation arguments can override it.
+        return credential
 
     @staticmethod
     def require_refresh_credential(token):
@@ -637,6 +646,18 @@ class OfficialConnectors:
     def valid_cloud_id(value):
         return (isinstance(value, str) and value != "00000000-0000-0000-0000-000000000000"
                 and bool(re.fullmatch(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", value)))
+
+    async def microsoft_resources(self, context, connection_id, payload):
+        from .official_connector_microsoft_resources import resources
+        return await resources(self, context, connection_id, payload)
+
+    async def select_microsoft_site(self, context, connection_id, payload):
+        from .official_connector_microsoft_resources import select_site
+        return await select_site(self, context, connection_id, payload)
+
+    async def select_microsoft_drive(self, context, connection_id, payload):
+        from .official_connector_microsoft_resources import select_drive
+        return await select_drive(self, context, connection_id, payload)
 
     async def _atlassian_sites(self, context, connection_id):
         row = await self.owned(context, connection_id)

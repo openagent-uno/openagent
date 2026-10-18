@@ -103,6 +103,9 @@ async def connect(client, catalog_id, allow_write, console):
     await authorize(client, setup, console)
     if catalog_id == "atlassian":
         await choose_site(client, setup["connection"]["id"], console)
+    if catalog_id in {"onedrive", "sharepoint"}:
+        console.print("Select this connection's resources with connectors microsoft-resources, "
+                      "select-microsoft-site (SharePoint), then select-microsoft-drive.")
 
 
 def site_table(sites):
@@ -131,6 +134,37 @@ async def official_menu(client, console):
     choice = Prompt.ask("Connector ID (blank to return)", default="").strip()
     if choice:
         await connect(client, choice, Confirm.ask("Allow this connector to make changes?", default=False), console)
+
+
+def microsoft_resource_payload(kind, query=None, page_token=None):
+    """Closed management arguments; target resources come from the server."""
+    if kind not in {"sites", "drives"}:
+        raise click.UsageError("Select sites or drives.")
+    payload = {"kind": kind}
+    if kind == "sites":
+        if (not isinstance(query, str) or not 1 <= len(query) <= 120
+                or not query.strip() or "*" in query
+                or any(ord(char) < 32 or ord(char) == 127 for char in query)):
+            raise click.UsageError("Site search requires --query with 1–120 non-wildcard characters.")
+        payload["query"] = query
+    elif query is not None:
+        raise click.UsageError("--query is only supported for sites.")
+    if page_token is not None:
+        import re
+        if (not isinstance(page_token, str) or not 1 <= len(page_token) <= 16384
+                or not re.fullmatch(r"[A-Za-z0-9_-]+", page_token)):
+            raise click.UsageError("Invalid resource page token.")
+        payload["page_token"] = page_token
+    return payload
+
+
+def microsoft_resource_table(items):
+    table = Table(title="Authorized Microsoft resources")
+    for column in ("Name", "ID", "Drive type"):
+        table.add_column(column)
+    for item in items:
+        table.add_row(Text(item["name"]), Text(item["id"]), Text(item.get("drive_type", "")))
+    return table
 
 
 def register(cli, open_gateway, disconnect, console):
@@ -236,6 +270,9 @@ def register(cli, open_gateway, disconnect, console):
             await authorize(client, setup, console)
             if setup.get("connection", {}).get("catalog_id") == "atlassian":
                 await choose_site(client, connection_id, console)
+            if setup.get("connection", {}).get("catalog_id") in {"onedrive", "sharepoint"}:
+                console.print("List authorized resources with connectors microsoft-resources, "
+                              "then select the site and drive for this connection.")
         if as_json:
             raise click.UsageError("Reconnect is interactive; --json is available for listing.")
         execute(operation, **options)
@@ -286,6 +323,59 @@ def register(cli, open_gateway, disconnect, console):
         async def operation(client):
             await client.rest_put(f"/api/connectors/{quote(connection_id, safe='')}/site", {"cloud_id": cloud_id})
             console.print(json.dumps({"ok": True}) if as_json else "Jira site selected for this connection.", markup=False)
+        execute(operation, **options)
+
+    @connectors.command("microsoft-resources")
+    @click.argument("connection_id")
+    @click.option("--kind", type=click.Choice(["sites", "drives"]), required=True)
+    @click.option("--query", default=None, help="SharePoint site search, 1–120 characters.")
+    @click.option("--page-token", default=None, help="Opaque token from the previous resource page.")
+    @options
+    def microsoft_resources(connection_id, kind, query, page_token, as_json, **options):
+        """List this connection's authorized sites or drives; no auto-provisioning."""
+        payload = microsoft_resource_payload(kind, query, page_token)
+        async def operation(client):
+            result = await client.rest_post(
+                f"/api/connectors/{quote(connection_id, safe='')}/microsoft-resources", payload)
+            if as_json:
+                console.print(json.dumps(result), markup=False, highlight=False, soft_wrap=True)
+            else:
+                console.print(microsoft_resource_table(result["items"]))
+                if result.get("next_page_token"):
+                    console.print("Next page token:", markup=False)
+                    console.print(result["next_page_token"], markup=False, highlight=False, soft_wrap=True)
+        execute(operation, **options)
+
+    @connectors.command("select-microsoft-site")
+    @click.argument("connection_id")
+    @click.argument("site_id")
+    @click.option("--query", required=True, help="The same query used to list this site.")
+    @click.option("--page-token", default=None, help="The same page token used to list this site.")
+    @options
+    def select_microsoft_site(connection_id, site_id, query, page_token, as_json, **options):
+        """Bind SharePoint to a site verified again by the server; clears the drive."""
+        payload = microsoft_resource_payload("sites", query, page_token)
+        payload.pop("kind")
+        payload["site_id"] = site_id
+        async def operation(client):
+            await client.rest_put(f"/api/connectors/{quote(connection_id, safe='')}/microsoft-site", payload)
+            console.print(json.dumps({"ok": True}) if as_json else
+                          "Site selected. List drives again to select its document library.", markup=False)
+        execute(operation, **options)
+
+    @connectors.command("select-microsoft-drive")
+    @click.argument("connection_id")
+    @click.argument("drive_id")
+    @click.option("--page-token", default=None, help="The same page token used to list this drive.")
+    @options
+    def select_microsoft_drive(connection_id, drive_id, page_token, as_json, **options):
+        """Bind OneDrive or SharePoint to a drive verified again by the server."""
+        payload = microsoft_resource_payload("drives", page_token=page_token)
+        payload.pop("kind")
+        payload["drive_id"] = drive_id
+        async def operation(client):
+            await client.rest_put(f"/api/connectors/{quote(connection_id, safe='')}/microsoft-drive", payload)
+            console.print(json.dumps({"ok": True}) if as_json else "Drive selected for this connection.", markup=False)
         execute(operation, **options)
 
     @connectors.command("disconnect")
