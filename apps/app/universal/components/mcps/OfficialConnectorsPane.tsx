@@ -16,7 +16,7 @@ function currentTarget() {
 
 type MicrosoftPage = MicrosoftConnectorResources & { connectionId: string; kind: MicrosoftResourceKind; query: string; pageToken?: string; target: string; epoch: number };
 const microsoftFiles = (id: string) => id === 'onedrive' || id === 'sharepoint';
-const validSiteQuery = (value: string) => value.trim().length >= 1 && value.trim().length <= 120 && !/[\x00-\x1f\x7f*]/.test(value);
+const validSiteQuery = (value: string) => value.trim().length >= 1 && value.trim().length <= 120 && !Array.from(value).some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 || character === "*");
 
 export default function OfficialConnectorsPane({ query = '', cols = 1, registryResults = [], registryInstalledNames = new Set<string>(), onInstallRegistry }: { query?: string; cols?: number; registryResults?: MarketplaceCard[]; registryInstalledNames?: Set<string>; onInstallRegistry?: (card: MarketplaceCard) => void }) {
   const config = useConnection(s => s.config);
