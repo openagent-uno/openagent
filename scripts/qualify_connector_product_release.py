@@ -22,15 +22,15 @@ import urllib.parse
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "https://github.com/openagent-uno/"
 PUBLIC = (
-    ("openagent", "v1.1.0-beta.49", "c2931a7ab65418615807e3d2ae7e5b715ab3f834c9dbc2ae1d704e4be1aa3c12"),
+    ("openagent", "v1.1.0-beta.50", "598b000a01f0e04eeecd0ce8c6acb7ebddb79a70b5a7d087e433755d51ca3be3"),
     ("openagent-core", "v1.1.0-beta.22", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-tools", "v1.0.0-beta.4", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-tools", "connectors-v0.1.12", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
-# Public beta49 carries the complete aggregate source inventory. Its seven
-# reused wheel rows remain bound to its reviewed beta48 origin; no older
+# Public beta50 carries the complete aggregate source inventory. Its seven
+# reused wheel rows remain bound to its reviewed beta49 origin; no older
 # manifest is fetched or used as an alternate source of release bytes.
-REUSED_ORIGIN = ("v1.1.0-beta.48", "14fe6a8d2e8fa32ad0e9aafdeb198efa44f32da455bd1a27fda264ec93d16948")
+REUSED_ORIGIN = ("v1.1.0-beta.49", "c2931a7ab65418615807e3d2ae7e5b715ab3f834c9dbc2ae1d704e4be1aa3c12")
 REUSED_PREFIXES = ("apps/mcp-bridge/", "packages/identity/", "packages/dashboards/",
                    "packages/client-transport/", "packages/product-config/", "packages/integrations/support/")
 REBUILT = {"openagent-framework", "openagent-cli"}
@@ -331,7 +331,7 @@ def main():
         public_catalog = json.loads(catalog_bytes)
         verify_catalog_metadata(public_catalog, public_catalog)
         (evidence / "sdk18-public-catalog.json").write_bytes(catalog_bytes)
-        baseline = manifests["v1.1.0-beta.49"]
+        baseline = manifests["v1.1.0-beta.50"]
         current = subprocess.check_output(["git", "ls-files", "-z", *REUSED_PREFIXES], cwd=ROOT).decode().split("\0")
         expected_sources = verified_reused_sources(ROOT, baseline, set(current) - {""})
         lock = json.loads((ROOT / "apps/server/connectors.lock.json").read_text())
@@ -350,14 +350,14 @@ def main():
             else:
                 entries = manifest["files"]
             for name, metadata in entries.items():
-                if not name.endswith(".whl") or (tag == "v1.1.0-beta.49" and metadata["name"] in REBUILT):
+                if not name.endswith(".whl") or (tag == "v1.1.0-beta.50" and metadata["name"] in REBUILT):
                     continue
                 body = fetch(repository, tag, name, metadata["sha256"])
                 if "bytes" in metadata and len(body) != metadata["bytes"]:
                     raise ValueError("Public wheel size mismatch")
-                target = wheels if tag == "v1.1.0-beta.49" else public
+                target = wheels if tag == "v1.1.0-beta.50" else public
                 (target / name).write_bytes(body)
-                if tag == "v1.1.0-beta.49":
+                if tag == "v1.1.0-beta.50":
                     reused.append(metadata)
         if len(reused) != 7:
             raise ValueError("Unexpected immutable product component set")
@@ -366,16 +366,16 @@ def main():
         run([sys.executable, ROOT / "scripts/build_wheels.py", "--out", rebuilt, "--components", "server", "cli"], "build-two-wheels.log")
         helpers = runpy.run_path(str(ROOT / "scripts/build_wheels.py"))
         candidate = json.loads((rebuilt / "manifest.json").read_text())
-        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b50" for row in candidate["wheels"]):
+        if candidate["dirty_snapshot"] or candidate["repository_commit"] != args.source_sha or {row["name"] for row in candidate["wheels"]} != REBUILT or any(row["version"] != "1.1.0b51" for row in candidate["wheels"]):
             raise ValueError("New component version/source mismatch")
         for path in rebuilt.glob("*.whl"):
             shutil.copyfile(path, wheels / path.name)
         helpers["verify_ownership"](sorted(wheels.glob("*.whl")))
         candidate["wheels"].extend(reused)
         candidate["upstream_components"] = baseline.get("upstream_components", {})
-        candidate["reused_product_components"] = {"release": "v1.1.0-beta.49", "manifest_sha256": PUBLIC[0][2],
+        candidate["reused_product_components"] = {"release": "v1.1.0-beta.50", "manifest_sha256": PUBLIC[0][2],
                                                    "verified_source_files": len(expected_sources), "wheels": reused,
-                                                   "source_provenance": {"release": "v1.1.0-beta.49",
+                                                   "source_provenance": {"release": "v1.1.0-beta.50",
                                                                          "manifest_sha256": PUBLIC[0][2],
                                                                          "source_sha256": baseline["source_sha256"]}}
         merge_source_provenance(candidate, expected_sources)
@@ -422,7 +422,7 @@ print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'othe
             + inspect.getsource(verify_catalog_metadata) + "\n" + inspect.getsource(verify_read_tools))
         probe = fixtures / "installed_probe.py"
         probe.write_text('''import asyncio,importlib,importlib.metadata as m,json,pathlib,sys
-for name,version in {'openagent-framework':'1.1.0b50','openagent-cli':'1.1.0b50','openagent-connectors':'0.1.12','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
+for name,version in {'openagent-framework':'1.1.0b51','openagent-cli':'1.1.0b51','openagent-connectors':'0.1.12','openagent-core':'1.1.0b22','openagent-host-tools':'1.0.0b6'}.items():assert m.version(name)==version
 for name in ('openagent_server','openagent_cli','openagent_connectors','openagent_core','openagent_host_tools'):
  module=importlib.import_module(name);assert pathlib.Path(sys.prefix).resolve() in pathlib.Path(module.__file__).resolve().parents
 from openagent_server.connector_acquisition import acquire
