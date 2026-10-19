@@ -61,8 +61,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.51", "manifest.json", "5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.22", "manifest.json", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
+    ("openagent-uno/openagent", "v1.1.0-beta.52", "manifest.json", "982c7010319de11e2e7aa4d1930330d89f2ada85b622fd99db04c878119d6794"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.24", "manifest.json", "6401435f9475c5fadeee00df550c18e13289489fa0628050e8c3a996c9fd7b0a"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
@@ -142,10 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b51"
+    DIST="openagent-framework==1.1.0b52"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b51"
+    DIST="openagent-cli==1.1.0b52"
     COMMAND="openagent-cli"
 fi
 
@@ -169,7 +169,7 @@ if [ "$PRODUCT" = "server" ]; then
     # engine extras explicitly, matching the verified normal installed closure.
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
-        "openagent-core[engine,providers,modules]==1.1.0b22"
+        "openagent-core[engine,providers,modules]==1.1.0b24"
 else
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"

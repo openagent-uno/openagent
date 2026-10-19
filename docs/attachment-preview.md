@@ -21,16 +21,13 @@ structured attachment references belong to Core's display contract; provider
 previews remain model input. The App preserves ordered parts and uses the same
 file/image/audio/video attachment component for both user and assistant rows.
 
-This source change requires the next independently published Core dependency
-and its verified product adoption. The existing beta51 release is unchanged;
-source contract checks alone do not establish a new native product release or
-an installed end-to-end media test.
+[Product beta52](releases/v1.1.0-beta.52.md) adopts the independently published Core beta24 wheels. The existing beta51 release is unchanged. The new Python release has fresh public-wheel CAS/ACL qualification; native installer, visual playback and real-provider boundaries remain explicitly unqualified.
 
 ## Host-selected output publication
 
 The standard Core attachment sender uses the optional `attachments.publisher` runtime service. Standalone configures its server-host publisher only when `server_host_tools` selects `filesystem`. It uses the same `FilesystemServer` composition and database-parent working directory as the server-host filesystem capability; connected App/device sources cannot be selected through a path. The standalone default filesystem capability has OS-user scope, not a sandbox root. Hosts that select bounded filesystem readers retain those reader bounds.
 
-Publication checks the current Core execution, exact agent/session/run and fresh `run.publish` authority before reading and again while storing through the public `ArtifactRepository`. A view-only session grant does not grant publication. File bytes become an authorized session-linked CAS reference before the shared sender and transcript expose file cards or media previews. Disabling filesystem leaves the publisher service absent. This source integration awaits the independently published Core adoption and focused installed-wheel checks; it is not a release or end-to-end qualification claim.
+Publication checks the current Core execution, exact agent/session/run and fresh `run.publish` authority before reading and again while storing through the public `ArtifactRepository`. A view-only session grant does not grant publication. File bytes become an authorized session-linked CAS reference before the shared sender and transcript expose file cards or media previews. Disabling filesystem leaves the publisher service absent. The beta52 public-wheel installation passed the focused CAS and authority checks; this does not imply a native or real-provider qualification.
 
 ### Focused source checks (19 October 2026)
 
@@ -38,4 +35,4 @@ The source-debug batch passed 8 standalone checks (public transcript/ACL plus th
 
 These checks used the independent Core beta24 source candidate with an existing dependency environment. They do not qualify a published beta24 wheel, a native installer, real-provider media delivery or visual playback. No App frontend implementation was rewritten: the existing shared attachment block renders user and assistant parts. The source-debug log SHA-256 is `ea8c029546b251bc15f2a840a638ac158c093e6bd89ad9e8e127e2b8161f5f4e`; the private debug receipt SHA-256 is `d52e4dc870b7f8a7bc981bad6f3a0cbcaaa84d83da8a8a39dd7864d3b1daed7d`.
 
-The independent Core beta24 release is now public. Product beta52 adopts its actual published wheel checksums; product publication and fresh installed-package proof remain separate steps. The App renderer itself is byte-identical to the beta22 source tag. Two additional renderer checks passed for inline image/video/audio and file cards before modal interaction, and the documented native fallback. No Electron payload rebuild is needed for this server/Core contract repair.
+The independent Core beta24 release is now public. Product beta52 adopts its actual published wheel checksums; its published product wheels passed a separate fresh normal installation and dependency consistency check. The App renderer itself is byte-identical to the beta22 source tag. Two additional renderer checks passed for inline image/video/audio and file cards before modal interaction, and the documented native fallback. No Electron payload rebuild is needed for this server/Core contract repair.
