@@ -457,7 +457,7 @@ async def test_shopify_start_is_store_bound_and_enrollment_gate_remains_closed(f
     # without enabling a real provider or changing the production gate.
     service.authorization_available = lambda provider: provider == 'shopify'
     setup = await service.create(context, payload)
-    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com'}) in runner.calls
+    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com', 'receipt_version': 2}) in runner.calls
     row = await service.record(setup['connection']['id'])
     assert json.loads(row['config']) == payload['config']
     with pytest.raises(PermissionError, match='another store'):
@@ -479,7 +479,7 @@ async def test_shopify_reconnect_uses_verified_legacy_store_or_rejects_before_au
         await db.commit()
     runner.calls.clear()
     await service.connect(context, row['id'])
-    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com'}) in runner.calls
+    assert ('auth.start', {'provider': 'shopify', 'shop': 'qa-store.myshopify.com', 'receipt_version': 2}) in runner.calls
     async with aiosqlite.connect(service.db_path) as db:
         await db.execute("UPDATE official_connector_connections SET credential=NULL,nonce=NULL WHERE id=?", (row['id'],))
         await db.commit()

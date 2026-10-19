@@ -28,7 +28,7 @@ async def test_real_receipt_durable_job_bridge_keeps_coverage_gate_closed(tmp_pa
         async with aiosqlite.connect(service.db_path) as db:
             await db.execute("INSERT INTO official_connector_connections(id,tenant_id,owner_key,catalog_id,provider,capability,display_name,status,app_id,group_id,created_at) VALUES('conn','tenant','owner','shopify','shopify','commerce','Shop','disconnected','app','group','2026-01-01T00:00:00Z')")
             await db.commit()
-        receipt={'id':'verified-delivery','group':'group','topic':'customers/redact','created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z','payload':{'shop_id':1,'customer':{'id':23},'orders_to_redact':[42]}}
+        receipt={'id':'verified-delivery','group':'group','topic':'customers/redact','created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z','receipt_version':2,'authorization_cutoff_at':'2026-10-13T11:00:00Z','payload':{'shop_id':1,'customer':{'id':23},'orders_to_redact':[42]}}
         origin=ContentOrigin('tenant','shopify/app','group',grant_generation('2026-10-13T10:00:00Z'),('customer:23',))
         revision=ContentRevision('tenant','result','v1','sink',hashlib.sha256(b'private').hexdigest())
         await ledger.record(revision,origins=(origin,))
@@ -64,7 +64,7 @@ async def test_real_receipt_durable_job_bridge_keeps_coverage_gate_closed(tmp_pa
 async def test_missing_recipient_and_wrong_customer_identity_are_not_completion(tmp_path):
     store=SqliteContentPrivacyStore(tmp_path/'privacy.sqlite')
     processor=ConnectorPrivacyProcessor(store,covered_surfaces=REQUIRED_CONTENT_SURFACES)
-    receipt={'id':'event','group':'group','topic':'customers/data_request','occurred_at':'2026-10-13T11:00:00Z','payload':{'customer':{'id':23}}}
+    receipt={'id':'event','group':'group','topic':'customers/data_request','occurred_at':'2026-10-13T11:00:00Z','receipt_version':2,'authorization_cutoff_at':'2026-10-13T11:00:00Z','payload':{'customer':{'id':23}}}
     assert await processor.process(receipt,[])=='blocked'
     receipt['payload']['customer']['id']=True
     with pytest.raises(ValueError):
@@ -75,7 +75,8 @@ async def test_missing_recipient_and_wrong_customer_identity_are_not_completion(
 async def test_uninstall_does_not_fabricate_data_redaction_completion(tmp_path):
     store=SqliteContentPrivacyStore(tmp_path/'privacy.sqlite')
     processor=ConnectorPrivacyProcessor(store)
-    assert await processor.process({'topic':'app/uninstalled'},[])=='credential_revoked'
+    assert await processor.process({'topic':'app/uninstalled','receipt_version':2,
+        'occurred_at':'2026-10-13T11:00:00Z','authorization_cutoff_at':'2026-10-13T11:00:00Z'},[])=='credential_revoked'
 
 @pytest.mark.asyncio
 async def test_legacy_receipt_and_processor_failure_remain_retryable(tmp_path):
@@ -92,7 +93,9 @@ async def test_legacy_receipt_and_processor_failure_remain_retryable(tmp_path):
     service=OfficialConnectors(runtime,privacy_processor=processor)
     await service.start()
     try:
-        await service.receive_event({'id':'event','group':'group','topic':'shop/redact','created_at':'2026-10-13T12:00:00Z','payload':{'shop_id':23}})
+        await service.receive_event({'id':'event','group':'group','topic':'shop/redact','created_at':'2026-10-15T12:00:00Z',
+            'receipt_version':2,'occurred_at':'2026-10-15T12:00:00Z',
+            'authorization_cutoff_at':'2026-10-13T11:00:00Z','uninstall_event_id':'a'*64,'payload':{'shop_id':23}})
         await service.process_privacy_events()
         processor.fail=False
         await service.process_privacy_events()

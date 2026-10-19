@@ -24,7 +24,8 @@ async def service(tmp_path):
 def event(**changes):
     return {"id": "event-fixture", "group": "group-fixture", "topic": "customers/redact",
             "payload": {"shop_id": 123, "customer": {"id": 456}},
-            "created_at": "2026-10-13T09:00:00Z", "occurred_at": "2026-10-12T09:00:00Z", **changes}
+            "created_at": "2026-10-13T09:00:00Z", "occurred_at": "2026-10-12T09:00:00Z",
+            "receipt_version": 2, "authorization_cutoff_at": "2026-10-12T09:00:00Z", **changes}
 
 
 async def receipt(service):
@@ -68,8 +69,8 @@ async def test_concurrent_redelivery_is_deduplicated_without_overwriting_status(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("changes", [
-    {"group": "another-shop-group"}, {"topic": "shop/redact"},
-    {"occurred_at": "2026-10-13T10:00:00Z"}, {"payload": {"shop_id": 999}},
+    {"group": "another-shop-group"},
+    {"occurred_at": "2026-10-13T10:00:00Z", "authorization_cutoff_at": "2026-10-13T10:00:00Z"}, {"payload": {"shop_id": 999}},
 ])
 async def test_conflicting_duplicate_cannot_replace_a_committed_receipt(service, changes):
     await service.receive_event(event())
@@ -100,8 +101,7 @@ async def test_payload_only_legacy_receipt_is_enriched_only_by_matching_redelive
     assert json.loads(AESGCM(service.key).decrypt(row["nonce"], row["ciphertext"], row["id"].encode())) == incoming
 
 
-@pytest.mark.asyncio
-async def test_old_uninstall_does_not_revoke_a_new_consent_but_revokes_old_credential(service):
+async def install_consent_versions(service):
     for connection, authorized in [("old", "2026-10-11T09:00:00Z"), ("new", "2026-10-13T09:00:00Z")]:
         async with aiosqlite.connect(service.db_path) as db:
             await db.execute("""INSERT INTO official_connector_connections
@@ -111,6 +111,11 @@ async def test_old_uninstall_does_not_revoke_a_new_consent_but_revokes_old_crede
         # Save through the same encrypted host path, with a distinct generation.
         await service.save(await service.record(connection), {"access_token": "private-test-token", "app_id": "shopify-test-app",
                            "group": "group-fixture", "authorized_at": authorized, "scopes": []})
+
+
+@pytest.mark.asyncio
+async def test_old_uninstall_does_not_revoke_a_new_consent_but_revokes_old_credential(service):
+    await install_consent_versions(service)
     incoming = event(topic="app/uninstalled")
     await service.receive_event(incoming)
     assert (await service.record("old"))["credential"] is None
@@ -131,6 +136,7 @@ async def test_lost_delivery_ack_retries_only_after_the_receipt_is_durable(servi
             if method == "sync.mail":
                 return {}
             if method == "events":
+                assert params == {"receipt_version": 2}
                 return [event()]
             if method == "events.ack":
                 # Observe through an independent connection, as a restarted
@@ -182,3 +188,87 @@ async def test_historical_schema_upgrade_does_not_invent_occurrence_metadata(tmp
         assert await receipt(service) == row
     finally:
         await service.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("changes", [
+    {"receipt_version": None}, {"receipt_version": 1}, {"receipt_version": True},
+    {"authorization_cutoff_at": None}, {"occurred_at": None},
+    {"authorization_cutoff_at": "2026-10-11T09:00:00Z"},
+    {"authorization_cutoff_at": "2026-10-12T09:00:00+01:00"},
+    {"uninstall_event_id": "a" * 64},
+    {"topic": "shop/redact"},
+    {"topic": "shop/redact", "uninstall_event_id": "not-an-event-id"},
+    {"topic": "shop/redact", "uninstall_event_id": "a" * 64},
+    {"unexpected_cutoff": "2026-10-12T09:00:00Z"},
+    {"id": "a" * 64, "topic": "shop/redact", "uninstall_event_id": "a" * 64,
+     "occurred_at": "2026-10-15T09:00:00Z"},
+    {"occurred_at": "1960-10-12T09:00:00Z", "authorization_cutoff_at": "1960-10-12T09:00:00Z"},
+])
+async def test_incomplete_or_inconsistent_v2_is_not_persisted(service, changes):
+    with pytest.raises(ValueError):
+        await service.receive_event(event(**changes))
+    async with aiosqlite.connect(service.db_path) as db:
+        assert (await (await db.execute("SELECT COUNT(*) FROM official_connector_events")).fetchone())[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_delayed_shop_redact_keeps_new_consent_across_out_of_order_redelivery_and_restart(service):
+    # Reuse the encrypted credential fixture, then deliver redaction after a
+    # newer consent. Original notification time is deliberately newer than it.
+    await install_consent_versions(service)
+    delayed = event(id="delayed-redact", topic="shop/redact",
+                    created_at="2026-10-15T12:00:00Z", occurred_at="2026-10-15T11:00:00Z",
+                    authorization_cutoff_at="2026-10-12T09:00:00Z", uninstall_event_id="a" * 64)
+    await service.receive_event(delayed)
+    assert (await service.record("old"))["credential"] is None
+    current = await service.record("new")
+    assert current["enabled"] == 1 and service.decrypt(current)["access_token"] == "private-test-token"
+    restarted = OfficialConnectors(service.runtime)
+    restarted.runner = None
+    await restarted.start()
+    try:
+        await restarted.receive_event(delayed)
+        # An even older uninstall delivered after redaction cannot clear the
+        # newer credential; event ordering does not replace consent identity.
+        await restarted.receive_event(event(id="older-uninstall", topic="app/uninstalled"))
+        assert restarted.decrypt(await restarted.record("new"))["access_token"] == "private-test-token"
+        async with aiosqlite.connect(restarted.db_path) as db:
+            db.row_factory = aiosqlite.Row
+            row = dict(await (await db.execute("SELECT * FROM official_connector_events WHERE id='delayed-redact'")).fetchone())
+        stored = json.loads(AESGCM(restarted.key).decrypt(row["nonce"], row["ciphertext"], row["id"].encode()))
+        assert stored == delayed
+        for changed in ({"uninstall_event_id": "b" * 64},
+                        {"authorization_cutoff_at": "2026-10-12T08:00:00Z"},
+                        {"occurred_at": "2026-10-15T12:00:00Z"}):
+            with pytest.raises(ValueError, match="conflicts"):
+                await restarted.receive_event({**delayed, **changed})
+        assert restarted.decrypt(await restarted.record("new"))["access_token"] == "private-test-token"
+    finally:
+        await restarted.close()
+
+
+@pytest.mark.asyncio
+async def test_legacy_full_receipt_without_cutoff_remains_blocked_after_restart(service):
+    incoming = event()
+    del incoming["receipt_version"], incoming["authorization_cutoff_at"]
+    nonce = b"0123456789ab"
+    ciphertext = AESGCM(service.key).encrypt(nonce, json.dumps(incoming).encode(), incoming["id"].encode())
+    async with aiosqlite.connect(service.db_path) as db:
+        await db.execute("INSERT INTO official_connector_events(id,group_id,topic,ciphertext,nonce,received_at,receipt_format) VALUES(?,?,?,?,?,?,2)",
+                         (incoming["id"], incoming["group"], incoming["topic"], ciphertext, nonce, incoming["created_at"]))
+        await db.commit()
+    class UnexpectedProcessor:
+        async def process(self, *_):
+            pytest.fail("A legacy receipt must not reach a privacy processor without its authenticated cutoff")
+    restarted = OfficialConnectors(service.runtime, privacy_processor=UnexpectedProcessor())
+    restarted.runner = None
+    await restarted.start()
+    try:
+        await restarted.process_privacy_events()
+        stored = await receipt(restarted)
+        assert stored["status"] == "blocked" and stored["ciphertext"] == ciphertext
+        with pytest.raises(ValueError, match="conflicts"):
+            await restarted.receive_event(event())
+    finally:
+        await restarted.close()

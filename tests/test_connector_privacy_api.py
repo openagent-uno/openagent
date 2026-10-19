@@ -1,5 +1,6 @@
 """Real product routes and canonical storage on two isolated owned servers."""
 import base64
+from dataclasses import replace
 import hashlib
 import json
 from pathlib import Path
@@ -95,7 +96,7 @@ async def test_two_product_servers_selective_export_ack_redaction_and_acl(tmp_pa
     servers = [await owned_server(tmp_path/'one','one'), await owned_server(tmp_path/'two','two')]
     try:
         receipt = {'id':'provider-export','group':'group','topic':'customers/data_request',
-            'created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z',
+            'created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z','receipt_version':2,'authorization_cutoff_at':'2026-10-13T11:00:00Z',
             'payload':{'customer':{'id':23},'orders_requested':[]}}
         request_ids = []
         for server in servers:
@@ -163,7 +164,7 @@ async def test_shared_store_export_checks_each_session_owner_and_ack_current_acl
                 return action != 'run.read' or resource.resource_id == 'session' or policy.shared
         server.runtime.services.authorizer = CurrentSessionPolicy()
         receipt = {'id':'shared-export','group':'group','topic':'customers/data_request',
-                   'created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z',
+                   'created_at':'2026-10-13T12:00:00Z','occurred_at':'2026-10-13T11:00:00Z','receipt_version':2,'authorization_cutoff_at':'2026-10-13T11:00:00Z',
                    'payload':{'customer':{'id':23},'orders_requested':[]}}
         await server.service.receive_event(receipt)
         await server.service.process_privacy_events()
@@ -181,5 +182,59 @@ async def test_shared_store_export_checks_each_session_owner_and_ack_current_acl
                                            json={'delivery_token':delivered['delivery_token']})
         assert response.status == 403
         assert not await server.service.privacy_processor.exports.delivered(request_id)
+    finally:
+        await server.close()
+
+
+@pytest.mark.asyncio
+async def test_uninstall_new_consent_then_delayed_redaction_protects_new_core_text_and_credentials(tmp_path):
+    server = await owned_server(tmp_path/'owned', 'tenant')
+    try:
+        async with aiosqlite.connect(server.service.db_path) as db:
+            await db.execute("UPDATE official_connector_connections SET status='pending' WHERE id='connection'")
+            await db.commit()
+        await server.service.save(await server.service.record('connection'), {
+            'access_token':'synthetic-old-consent', 'app_id':'app', 'group':'group',
+            'authorized_at':'2026-10-13T10:00:00Z','version':1})
+        uninstall = {'id':'a'*64, 'group':'group', 'topic':'app/uninstalled',
+            'created_at':'2026-10-13T11:00:00Z','occurred_at':'2026-10-13T11:00:00Z',
+            'receipt_version':2,'authorization_cutoff_at':'2026-10-13T11:00:00Z','payload':{'shop_id':1}}
+        await server.service.receive_event(uninstall)
+        assert (await server.service.record('connection'))['credential'] is None
+        async with aiosqlite.connect(server.service.db_path) as db:
+            await db.execute("UPDATE official_connector_connections SET status='pending',enabled=1,transaction_id='fresh-consent' WHERE id='connection'")
+            await db.commit()
+        await server.service.save(await server.service.record('connection'), {
+            'access_token':'synthetic-new-consent', 'app_id':'app','group':'group',
+            'authorized_at':'2026-10-13T12:00:00Z','version':2}, authorization_transaction='fresh-consent')
+        # Publish actual canonical text/result with the new consent origin.
+        context = replace(server.context, session_id='new-consent-session')
+        await server.canonical.accept(RunRequest('new-consent-run', context.session_id, 'new-consent-key', 'NEW HUMAN QUESTION'), context)
+        await server.canonical.transition('new-consent-run','running')
+        await server.canonical.begin_tool('new-consent-run','new-call',{'source_id':'shopify','name':'customers.get'}, {})
+        origin = ContentOrigin('tenant','shopify/app','group',grant_generation('2026-10-13T12:00:00Z'),('customer:23',))
+        await server.publisher.publish_tool_result(context,'new-consent-run','new-call',{'text':'NEW CONSENT CUSTOMER TEXT'},(origin,))
+        await server.canonical.transition('new-consent-run','success',output='NEW CONSENT DERIVED TEXT')
+        delayed = {**uninstall,'id':'b'*64,'topic':'shop/redact',
+                   'created_at':'2026-10-15T12:00:00Z','occurred_at':'2026-10-15T12:00:00Z',
+                   'uninstall_event_id':uninstall['id']}
+        await server.service.receive_event(delayed)
+        await server.service.process_privacy_events()
+        # Duplicate and out-of-order delivery must retain the same generation
+        # fence, not use the later shop/redact timestamp or current grant time.
+        await server.service.receive_event(delayed)
+        await server.service.receive_event(uninstall)
+        await server.service.process_privacy_events()
+        token = server.service.decrypt(await server.service.record('connection'))
+        assert token['access_token']=='synthetic-new-consent' and token['version']==2
+        assert (await server.service.record('connection'))['enabled']==1
+        assert (await server.canonical.get('new-consent-run')).output=='NEW CONSENT DERIVED TEXT'
+        new_events = str(await server.canonical.events('new-consent-run'))
+        assert 'NEW CONSENT CUSTOMER TEXT' in new_events
+        old_text = str(server.legacy.get_session('session',deserialize=False))
+        assert 'PRIVATE CUSTOMER A' not in old_text and 'RETAIN CUSTOMER B' not in old_text
+        assert 'HUMAN QUESTION' in old_text
+        request_id = hashlib.sha256((delayed['id']+'\0tenant\0app').encode()).hexdigest()
+        assert (await server.service.privacy_processor.store.progress(request_id)).status=='complete'
     finally:
         await server.close()

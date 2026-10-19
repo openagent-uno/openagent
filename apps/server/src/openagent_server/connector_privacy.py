@@ -8,8 +8,9 @@ merely because this bridge is available.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import hashlib
+import re
 import weakref
 
 from openagent_core.content_privacy import PrivacyRequest
@@ -23,6 +24,36 @@ def grant_generation(value: str) -> int:
     # verified consent timestamp. Integer arithmetic preserves microseconds.
     elapsed = timestamp - datetime(1970,1,1,tzinfo=timezone.utc)
     return (elapsed.days * 86400 + elapsed.seconds) * 1_000_000 + elapsed.microseconds
+
+
+def receipt_cutoff(receipt):
+    """Validate the authenticated v2 generation fence, independently of delivery.
+
+    A delayed shop/redact is tied to the original uninstall by the broker. Its
+    notification timestamp must never become the consent/data-erasure cutoff.
+    Old receipts without this authenticated pair remain blocked for repair.
+    """
+    if type(receipt.get('receipt_version')) is not int or receipt['receipt_version'] != 2:
+        raise ValueError('Connector privacy requires receipt version 2')
+    timestamps = []
+    for key in ('occurred_at', 'authorization_cutoff_at'):
+        value = receipt.get(key)
+        if (not isinstance(value, str) or not re.fullmatch(
+                r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|\+00:00)', value)):
+            raise ValueError('Connector privacy requires authenticated UTC timestamps')
+        timestamps.append(datetime.fromisoformat(value.replace('Z', '+00:00')))
+    occurred, cutoff = timestamps
+    if cutoff < datetime(1970, 1, 1, tzinfo=timezone.utc) or cutoff > occurred:
+        raise ValueError('Connector privacy cutoff is outside the occurrence range')
+    if receipt.get('topic') == 'shop/redact':
+        pair = receipt.get('uninstall_event_id')
+        if (not isinstance(pair, str) or not re.fullmatch(r'[0-9a-f]{64}', pair)
+                or pair == receipt.get('id')
+                or cutoff > occurred - timedelta(hours=48) + timedelta(minutes=5)):
+            raise ValueError('Shop redaction requires an authenticated uninstall cutoff')
+    elif 'uninstall_event_id' in receipt or cutoff != occurred:
+        raise ValueError('Connector privacy cutoff conflicts with occurrence')
+    return cutoff
 
 
 def _provider_id(value):
@@ -56,6 +87,7 @@ class ConnectorPrivacyProcessor:
         self.streams.add(stream)
 
     async def process(self, receipt, connections):
+        receipt_cutoff(receipt)
         topic = receipt['topic']
         if topic == 'app/uninstalled':
             # Immediate credential disconnection is performed atomically by the
@@ -77,7 +109,7 @@ class ConnectorPrivacyProcessor:
                 raise ValueError('Customer privacy order selection exceeds its bound')
             values.extend('order:'+_provider_id(order) for order in orders)
             subjects = tuple(sorted(set(values)))
-        cutoff = grant_generation(receipt['occurred_at'])
+        cutoff = grant_generation(receipt['authorization_cutoff_at'])
         scopes = {(row['tenant_id'],row['app_id']) for row in connections
                   if row.get('provider') == 'shopify' and row.get('app_id')
                   and row.get('group_id') == receipt['group']}

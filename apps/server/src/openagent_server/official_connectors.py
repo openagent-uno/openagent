@@ -412,6 +412,7 @@ class OfficialConnectors:
             if not self.valid_shop(shop):
                 raise ValueError("A valid Shopify store is required")
             start["shop"] = shop
+            start["receipt_version"] = 2
         await self.runner.call("auth.register")
         transaction = await self.runner.call("auth.start", start)
         await self.check(context, write=True)
@@ -836,7 +837,7 @@ class OfficialConnectors:
                 await self.runner.call("auth.publish", {"group": row["group_id"], "token": {k: v for k, v in token.items() if k not in {"group", "recipients"}}, "recipients": token.get("recipients", [])})
             except RuntimeError:
                 await self.runner.call("sync.recover", {"group": row["group_id"]})
-        for event in await self.runner.call("events"):
+        for event in await self.runner.call("events", {"receipt_version": 2}):
             await self.receive_event(event)
             await self.runner.call("events.ack", {"id": event["id"]})
         await self.process_privacy_events()
@@ -861,6 +862,8 @@ class OfficialConnectors:
             if event['receipt_format'] == 2:
                 try:
                     receipt = json.loads(AESGCM(self.key).decrypt(event['nonce'],event['ciphertext'],event['id'].encode()))
+                    from openagent_server.connector_privacy import receipt_cutoff
+                    receipt_cutoff(receipt)
                     status = await self.privacy_processor.process(receipt,connections)
                     if status not in {'complete','blocked','credential_revoked'}:
                         status = 'blocked'
@@ -906,13 +909,18 @@ class OfficialConnectors:
                 or event["topic"] not in {"app/uninstalled", "shop/redact", "customers/redact", "customers/data_request"}
                 or not isinstance(event.get("payload"), dict)):
             raise ValueError("Invalid connector privacy receipt")
-        occurred = event.get("occurred_at") or event["created_at"]
-        occurrence = datetime.fromisoformat(occurred.replace("Z", "+00:00"))
+        from openagent_server.connector_privacy import receipt_cutoff
+        cutoff = receipt_cutoff(event)
         created = datetime.fromisoformat(event["created_at"].replace("Z", "+00:00"))
-        if occurrence.tzinfo is None or created.tzinfo is None:
-            raise ValueError("Connector privacy receipt requires timezone-aware timestamps")
-        receipt = {key: event[key] for key in ("id", "group", "topic", "payload", "created_at")}
-        receipt["occurred_at"] = occurred
+        if created.tzinfo is None or created.utcoffset().total_seconds() != 0:
+            raise ValueError("Connector privacy receipt requires UTC timestamps")
+        fields = {"id", "group", "topic", "payload", "created_at", "occurred_at",
+                  "receipt_version", "authorization_cutoff_at"}
+        if event["topic"] == "shop/redact":
+            fields.add("uninstall_event_id")
+        if set(event) != fields:
+            raise ValueError("Invalid connector privacy receipt fields")
+        receipt = dict(event)
         encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
         if len(encoded) > 2 * 1024 * 1024:
             raise ValueError("Connector privacy receipt exceeds the supported size")
@@ -942,7 +950,7 @@ class OfficialConnectors:
                 for target in targets:
                     token = self.decrypt(dict(target))
                     authorized = token.get("authorized_at")
-                    if authorized is None or datetime.fromisoformat(authorized.replace("Z", "+00:00")) <= occurrence:
+                    if authorized is None or datetime.fromisoformat(authorized.replace("Z", "+00:00")) <= cutoff:
                         await db.execute("UPDATE official_connector_connections SET enabled=0,status='disconnected',credential=NULL,nonce=NULL WHERE id=?", (target["id"],))
             await db.commit()
 
