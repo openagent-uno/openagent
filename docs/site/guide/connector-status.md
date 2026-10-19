@@ -106,9 +106,12 @@ or enables a provider.
 Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
 remains **off**. Google Calendar API enablement and both Calendar scope declarations
 were completed on 18 October. The Microsoft shared app, developer terms and four
-Web callbacks are also prepared. Microsoft client-secret custody, delegated
-permissions and publisher verification, plus real consent/lifecycle qualification
-and applicable provider reviews, remain pending. An operator-owned app requires
+Web callbacks are also prepared. Its seven delegated permissions were saved on
+19 October: `User.Read`, `offline_access`, `Mail.ReadWrite`, `Mail.Send`,
+`Calendars.ReadWrite`, `Files.Read` and `Sites.Read.All`. This configures the app;
+no admin or user consent has been granted. Client-secret custody, remaining
+OAuth/client-authentication checks, publisher/tenant-policy requirements and
+real consent/lifecycle qualification remain pending. An operator-owned app requires
 its own valid registration and qualified receiving host. See
 [setup and recovery](./connector-operations.md#calendar-and-mail-sdk-017)
 and the [versioned SDK contract and limits](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
@@ -124,9 +127,13 @@ and the [versioned SDK contract and limits](https://github.com/openagent-uno/ope
 - **Microsoft:** Outlook Mail/Calendar and OneDrive/SharePoint adapters are published
   in SDK 0.1.8. On 18 October the shared Web app was registered for work/school and
   personal accounts, its four provider callbacks were saved and developer terms
-  were accepted. Client-secret custody, delegated permissions (including a separate
-  `Mail.Send` permission where requested), publisher verification and real account
-  consent/lifecycle qualification remain pending. Common enrollment stays off.
+  were accepted. On 19 October, the [registration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/6b6364676a34a14339b97e5bd7a840d57b58d439/deploy/connector-auth/registrations/microsoft.json)
+  verified seven saved delegated permissions: `User.Read`, `offline_access`,
+  `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `Files.Read` and
+  `Sites.Read.All`. Neither admin nor user consent was granted. The production
+  secret reference is still unset; client authentication, remaining OAuth settings,
+  publisher/receiving-tenant requirements and real consent/lifecycle tests remain
+  pending. Common enrollment stays off.
 - **ClickUp:** the existing provider registration and credentials are reused.
   Its common callback completed a real browser round trip on 14 October with
   auth service 0.1.6. The disclosure response now preserves the browser's

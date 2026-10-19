@@ -267,8 +267,13 @@ For an operator-owned app on a qualified SDK17 host:
    provider API, and register the callback supported by that app type. Google
    Calendar requires Calendar API enablement and accepted Calendar scopes.
    Microsoft requires the appropriate account/tenant audience and delegated
-   Graph permissions; registration, terms and real consent remain pending for
-   the common app. No existing user tokens migrate to another app automatically.
+   Graph permissions. The common app has saved its registration, terms, callbacks
+   and seven delegated permissions (`User.Read`, `offline_access`, `Mail.ReadWrite`,
+   `Mail.Send`, `Calendars.ReadWrite`, `Files.Read`, `Sites.Read.All`). Saving them
+   grants no admin or user consent. Production client-secret custody, remaining
+   OAuth/client-authentication settings, receiving-tenant requirements and real
+   consent/lifecycle tests remain pending; common enrollment is off. No existing
+   user tokens migrate to another app automatically.
 2. Store app secrets in protected server-owned files. Set
    `connectors.oauth_providers_file` to the provider descriptor array using
    `id`, `app_id`, `client_id`, `secret_file`, `authorization_url`, `token_url`,
