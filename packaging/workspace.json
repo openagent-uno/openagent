@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "product_version": "1.1.0-beta.51",
+  "product_version": "1.1.0-beta.52",
   "status": "release-candidate",
   "components": {
     "server": {

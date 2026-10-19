@@ -13,6 +13,7 @@
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
 - [Attachment preview in the App](attachment-preview.md)
+- [Beta 52 canonical attachment history and delivery](releases/v1.1.0-beta.52.md)
 - [Beta 44 Calendar and mail connector SDK adoption](releases/v1.1.0-beta.44.md)
 - [Beta 41 keyless connectors and common OAuth beta](releases/v1.1.0-beta.41.md)
 - [Beta 40 connector SDK 0.1.4 consumer release](releases/v1.1.0-beta.40.md)

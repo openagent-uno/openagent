@@ -274,6 +274,12 @@ def verify_read_tools(identifier, tools):
 
 def main():
     global ROOT
+    # The attachment release has a different exact dependency closure. Keep
+    # the connector-specific historical recipe and its provenance immutable.
+    if "--profile=attachments-beta52" in sys.argv:
+        from qualify_attachment_product_release import main as attachment_main
+        attachment_main([arg for arg in sys.argv[1:] if arg != "--profile=attachments-beta52"])
+        return
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, type=Path, help="Clean frozen payload checkout, separate from this executor")
     parser.add_argument("--source-sha", required=True)
