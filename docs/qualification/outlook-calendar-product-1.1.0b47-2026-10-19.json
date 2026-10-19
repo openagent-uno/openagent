@@ -1,0 +1,141 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "product_version": "1.1.0b47",
+  "source_product": "1140364d0e662237336df79166db9d8d10e54781",
+  "sdk_version": "0.1.9",
+  "source_sdk": "58b47a81467944e604b6643f722041880ead0d6d",
+  "provider": "outlook_calendar",
+  "normal_certified_gateway_and_workflows": true,
+  "actual_fresh_oauth_completed": true,
+  "canShare_and_canEdit_verified_list_get_and_before_write": true,
+  "event_created_read_updated_deleted": true,
+  "no_attendees": true,
+  "event_primary_or_private_claimed": false,
+  "write_policy_restored": true,
+  "explicit_refresh_passed": true,
+  "actual_same_identity_server_restart": true,
+  "post_restart_read_passed": true,
+  "normal_disconnect_tombstone_and_source_removed": true,
+  "global_provider_revocation_claimed": false,
+  "identifiers_and_private_results_exported": false,
+  "provider_attempts_observed": null,
+  "direct_provider_calls": 0,
+  "direct_runner_calls": 0,
+  "model_calls": 0,
+  "workflow_submissions_total": 10,
+  "preflight_reds_preserved_no_provider_write": true,
+  "receiver_cleanup": "pending_separate_receiver_tasks",
+  "restart_receipt_sha256": "3bcc82b2e4e780d5298a81b0521940a7f407234816c50c79362b7bea8dcaa77d",
+  "qualified_at": "2026-10-19T11:01:08.665791+00:00",
+  "source_private_safe_aggregate_sha256": "0f6f28d51c9e32231aa176a30325b2b2e7526005850ab7e9fcd41c7255027308",
+  "steps": [
+    {
+      "mode": "start",
+      "receipt_sha256": "509de93e81039555bc9a62986e577c30a916fd2b4a9749b9de3abe3e3013094f",
+      "at": "2026-10-19T10:47:40.944552+00:00",
+      "result": {
+        "connection_status": "pending",
+        "browser_link_saved_privately": true
+      },
+      "workflow_submissions": 0
+    },
+    {
+      "mode": "poll",
+      "receipt_sha256": "f7650499e2f3dfb4523306d6af54811a81141e3b812831027ad07af5016fccb1",
+      "at": "2026-10-19T10:49:55.559918+00:00",
+      "result": {
+        "connection_status": "connected",
+        "explicit_owner_refresh": false
+      },
+      "workflow_submissions": 0
+    },
+    {
+      "mode": "read",
+      "receipt_sha256": "9432c0ad15569a9cc9bef2a9bde8a4b094593c9bc7b1512a7bcc4b79b472a4a3",
+      "at": "2026-10-19T10:50:09.009542+00:00",
+      "result": {
+        "operation": "files.outlook_calendar.calendars.list",
+        "workflow_result_bytes": 415,
+        "workflow_result_sha256": "ec674ed9e5a10546d9cb601996844f4f97e8e3876456716459d17a689edd3bad",
+        "empty_collection_valid": false,
+        "collection_type_valid": true,
+        "post_restart": false
+      },
+      "workflow_submissions": 1
+    },
+    {
+      "mode": "select-calendar",
+      "receipt_sha256": "84e626e261cc5b049be1835347e277809457da7f7adbbcda2c9082cc10db34a2",
+      "at": "2026-10-19T10:50:15.156939+00:00",
+      "result": {
+        "normal_list_and_get": true,
+        "canShare_true": true,
+        "canEdit_true": true,
+        "calendar_selection_is_owner_evidence": true,
+        "primary_or_private_claimed": false,
+        "calendar_id_or_owner_exported": false
+      },
+      "workflow_submissions": 2
+    },
+    {
+      "mode": "event-write-cleanup",
+      "receipt_sha256": "164f331dcb2d4c60a67aca8e18e34e933af48b64d6fb9cdaf6b22d77ab125341",
+      "at": "2026-10-19T10:54:33.987207+00:00",
+      "result": {
+        "qa_event_created": true,
+        "no_attendees_verified": true,
+        "google_visibility_private_requested": false,
+        "outlook_sensitivity_claimed": false,
+        "event_updated": true,
+        "exact_event_delete_workflow_success": true,
+        "original_write_policy_restored": true,
+        "independent_provider_absence_read": false
+      },
+      "workflow_submissions": 6
+    },
+    {
+      "mode": "refresh",
+      "receipt_sha256": "80f969c2e625592cb61c03ac5279a16e83d34719e5c8b3b79fd5107f3d1a655d",
+      "at": "2026-10-19T10:56:01.938063+00:00",
+      "result": {
+        "connection_status": "connected",
+        "explicit_owner_refresh": true
+      },
+      "workflow_submissions": 0
+    },
+    {
+      "mode": "restart-read",
+      "receipt_sha256": "d227d51e22792c154d5c9a058cd13d6ed023bab45e79be57aa1f5b47b501d465",
+      "at": "2026-10-19T11:00:41.591664+00:00",
+      "result": {
+        "operation": "files.outlook_calendar.calendars.list",
+        "workflow_result_bytes": 415,
+        "workflow_result_sha256": "ec674ed9e5a10546d9cb601996844f4f97e8e3876456716459d17a689edd3bad",
+        "empty_collection_valid": false,
+        "collection_type_valid": true,
+        "post_restart": true
+      },
+      "workflow_submissions": 1
+    },
+    {
+      "mode": "disconnect",
+      "receipt_sha256": "15d6e31a14f312c407aac759652706df7f1a387c4432eb56a52d90d4861ad5cd",
+      "at": "2026-10-19T11:00:51.727333+00:00",
+      "result": {
+        "tombstone_disabled": true,
+        "source_removed": true,
+        "global_provider_revocation_claimed": false
+      },
+      "workflow_submissions": 0
+    }
+  ],
+  "provider_or_account_identifiers_exported": false,
+  "network_handles_or_process_identifiers_exported": false,
+  "scope_boundary": "One owner-approved calendar with canShare and canEdit. One neutral QA event without attendees. No primary-calendar or private-sensitivity assertion.",
+  "limits": [
+    "No independent provider absence read after deletion; exact delete workflow returned success.",
+    "Receiver remains active for separate approved QA; worker cleanup is outside this provider lifecycle.",
+    "No global Microsoft app-consent revocation is claimed."
+  ]
+}
