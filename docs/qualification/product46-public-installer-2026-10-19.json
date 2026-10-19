@@ -2,7 +2,7 @@
   "format": 1,
   "receipt_kind": "sanitized_public_installer_summary",
   "status": "passed",
-  "scope": "Normal public release server and separate thin CLI installation using the unmodified immutable public-source installer. Live site byte equality is pending final Pages publication.",
+  "scope": "Normal public release server and separate thin CLI installation using the unmodified immutable public-source installer; final live website script verified byte-identical.",
   "product_source": "6b0d62e42abca87c0e0e07b5ae3f28848734840b",
   "product_manifest_sha256": "f0c85580a230a6ae3a748a7ed12a6d54d442dca383925666f615a937b698c444",
   "sdk_version": "0.1.8",
@@ -15,9 +15,13 @@
     "bytes": 8722,
     "anonymous_immutable_source_bytes_verified": true,
     "live_url": "https://openagent.uno/install.sh",
-    "anonymous_live_bytes_verified": false,
-    "live_verification_status": "pending_final_pages_publication",
-    "downloaded_script_modified": false
+    "anonymous_live_bytes_verified": true,
+    "live_verification_status": "passed_byte_identical_to_qualified_public_source",
+    "downloaded_script_modified": false,
+    "live_verified_at": "2026-10-19T09:54:31.136072+00:00",
+    "live_http": 200,
+    "pages_run": 39233259273,
+    "pages_source": "64c70bdcf40279bfbee5df453739d6a49c81ba6e"
   },
   "checks": {
     "server": {
