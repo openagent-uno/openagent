@@ -1,0 +1,106 @@
+{
+  "format": 1,
+  "receipt_kind": "sanitized_public_installer_summary",
+  "status": "passed",
+  "scope": "Normal public release server and separate thin CLI installation using the unmodified immutable public-source installer. Live site byte equality is pending final Pages publication.",
+  "product_source": "6b0d62e42abca87c0e0e07b5ae3f28848734840b",
+  "product_manifest_sha256": "f0c85580a230a6ae3a748a7ed12a6d54d442dca383925666f615a937b698c444",
+  "sdk_version": "0.1.8",
+  "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+  "installed_qualification_receipt": "product46-installed-2026-10-19.json",
+  "installer": {
+    "url": "https://raw.githubusercontent.com/openagent-uno/openagent/4e6a8bbb02bbc73162ff20b51df13461a8f99712/docs/site/public/install.sh",
+    "source_commit": "4e6a8bbb02bbc73162ff20b51df13461a8f99712",
+    "sha256": "05fcb4f1f5c984253efd4e6b01288fb4827575bf213a05d8b43a3d3455f3fe0b",
+    "bytes": 8722,
+    "anonymous_immutable_source_bytes_verified": true,
+    "live_url": "https://openagent.uno/install.sh",
+    "anonymous_live_bytes_verified": false,
+    "live_verification_status": "pending_final_pages_publication",
+    "downloaded_script_modified": false
+  },
+  "checks": {
+    "server": {
+      "versions": {
+        "openagent-framework": "1.1.0b46",
+        "openagent-core": "1.1.0b22",
+        "openagent-connectors": "0.1.8",
+        "openagent-host-tools": "1.0.0b6",
+        "SQLAlchemy": "2.1.4"
+      },
+      "installed_prefix_imports": true,
+      "async_orm_select_passed": true,
+      "default_common_providers": [
+        "clickup",
+        "github",
+        "notion",
+        "onedrive",
+        "outlook_calendar",
+        "outlook_mail"
+      ],
+      "constructor_only_no_enrollment": true,
+      "official": 114,
+      "custom": 1,
+      "read_tools": 315,
+      "action_tools": 82,
+      "catalog_matches_published_sdk": true,
+      "provider_calls": 0
+    },
+    "cli": {
+      "versions": {
+        "openagent-cli": "1.1.0b46",
+        "openagent-host-tools": "1.0.0b6",
+        "openagent-client-transport": "1.1.0b39"
+      },
+      "installed_prefix_imports": true,
+      "thin_client_without_server_engine_dependencies": true,
+      "core_base_version": "1.1.0b22",
+      "core_base_required_by_unchanged_transport_identity": true,
+      "provider_calls": 0
+    },
+    "server_dependency_check": "passed",
+    "cli_dependency_check": "passed",
+    "cli_help": {
+      "status": "passed",
+      "bytes": 1287,
+      "sha256": "e9ecc0fa257ae39612e7413c66bc41f496bba4252781726edea5eb7128b9070b"
+    }
+  },
+  "preserved_harness_failures": {
+    "pre_install_root_guard": "An initial private harness retained the previous owned path. It failed before fetching or executing the installer; only the harness path was corrected.",
+    "cli_probe": "The initial private probe incorrectly prohibited required base Core22. Corrected assertion verifies the unchanged transport and identity requirement and continues to reject SQLAlchemy, LLM packages and the server framework.",
+    "product_source_or_public_installer_modified": false,
+    "package_install_repeated_for_probe_correction": false
+  },
+  "bounded_execution": {
+    "cpu_limit": 1,
+    "memory_limit_bytes": 2147483648,
+    "swap_limit_bytes": 0,
+    "home_override": false,
+    "tmpdir_override": false,
+    "source_overlay": false,
+    "fresh_separate_server_and_cli_installation_directories": true
+  },
+  "completion": {
+    "finished_at": "2026-10-19T09:45:54.065340+00:00",
+    "finish_receipt_sha256": "0f5e247ff67cd144b20f289bda6494af4efdf2c5c3d757a4af5dc919cea5d271",
+    "active_owned_processes": 0,
+    "memory_events": {
+      "low": 0,
+      "high": 0,
+      "max": 0,
+      "oom": 0,
+      "oom_kill": 0,
+      "oom_group_kill": 0
+    },
+    "cleanup": "Owned worker deleted with fresh UID/resourceVersion preconditions; NotFound verified. Persistent artifacts and audit evidence retained.",
+    "cleanup_receipt_sha256": "4b89f52b4d07a1ed277dda8d94ed694a5d1c41da2920290ab49968ebe14a0304"
+  },
+  "acceptance_boundaries": {
+    "server_started": false,
+    "models_started": 0,
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "native_app_or_gui_acceptance": false
+  }
+}

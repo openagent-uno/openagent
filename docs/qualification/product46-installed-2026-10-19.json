@@ -1,0 +1,80 @@
+{
+  "format": 1,
+  "receipt_kind": "sanitized_public_qualification_summary",
+  "status": "passed",
+  "product": "Server/CLI 1.1.0-beta.46",
+  "source_commit": "6b0d62e42abca87c0e0e07b5ae3f28848734840b",
+  "release": {
+    "url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.46",
+    "published_at": "2026-10-19T09:40:36Z",
+    "assets": 12,
+    "all_asset_api_and_anonymous_digest_size_checks": "passed"
+  },
+  "manifest": {
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.46/manifest.json",
+    "sha256": "f0c85580a230a6ae3a748a7ed12a6d54d442dca383925666f615a937b698c444"
+  },
+  "public_qualification": {
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.46/qualification.json",
+    "sha256": "8581f0a19c0c78988cc5dd84ab2f7da214f2a3a7be516474da8c59dbdeb6800b",
+    "scope": "installed Python connector consumer plus separate source fixtures; no native App/installer or real provider acceptance",
+    "original_receipt_unchanged": true
+  },
+  "dependencies": {
+    "connector_sdk": "0.1.8",
+    "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+    "core": "1.1.0-beta.22",
+    "host_tools": "1.0.0-beta.6",
+    "native_app_unchanged": "1.1.0-beta.22"
+  },
+  "checks": {
+    "installed_server_cli_tests": {
+      "passed": 215,
+      "evidence_sha256": "05fa52751ca971a414456e0654d537d236234a782ce93e6b1267e8277708ad6a"
+    },
+    "separate_react_source_groups": {
+      "passed": 15,
+      "evidence_sha256": "bd535cd3a0d06654da77589610ea1137871c44c49934eb8f6143caf59f9f616f",
+      "scope": "Actual TS/TSX transpile and React component with mocked native transport; not native/GUI/provider acceptance."
+    },
+    "dependency_check": "passed",
+    "installed_catalog": {
+      "official": 114,
+      "custom_mcp": 1,
+      "read_tools": 315,
+      "action_tools": 82,
+      "public_sdk_parity": "passed"
+    },
+    "release_wheels": {
+      "new": 2,
+      "reused_byte_identical": 7,
+      "reused_release": "v1.1.0-beta.45",
+      "verified_reused_source_files": 109
+    },
+    "source_acquisition_boundary_tests": {
+      "passed": 15,
+      "scope": "Separate source fixtures, not public-installer acceptance."
+    },
+    "default_common_providers": [
+      "clickup",
+      "github",
+      "notion",
+      "onedrive",
+      "outlook_calendar",
+      "outlook_mail"
+    ],
+    "explicit_opt_out_and_own_apps_preserved": true,
+    "google_testing_and_sharepoint_require_explicit_operator_configuration": true,
+    "constructor_does_not_enroll_or_contact_broker": true
+  },
+  "acceptance_boundaries": {
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "native_app_and_gui": "Not exercised; existing App22 unchanged.",
+    "microsoft_provider_lifecycle_receipt": "microsoft-three-product45-oauth-2026-10-19.json",
+    "google_testing_lifecycle_receipt": "google-four-product45-oauth-2026-10-19.json",
+    "microsoft_writes": "Not established by this qualification.",
+    "sharepoint": "Requires an eligible work or school account; personal-account trial blocked.",
+    "public_installer_receipt": "product46-public-installer-2026-10-19.json"
+  }
+}
