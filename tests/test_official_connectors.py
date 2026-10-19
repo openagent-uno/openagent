@@ -249,7 +249,7 @@ async def test_revocation_during_keyless_setup_prevents_registration(fixture):
 
 
 @pytest.mark.parametrize("config,environment,expected", [
-    ({}, {}, {"clickup", "github", "notion"}),
+    ({}, {}, {"clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive"}),
     ({"official_providers": []}, {}, set()),
     ({}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": ""}, set()),
     ({"official_providers": []}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": "clickup"}, set()),
@@ -268,9 +268,25 @@ def test_default_common_providers_preserve_explicit_opt_out(tmp_path, config, en
     service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
     assert service.official_providers == expected
     assert runner.calls == []
+    for provider in ("clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive"):
+        assert service.authorization_available(provider) == (provider in expected)
     assert all(not service.authorization_available(provider)
                for provider in ("gmail", "google_drive", "google_analytics", "slack_import", "postiz", "shopify",
-                                "google_calendar", "outlook_mail", "outlook_calendar"))
+                                "google_calendar", "sharepoint"))
+
+
+
+@pytest.mark.parametrize("provider", ["gmail", "google_drive", "google_analytics", "google_calendar", "sharepoint"])
+def test_testing_and_work_account_connectors_require_explicit_operator_choice(tmp_path, provider):
+    runner = Runner()
+    agent = SimpleNamespace(name="Test", config={"connectors": {"official_providers": [provider]}},
+                            product_environment={}, memory_db=SimpleNamespace(db_path=tmp_path / "agent.sqlite"))
+    service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
+    assert service.official_providers == {provider}
+    assert service.authorization_available(provider)
+    assert all(not service.authorization_available(other)
+               for other in {"gmail", "google_drive", "google_analytics", "google_calendar", "sharepoint"} - {provider})
+    assert runner.calls == []  # Policy selection never registers or contacts the broker.
 
 
 def test_explicit_common_opt_out_preserves_local_own_apps(tmp_path):
