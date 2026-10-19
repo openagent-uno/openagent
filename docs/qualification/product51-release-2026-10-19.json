@@ -40,8 +40,18 @@
     "installer_public_source_commit": "4e3c134949807fe963616e169531483de2cd5411",
     "installer_sha256": "c40b146f5fb31ee32d772fa3300d8b870c9b68b3432d01b8815656c01a963ede",
     "installer_bytes": 8723,
-    "installer_distribution": "immutable-public-source-pending-canonical-Pages",
-    "canonical_website_verification": "pending-final-Pages"
+    "installer_distribution": "immutable-public-source-and-canonical-Pages-byte-identical",
+    "canonical_website_verification": {
+      "status": "passed-byte-identical-to-qualified-public-source",
+      "url": "https://openagent.uno/install.sh",
+      "checked_at": "2026-10-19T18:18:26.299398+00:00",
+      "sha256": "c40b146f5fb31ee32d772fa3300d8b870c9b68b3432d01b8815656c01a963ede",
+      "bytes": 8723,
+      "pages_source_commit": "fcd77a6d0576793e561c67290e5e97ab79802678",
+      "pages_workflow_url": "https://github.com/openagent-uno/openagent/actions/runs/39301179617",
+      "pages_workflow_conclusion": "success",
+      "post_Pages_install_rerun_claimed": false
+    }
   },
   "limits": {
     "qualification_platform": "linux-x64",
