@@ -1,0 +1,78 @@
+{
+  "status": "passed",
+  "scope": "normal-live-public-release-server-and-separate-thin-cli-install",
+  "live_site_bytes_verified": true,
+  "installer_public_source_commit": "d70b98c1edd3b7d3bc5067ddc63dad67fa091d09",
+  "source_overlay": false,
+  "home_override": false,
+  "tmpdir_override": false,
+  "server_started": false,
+  "model_started": false,
+  "provider_calls": 0,
+  "real_provider_acceptance": false,
+  "stages": [
+    "managed-python-picker-ensurepip",
+    "server-install",
+    "server-pip-check",
+    "server-probe",
+    "cli-install",
+    "cli-pip-check",
+    "cli-probe",
+    "cli-help"
+  ],
+  "product_source": "1140364d0e662237336df79166db9d8d10e54781",
+  "product_manifest_sha256": "bce5a7bf91fe3cd2672c2c98945662b057a8ec8aea5d83c2c75317dc956bc820",
+  "sdk_manifest_sha256": "00f0319e4dba6242eab8d085b4281da8019c53abee8ed8b9269186a6c59d4343",
+  "installer_sha256": "f285a9c8d9670a74a8a3f881046ac0d5f408d1edcf3abd14f0333d970f486f15",
+  "installer_bytes": 8722,
+  "phase": "cli-help",
+  "last_exit_code": 0,
+  "server": {
+    "versions": {
+      "openagent-framework": "1.1.0b47",
+      "openagent-core": "1.1.0b22",
+      "openagent-connectors": "0.1.9",
+      "openagent-host-tools": "1.0.0b6",
+      "SQLAlchemy": "2.1.4"
+    },
+    "installed_prefix_imports": true,
+    "async_orm_select_passed": true,
+    "default_common_providers": [
+      "clickup",
+      "github",
+      "notion",
+      "onedrive",
+      "outlook_calendar",
+      "outlook_mail",
+      "slack_import"
+    ],
+    "constructor_only_no_enrollment": true,
+    "official": 114,
+    "custom": 1,
+    "read_tools": 315,
+    "action_tools": 82,
+    "catalog_matches_published_sdk": true,
+    "provider_calls": 0
+  },
+  "cli": {
+    "versions": {
+      "openagent-cli": "1.1.0b47",
+      "openagent-host-tools": "1.0.0b6",
+      "openagent-client-transport": "1.1.0b39"
+    },
+    "installed_prefix_imports": true,
+    "thin_client_without_server_engine_dependencies": true,
+    "core_base_version": "1.1.0b22",
+    "core_base_required_by_unchanged_transport_identity": true,
+    "provider_calls": 0
+  },
+  "finished_unix": 1792406370.1747408,
+  "memory_events": {
+    "low": 0,
+    "high": 0,
+    "max": 0,
+    "oom": 0,
+    "oom_kill": 0,
+    "oom_group_kill": 0
+  }
+}

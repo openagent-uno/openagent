@@ -1,0 +1,47 @@
+{
+  "format": 1,
+  "status": "passed-public-server-cli47-sdk19-qualification",
+  "source_commit": "1140364d0e662237336df79166db9d8d10e54781",
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47",
+  "release_id": 417169162,
+  "manifest_sha256": "bce5a7bf91fe3cd2672c2c98945662b057a8ec8aea5d83c2c75317dc956bc820",
+  "sdk": {
+    "version": "0.1.9",
+    "source_commit": "58b47a81467944e604b6643f722041880ead0d6d",
+    "manifest_sha256": "00f0319e4dba6242eab8d085b4281da8019c53abee8ed8b9269186a6c59d4343",
+    "release_url": "https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9"
+  },
+  "checks": {
+    "all_12_public_asset_api_and_anonymous_checksums": true,
+    "installed_tests": 215,
+    "react_source_scenario_groups": 15,
+    "source_files": 559,
+    "reused_source_files": 109,
+    "rebuilt_wheels": 2,
+    "byte_identical_reused_wheels": 7,
+    "installed_catalog_official": 114,
+    "custom_mcp": 1,
+    "read_tools": 315,
+    "action_tools": 82,
+    "normal_live_installer": "product47-public-installer-2026-10-19.json",
+    "normal_live_installer_receipt_sha256": "37af6b53c1dda92adb36b99825276f2109ce65cce7d5b761910cb88053c95935"
+  },
+  "default_common_providers": [
+    "clickup",
+    "github",
+    "notion",
+    "outlook_mail",
+    "outlook_calendar",
+    "onedrive",
+    "slack_import"
+  ],
+  "explicit_empty_opt_out_preserved": true,
+  "google_testing_and_sharepoint_opt_in_preserved": true,
+  "limits": {
+    "native_app_rebuilt": false,
+    "new_gui_qualification": false,
+    "server_or_model_started_by_release_qualification": false,
+    "real_provider_calls": 0,
+    "new_provider_consent_or_write_qualified": false
+  }
+}
