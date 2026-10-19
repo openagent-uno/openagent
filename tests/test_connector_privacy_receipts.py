@@ -160,6 +160,130 @@ async def test_lost_delivery_ack_retries_only_after_the_receipt_is_durable(servi
 
 
 @pytest.mark.asyncio
+async def test_revoked_publication_cannot_starve_uninstall_receipt_or_local_work(service):
+    await install_consent_versions(service)
+    calls = []
+
+    class Processor:
+        async def process(self, incoming, connections):
+            calls.append("process")
+            assert incoming == event(topic="app/uninstalled")
+            assert (await service.record("old"))["credential"] is None
+            return "credential_revoked"
+
+    class Delivery:
+        async def close(self):
+            pass
+
+        async def call(self, method, params=None):
+            calls.append(method)
+            if method == "events":
+                assert params == {"receipt_version": 2}
+                return [event(topic="app/uninstalled")]
+            if method == "events.ack":
+                assert (await receipt(service))["receipt_format"] == 2
+                assert (await service.record("old"))["credential"] is None
+            if method == "sync.mail":
+                return {}
+            if method == "auth.publish":
+                # Reloading rows after receipt processing excludes the revoked
+                # old credential but preserves a genuinely later consent.
+                assert params["token"]["authorized_at"] == "2026-10-13T09:00:00Z"
+                raise RuntimeError("designed revoked publication")
+            if method == "sync.recover":
+                raise RuntimeError("designed recovery not found")
+
+    service.runner, service.privacy_processor = Delivery(), Processor()
+    with pytest.raises(RuntimeError, match="Connector credential synchronization is incomplete"):
+        await service.synchronize()
+    assert calls[:4] == ["events", "events.ack", "process", "sync.mail"]
+    assert calls[4:] == ["auth.publish", "sync.recover"]
+    assert (await receipt(service))["status"] == "credential_revoked"
+    assert service.decrypt(await service.record("new"))["access_token"] == "private-test-token"
+
+
+@pytest.mark.asyncio
+async def test_one_failed_binding_publication_and_recovery_do_not_skip_other_bindings(service):
+    await install_consent_versions(service)
+    publications, recoveries = [], []
+
+    class Delivery:
+        async def close(self):
+            pass
+
+        async def call(self, method, params=None):
+            if method == "events":
+                return [event()]
+            if method == "events.ack":
+                assert (await receipt(service))["receipt_format"] == 2
+            if method == "sync.mail":
+                return {}
+            if method == "auth.publish":
+                publications.append(params["token"]["authorized_at"])
+                if params["token"]["authorized_at"] == "2026-10-11T09:00:00Z":
+                    raise RuntimeError("designed unavailable binding")
+            if method == "sync.recover":
+                recoveries.append(params["group"])
+                raise RuntimeError("designed missing recovery")
+
+    service.runner = Delivery()
+    with pytest.raises(RuntimeError, match="Connector credential synchronization is incomplete"):
+        await service.synchronize()
+    assert set(publications) == {"2026-10-11T09:00:00Z", "2026-10-13T09:00:00Z"}
+    assert recoveries == ["group-fixture"]
+    assert (await receipt(service))["status"] == "pending"
+    for key in ("old", "new"):
+        assert (await service.record(key))["credential"] is not None
+
+
+@pytest.mark.asyncio
+async def test_invalid_receipt_is_not_acked_and_does_not_starve_next_durable_receipt(service):
+    acknowledgments = []
+
+    class Delivery:
+        async def close(self):
+            pass
+
+        async def call(self, method, params=None):
+            if method == "events":
+                return [event(id="invalid", authorization_cutoff_at=None), event()]
+            if method == "events.ack":
+                assert (await receipt(service))["id"] == params["id"]
+                acknowledgments.append(params["id"])
+                return {}
+            pytest.fail("Receipt failure must remain visible before credential synchronization")
+
+    service.runner = Delivery()
+    with pytest.raises(ValueError):
+        await service.synchronize()
+    assert acknowledgments == ["event-fixture"]
+    assert (await receipt(service))["status"] == "pending"
+
+
+@pytest.mark.asyncio
+async def test_broker_delivery_outage_still_processes_previously_committed_receipt(service):
+    await service.receive_event(event())
+
+    class Processor:
+        async def process(self, incoming, connections):
+            assert incoming == event()
+            return "complete"
+
+    class Delivery:
+        async def close(self):
+            pass
+
+        async def call(self, method, params=None):
+            assert method == "events"
+            raise RuntimeError("designed broker outage")
+
+    service.runner, service.privacy_processor = Delivery(), Processor()
+    with pytest.raises(RuntimeError, match="designed broker outage"):
+        await service.synchronize()
+    assert (await receipt(service))["status"] == "complete"
+
+
+@pytest.mark.asyncio
 async def test_historical_schema_upgrade_does_not_invent_occurrence_metadata(tmp_path):
     database = tmp_path / "agent.sqlite"
     key = AESGCM.generate_key(bit_length=256)

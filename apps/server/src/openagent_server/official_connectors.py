@@ -808,6 +808,25 @@ class OfficialConnectors:
         return bool(consent[0])
 
     async def synchronize(self):
+        # Broker revocation can make publication/recovery fail indefinitely.
+        # Admit privacy receipts first, and resume durable local work even when
+        # delivery or ACK fails. A failed receipt never authorizes its ACK or
+        # prevents the other independently authenticated receipts being saved.
+        privacy_error = None
+        try:
+            for event in await self.runner.call("events", {"receipt_version": 2}):
+                try:
+                    await self.receive_event(event)
+                    await self.runner.call("events.ack", {"id": event["id"]})
+                except asyncio.CancelledError:
+                    raise
+                except Exception as error:
+                    if privacy_error is None:
+                        privacy_error = error
+        finally:
+            await self.process_privacy_events()
+        if privacy_error is not None:
+            raise privacy_error
         mail = await self.runner.call("sync.mail")
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
@@ -831,16 +850,23 @@ class OfficialConnectors:
                     token = self.decrypt(row)
                     await self.runner.call("sync.send", {"group": row["group_id"], "recipient": request["recipient"],
                                                           "token": {k: v for k, v in token.items() if k not in {"group", "recipients"}}})
+        binding_error = None
         for row in rows:
-            token = self.decrypt(row)
             try:
-                await self.runner.call("auth.publish", {"group": row["group_id"], "token": {k: v for k, v in token.items() if k not in {"group", "recipients"}}, "recipients": token.get("recipients", [])})
-            except RuntimeError:
-                await self.runner.call("sync.recover", {"group": row["group_id"]})
-        for event in await self.runner.call("events", {"receipt_version": 2}):
-            await self.receive_event(event)
-            await self.runner.call("events.ack", {"id": event["id"]})
-        await self.process_privacy_events()
+                token = self.decrypt(row)
+                try:
+                    await self.runner.call("auth.publish", {"group": row["group_id"], "token": {k: v for k, v in token.items() if k not in {"group", "recipients"}}, "recipients": token.get("recipients", [])})
+                except RuntimeError:
+                    await self.runner.call("sync.recover", {"group": row["group_id"]})
+            except asyncio.CancelledError:
+                raise
+            except Exception as error:
+                # One unavailable/corrupt binding cannot starve other rows.
+                # No credential, scope, status or acknowledgement is fabricated.
+                if binding_error is None:
+                    binding_error = error
+        if binding_error is not None:
+            raise RuntimeError("Connector credential synchronization is incomplete") from None
 
     async def process_privacy_events(self):
         """Resume local work independently of broker delivery acknowledgements.
