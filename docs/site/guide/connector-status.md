@@ -1,7 +1,7 @@
 # Connector release and qualification status
 
 Status updated on **19 October 2026**. Current published Python components are
-**SDK/runner 0.1.9 and server/CLI beta47**, with **114 official connectors plus
+**SDK/runner 0.1.10 and server/CLI beta48**, with **114 official connectors plus
 Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
 connectors with two read tools each and read-only OneDrive/SharePoint.
 **App beta22 is public** and App22/server45/SDK18 is the visually qualified
@@ -14,42 +14,58 @@ boundary has its own evidence.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.9 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
-| Server/CLI | Beta47 public from `1140364d`, Core22/SDK0.1.9/B6; 215 installed tests and 15 React scenarios passed; two new wheels and seven exact beta46 reuses | Normal public installer47 passed; Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.10 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
+| Server/CLI | Beta48 public from `a292a35c`, Core22/SDK 0.1.10/B6; 215 installed tests and 15 React source groups passed; two new wheels and seven exact beta47 reuses | Normal public-source installer48 passed; live website byte equality tracked separately in the installer receipt; Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta22 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App22/server45 Linux x64 marketplace, blank Postman setup and one local Exa cycle passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
-| Common authentication service | Broker `60665d2f`, image `a303d481`: thirteen configured provider profiles; one Ready writer, health/readiness 200 and unsigned request 401 | Google data-access review/approval and required assessment; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
+| Common authentication service | Broker `c256a3d4`, image `279833ea`: fourteen configured profiles, Shopify restricted to two approved QA hosts; one Ready writer, health/readiness 200 and unsigned request 401 | Google data-access review/approval and required assessment; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
 
 ### Current Python release and the visually qualified pair
 
-[Server/CLI47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
-is public from `1140364d`, adopting
-[SDK/runner 0.1.9](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9)
-with 114 official entries plus Custom MCP. All twelve product asset sizes/digests
-matched API and anonymous downloads. Product manifest SHA256:
-`bce5a7bf91fe3cd2672c2c98945662b057a8ec8aea5d83c2c75317dc956bc820`;
-SDK manifest: `00f0319e4dba6242eab8d085b4281da8019c53abee8ed8b9269186a6c59d4343`.
-Its [qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.47/qualification.json)
-records 215 installed tests and fifteen separate React source groups. Two
-server/CLI wheels changed; seven dependency wheels were reused byte for byte
-from beta46. The [normal live public installer47](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
-passed separate server/CLI installation, dependency checks, ORM, the 114-plus-Custom catalog and
-the seven-provider constructor default without source overlay, HOME/TMPDIR override, server/model
-startup or provider calls. Its live 8,722-byte script matched SHA256
-`f285a9c8d9670a74a8a3f881046ac0d5f408d1edcf3abd14f0333d970f486f15`.
-SDK19 adds optional
-read-only Calendar `canShare` metadata without new scopes; the startup and safe
-diagnostic fixes are already in its ancestry. These releases add no provider
-consent or newly repeated lifecycle trial.
+[Server/CLI48](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.48)
+is public from `a292a35c422a56ea33c3809f3c3938b988ba05c6`, adopting
+[SDK/runner 0.1.10](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.10)
+from `db0f76941b8b9dd25b36502c765c84630e459dd2`. The catalog remains
+114 official entries plus Custom MCP, with 315 reads and 82 actions. The
+[SDK qualification receipt](https://github.com/openagent-uno/openagent-tools/blob/fd16352/docs/connector-sdk-0.1.10-qualification.json)
+records canonical race/vet/vulnerability, six bundles and the wheel, Linux-native
+execution and eleven public asset verifications. Other targets were cross-built.
+All twelve product asset sizes/digests matched API and anonymous downloads.
+Product manifest SHA256: `14fe6a8d2e8fa32ad0e9aafdeb198efa44f32da455bd1a27fda264ec93d16948`;
+SDK manifest: `44226a90ff5a0226a5fadfa924db8da1d37bec85491cae8d6671843a2630ea6b`.
+The [beta48 qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/qualification.json)
+records 215 installed tests and fifteen separate React source groups, two new
+server/CLI wheels and seven byte-identical beta47 dependency wheels.
+SDK 0.1.10 adds bounded Postiz error diagnostics, not new provider acceptance.
 
-Beta47's absent-setting default is **ClickUp, GitHub, Notion, Outlook Mail,
+The public installer source at `85ab841b` pins beta48/SDK 0.1.10; its 8,723 bytes
+hash to `4678c5b37cf2201e770ae8feaab5b18bbff2bf5bcd221e46a7ec6c8425894285`.
+The [normal public-source installer48](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json) passed at 13:24:41 UTC: separate server/thin CLI installation, two dependency checks, ORM, the 114-plus-Custom catalog and seven-provider default, with no HOME/TMPDIR override, source overlay or provider call. This qualifies the immutable public source; live website byte equality is recorded separately in the installer receipt. The dated [normal live installer47](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
+remains evidence for beta47 only, not a beta48 install or provider trial.
+
+Beta48 qualifies the installed host's opt-in Shopify admission controls for a
+fresh canonical text-history cohort: configuration alone cannot attest privacy
+coverage. The deployed Shopify-only broker QA gate binds two approved host
+identities and the QA store while preserving the other thirteen providers.
+Both normal beta48 hosts reported Shopify available through certified SRP.
+Only host A started a pending consent transaction; host B had not started one.
+No grant or provider read has completed: user consent, privacy notifications
+and two-host acceptance remain pending; Shopify is not a default. Jira now has a verified Free QA site/project.
+The signup flow automatically assigned a Standard trial, immediately downgraded
+to Free without card/payment entry. The existing private app's regenerated
+secret remained masked: the current browser control could not retrieve the
+credential copied through the official UI (even copying the public client ID
+returned no clipboard text). No value was custodied; Jira has zero actual OAuth/API
+qualification and remains disabled. Sharing beyond the app owner is separate.
+
+Beta48 retains beta47's absent-setting default: **ClickUp, GitHub, Notion, Outlook Mail,
 Outlook Calendar, OneDrive and Slack**. Google remains explicit limited-trial
 opt-in; the full eleven-ID replacement example is in
 [operations](./connector-operations.md#standalone-configuration). SharePoint is
 separate, and broker availability for Postiz does not make it a default.
 App22 is unchanged: its GUI and the seven Google/Microsoft lifecycles retain
-server45/SDK18 attribution, with no App22/server47 GUI claim.
+server45/SDK18 attribution, with no App22/server47 or server48 GUI claim.
 
 The [Slack/Postiz configuration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4b1489e6ff8c0709f42e3fb4ac97584c42cd623f/deploy/connector-auth/qualification-2026-10-19-slack-postiz-activation.json)
 records the later thirteen-profile broker, preserving the same image and earlier
@@ -59,9 +75,9 @@ acceptance remains unqualified and Atlassian is not enabled. The first beta47
 Postiz OAuth poll returned HTTP503 and was cancelled normally without retry.
 The [broker-only compatibility correction](https://github.com/openagent-uno/openagent-tools/blob/b55cbebe8cf6838a445cf77cd4f2598b7152474f/deploy/connector-auth/qualification-2026-10-19-postiz-compatibility.json)
 then passed its tests, scan and image-only rollout at 12:13:26 UTC, retaining
-all thirteen profiles. Current source is `60665d2f90fb2ae3cee6a0f159ca12999af54819`,
+all thirteen profiles. That checkpoint used source `60665d2f90fb2ae3cee6a0f159ca12999af54819`,
 image `a303d481e9fd5462f77220c7e911247cb53f07e8764b27acd19522e08987aad4`.
-Its configuration remains unchanged. In the [subsequent normal beta47 trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/postiz-product-1.1.0b47-2026-10-19.json),
+It retained thirteen profiles; the later scoped Shopify deployment is recorded above. In the [subsequent normal beta47 trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/postiz-product-1.1.0b47-2026-10-19.json),
 a fresh OAuth connection succeeded, but the one advertised `social.postiz.integrations.list`
 workflow returned `failed`. The normal run-read HTTP200 did not turn that into
 a successful provider read; provider HTTP status and a fixed failure code were

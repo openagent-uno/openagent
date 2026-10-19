@@ -1,15 +1,16 @@
 # Using connectors
 
 ::: info Published releases and activation gates
-Current published Python components are **SDK/runner 0.1.9 and server/CLI beta47**,
-with **114 official connectors plus Custom MCP**. [Server47 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
-from `1140364d0e662237336df79166db9d8d10e54781`; its
-[installed qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/connector-product-1.1.0b47-2026-10-19.json)
-passed 215 installed tests and 15 separate React source groups. The
-[normal live public installer47](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
-also passed. The catalog includes 90 manual-token profiles with two specific reads
-each, plus read-only OneDrive/SharePoint. SDK19 adds optional read-only Calendar
-`canShare` metadata without a new permission or broad provider-acceptance claim.
+Current published Python components are **SDK/runner 0.1.10 and server/CLI beta48**,
+with **114 official connectors plus Custom MCP**. [Server48 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.48)
+from `a292a35c422a56ea33c3809f3c3938b988ba05c6`; its
+[qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/qualification.json)
+passed 215 installed tests and fifteen separate React source groups. The
+[SDK qualification receipt](https://github.com/openagent-uno/openagent-tools/blob/fd16352/docs/connector-sdk-0.1.10-qualification.json)
+records eleven verified public SDK assets and the unchanged 315 reads/82 actions.
+The [normal public-source installer48](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json) passed separate server/CLI installation, dependency, ORM and catalog checks. Live website byte equality is recorded separately in the installer receipt; the dated [installer47 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
+remains beta47 evidence. SDK 0.1.10 adds bounded Postiz error diagnostics, not
+new provider grants or account acceptance.
 
 **App beta22 is public.** The [App22/server45/SDK18 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 passed ordinary UI/SRP, device certification and native Iroh: 114 official entries
@@ -19,7 +20,7 @@ cancelled; one Exa local connect/disable/re-enable/disconnect cycle made no
 provider calls. Mac/Windows marketplace GUI and hosted sandbox security remain
 separate. Historical App21/server44 screenshots keep their original scope.
 
-Beta47's absent-setting common OAuth default is **ClickUp, GitHub, Notion,
+Beta48 retains beta47's absent-setting common OAuth default: **ClickUp, GitHub, Notion,
 Outlook Mail, Outlook Calendar, OneDrive and Slack**. Every connection still needs
 local authorization and provider consent. The earlier Google4/Microsoft3
 lifecycles retain public server45/SDK18 attribution; a separate
@@ -45,25 +46,30 @@ and restart acceptance remain unqualified. The cloud account’s observed plan
 flow requires a card and authorization hold; no trial/subscription was started.
 SharePoint remains a separate work/school-account
 opt-in: the observed personal account was refused before consent, with no site
-access qualified. Jira secret/consent and Shopify privacy/provider gates remain
-separate. Token credentials require actual provider permissions; saving a
+access qualified. Jira has a verified Free QA site, but its regenerated secret
+remains masked and uncustodied: the current browser control could not retrieve
+the credential copied through the official UI. No OAuth/API trial has run, and the app remains
+private. Shopify48 host admission is qualified only for the actual canonical
+privacy cohort. Its deployed broker QA gate admits only two approved hosts;
+both catalogs reported Shopify available, but no grant or provider read has
+completed. Actual OAuth, privacy notification and two-host acceptance remain pending. Token credentials require actual provider permissions; saving a
 connection is not proof of an API call. See [remaining gates](./connector-status.md).
 Older installations retain their version pins until explicitly updated.
 :::
 
 OpenAgent provides one shared connector implementation for the standalone server and independent host products that embed it. Your product server stores encrypted credentials and makes normal API calls directly to the provider. Accounts, agent history, files and customer databases remain with that product.
 
-Server47 defaults to `clickup`, `github`, `notion`, `outlook_mail`, `outlook_calendar`, `onedrive` and `slack_import` only when both operator settings are absent. Explicit provider lists replace that default rather than extending it. The full eleven-ID example retains those seven and adds Google's four profiles for an explicitly authorized limited trial; it does not imply Google verification. Historical servers43–45 defaulted to three profiles, beta46 to six, while beta40 required opt-in. An explicit empty list or empty environment value remains an opt-out; listing a provider creates no connection, broker registration or grant. Every OAuth connection still requires local authorization and the provider's consent. See the [configuration precedence](./connector-operations.md#standalone-configuration). Shopify enrollment is currently disabled: the published opt-in privacy processor covers a fresh canonical text-history cohort, with additional storage and real-provider acceptance gates still required. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback.
+Server48 retains the seven defaults: `clickup`, `github`, `notion`, `outlook_mail`, `outlook_calendar`, `onedrive` and `slack_import` only when both operator settings are absent. Explicit provider lists replace that default rather than extending it. The full eleven-ID example retains those seven and adds Google's four profiles for an explicitly authorized limited trial; it does not imply Google verification. Historical servers43–45 defaulted to three profiles, beta46 to six, while beta40 required opt-in. An explicit empty list or empty environment value remains an opt-out; listing a provider creates no connection, broker registration or grant. Every OAuth connection still requires local authorization and the provider's consent. See the [configuration precedence](./connector-operations.md#standalone-configuration). Shopify is non-default: beta48 requires explicit opt-in and actual canonical privacy coverage before host enrollment, while broker QA admission and real-provider/privacy/two-host acceptance are separate pending gates. Historical content and unsupported host surfaces are not automatically qualified. Existing tokens retain their original OAuth registration. The legacy ClickUp callback has been removed by the operator; a new ClickUp consent must use the shared app callback.
 
 ## Token connectors and Microsoft files
 
-[SDK 0.1.9](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9)
-and [server/CLI47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
+[SDK 0.1.10](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.10)
+and [server/CLI48](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.48)
 publish 114 official integrations plus Custom MCP. The 90 new token connectors
 provide two specific reads each: for example, Coda profile/document details,
 Postman collection list/details, and Cloudflare zones/accounts. See the
 [provider API profiles](./connector-api-profiles.md) and the
-[versioned catalog](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.9/catalog.json)
+[versioned catalog](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.10/catalog.json)
 for each connector's operations and setup guidance.
 
 Use a dedicated API/access token authorized for those reads. The receiving
@@ -380,7 +386,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 | Exa, Firecrawl, Parallel Search, Context7, CoinGecko | Keyless since server/CLI43 and App20; Linux x64 local controls passed; no account, key, OAuth consent or refresh; anonymous quotas and per-tool qualification limits apply |
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
-| Shopify | Verified store consent and explicit receiving-server authorization; standalone enrollment is currently blocked by its privacy-processing gate |
+| Shopify | Verified store consent and explicit receiving-server authorization; beta48 requires actual qualified privacy coverage and the scoped broker QA gate; real consent/privacy/two-host acceptance remains pending |
 | Postiz | Existing shared app; cloud-account plan prerequisite; fresh OAuth connected but the single read workflow failed; no subscription activated and API acceptance unqualified; not a default |
 | Replio | Dedicated organization-wide `rpl_…` key and organization UUID |
 | BillingBear | Project API token and project identifier |

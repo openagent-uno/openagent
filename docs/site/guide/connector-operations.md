@@ -5,7 +5,7 @@ Notion, Outlook Mail/Calendar, OneDrive and Slack common-app enrollment is avail
 a limited beta. Google's external app is published but its data access remains
 unverified, with an observed 100-user cap and explicit host opt-in; SharePoint
 retains its eligible-account [qualification boundary](./connector-status.md).
-Current published Python components are **SDK/runner 0.1.9 and server/CLI beta47**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
+Current published Python components are **SDK/runner 0.1.10 and server/CLI beta48**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
 [App22 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22).
 The [App22/server45 Linux x64 marketplace receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 records 114 official cards, 30 registry results and ten reviewed images. It
@@ -29,7 +29,7 @@ connectors:
   runner_path: /opt/openagent/connectors/bin/openagent-connector-runner
   auth_url: https://auth.openagent.uno
   # Limited Google trial (published, data access unverified): lists REPLACE the default.
-  # Keep the seven beta47 default providers and add the four Google profiles.
+  # Keep the seven beta48 default providers and add the four Google profiles.
   # Use [] to disable common OAuth enrollment on this server.
   official_providers:
     - clickup
@@ -57,11 +57,12 @@ operations unavailable.
 `onedrive`, `sharepoint`, `clickup`, `github`, `notion`, `atlassian`,
 `slack_import`, `shopify` and `postiz`. These differ from display
 catalog IDs such as `google-drive`. A nonempty list does not configure the
-central provider or bypass product policy. Standalone Shopify is independently
-blocked until the local privacy processor is qualified. An empty OAuth list
+central provider or bypass product policy. Beta48 Shopify enrollment additionally requires explicit opt-in and actual canonical
+host privacy qualification; configuration alone cannot claim coverage. The
+Shopify-only broker QA gate and real two-host/provider acceptance remain separate. An empty OAuth list
 does not disable token/account connectors that are configured locally.
 
-Server beta47 resolves common OAuth availability in this order:
+Server beta48 resolves common OAuth availability in this order:
 
 1. An explicit `connectors.official_providers` list wins, including `[]`.
 2. Otherwise, a present `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` value supplies the
@@ -77,7 +78,7 @@ opt-in requirement; use the YAML list above or the environment variable to opt
 in. The three-provider broker beta was deployed separately, without new grants.
 Empty OAuth lists do not disable local token/account or keyless connections.
 
-The eleven-provider beta47 example keeps Google explicitly opt-in. Its external app
+The eleven-provider beta48 example keeps Google explicitly opt-in. Its external app
 is now **In production**, with **verified published Branding** but **unverified
 data access** and an observed 100-user cap. The historical server45 lifecycle
 used an approved Testing account; it is not relabeled as verified production.
@@ -96,6 +97,24 @@ eligible work/school account must explicitly include `sharepoint` while retainin
 any other desired IDs. That opt-in grants no tenant consent or site access;
 the eligible-account SharePoint lifecycle remains unqualified.
 
+[Published beta48](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.48)
+adopts SDK 0.1.10 and retains the same seven defaults and full eleven-ID Google
+replacement example. Its installed qualification passed 215 tests and fifteen
+React source groups, without new provider calls. Installer48 is pinned in the
+public source at `85ab841b`, SHA256
+`4678c5b37cf2201e770ae8feaab5b18bbff2bf5bcd221e46a7ec6c8425894285`;
+the [normal public-source installer48](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json) passed all eight stages, including separate server/CLI installation, two dependency checks, ORM and the 114-plus-Custom catalog. This qualifies the immutable public source; live website byte equality is recorded separately in the installer receipt.
+The fourteen-profile broker now restricts Shopify to two approved QA hosts.
+Both beta48 catalogs reported it available, but no grant or provider read has
+completed; OAuth/privacy/two-host acceptance remains pending and Shopify is
+non-default.
+Jira's QA site is now verified Free after an automatic Standard trial was
+immediately downgraded, without card/payment entry. Its private app still lacks
+secret custody because the current browser control could not retrieve the
+credential copied through the official UI; it has no actual OAuth/API acceptance. Do not treat provider
+seeded example issues as connector test output.
+
+The following release/install and provider trials retain beta47 attribution.
 [Published beta47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
 ships the seven-provider default after Slack broker activation. Beta46 retains
 its six-provider default and betas43–45 retain their historical three-provider
@@ -513,7 +532,9 @@ Monitor `/healthz` separately from `/readyz`. A bootstrap configuration can
 report healthy with zero configured providers while readiness correctly refuses
 enrollment. The [later configuration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4b1489e6ff8c0709f42e3fb4ac97584c42cd623f/deploy/connector-auth/qualification-2026-10-19-slack-postiz-activation.json)
 has thirteen configured profiles and health/readiness 200; adding Slack/Postiz
-created no new grant or provider API acceptance. Its readiness does not extend the specific provider
+created no new grant or provider API acceptance. The current scoped Shopify
+QA deployment has fourteen profiles, health/readiness 200 and unsigned401,
+with no new actual Shopify grant/read. Its readiness does not extend the specific provider
 acceptance recorded above or qualify loaded capacity, peer recovery and
 product-local privacy actions. The
 [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/main/deploy/connector-auth)

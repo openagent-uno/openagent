@@ -46,7 +46,7 @@ Use **Disconnect from this server** to remove a product's local connection. Revo
 
 For access, correction, export or deletion of data held by your receiving product, contact its operator. For OpenAgent's shared service, contact [geroale2000@gmail.com](mailto:geroale2000@gmail.com), identifying the provider and receiving installation where possible; do not send tokens, passwords or other secrets. Requests may require verification of your authority over the relevant installation or account. Self-hosted administrators also control their local storage and backup retention.
 
-Shopify privacy notifications are delivered to the authorized receiving products, which carry out actions on their own data. Standalone Shopify enrollment remains disabled while processing of export/redaction requests for stored agent content is completed.
+Shopify privacy notifications are delivered to the authorized receiving products, which carry out actions on their own data. Server beta48 implements explicit opt-in and qualified export/redaction processing for a fresh canonical text-history cohort; configuration alone cannot attest that coverage. Historical content, media, Vault/files and other unqualified surfaces remain blocked. General Shopify enrollment remains disabled. The scoped broker QA gate admits only two approved receiving installations; actual two-host OAuth, provider and privacy-notification acceptance remains pending. See the [qualification status](/guide/connector-status) for the current boundary.
 
 ## Website and changes
 

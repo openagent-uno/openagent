@@ -1,11 +1,17 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.44**, using Core beta 22,
-connector SDK/runner 0.1.7 and Host Tools 1.0.0b6. The current desktop App is
-**v1.1.0-beta.21**, published for macOS, Windows and Linux on ARM64 and x64.
-[App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. The current trial loaded 22 official entries and 30 registry results in one grid, with 12 loaded local marks and five keyless connection/control cycles. Seven original screenshots and three supplementary files (two unique views) were reviewed, including all three Calendar/Outlook cards. No provider call or model was used. Historical [App20/server43 evidence](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json) is unchanged.
+The current server and CLI build is **v1.1.0-beta.48**, using Core beta 22,
+connector SDK/runner 0.1.10 and Host Tools 1.0.0b6. The current desktop App remains
+**v1.1.0-beta.22**, published for macOS, Windows and Linux on ARM64 and x64.
+[App22/server45 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+passed with 114 official cards, 30 registry results and ten reviewed screenshots.
+It made zero provider/model calls and is not an App22/server48 GUI qualification.
+Historical App21/server44 and App20/server43 evidence retain their actual scope.
 Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows marketplace GUI.
-Provider activation and remaining gates are recorded in [Connector release status](./guide/connector-status.md).
+Beta48's [installed qualification](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/qualification.json)
+passed 215 tests and fifteen React source groups. The [normal public-source installer48](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json) passed separate server/CLI installation and dependency, ORM/catalog/default checks; live website byte equality is recorded separately in the installer receipt; its immutable public source
+at `85ab841b` is pinned to 48/0.1.10. Provider acceptance remains separate; see
+[Connector release status](./guide/connector-status.md).
 
 Product source and server/CLI releases come from the canonical
 [`openagent`](https://github.com/openagent-uno/openagent) repository. Desktop
@@ -19,11 +25,11 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta 21 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
+The [App beta22 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
 includes 36 verified assets, six provenance manifests and updater metadata.
 Native packaged checks passed on all six targets; Intel macOS ZIP and DMG
 launches also passed. The earlier [App20 native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json)
-retains its original scope; App21 publication is separate from marketplace GUI and provider acceptance. Earlier
+retains its original scope; App22 publication is separate from marketplace GUI and provider acceptance. Earlier
 [App 19/server 42](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-server42-marketplace-2026-10-17.json) and
 [App 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
 trials retain their original versions, screenshots and failure evidence.
@@ -71,14 +77,14 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta 44.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta48.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.7)
-  — twenty-two official adapters plus Custom MCP, including five keyless providers and the Calendar/mail subset; Python/MCP transport, platform manifests and checksums.
+- [Shared connector module/runner 0.1.10](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.10)
+  — 114 official entries plus Custom MCP, including 90 limited manual-token profiles; Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
-  — separate operator release; ClickUp, GitHub and Notion enrollment is deployed
-  as a limited public beta. Other provider gates remain independent.
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.44/manifest.json)
+  — historical operator release; the current deployed broker checkpoint and
+  provider-specific enrollment boundaries are recorded in [connector status](./guide/connector-status.md).
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints
