@@ -249,7 +249,7 @@ async def test_revocation_during_keyless_setup_prevents_registration(fixture):
 
 
 @pytest.mark.parametrize("config,environment,expected", [
-    ({}, {}, {"clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive"}),
+    ({}, {}, {"clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive", "slack_import"}),
     ({"official_providers": []}, {}, set()),
     ({}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": ""}, set()),
     ({"official_providers": []}, {"OPENAGENT_CONNECTOR_AUTH_PROVIDERS": "clickup"}, set()),
@@ -268,10 +268,10 @@ def test_default_common_providers_preserve_explicit_opt_out(tmp_path, config, en
     service = OfficialConnectors(SimpleNamespace(agent=agent), runner=runner)
     assert service.official_providers == expected
     assert runner.calls == []
-    for provider in ("clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive"):
+    for provider in ("clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive", "slack_import"):
         assert service.authorization_available(provider) == (provider in expected)
     assert all(not service.authorization_available(provider)
-               for provider in ("gmail", "google_drive", "google_analytics", "slack_import", "postiz", "shopify",
+               for provider in ("gmail", "google_drive", "google_analytics", "postiz", "shopify",
                                 "google_calendar", "sharepoint"))
 
 

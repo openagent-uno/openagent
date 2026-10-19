@@ -101,7 +101,7 @@ class OfficialConnectors:
         else:
             # Qualified common beta providers. Google Testing and SharePoint
             # remain explicit operator choices; catalog presence is not enrollment.
-            enabled = ["clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive"]
+            enabled = ["clickup", "github", "notion", "outlook_mail", "outlook_calendar", "onedrive", "slack_import"]
         self.official_providers = {value.strip() for value in enabled if value.strip()} if isinstance(enabled, list) and all(isinstance(value, str) for value in enabled) else set()
         self.own_providers = set()
         if config.get("oauth_providers_file"):
