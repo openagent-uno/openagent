@@ -8,6 +8,7 @@
 - [Using connectors in the App and CLI](site/guide/connectors.md)
 - [Connector setup, embedding and recovery](site/guide/connector-operations.md)
 - [Connector delivery status and remaining qualification](site/guide/connector-status.md)
+- [Google production verification dossier and remaining evidence](verification/google-production-verification-2026-10-19.md)
 - [Native capability coverage](native-capability-coverage.md)
 - [Image model configuration and delivery](image-generation.md)
 - [Voice input and transcribed attachments](voice-input.md)
