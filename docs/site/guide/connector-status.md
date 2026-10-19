@@ -1,7 +1,7 @@
 # Connector release and qualification status
 
 Status updated on **19 October 2026**. Current published Python components are
-**SDK/runner 0.1.8 and server/CLI beta45**, with **114 official connectors plus
+**SDK/runner 0.1.8 and server/CLI beta46**, with **114 official connectors plus
 Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
 connectors with two read tools each and read-only OneDrive/SharePoint.
 **App beta22 is public** and App22/server45/SDK18 is the visually qualified
@@ -14,14 +14,40 @@ boundary has its own evidence.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; Google/Microsoft real OAuth and API acceptance; native execution on every target |
-| Server/CLI | Beta45 public from `0049bfd9`, Core22/SDK0.1.8/B6; 210 installed tests, 15 separate React component source scenarios and the normal public installer45 passed | Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
+| Server/CLI | Beta46 public from `6b0d62e4`, Core22/SDK0.1.8/B6; 215 installed tests and 15 React scenarios passed; two new wheels and seven exact beta45 reuses; normal public-source installer46 passed | Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta22 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App22/server45 Linux x64 marketplace, blank Postman setup and one local Exa cycle passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
-| Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
+| Common authentication service | Diagnostic broker `645e0484`, image `04d942f6`: eleven configured provider profiles; one Ready writer, health/readiness 200 and unsigned request 401 | General Google production audience; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
 
 ### Current Python release and the visually qualified pair
+
+[Server/CLI46](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.46)
+is public from `6b0d62e42abca87c0e0e07b5ae3f28848734840b`, with 12 assets whose
+API and anonymous download digests/sizes matched. Manifest:
+`f0c85580a230a6ae3a748a7ed12a6d54d442dca383925666f615a937b698c444`.
+The [public qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.46/qualification.json)
+records 215 installed tests and 15 React component scenarios. Two server/CLI
+wheels changed; seven dependency wheels were reused byte for byte from beta45.
+Core22, SDK18 and Host Tools B6 remain pinned. The [installed qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-installed-2026-10-19.json)
+retains that release's test scope. The [normal public-source installer46](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-public-installer-2026-10-19.json)
+passed separate server/CLI installation, two dependency checks, ORM, the
+114-plus-Custom catalog and the six-provider constructor default, without
+provider calls or enrollment. It used the immutable public script at `4e6a8bbb`
+(SHA256 `05fcb4f1f5c984253efd4e6b01288fb4827575bf213a05d8b43a3d3455f3fe0b`).
+The linked installer receipt tracks live website byte equality separately from
+the installation tests against the immutable public source script.
+
+Beta46's absent-setting default is **ClickUp, GitHub, Notion, Outlook Mail,
+Outlook Calendar and OneDrive**. Google Testing needs the full explicit ten-ID
+replacement list in [operations](./connector-operations.md#standalone-configuration);
+SharePoint remains a separate eligible-account opt-in. Explicit `[]` still
+disables common enrollment. App22 is unchanged; its actual native marketplace
+screenshots and the following provider trials remain attributed to server45.
+No App22/server46 GUI or newly repeated provider trial is claimed.
+
+The following beta45 receipts retain their original versions and test counts.
 
 [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
 is public from `0049bfd95cf722784c835897ce6175a6690a1bc1`, adopting
@@ -41,7 +67,9 @@ that an actual user account has the provider's required permissions.
 OneDrive/SharePoint add five/seven read tools, with per-account identity,
 explicit server-verified drive/site selection and bounded file reads. They add
 no file writes, auto-provisioning or selected-permission fallback. Microsoft
-common enrollment and real OAuth/file-read qualification remain closed.
+profiles are technically configured; the bounded Mail/Calendar/OneDrive
+lifecycles are recorded below. File-content reads and eligible-account
+SharePoint acceptance remain unqualified.
 
 The following App21/server44 evidence retains its original versions and scope.
 
@@ -59,8 +87,9 @@ The following App21/server44 evidence retains its original versions and scope.
 
 [ClickUp/GitHub/Notion public beta](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/oauth-public-beta-2026-10-17.json)
 is an independent configuration rollout, creating no new provider grant.
-Server 43 defaults to those three only when both operator settings are absent;
-explicit `[]` or an empty environment value disables common enrollment. Fresh
+Servers43–45 defaulted to those three only when both operator settings were
+absent. Beta46 adds the three bounded-qualified Microsoft profiles to that
+default. Explicit `[]` or an empty environment value disables common enrollment. Fresh
 keyless-only servers neither register with nor poll the broker. Released
 server 40 needs the explicit allowlist. Host operators preserve their own
 version pins, storage, grants, deployment receipts and release qualification.
@@ -89,7 +118,8 @@ connectors plus Custom MCP** and 11 verified release assets. Manifest SHA256:
 The [exact SDK qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) records race/vet/vulnerability
 checks, six-target/twelve-binary packaging, Python and Linux-native runner/broker
 fixtures, and public installed-host acquisition. Other targets have cross-build
-evidence; **no real Google/Microsoft consent, provider read or mutation is qualified**.
+evidence. Those SDK17 source/packaging checks alone do not qualify real consent,
+provider reads or mutations; the dated product trials record separate acceptance.
 
 | SDK connector | Typed operations | Consent and execution boundary |
 | --- | --- | --- |
@@ -103,37 +133,151 @@ entries. Its [installed Python qualification](https://github.com/openagent-uno/o
 The App21/server44 GUI has 22 official entries, 30 real registry results and five local keyless control cycles. App20/server43 retain their earlier 19-entry screenshots and receipts. Publishing a component never upgrades an installation
 or enables a provider.
 
-Common enrollment for `google_calendar`, `outlook_mail` and `outlook_calendar`
-remains **off**. Google Calendar API enablement and both Calendar scope declarations
-were completed on 18 October. The Microsoft shared app, developer terms and four
-Web callbacks are also prepared. Its seven delegated permissions were saved on
-19 October: `User.Read`, `offline_access`, `Mail.ReadWrite`, `Mail.Send`,
-`Calendars.ReadWrite`, `Files.Read` and `Sites.Read.All`. This configures the app;
-no admin or user consent has been granted. Client-secret custody, remaining
-OAuth/client-authentication checks, publisher/tenant-policy requirements and
-real consent/lifecycle qualification remain pending. An operator-owned app requires
+The SDK18 broker image passed its [19 October image-only checkpoint](https://github.com/openagent-uno/openagent-tools/blob/7e3c6f829b22a8dcfa3bdce79416580a365ab12f/deploy/connector-auth/qualification-2026-10-19.md).
+That update retained the existing three-provider configuration and made zero
+provider calls or new grants. The later startup-fixed broker and additive trial
+configuration passed technical readiness on 19 October at **08:14:17 UTC**:
+eleven configured providers, one Ready writer without restart, health/readiness
+200 and unsigned protected requests rejected with 401. The three existing beta
+providers are preserved alongside four Google and four Microsoft profiles.
+The [diagnostic image checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4c73501009c7f9d81dd0adec2223232dee839fcc/deploy/connector-auth/qualification-2026-10-19-diagnostics.json)
+then passed at **08:43:13 UTC**, preserving the same eleven-provider configuration.
+The current broker is source `645e0484`, image
+`sha256:04d942f6cc69a59af958911a21a3f4ca2e1901a456d43220b8ac3061a6e13c5d`.
+At that server45 checkpoint, the receiving-server default was
+ClickUp/GitHub/Notion. Beta46's six-provider default is recorded above; explicit
+host configuration and each account's actual consent remain separate. Technical readiness is not an OAuth
+or provider API acceptance result.
+
+The first additive configuration attempt failed the broker's startup check:
+a Shopify-only test tenant was passed to every provider. The prior three-provider
+configuration was restored and health/readiness returned 200. The
+[narrow startup fix](https://github.com/openagent-uno/openagent-tools/commit/975d9426b1373b1db0c1b7f75d329451f3cf5d75)
+now supplies that tenant only for Shopify; its source regression covers the five
+new provider profiles, existing registrations and invalid tenant/configuration
+rejection. Remote auth/OAuth tests, vet and the static Linux amd64 broker build
+passed. The full image scan and corrected eleven-provider rollout passed with
+image `sha256:1040f2873a8bdb35f128cb0cee6851e718b787a2328619173e1c8466bd20121a`.
+This broker-only fix does not change the published SDK18 release or establish
+OAuth acceptance; the original failed attempt and rollback remain recorded.
+
+Google Calendar API enablement and both Calendar scope declarations were saved
+on 18 October. The Google app remains in Testing with one approved test user;
+this permits that user's trial and does not establish general production approval.
+The original Microsoft shared registration initially verified four Web callbacks,
+work/school plus personal-account audience and seven delegated permissions: `User.Read`, `offline_access`,
+`Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `Files.Read` and
+`Sites.Read.All`. A new immutable client secret entered protected production
+custody on 19 October at 07:24 UTC. Its read-only projected mount was then
+verified by normal broker startup as UID 65532. The app secret is now stored,
+mounted and technically configured; a successful token exchange, user/admin
+consent and provider API acceptance are separate. A fresh receiving session has
+connected **Google Drive, Analytics, Calendar and Gmail**, with normal reads and
+owner refresh passed for each. The [four-connector lifecycle receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-four-product45-oauth-2026-10-19.json)
+then passed a real same-identity server restart, four post-restart workflow reads
+and normal disconnect/tombstone/source removal for each connection. This is eight
+actual workflow reads across the restart; provider HTTP-attempt telemetry is not
+exposed. The later [Microsoft and final-cleanup receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/microsoft-three-product45-oauth-2026-10-19.json)
+closes the shared receiver: owned processes stopped and both exact QA workers
+were deleted and confirmed absent. The earlier receiving session passed Google
+Calendar/Gmail/Outlook Calendar reads and owner refresh, plus a five-workflow
+private Google Calendar event create/get/ETag-update/get/delete trial. Its finite
+deadline then removed local state; **restart and disconnect did not pass for
+that earlier cohort**. No provider-wide revocation is claimed from that loss.
+
+Outlook Mail's subsequent ordinary product poll returned HTTP503. The closed
+broker diagnostic identifies **`stage=scopes`, `reason=scope_config`,
+`provider_error=none`**. Returned scopes exceeded that provider configuration;
+no raw scope names, token or provider body were read or exported by the operator. Microsoft
+[documents cumulative consent for the same app and resource](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/resources-and-scopes#consent-lifetime).
+The permission boundary remains fail-closed; filtering metadata would not narrow
+the raw token delivered to a recipient. Separating the Microsoft registrations
+by connector family preserves one shared app per family across receiving
+products. Three new family registrations for Mail, OneDrive and SharePoint now
+have verified Web callbacks, delegated permission declarations and separately
+custodied immutable client secrets. Their static delegated permission counts
+are four, three and three respectively; implicit tokens and public-client flows
+are disabled. The original Calendar registration and secret are preserved; its
+callback and static permissions are restricted to Calendar, `User.Read` and
+`offline_access`. Its prior account grant was separately removed by the operator,
+not by losing the old QA profile. The [family configuration rollout](https://github.com/openagent-uno/openagent-tools/blob/a52c1bbdd45fca768052cfd37b89f0ecba238f58/deploy/connector-auth/qualification-2026-10-19-microsoft-families.json)
+passed at **09:19:35 UTC** with the same image, one Ready writer and eleven
+configured providers. New Mail, Calendar and OneDrive connections then passed
+normal redemption, one workflow read each and explicit owner refresh. A real same-identity process restart then passed, followed by three post-restart
+reads and three local disconnects with disabled tombstones and source removal.
+The three issuing app identities also matched the public product metadata.
+The [three-connector lifecycle and final-cleanup receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/microsoft-three-product45-oauth-2026-10-19.json)
+records six authorized workflow reads across the restart and complete owned
+runtime/worker cleanup. Provider HTTP-attempt counts are not exposed; local
+disconnect does not claim provider-wide revocation.
+Mail covered folders only; no message body, draft or send is qualified. OneDrive
+covered `drives.list` without provisioning or file changes. Outlook event writes
+were not exercised because the approved calendar owner could not be verified
+by the current QA flow; no event was created.
+
+SharePoint was blocked by the provider **before consent**: the personal account
+was refused with a requirement to use a work or school account. No callback,
+site read, organization admin consent, new account/tenant or paid license is
+claimed. An eligible work/school-account trial remains pending; no license
+requirement is inferred from this observed account-type message.
+An operator-owned app requires
 its own valid registration and qualified receiving host. See
 [setup and recovery](./connector-operations.md#calendar-and-mail-sdk-017)
 and the [versioned SDK contract and limits](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
+## Real-account trial scope — 19 October
+
+These normal public server45/SDK18 trials are independent of the native App22
+marketplace screenshots. All seven successful rows include consent redemption,
+owner refresh, a real same-identity server restart, a repeated workflow read and
+local disconnect/tombstone/source removal. Final owned runtime/worker cleanup
+passed. They do not qualify every operation or every account type.
+
+| Connector | Actual API scope | Result and remaining boundary |
+| --- | --- | --- |
+| Google Drive | `files.drive.search` | Read lifecycle passed; no file mutation |
+| Google Analytics | `account_summaries.list` | Read lifecycle passed; reports/other operations untested |
+| Google Calendar | `calendars.list`; separate earlier private-event create/get/ETag-update/get/delete | Read lifecycle and separate event cleanup passed; no attendees or invitations |
+| Gmail | `messages.list` | Read lifecycle passed; no message body, draft or send acceptance |
+| Outlook Mail | `folders.list` | Separate-family read lifecycle passed; no message body, draft or send acceptance |
+| Outlook Calendar | `calendars.list` | Read lifecycle passed; event write not tested because the authorized owner was not independently verified |
+| OneDrive | `drives.list` | Read lifecycle passed; no provisioning, file-content read or modification |
+| SharePoint | No consent callback or site-data call | Personal account rejected before consent; eligible work/school-account trial remains pending |
+
 ## Provider registration checkpoint
 
-- **Google:** The OpenAgent app/client, callbacks and test audience are prepared.
-  Gmail, Drive, Analytics Data, Analytics Admin and Calendar APIs are enabled and
-  verified. On 18 October the existing client saved
-  `calendar.calendarlist.readonly` and `calendar.events`, alongside the previously
-  declared connector scopes. The app remains in Testing; applicable verification,
-  security assessment and real Calendar consent/lifecycle acceptance remain pending.
-- **Microsoft:** Outlook Mail/Calendar and OneDrive/SharePoint adapters are published
-  in SDK 0.1.8. On 18 October the shared Web app was registered for work/school and
-  personal accounts, its four provider callbacks were saved and developer terms
-  were accepted. On 19 October, the [registration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/6b6364676a34a14339b97e5bd7a840d57b58d439/deploy/connector-auth/registrations/microsoft.json)
-  verified seven saved delegated permissions: `User.Read`, `offline_access`,
-  `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `Files.Read` and
-  `Sites.Read.All`. Neither admin nor user consent was granted. The production
-  secret reference is still unset; client authentication, remaining OAuth settings,
-  publisher/receiving-tenant requirements and real consent/lifecycle tests remain
-  pending. Common enrollment stays off.
+- **Google:** Existing OpenAgent client, callbacks, production secret reference
+  and required APIs are preserved. Calendar scope declarations were saved on
+  18 October. On 19 October the verification center confirmed that review is
+  not required while the app is in Testing with its one approved test user.
+  This is a test-audience exception, not approval for general enrollment.
+  Fresh Gmail, Drive, Analytics and Calendar connection/read/refresh passed;
+  the earlier private Calendar-event mutation/cleanup trial also passed. The
+  fresh session's real restart, four post-reads and per-connection disconnect/
+  tombstone/source removal passed. Final shared receiving-runtime and worker
+  cleanup also passed. Applicable general-production
+  verification/security assessment is separate.
+- **Microsoft:** Outlook Mail/Calendar and OneDrive/SharePoint are published in
+  SDK18. The original shared registration verified four Web callbacks, global-cloud
+  work/school plus personal audience, implicit tokens disabled and public-client
+  flows disabled; seven delegated permissions were initially saved. Its immutable
+  client secret entered protected custody and normal read-only startup passed.
+  Following the Mail refusal, the prepared registration layout separates connector
+  families and restricts the original registration to Calendar. Outlook Calendar connected/read/refreshed;
+  Outlook Mail's OAuth poll was rejected at the configured-scope boundary by
+  the diagnostic broker. The raw scope names were not collected. Separate Mail,
+  OneDrive and SharePoint registrations, verified callbacks/permission declarations
+  and immutable secret custody are complete; the original Calendar registration
+  is retained. The family configuration rollout passed; Mail, Calendar and
+  OneDrive redemption/read/owner-refresh, real restart, post-reads and local
+  disconnect/tombstone/source removal passed. Final owned runtime/worker
+  cleanup passed. SharePoint's personal-account attempt stopped before consent and
+  requires an eligible work/school-account trial; no license inference is made. Publisher or tenant restrictions are evaluated when
+  encountered; they are not asserted as a universal consent prerequisite.
+  The [SharePoint credential rotation](https://github.com/openagent-uno/openagent-tools/blob/2e685b6a68b1fede45b61ed5530cc993ad4a80be/deploy/connector-auth/qualification-2026-10-19-microsoft-sharepoint-rotation.json)
+  removed the prior provider credential, and the replacement projection passed eleven-provider
+  health/readiness. App identity, scopes, image and persistent metadata were
+  preserved; this does not qualify SharePoint consent or site access.
 - **ClickUp:** the existing provider registration and credentials are reused.
   Its common callback completed a real browser round trip on 14 October with
   auth service 0.1.6. The disclosure response now preserves the browser's
@@ -312,10 +456,12 @@ and privacy backlog load remain separate qualification.
    Encrypted production app-secret storage and matching backups are now
    verified. Bootstrap health is not the availability gate for a loaded
    production service.
-3. Finish provider review/verification and remaining Google, Shopify and
-   Postiz callback/consent flows; preserve the separately recorded limited
-   ClickUp/GitHub/Notion trials and public beta. Complete real cancel, read,
-   authorized write, renewal, restart and local disconnection in all products.
+3. Preserve the bounded Google Testing and Microsoft Mail/Calendar/OneDrive
+   lifecycles recorded above. Wider Google production-audience approval,
+   eligible-account SharePoint acceptance and untested operations remain pending,
+   alongside the existing Shopify and Postiz review/callback/consent gates.
+   Each product must qualify its own cancel, read, authorized write, renewal,
+   restart and local disconnection; these trials do not attest every operation.
 4. Activate the central Shopify webhook path only after the legacy compatibility
    delivery and each product's local privacy processing are tested, including
    duplicate notifications and offline recipients.

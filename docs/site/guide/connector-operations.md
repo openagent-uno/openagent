@@ -1,10 +1,16 @@
 # Connector setup, embedding and recovery
 
-This guide is for server operators and embedding products. ClickUp, GitHub and Notion common-app enrollment is available as a limited
-public beta; other providers retain their [qualification gates](./connector-status.md).
-Current published Python components are **SDK/runner 0.1.8 and server/CLI beta45**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
-[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
-App22 publication/GUI is pending; the current visually qualified pair remains App21/server44/SDK17. The earlier App beta20/server43 [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
+This guide is for server operators and embedding products. ClickUp, GitHub,
+Notion, Outlook Mail/Calendar and OneDrive common-app enrollment is available as
+a limited beta. Google is restricted to its approved Testing audience; SharePoint
+retains its eligible-account [qualification boundary](./connector-status.md).
+Current published Python components are **SDK/runner 0.1.8 and server/CLI beta46**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
+[App22 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22).
+The [App22/server45 Linux x64 marketplace receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+records 114 official cards, 30 registry results and ten reviewed images. It
+verified blank Postman setup and one local Exa control cycle, with zero provider
+calls, model turns or OAuth grants. App21/server44 remains historical evidence.
+The earlier App beta20/server43 [normal public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json),
 [three-connection/six-workflow lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/keyless-product-1.1.0b43-2026-10-17.json)
 and [Linux x64 marketplace/local controls](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json)
 passed separately. The GUI uses hosted `--no-sandbox` and made zero provider
@@ -21,9 +27,20 @@ on the client displaying the marketplace.
 connectors:
   runner_path: /opt/openagent/connectors/bin/openagent-connector-runner
   auth_url: https://auth.openagent.uno
-  # Released server beta 40: explicitly enable the public beta providers.
+  # Controlled Google Testing: explicit lists REPLACE the server default.
+  # Keep the six qualified beta providers and add the four Google profiles.
   # Use [] to disable common OAuth enrollment on this server.
-  official_providers: [clickup, github, notion]
+  official_providers:
+    - clickup
+    - github
+    - notion
+    - outlook_mail
+    - outlook_calendar
+    - onedrive
+    - gmail
+    - google_drive
+    - google_analytics
+    - google_calendar
   # Optional, for the operator's own app registrations:
   # oauth_providers_file: /private/openagent/oauth-providers.json
 ```
@@ -34,20 +51,21 @@ runner. If it is missing, the authenticated catalog remains visible but marks
 operations unavailable.
 
 `official_providers` uses provider IDs: `gmail`, `google_drive`,
-`google_analytics`, `clickup`, `github`, `notion`, `atlassian`,
+`google_analytics`, `google_calendar`, `outlook_mail`, `outlook_calendar`,
+`onedrive`, `sharepoint`, `clickup`, `github`, `notion`, `atlassian`,
 `slack_import`, `shopify` and `postiz`. These differ from display
 catalog IDs such as `google-drive`. A nonempty list does not configure the
 central provider or bypass product policy. Standalone Shopify is independently
 blocked until the local privacy processor is qualified. An empty OAuth list
 does not disable token/account connectors that are configured locally.
 
-Server beta 43 resolves common OAuth availability in this order:
+Server beta46 resolves common OAuth availability in this order:
 
 1. An explicit `connectors.official_providers` list wins, including `[]`.
 2. Otherwise, a present `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` value supplies the
    comma-separated list. An empty value disables common OAuth enrollment.
-3. Only when both settings are absent, it defaults to `clickup`, `github` and
-   `notion`.
+3. Only when both settings are absent, it defaults to `clickup`, `github`,
+   `notion`, `outlook_mail`, `outlook_calendar` and `onedrive`.
 
 This changes catalog eligibility, not consent. It creates no connection,
 provider grant or automatic broker registration. A fresh keyless-only server
@@ -56,6 +74,87 @@ registered synchronization. The released beta 40 keeps its earlier explicit
 opt-in requirement; use the YAML list above or the environment variable to opt
 in. The three-provider broker beta was deployed separately, without new grants.
 Empty OAuth lists do not disable local token/account or keyless connections.
+
+The ten-provider example is for the approved Google **Testing** audience only.
+Explicit configuration and `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` replace the
+resolved list; they do not append to it. Include all desired providers rather
+than setting only the four Google IDs and unintentionally hiding the others.
+SharePoint is deliberately separate: an operator-authorized trial with an
+eligible work/school account must explicitly include `sharepoint` while retaining
+any other desired IDs. That opt-in grants no tenant consent or site access;
+the eligible-account SharePoint lifecycle remains unqualified.
+
+[Published beta46](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.46)
+ships the six-provider default. Published betas43–45 retain their historical
+three-provider default; publishing beta46 does not update an existing host.
+Google Testing still needs the full explicit ten-provider override; SharePoint
+remains a separate opt-in. The real provider lifecycle receipts below used
+public server45 with an explicit opt-in and are not relabeled as beta46 trials.
+The [installed beta46 qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-installed-2026-10-19.json)
+and [normal public-source installer46](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-public-installer-2026-10-19.json)
+passed. The latter installed server and thin CLI separately, checked both
+prefixes' dependencies, ORM, the 114-plus-Custom catalog and the six-provider
+constructor default, without enrollment or provider/model calls. It used the
+immutable public script at `4e6a8bbb`, SHA256
+`05fcb4f1f5c984253efd4e6b01288fb4827575bf213a05d8b43a3d3455f3fe0b`.
+The linked installer receipt tracks live website byte equality separately from
+these installation tests.
+App22 reads server-provided availability and needs no new binary for these
+server settings; native App provider-operation acceptance remains separate.
+
+The [SDK18 broker image-only checkpoint](https://github.com/openagent-uno/openagent-tools/blob/7e3c6f829b22a8dcfa3bdce79416580a365ab12f/deploy/connector-auth/qualification-2026-10-19.md)
+retained those three providers. Preparing more provider rows or storing an app
+secret does not activate a receiving server. Google Testing trials use only the
+approved test audience. Microsoft's immutable secret is now stored and mounted
+read-only; normal startup as UID 65532 verified the projected file. The first
+additive rollout was rolled back after a provider-specific startup-validation
+failure. The [source fix](https://github.com/openagent-uno/openagent-tools/commit/975d9426b1373b1db0c1b7f75d329451f3cf5d75)
+passed auth/OAuth tests, vet and a static Linux amd64 build. Its scanned image
+`sha256:1040f2873a8bdb35f128cb0cee6851e718b787a2328619173e1c8466bd20121a`
+recovered eleven-provider technical readiness at 08:14:17 UTC on 19 October:
+one Ready writer, health/readiness 200 and unsigned request 401. At that
+server45 checkpoint, its three-provider default was unchanged. Beta46's
+six-provider default is recorded above; Google Testing and SharePoint still
+need explicit host configuration. Broker readiness establishes neither general
+Google audience approval nor account access. The current [diagnostic broker](https://github.com/openagent-uno/openagent-tools/blob/4c73501009c7f9d81dd0adec2223232dee839fcc/deploy/connector-auth/qualification-2026-10-19-diagnostics.json)
+uses source `645e0484` and image
+`sha256:04d942f6cc69a59af958911a21a3f4ca2e1901a456d43220b8ac3061a6e13c5d`;
+its image-only rollout passed at 08:43:13 UTC with the configuration preserved.
+Fresh Google Drive, Analytics, Calendar and Gmail connection/read/owner-refresh
+trials passed, followed by a real same-identity server restart, four post-restart
+workflow reads and normal local disconnect/tombstone/source removal. The
+[four-connector receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-four-product45-oauth-2026-10-19.json)
+records those exact operations. The later Microsoft receipt below closes final
+owned receiving-runtime and worker cleanup.
+Earlier Google Calendar/Gmail/Outlook Calendar reads/refresh and the private
+Calendar-event mutation trial retain their original scope: the old receiver hit
+its deadline and lost local state before restart/disconnect qualification.
+
+Outlook Mail's normal product poll returned HTTP503. The broker safely reports
+`stage=scopes reason=scope_config provider_error=none`; token and raw scope values
+remain private and the configured-scope check stays fail-closed. Microsoft's
+[documented same-resource cumulative consent](https://learn.microsoft.com/en-us/entra/msal/javascript/browser/resources-and-scopes#consent-lifetime)
+requires an app/recipient design that preserves actual token permissions, not
+just filtered metadata. Operator-approved registrations per connector family
+have verified Web callbacks, least-privilege delegated declarations and separate
+immutable secret custody; each family remains shared across receiving products.
+The original Calendar registration is retained with Calendar-only permissions
+and callback. The operator separately removed its old account grant before the
+next test. The [family configuration rollout](https://github.com/openagent-uno/openagent-tools/blob/a52c1bbdd45fca768052cfd37b89f0ecba238f58/deploy/connector-auth/qualification-2026-10-19-microsoft-families.json)
+passed without changing the image. Fresh Mail, Calendar and OneDrive redemption,
+workflow reads and owner refresh passed. They also passed a real same-identity
+process restart, three post-restart reads and normal local disconnect/tombstone/
+source removal. The three issuing registrations matched public product metadata;
+the [Microsoft lifecycle and final-cleanup receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/microsoft-three-product45-oauth-2026-10-19.json)
+records final process quiescence and guarded worker deletion. Local disconnect
+is distinct from provider-wide revocation. Mail is limited to `folders.list`, Calendar to a calendar
+list and OneDrive to `drives.list`; no send, draft, event write, file change or
+drive provisioning is qualified. The SharePoint personal-account attempt was
+blocked before consent with a work/school-account requirement. Record that
+observed account boundary without inferring a license requirement or granting
+organization-wide consent. A final
+receipt must identify the exact tested operations and any account/tenant result
+without exposing content or credentials.
 
 The candidate Shopify setup asks for the canonical store domain, for example
 `your-store.myshopify.com`, in the App or CLI. The authenticated create request
@@ -242,9 +341,11 @@ client ID or copying a secret is not a credential migration.
 with an [exact qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json).
 It adds reusable operations, not a calendar app, email client or synchronization
 service. Public server44 adopts SDK17 with [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json).
-The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, without a source overlay or HOME/TMPDIR override. It started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed; real Google/Microsoft account acceptance remains pending. Common enrollment for
-all three new provider IDs is closed. Adding them to `official_providers`
-cannot activate a disabled central registration.
+The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, without a source overlay or HOME/TMPDIR override. It started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed; real Google/Microsoft account acceptance was pending at that historical checkpoint. The dated server45 trials above record later, limited acceptance. Common enrollment for
+all three new provider IDs was closed in that historical cohort. The current
+broker's technical trial configuration is recorded above; adding IDs to
+`official_providers` alone cannot configure a central registration or grant
+account access.
 
 | Catalog / provider | Typed operations | Scope contract |
 | --- | --- | --- |
@@ -267,13 +368,19 @@ For an operator-owned app on a qualified SDK17 host:
    provider API, and register the callback supported by that app type. Google
    Calendar requires Calendar API enablement and accepted Calendar scopes.
    Microsoft requires the appropriate account/tenant audience and delegated
-   Graph permissions. The common app has saved its registration, terms, callbacks
-   and seven delegated permissions (`User.Read`, `offline_access`, `Mail.ReadWrite`,
-   `Mail.Send`, `Calendars.ReadWrite`, `Files.Read`, `Sites.Read.All`). Saving them
-   grants no admin or user consent. Production client-secret custody, remaining
-   OAuth/client-authentication settings, receiving-tenant requirements and real
-   consent/lifecycle tests remain pending; common enrollment is off. No existing
-   user tokens migrate to another app automatically.
+   Graph permissions. The original common registration initially saved seven
+   delegated permissions. The current family layout uses `User.Read`
+   and `offline_access` plus `Calendars.ReadWrite` for Calendar, `Files.Read` for
+   OneDrive or `Sites.Read.All` for SharePoint; Mail has `Mail.ReadWrite` and the
+   separately declared `Mail.Send`. Saving these declarations grants no admin or
+   user consent. Console settings and immutable secret custody are verified;
+   original projected mounting and eleven-provider technical startup passed.
+   New family configuration, client authentication and real Microsoft lifecycles
+   remain separate. Tenant/account restrictions are recorded from actual results;
+   no new license or trial is implied. No existing user tokens migrate to another
+   app automatically. A later [SharePoint credential rotation](https://github.com/openagent-uno/openagent-tools/blob/2e685b6a68b1fede45b61ed5530cc993ad4a80be/deploy/connector-auth/qualification-2026-10-19-microsoft-sharepoint-rotation.json)
+   removed the prior provider credential and verified the replacement mount with health/readiness;
+   app identity/scopes were preserved, without qualifying consent or site access.
 2. Store app secrets in protected server-owned files. Set
    `connectors.oauth_providers_file` to the provider descriptor array using
    `id`, `app_id`, `client_id`, `secret_file`, `authorization_url`, `token_url`,
@@ -356,9 +463,11 @@ distinguishes this storage qualification from outstanding provider/load tests.
 | Provider app was removed | Reauthorize after restoring the provider grant; removal can affect other products using that app |
 | Privacy job received but still pending | Inspect the product-local worker and completion receipt; delivery acknowledgment alone is not completion |
 
-Monitor `/healthz` separately from `/readyz`. The current production bootstrap
-can report healthy with zero configured providers while readiness correctly
-refuses enrollment. Before activation, qualify backup/restore, capacity,
-provider callbacks, peer recovery and product-local privacy actions. The
-[deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/codex/shared-official-connectors/deploy/connector-auth)
+Monitor `/healthz` separately from `/readyz`. A bootstrap configuration can
+report healthy with zero configured providers while readiness correctly refuses
+enrollment. The dated current broker checkpoint has eleven configured profiles
+and health/readiness 200. Its readiness does not extend the specific provider
+acceptance recorded above or qualify loaded capacity, peer recovery and
+product-local privacy actions. The
+[deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/main/deploy/connector-auth)
 contains the detailed operator gates.

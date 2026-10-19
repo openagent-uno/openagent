@@ -1,0 +1,130 @@
+{
+  "schema": 1,
+  "status": "passed_for_three_microsoft_connectors_sharepoint_account_type_blocked",
+  "recorded_at": "2026-10-19T09:34:35.097636+00:00",
+  "product_version": "1.1.0b45",
+  "product_source": "0049bfd95cf722784c835897ce6175a6690a1bc1",
+  "product_manifest_sha256": "cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c",
+  "sdk_version": "0.1.8",
+  "sdk_source": "5a7dea3ec5edf183545ea703538d56b208069250",
+  "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+  "core_version": "1.1.0b22",
+  "host_tools_version": "1.0.0b6",
+  "normal_srp_device_certificate_iroh_gateway_workflow_path": true,
+  "same_identity_real_process_restart": true,
+  "new_enrollment_at_restart": false,
+  "authorized_real_workflow_reads": 6,
+  "provider_attempts_observed": null,
+  "harness_direct_provider_calls": 0,
+  "harness_direct_runner_calls": 0,
+  "model_calls": 0,
+  "providers": [
+    {
+      "catalog_id": "outlook-mail",
+      "operation": "outreach.outlook_mail.folders.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 2382,
+        "workflow_result_sha256": "6fd51150790bd80c2538fb4c08d5c8f195da4bddcbb2f87974818c4dd0245e3e",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 2382,
+        "workflow_result_sha256": "6fd51150790bd80c2538fb4c08d5c8f195da4bddcbb2f87974818c4dd0245e3e",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    },
+    {
+      "catalog_id": "outlook-calendar",
+      "operation": "files.outlook_calendar.calendars.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 388,
+        "workflow_result_sha256": "bf71bfa84b67bf77ab65e1af67f2053eff47850a3a2fac01d15235938e037616",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 388,
+        "workflow_result_sha256": "bf71bfa84b67bf77ab65e1af67f2053eff47850a3a2fac01d15235938e037616",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    },
+    {
+      "catalog_id": "onedrive",
+      "operation": "files.onedrive.drives.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 1151,
+        "workflow_result_sha256": "681760c0b49d3ac9342b51215e44ce1718d658ae5f531e981a37c611c105b9bf",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 1151,
+        "workflow_result_sha256": "b497a8af5ba7c072847cda413a8f2273a85e700859e9ac760041156ddc56c2b9",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    }
+  ],
+  "distinct_issuing_oauth_apps_recorded_by_normal_product_api": true,
+  "mail_message_body_draft_or_send_tested": false,
+  "outlook_event_write_tested": false,
+  "outlook_event_write_boundary": "Returned calendar owner alias was not independently verified as the authorized account; no event was created. No primary/private claim.",
+  "onedrive_file_content_or_modification_tested": false,
+  "sharepoint": {
+    "status": "blocked_at_provider_sign_in",
+    "observed_requirement": "work_or_school_account",
+    "personal_account_rejected_by_provider_ui": true,
+    "provider_consent_completed": false,
+    "oauth_callback_completed": false,
+    "data_read_attempted": false,
+    "pending_connection_normally_disconnected": true,
+    "local_tombstone_disabled_and_source_removed": true,
+    "license_or_subscription_requirement_inferred": false
+  },
+  "first_mail_failure": "Original shared-app redemption failed with fixed diagnostic scopes/scope_config; its local connection was normally disconnected and preserved as a historical generation. New isolated Mail registration passed.",
+  "harness_incident": "Second restart initially hit a reused log filename after the owned server stop; resumed the same stopped profile with a unique log and preserved the first failure. No reinstall, reset or reenrollment.",
+  "cleanup": {
+    "all_current_connections_normally_disconnected": true,
+    "first_failed_mail_generation_previously_normally_disconnected": true,
+    "pending_event_or_workflow": false,
+    "server_host_broker_watchdog_stopped": true,
+    "final_owned_process_scan_quiescent": true,
+    "safe_receipt_files_exported_and_sha256_verified": 50,
+    "both_exact_owned_qa_pods_uid_resource_version_deleted_and_not_found": true,
+    "secrets_pvcs_other_workloads_changed": false,
+    "raw_tokens_profiles_database_logs_or_provider_body_exported": false
+  },
+  "google_four_lifecycle_receipt_sha256": "9f4a34cb9fb0fa347e4b71d54cc1a0ab2834b6f1219e99a2a926b7e617a2aa84",
+  "receipt_sha256": {
+    "receipt-outlook-mail-poll.json": "0f6c116ddd1cb9a1ca957a78ca4bd28c4290fad606e2aa227742a5cf08a52dfa",
+    "receipt-outlook-mail-read.json": "f66030e1b293b03b508339bcf869b8bd6b9fbf6a7e73da40ba5954d1cbe8c69f",
+    "receipt-outlook-mail-refresh.json": "06a5992df0b533249e914116713b8492cd17c04dfad0382a2f86356a012f6c4d",
+    "receipt-outlook-mail-restart-read.json": "eb0d981060cb8f3261b1784c8b3082b2376ef962457b27f807e6aa2eea997941",
+    "receipt-outlook-mail-disconnect.json": "672068dda22abfe096d7503535360864190eb4290f016591254c8cc9ebb1f2f0",
+    "receipt-outlook-calendar-poll.json": "d1d42dadf343393f7716914ffbd252a826b73c8cc2ffd780a03a155918631c93",
+    "receipt-outlook-calendar-read.json": "4fa47a6d49ac95a77c4bb32a118e4f04c0873b99f98b3bdb16de829f671e33c6",
+    "receipt-outlook-calendar-refresh.json": "ff6f94b4865ab35c1528c5816cea2eeacafa5df731d5eb292232e4900027df53",
+    "receipt-outlook-calendar-restart-read.json": "b553bb786140e3d31bf31aabda2d39c8cd5db4323ad510d5a0f39b745f47c359",
+    "receipt-outlook-calendar-disconnect.json": "7c30d1ba66b49edb64fd2ce2802b94bdcd9e6906344abd80346506b3dbd93bda",
+    "receipt-onedrive-poll.json": "a44314c565d27b5e4404725c0e6f40a4442131b51ef1dd6d94991ad6a4dbc365",
+    "receipt-onedrive-read.json": "97e8bdc41e702627fe729ef66cf4a318ede3ac533f1c7e69d78829f9d124ea19",
+    "receipt-onedrive-refresh.json": "87cfc1fbfd8696a72cd4bebf87914834cbca2174abae85b44c4454a70c2587f4",
+    "receipt-onedrive-restart-read.json": "b5a8e27922bbf84abfa245c8925dc99e08145afa9142bef50c32359ff049fe80",
+    "receipt-onedrive-disconnect.json": "ca883e558528ebb1d6353d20b541516a67917e3ce844dfe7686493668447bdc0",
+    "restart-microsoft-receipt.json": "006786e0f759f604598ae94b029be37bd6e87910b27bff0ce97e6aa2b36ea44a",
+    "microsoft-issuer-association.json": "4e45dce54b5a4f334345c30d0ad95cca4dc765b1f5952bb00426cf7fb4f159d5",
+    "cleanup-receipt.json": "cbda427a0f84dab5fcc14f8020f8c34de26b92c64660d2a465eed59585eb0302",
+    "worker-cleanup-receipt.json": "f8f5556b78c4da4e29616e7e1ddf2edb61e41636a956ef5178fe8f2f1d90bb4c",
+    "safe-export-index.json": "08a2ed1578ff911ff4c2674cc7381d32026207febd49603086e59c56cc56efaf",
+    "receipt-sharepoint-disconnect.json": "27bef3dbf426f7587a82993339e9245430972c5fdebca02c348ef06fdd792f07"
+  }
+}

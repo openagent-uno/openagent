@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "scope": "four_google_connectors_normal_public_product_lifecycle",
+  "recorded_at": "2026-10-19T09:06:39.286897+00:00",
+  "product_version": "1.1.0b45",
+  "product_source": "0049bfd95cf722784c835897ce6175a6690a1bc1",
+  "product_manifest_sha256": "cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c",
+  "sdk_version": "0.1.8",
+  "sdk_source": "5a7dea3ec5edf183545ea703538d56b208069250",
+  "sdk_manifest_sha256": "85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916",
+  "core_version": "1.1.0b22",
+  "host_tools_version": "1.0.0b6",
+  "normal_public_installer": true,
+  "normal_srp_and_device_certificate": true,
+  "normal_iroh_gateway_and_workflow_execution": true,
+  "same_identity_real_process_restart": true,
+  "new_enrollment_at_restart": false,
+  "authorized_real_workflow_reads": 8,
+  "provider_attempts_observed": null,
+  "harness_direct_provider_calls": 0,
+  "harness_direct_runner_calls": 0,
+  "model_calls": 0,
+  "providers": [
+    {
+      "catalog_id": "google-drive",
+      "operation": "files.drive.search",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 1112,
+        "workflow_result_sha256": "127331151f725ecf425710178f9c273501a9be336a11f17ab18c5e2819e45e77",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 1092,
+        "workflow_result_sha256": "0f6c7f8d1b61c963da0d0550b5323092ad75887b9991138bd4e5b16d72af265c",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    },
+    {
+      "catalog_id": "google-analytics",
+      "operation": "ads.google_analytics.account_summaries.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 4098,
+        "workflow_result_sha256": "fdfdf2ed81c928affe081bd0f156b93181c28cf52cfef7d7dfba155c4f4e6638",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 4098,
+        "workflow_result_sha256": "fdfdf2ed81c928affe081bd0f156b93181c28cf52cfef7d7dfba155c4f4e6638",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    },
+    {
+      "catalog_id": "google-calendar",
+      "operation": "files.google_calendar.calendars.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 1739,
+        "workflow_result_sha256": "a48cee490c55e17f28f52d206e22ad66b82316163e99ebeec298e7aa1b35ff80",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 1739,
+        "workflow_result_sha256": "a48cee490c55e17f28f52d206e22ad66b82316163e99ebeec298e7aa1b35ff80",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    },
+    {
+      "catalog_id": "gmail",
+      "operation": "outreach.gmail.messages.list",
+      "oauth_redemption": "passed",
+      "initial_workflow_read": {
+        "workflow_result_bytes": 382,
+        "workflow_result_sha256": "c495df80c3ab5b99203ec3579ef2330c35228c19d544a00a7064f1c263cb1511",
+        "empty_collection_valid": false
+      },
+      "explicit_owner_refresh": "passed",
+      "post_restart_workflow_read": {
+        "workflow_result_bytes": 382,
+        "workflow_result_sha256": "c495df80c3ab5b99203ec3579ef2330c35228c19d544a00a7064f1c263cb1511",
+        "empty_collection_valid": false
+      },
+      "local_disconnect_tombstone_and_source_removed": true,
+      "global_provider_revocation_claimed": false
+    }
+  ],
+  "receipt_sha256": {
+    "receipt-google-drive-poll.json": "1edd53d66da4c1cca6ba681fcca6c827facf2e39340b841ad0d4bd9732c81f35",
+    "receipt-google-drive-read.json": "b401565d3c5261a85dcce7a2899220c07b8cd687b65ef9c79c0dc594cb4d8fe8",
+    "receipt-google-drive-refresh.json": "e728b9d248ec6a1c8129b17bafa82e1d3700f739ff7c3db45ce04199de34beb8",
+    "receipt-google-drive-restart-read.json": "dc7c5844c1adf4bd6eef6bf59f0527421e85dbda7bd45540fb8dcc34dbb31711",
+    "receipt-google-drive-disconnect.json": "b1e9e57058273d4e4be81ac86833b92fed86a0c6989850f07697ce3f2d5a6743",
+    "receipt-google-analytics-poll.json": "f2ede435ad8333878b00a52052c69853ab976122b4940b6fac7e91e826f7ee99",
+    "receipt-google-analytics-read.json": "fdaa4c31795847cfb681111364bbe373e5e44f4f41b721434f7340c9b1e4f5bf",
+    "receipt-google-analytics-refresh.json": "c36154439d56c4f5acc6ff07b206c93ed77e3d45c6ec4995f5423ae2753fc6fb",
+    "receipt-google-analytics-restart-read.json": "253bdea878ea47002e6317f181c9c535239abdd2dbd073da681d9fcd2c5e7e3c",
+    "receipt-google-analytics-disconnect.json": "a842399cdbafb7da5f2ab9e38f1b8e511a5aec4e583e06d80cbcb712de69fd12",
+    "receipt-google-calendar-poll.json": "3575803b26b9fa81eea52d9ce85af78f23a282ec9132875bcbb7a8c9b41c11d5",
+    "receipt-google-calendar-read.json": "acf12058c84d74a4bd3a112025385d59a84e170b979f383c2fef2995aad5333f",
+    "receipt-google-calendar-refresh.json": "5aa46be3db1082d684afd1bdc4bd11e949ce0402f3ac7efb96b0c2b0458c10f6",
+    "receipt-google-calendar-restart-read.json": "71f3af76c8e67b2ce8972e3a1805fbbd968f52ce543d5bc940385db582b63bde",
+    "receipt-google-calendar-disconnect.json": "621426f70caaf9a9f88e26513e69de87be51d1193de1be022332cfc3bb704486",
+    "receipt-gmail-poll.json": "0d19b8ae747ce72db6e7c31a218e98172557bb90a59c1b3af0755500a832cb63",
+    "receipt-gmail-read.json": "1d9f91721bcaf7bfbcc6f3b48f77a6858b231178f06893272936478208dffeec",
+    "receipt-gmail-refresh.json": "08fe362baae744626f3adab0dba184ac53364645a9aa61c3ad43ed255aff5eee",
+    "receipt-gmail-restart-read.json": "4343a654196306a2d0dc9ef7aa148fd4a32c906e6e00c632f54748871a60b8ca",
+    "receipt-gmail-disconnect.json": "a2cdcfdd46ffc145526343cfe75e1b920e6ddf400c08d653e5a9fd55124ea404",
+    "restart-receipt.json": "249b455946c66273e404591a74c95720576817ed31735793b5ea1f7625a3af88"
+  },
+  "google_calendar_write_coverage": "Separate first receiver real private/no-attendee event create/get/ETag-update/get/delete passed; not relabelled as fresh receiver lifecycle. No fresh event created.",
+  "historical_first_receiver_boundary": "Local encrypted profile lost at finite deadline; no old-receiver restart/disconnect claim.",
+  "receiver_cleanup": "Per-Google connections cleaned; receiver remains running for approved Microsoft tests.",
+  "microsoft_status": "Fresh Mail redemption failed with fixed diagnostic scopes/scope_config; normally disconnected. New family registrations pending.",
+  "raw_tokens_profiles_network_identifiers_or_provider_body_exported": false
+}
