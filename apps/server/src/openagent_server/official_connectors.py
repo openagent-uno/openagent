@@ -261,12 +261,16 @@ class OfficialConnectors:
         return {"available": True, "connectors": items}
 
     def authorization_available(self, provider):
-        # The standalone currently has durable receipt, but no processor for
-        # privacy export/redaction of derived agent content. Do not enroll a
-        # Shopify recipient until that host implementation is complete.
-        if provider == "shopify":
-            return False
-        return provider in self.official_providers or provider in self.own_providers
+        configured = provider in self.official_providers or provider in self.own_providers
+        if provider != "shopify":
+            return configured
+        # Opt-in alone cannot attest content coverage. Only the real canonical
+        # assembly and its durable admitted cohort may open Shopify enrollment.
+        from openagent_server.connector_privacy import ConnectorPrivacyProcessor
+        processor = self.privacy_processor
+        return bool(configured and self.privacy_enabled()
+                    and type(processor) is ConnectorPrivacyProcessor
+                    and processor.enrollment_qualified(self))
 
     async def owned(self, context, connection_id):
         await self.check(context, write=True)

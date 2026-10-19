@@ -47,6 +47,15 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
                 processor = service.official_connectors.privacy_processor
                 self.assertEqual(processor.covered_surfaces, processor.store.required_surfaces)
                 self.assertFalse(service.official_connectors.authorization_available('shopify'))
+                service.official_connectors.official_providers.add('shopify')
+                self.assertTrue(service.official_connectors.authorization_available('shopify'))
+                processor.covered_surfaces = frozenset()
+                self.assertFalse(service.official_connectors.authorization_available('shopify'))
+                processor.covered_surfaces = processor.store.required_surfaces
+                agent.config['connectors']['privacy']['enabled'] = False
+                self.assertFalse(service.official_connectors.authorization_available('shopify'))
+                agent.config['connectors']['privacy']['enabled'] = True
+                self.assertTrue(service.official_connectors.authorization_available('shopify'))
                 identity = await service.authorizer.bind_request(Request(gateway, 'owner'))
                 context = await service.authorizer.context_for_identity(identity, 'managed')
                 service.official_connectors.runner = ProviderFixture()
@@ -157,6 +166,10 @@ class PrivacyBootstrap(unittest.IsolatedAsyncioTestCase):
             try:
                 await service.start()
                 self.assertEqual(service.official_connectors.privacy_processor.covered_surfaces, frozenset())
+                service.official_connectors.official_providers.add('shopify')
+                processor = service.official_connectors.privacy_processor
+                processor.covered_surfaces = processor.store.required_surfaces
+                self.assertFalse(service.official_connectors.authorization_available('shopify'))
             finally:
                 await service.close()
                 await memory.close()

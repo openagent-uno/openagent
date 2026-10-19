@@ -40,6 +40,14 @@ class ConnectorPrivacyProcessor:
         self.covered_surfaces = frozenset(covered_surfaces)
         self.exports, self.prepare = exports, prepare
         self.streams = weakref.WeakSet()
+        self._qualified_service = None
+        self._qualified_surfaces = frozenset()
+
+    def enrollment_qualified(self, service):
+        """Admission proof belongs to this host, not a configuration assertion."""
+        required = self.store.required_surfaces
+        return bool(required and self._qualified_service is service
+                    and self._qualified_surfaces == required == self.covered_surfaces)
 
     def register_stream(self, stream):
         from openagent_core.stream.session import StreamSession
@@ -191,7 +199,12 @@ async def qualify_local_coverage(service, runtime, *, dashboards=None):
     from openagent_server.dashboard_capabilities import DashboardCapabilities
     from openagent_core.content_privacy import ToolResultPrivacyPublisher
     processor = service.privacy_processor
-    if processor is None or type(getattr(service.agent, 'model', None)) not in {NativeProvider, ModelDispatcher}:
+    if type(processor) is not ConnectorPrivacyProcessor:
+        return frozenset()
+    # A failed requalification cannot leave a prior enrollment proof active.
+    processor._qualified_service = None
+    processor._qualified_surfaces = frozenset()
+    if type(getattr(service.agent, 'model', None)) not in {NativeProvider, ModelDispatcher}:
         return frozenset()
     if (type(dashboards) is not DashboardCapabilities
             or dashboards.agent is not service.agent):
@@ -210,4 +223,6 @@ async def qualify_local_coverage(service, runtime, *, dashboards=None):
     # managed files, MCP writers and attachments without qualified lineage are
     # fenced before IO in a protected run. Text delivery is guarded and retained
     # pending frames are purged by prepare; media copies are not admitted.
-    return processor.store.required_surfaces
+    processor._qualified_surfaces = frozenset(processor.store.required_surfaces)
+    processor._qualified_service = service
+    return processor._qualified_surfaces
