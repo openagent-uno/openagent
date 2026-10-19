@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-19T17:21:00.379016+00:00",
+  "status": "token_protocol_passed_genuine_broker_and_legacy_acceptance_passed_native50_live_failure_confirmed",
+  "source_product": "c452e08438068f90d83a41d34a179fc4d79ef850",
+  "product_version": "1.1.0b50",
+  "source_sdk": "e5cbc0d933ea202ceb5bd41f3d01dd2098ccb10d",
+  "sdk_version": "0.1.12",
+  "normal_initial_read": {
+    "A": "passed",
+    "B": "passed"
+  },
+  "natural_original_mail_expiry": {
+    "status": "passed_via_final_completion_marker",
+    "original_expires_at": "2026-10-19T16:48:39Z",
+    "completion_lower_bound": "2026-10-19T16:48:41Z",
+    "completion_upper_bound": "2026-10-19T16:50:30.434541+00:00",
+    "original_expiry_not_resealed": true,
+    "both_publishers_stopped": true,
+    "expired_mail_empty": true,
+    "expired_open_denied_before_decryption": true,
+    "expired_requeue_http_status": 400,
+    "no_commit_or_save": true,
+    "remote_exit_code_observed": null,
+    "terminal_exec_stream_tail_missing": true,
+    "final_completion_marker_sha256": "68e6540de521ba7d061b54082752bf423c1c7d762b5fa0a24eb3ee6c9f426920",
+    "source_sha256": "e658a19f4a63bf4d16e6802830ac5ac4252e6fef16108a90ae5577d71fde3928",
+    "binary_sha256": "5e6c15ef88b33695922d8619a639354c968002b400bba556b8f01469e4455c7d",
+    "test_kind": "live_public_sdk_encrypted_mail_protocol_qa"
+  },
+  "no_current_copy": {
+    "status": "passed",
+    "test_kind": "explicit_public_runner_path_fault_injection_before_host_save",
+    "normal_owner_refresh_submissions": 1,
+    "response_deliberately_lost": true,
+    "saved_host_versions": {
+      "A": 9,
+      "B": 9
+    },
+    "observed_rotated_version": 10,
+    "current_peers_before_and_after": 0,
+    "natural_wait_seconds_at_least": 602,
+    "lease_elapsed_at": "2026-10-19T17:01:33.259924477Z",
+    "recovery_reconnect_required": true,
+    "old_version_refusal": {
+      "normal_owner_requests": 1,
+      "public_runner_fixed_code": "credential_recovery_required",
+      "normal_product_http_status": 503,
+      "provider_http_status": null,
+      "forwarded_unchanged": true
+    },
+    "normal_reconnect_same_connection": true,
+    "converged_host_versions": {
+      "A": 11,
+      "B": 11
+    },
+    "both_same_identity_saved_version_restart_passed": true,
+    "both_normal_post_restart_reads_passed": true,
+    "public_runner_path_restored": true,
+    "new_oauth_authorization_callback_browser_observed_by_operator": true
+  },
+  "genuine_webhook": {
+    "status": "broker_intake_and_legacy_2xx_acceptance_observed_native50_processing_blocked",
+    "root_operator_readonly_witness_at": "2026-10-19T17:14:18Z",
+    "original_occurrence_and_cutoff": "2026-10-19T17:11:19.778775557Z",
+    "broker_intake_at": "2026-10-19T17:11:21.561377133Z",
+    "broker_group_revoked": true,
+    "legacy_relay_acknowledged": true,
+    "legacy_relay_attempts": 1,
+    "legacy_relay_ack_at": "2026-10-19T17:11:24.366Z",
+    "legacy_database_count_observed": false,
+    "native_A_B_events_before_normal_disconnect": 0,
+    "native_published50_failure": "credential_publish_then_failed_recover_aborts_before_privacy_events",
+    "manual_or_synthetic_injection": false,
+    "actual_event_caused_local_credential_erasure_claimed": false,
+    "routes_cutover": {
+      "existing_approved_app_reused": true,
+      "provider_active_version": "1173066973185",
+      "all_four_topics_central": true,
+      "only_webhook_uri_changes": true,
+      "new_app_store_or_review_created": false
+    },
+    "natural_48h_shop_redact": {
+      "status": "pending_observation",
+      "no_post_uninstall_reconsent": true,
+      "profiles_keys_retained": true
+    },
+    "customer_data_request_redact": {
+      "genuine_delivery_not_forced": true,
+      "no_customer_order_scope_expansion": true,
+      "no_real_customer_erasure_claimed": true
+    },
+    "native_delivery_acknowledged_before_cleanup": {
+      "A": false,
+      "B": false,
+      "witness_at": "2026-10-19T17:14:18Z"
+    },
+    "native_failure_boundary": "The broker persisted the genuine uninstall and revoked the group. Product50 repeatedly attempted credential publication/recovery before polling privacy events, so revoked-group recovery prevented native receipt intake. Both native event counts remained zero before normal disconnect."
+  },
+  "evidence_sha256": {
+    "ttl-completion-witness-corrected-safe.json": "210442a11d82c6b56be06e7bb0325ff34ff720ccbded7701dd85faa5a98cad35",
+    "no-copy-completion-actual-safe.json": "376f316e5ad08f58b0e19b90f3efcbf91de0bddc9bd943f99095434b695e7db7",
+    "old-version-refusal-safe": "766f9d2c806e8378804996ed0f38ce07921e8b970facd77e18aff269416a8fd5",
+    "A-normal-reconsent-poll": "4e90ca3153fc8a30f0fe6c1b75f7b4727412ec8c2ee3a253c35f82e4d265a492",
+    "post-no-copy-A-normal-read": "63dab26dbe729a035819851c61810fdad232df1cac28f4fff7512be23fb7da63",
+    "post-no-copy-B-normal-read": "259a142c66057fa40f91d774da9417f4dbb13fe2411c0dd49bf149ed7ae7380d",
+    "actual-paused-start-A-B": "d5514a1bc4c7d7cdc1bb1f0b752b9c2c72bd7255fb225114967bc9b0e49c39e7",
+    "native-pre-fix-A-state": "86b5be19a69c5e6412a9db532ba5864f949ef022250e9f718f58dae1fa493e1e",
+    "native-pre-fix-B-state": "42d3bd243b47fd60a4bc4f6834a39fc22d02b376e6d6e60d8f824c56dfb1871c",
+    "native-final-A-normal-disconnect": "cc63a1e6b677eef3a06532b847d492e67048d0a769c86fcb5f2223b27440b902",
+    "native-final-B-normal-disconnect": "0a8579a30f3267f2fe628ebbe1d3b31286be015d5dec466c9e59767162c9f0f0",
+    "native-final-A-stop-state": "7dace9b85bd624f527bf7266c3ae74c2fc9d15519275759480ccbbb637c119b5",
+    "native-final-B-stop-state": "0d9b2df1067b2bfa66b05ce451467476e79b726846daacb35ea915ec62f752fa",
+    "worker-cleanup50-final": "a34aac4b151178f41bc6719f6bf1d81f3ad1cb5224d0a96e77b3dacc2556715d"
+  },
+  "privacy_boundaries": {
+    "raw_token_code_secret_or_private_key_exported": false,
+    "provider_attempt_counter_observed": false,
+    "installed_source_overlay": false,
+    "profiles_and_identity_keys_retained_on_owned_pvc": true,
+    "manual_database_or_clock_mutation": false
+  },
+  "normal_cleanup": {
+    "normal_owner_disconnect_A_B": "passed",
+    "both_sources_removed": true,
+    "credential_and_nonce_null_A_B": true,
+    "credential_erasure_cause": "normal_owner_disconnect",
+    "both_owned_servers_and_host_tools_stopped": true,
+    "profile_identity_keys_retained_on_pvc": true,
+    "all_child_processes_quiescent": true,
+    "worker_exact_uid_resource_version_delete_notfound": true,
+    "at": "2026-10-19T17:18:04.276562+00:00",
+    "resource_limits": {
+      "cpu": 1,
+      "memory_bytes": 2147483648,
+      "swap_bytes": 0,
+      "memory_peak_bytes": 818737152,
+      "oom": 0
+    },
+    "worker_cleanup_receipt_sha256": "a34aac4b151178f41bc6719f6bf1d81f3ad1cb5224d0a96e77b3dacc2556715d",
+    "credential_erasure_by_webhook_claimed": false,
+    "profiles_erased": false,
+    "worker_removed_at": "2026-10-19T17:18:04.276562Z"
+  },
+  "general_activation": "held_for_public_host_privacy_priority_fix_existing_legacy_issuer_fence_and_auth_safety_qualification",
+  "paused_new_starts": {
+    "status": "passed",
+    "logical_hosts": [
+      "A",
+      "B"
+    ],
+    "explicit_receipt_version": 2,
+    "http_status": 503,
+    "fixed_code": "authorization_not_ready",
+    "no_provider_grant": true,
+    "at": "2026-10-19T17:06:10Z"
+  },
+  "qualification_scope": "Two owner-authorized native QA servers using the existing approved app and shop; no general activation claim"
+}
