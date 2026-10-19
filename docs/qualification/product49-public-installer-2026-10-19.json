@@ -7,7 +7,7 @@
   "sdk_source": "20bc4d3d1747ce8676c70c34ad2edaa86e33901d",
   "product_manifest_sha256": "c2931a7ab65418615807e3d2ae7e5b715ab3f834c9dbc2ae1d704e4be1aa3c12",
   "sdk_manifest_sha256": "6c8ebaf5d3db1c4252f6ae5c4fe8372636b4e244945ba54bf4e7ca10a25757ee",
-  "installer_distribution": "immutable-public-source-pending-canonical-Pages",
+  "installer_distribution": "qualified-immutable-public-source-and-byte-identical-canonical-website",
   "installer_public_source_commit": "0fd8da3892cdc15246ded2eb3a2786f9f9fb9d53",
   "installer_sha256": "4396008a24038ccf9318b21c54fd3ace82b375abe2521d18248247c3aae9da59",
   "installer_bytes": 8723,
@@ -25,10 +25,49 @@
   "identities_or_grants_created": 0,
   "home_overridden": false,
   "source_overlay": false,
-  "canonical_website_verification": "pending-final-Pages",
+  "canonical_website_verification": "passed",
   "finished_unix": 1792419422.768457,
   "evidence_sha256": {
     "normal_installer_receipt": "1765e8ea916d63f07efc3babaf8239b8de99ab15fbb0f8e44faedbc348a35b08",
-    "execution_quiescence": "5264697423f5990cd61bda020742c2da88e381b777fb290560dd1883e8269964"
+    "execution_quiescence": "5264697423f5990cd61bda020742c2da88e381b777fb290560dd1883e8269964",
+    "canonical_website_witness": "eaa7128e136d0bc1a08f56ea279f6de5f78ebba09ad3512c0b1fc3bd34a579ce",
+    "prior_public_source_proof": "b1ff1232c847029f24c63c62f74a923ccd05572259e7dcc199118eedb1c199c9"
+  },
+  "canonical_website_witness": {
+    "status": "passed",
+    "observed_at": "2026-10-19T14:36:31.634502+00:00",
+    "pages_run_id": "39270317932",
+    "pages_source_commit": "8124ff555cc405f1bc98df751c098f2f64a08504",
+    "canonical_url": "https://openagent.uno/install.sh",
+    "canonical_website_bytes": 8723,
+    "canonical_installer_sha256": "4396008a24038ccf9318b21c54fd3ace82b375abe2521d18248247c3aae9da59",
+    "matches_prior_public_source_installer": true,
+    "normal_public_install_already_passed": true,
+    "prior_install_receipt_sha256": "b1ff1232c847029f24c63c62f74a923ccd05572259e7dcc199118eedb1c199c9",
+    "installer_reexecuted_after_Pages": false,
+    "installed_version_smoke_reexecuted_after_Pages": false,
+    "prior_installed_versions": {
+      "server": "1.1.0b49",
+      "cli": "1.1.0b49",
+      "connectors": "0.1.11"
+    },
+    "exact_four_release_pins_verified": true,
+    "server_and_cli_distribution_pins_verified": true,
+    "anonymous_public_manifests": [
+      {
+        "tag": "v1.1.0-beta.49",
+        "bytes": 76728,
+        "sha256": "c2931a7ab65418615807e3d2ae7e5b715ab3f834c9dbc2ae1d704e4be1aa3c12",
+        "anonymous_http_status": 200
+      },
+      {
+        "tag": "connectors-v0.1.11",
+        "bytes": 1987,
+        "sha256": "6c8ebaf5d3db1c4252f6ae5c4fe8372636b4e244945ba54bf4e7ca10a25757ee",
+        "anonymous_http_status": 200
+      }
+    ],
+    "new_worker_or_install_or_build": false,
+    "provider_calls": 0
   }
 }
