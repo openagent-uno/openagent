@@ -114,7 +114,7 @@ class SDK18InstalledContract(unittest.TestCase):
                 for name, scopes in sorted(operations.items())]
 
     def test_unpublished_sdk18_cannot_pass_checksum_preflight(self):
-        pending = (("openagent-tools", "connectors-v0.1.11", None),)
+        pending = (("openagent-tools", "connectors-v0.1.12", None),)
         with self.assertRaisesRegex(ValueError, "checksum is pending"):
             recipe.require_public_checksums(pending)
         recipe.require_public_checksums((("fixture", "not-a-public-release", "a" * 64),))
