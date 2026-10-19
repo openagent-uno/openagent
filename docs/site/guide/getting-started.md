@@ -57,17 +57,17 @@ wheelhouse without installing dependencies or acquiring the native runner.
 Installing server and CLI uses the same default installation root. The
 [historical beta43 public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
 records its successful combined installation and dependency checks with default
-HOME/TMPDIR and without a source overlay. The current installer pins beta45/SDK18;
-its [fresh public-install trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom catalog with default HOME/TMPDIR.
-Installed beta45 qualification passed 210 tests and 15 React source scenarios.
+HOME/TMPDIR and without a source overlay. The current installer pins beta51/SDK0.1.12;
+its [public-source installation trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product51-public-installer-2026-10-19.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom catalog without a HOME override or source overlay. The receipt tracks canonical website byte verification separately.
+Installed beta51 qualification passed 241 tests and 15 React source groups.
 Neither boundary claims native App GUI acceptance or Windows/macOS server execution.
 
 | Pinned release manifest | SHA-256 |
 | --- | --- |
-| [Product beta45](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.45/manifest.json) | `cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c` |
+| [Product beta51](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.51/manifest.json) | `5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d` |
 | [Core beta 22](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.22/manifest.json) | `291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d` |
 | [Tools beta 4](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/manifest.json) | `20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228` |
-| [Connector SDK 0.1.8](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.8/manifest.json) | `85128fb54ae414269cfa70064bd9b0de724906770db416949e5747be97139916` |
+| [Connector SDK 0.1.12](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.12/manifest.json) | `4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9` |
 
 The product manifest also binds the unchanged Host Tools B6 wheel/bundles.
 Embedding products or custom packagers should follow the

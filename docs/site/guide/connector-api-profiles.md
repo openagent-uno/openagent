@@ -1,9 +1,9 @@
 # Shared provider API profiles
 
 ::: info Shared SDK availability
-[SDK 0.1.8](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8)
-ships 114 official connectors. The receiving server must adopt that version;
-App22/server45 is public. The [actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+[SDK 0.1.12](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.12)
+preserves 114 official connectors. Server/CLI beta51 adopts it; each receiving installation must explicitly update.
+App22 is public and its dated GUI proof remains App22/server45. The [actual Linux x64 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 verified all 114 official cards, 45 shared SVGs and a blank Postman private-token
 setup form with visible instructions/link, then cancelled without token entry.
 The 90 API profiles have two reads each; the complete catalog has 397 operations.

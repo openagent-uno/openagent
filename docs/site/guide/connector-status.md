@@ -1,7 +1,7 @@
 # Connector release and qualification status
 
 Status updated on **19 October 2026**. Current published Python components are
-**SDK/runner 0.1.11 and server/CLI beta49**, with **114 official connectors plus
+**SDK/runner 0.1.12 and server/CLI beta51**, with **114 official connectors plus
 Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
 connectors with two read tools each and read-only OneDrive/SharePoint.
 **App beta22 is public** and App22/server45/SDK18 is the visually qualified
@@ -14,15 +14,78 @@ boundary has its own evidence.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.11 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
-| Server/CLI | Beta49 public from `434b287a`, Core22/SDK 0.1.11/B6; 215 installed tests and 15 React source groups passed; two new wheels and seven exact beta48 reuses | Normal public-source installer49 passed; live website byte equality tracked separately in its receipt; Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.12 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
+| Server/CLI | Beta51 public from `1dd5c102`, Core22/SDK 0.1.12/B6; 241 installed tests and 15 React source groups passed; two new wheels and seven exact dependency reuses | Normal public-source installer51 passed; live website byte equality is tracked separately; Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta22 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App22/server45 Linux x64 marketplace, blank Postman setup and one local Exa cycle passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
-| Common authentication service | Broker `20bc4d3d`, image `cdb0e3c3`: fourteen configured profiles, Shopify restricted to two approved QA hosts; one Ready writer, health/readiness 200 and unsigned request 401 | Google data-access review/approval and required assessment; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
+| Common authentication service | Auth service 0.1.7 from `7f6856f9`, image `2f85d2a2`, generation38: fifteen configured profiles; new Shopify consents paused, existing credentials and privacy delivery retained; one Ready writer, health/readiness 200 and unsigned request 401 | Google data-access review/approval and required assessment; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
 
 ### Current Python release and the visually qualified pair
 
+[Server/CLI51](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.51) is public from `1dd5c102d5ea6bc08314d713899a9a2d269e7dd7`, retaining SDK 0.1.12, Core22, Host Tools B6 and the seven defaults. Its installed qualification passed 241 tests and fifteen React source groups; the two product wheels are new and seven dependency wheels are exact reuses. All twelve published assets matched API digests and anonymous downloads. Product manifest SHA256: `5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d`. The host now intakes authenticated privacy receipts before credential synchronization, resumes local work through a broker outage and isolates failed bindings while reporting incomplete synchronization. This qualifies the fixture regression boundary; the genuine queued receipt result is recorded separately.
+
+The normal public-source installer51 passed separate server and CLI installs,
+dependency checks, installed-prefix imports, async ORM readiness and the same
+114-entry catalog/seven defaults. Its immutable source is `4e3c134949807fe963616e169531483de2cd5411`,
+8,723 bytes/SHA256 `c40b146f5fb31ee32d772fa3300d8b870c9b68b3432d01b8815656c01a963ede`.
+It used no source overlay or HOME/TMPDIR override. Live website byte equality
+is tracked separately in the installer receipt.
+
+The separately versioned [auth service 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.7)
+is public from `7f6856f9b8c6942c54f421a3981f0add7c55ddd7`, with four assets
+verified through API digests and anonymous downloads. Its manifest SHA256 is
+`af205e64083db19f0546ed72a18468ef91f6cdf2b8a97155ddb743a3abae0f99`.
+The service-only qualification passed 96 unit and 96 race checks, vet and a
+complete image scan under the recorded HIGH/CRITICAL/secret policy. It adds
+conservative acquisition-history guards for late uninstall notifications;
+SDK/runner 0.1.12 remains unchanged. Unknown historical acquisition evidence
+stays pending rather than authorizing a guessed generation. State written with
+the new fields requires service 0.1.7 or a compatible successor; pause for
+repair instead of restoring an older image or state.
+
+The [genuine queued beta51 receipt trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/shopify-product-1.1.0b51-2026-10-19.json)
+passed on the same two preserved profiles. Each began disconnected with NULL
+credential/nonce/transaction and zero events. Normal beta51 background polling
+received exactly one authenticated v2 `app/uninstalled` receipt matching the
+genuine provider event, preserved its original occurrence/cutoff and processed
+it as `credential_revoked`. Normal signed event reads then returned no pending
+receipt; the observer sent no acknowledgements. Each real same-profile process
+restart retained the identical single durable record and empty pending queue.
+No new grant, provider call, event injection or forced duplicate was used.
+This establishes live delivery and processing, **not event-caused credential
+erasure**: those credentials had already been cleared by the earlier owner
+disconnect. Connected-credential ordering is covered by the installed SQLite
+regressions. Customer-content erasure, delayed provider obligations and general
+Shopify enrollment remain separate gates. The owned worker was removed at
+18:15:26 UTC with no live child processes or OOM; both profiles, identity keys
+and the PVC remain retained for delayed provider obligations.
+
+After that genuine beta51 receipt proof was exported, production adopted auth
+service 0.1.7 at 18:14:38 UTC, generation38/image `2f85d2a2`. The exact image-only
+CAS preserved all fifteen provider rows, secret projections, metadata volume,
+resources, security and paused Shopify enrollment. One Ready writer on the
+expected node reported zero restarts; health/readiness returned 200 and unsigned
+events 401. No provider or new-consent configuration changed. Historical
+acquisition ambiguity remains pending; this rollout does not open general
+Shopify admission or attest customer-content erasure.
+
+The following release and installer proof retains beta50 attribution.
+[Server/CLI50](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.50) is public from `c452e08438068f90d83a41d34a179fc4d79ef850`, adopting [SDK/runner 0.1.12](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.12) from `e5cbc0d933ea202ceb5bd41f3d01dd2098ccb10d`. All twelve product assets matched API digests and anonymous downloads. Product manifest SHA256: `598b000a01f0e04eeecd0ce8c6acb7ebddb79a70b5a7d087e433755d51ca3be3`; SDK manifest: `4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9`.
+
+The [beta50 qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.50/qualification.json) records 237 installed tests and fifteen React source groups, including the actual host/Core privacy-generation regression modules. A first pre-test acquisition check found a missing platform map in the prepared lock; the corrected public source retains all six qualified inner-manifest pins. That failed preparation is retained separately from the passing final qualification.
+
+The [normal public-source installer50](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product50-public-installer-2026-10-19.json) passed at 15:39:37 UTC: separate server/thin-CLI installation, both dependency checks, installed-prefix imports, async ORM readiness, the 114-entry catalog and seven defaults. Its immutable source is `974d9f25a8ed91f569fdaf1c76687fa6b9e024bc`, 8,723 bytes/SHA256 `0e6ec843616cc9e4d57beabcc514cdf965485b90448d32a1181a8d46538b7763`. No source overlay, HOME override, model/server start or provider call was used. A first private harness fetched an old manifest URL and stopped before installing the product; that failed preparation is retained separately. A later SSH timeout occurred after the passing receipt was written; a fresh read verified all stages and process quiescence without rerunning installation. Live website byte equality is recorded separately in the installer receipt.
+
+The [SDK 0.1.12 receipt](https://github.com/openagent-uno/openagent-tools/blob/4db629d118a736908e1737e17c2f7ead110f54d0/docs/connector-sdk-0.1.12-qualification.json) records canonical race/vet/vulnerability, six cross-platform bundles, actual Linux-native acquisition/Python/MCP checks, eleven verified public assets and Go Proxy/sumdb provenance. Catalog operations and scopes remain unchanged. Native privacy v2 must be explicitly requested by the host: the original occurrence time and authenticated authorization cutoff are distinct. A delayed shop redaction requires exactly one eligible verified prior uninstall; absent or ambiguous history remains durable and pending. This covers a later consent following a verified prior uninstall; an unobserved intervening acquisition requires the separate broker guard described below. Legacy delivery authenticates its fresh timestamp and exact receiver audience separately from the original provider timestamp. These contracts do not establish a provider cutover or every host's processing coverage.
+
+The [receipt-v2 broker rollout](https://github.com/openagent-uno/openagent-tools/blob/c4c728e/deploy/connector-auth/qualification-2026-10-19-shopify-v2-qa-image.json) reached generation36 at 15:44:21 UTC with the actual Ready pod running image `fcba2fa8`. All fifteen provider rows and existing secret projections, metadata volume, resources and security were preserved. The QA gate contains two current fingerprints plus the two retired fingerprints required to retain delivery history for the same two logical QA servers; only the new identities will be used for the new trial. No historical recipient was deleted or acknowledged to bypass that guard. Health/readiness returned 200 and unsigned events 401. Provider routes and general Shopify enrollment were unchanged at this checkpoint. Once v2 events exist, an older broker/state restore is not an admissible rollback.
+
+The subsequent existing-app configuration release `openagent-shared-webhooks-20261019` (version `1173066973185`) moves all four lifecycle/privacy webhook topics to the common broker. Official CLI readback matched the two-URI candidate, allowing only a subscription-order change; app identity, required/optional scopes, embedded URL and redirects were preserved. Broker generation37 pauses new Shopify starts: both approved QA identities returned the fixed HTTP503 `authorization_not_ready`, with no provider redirect.
+
+The [actual beta50 two-host trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/shopify-product-1.1.0b50-2026-10-19.json) passed normal reads, saved-version restart, natural temporary-envelope expiry, the no-surviving-copy lease and normal reauthorization/recovery. A genuine QA-store uninstall occurred at 17:11:19 UTC and was admitted at 17:11:21 UTC; the legacy receiver accepted its authenticated relay in one attempt. It also reproduced a standalone error: publication/recovery against the revoked group raised before event polling, so both beta50 native inboxes remained empty. Manual local disconnect removed credentials afterward; this is **not** event-caused credential erasure. The later qualified beta51 host correction and auth service 0.1.7 acquisition-history guard are recorded above. General Shopify admission remains paused. The QA worker was removed at 17:18:04 UTC with profiles and identity keys sealed for delayed obligations; no pending recipient was silently acknowledged.
+
+The following release and installer proof retains beta49 attribution.
 [Server/CLI49](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.49)
 is public from `434b287ac952a3ee8b69bf8727aa67d0ad74a64f`, adopting
 [SDK/runner 0.1.11](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.11)
@@ -114,28 +177,32 @@ coverage. The deployed Shopify-only broker QA gate binds two approved host
 identities and the QA store while preserving the other thirteen providers.
 At the earlier pre-consent beta48 checkpoint, both hosts reported Shopify
 available through certified SRP; only host A had started a pending transaction,
-and host B had not started one. The later result fence and current beta49
+and host B had not started one. The later result fence and the later beta49
 acceptance boundary are recorded above; Shopify is not a default. Jira now has a verified Free QA site/project.
 The signup flow automatically assigned a Standard trial, immediately downgraded
 to Free without card/payment entry. The existing private app's regenerated
-secret remained masked: the current Chrome and in-app-browser controls could not retrieve copied
-text through their clipboard path, confirmed even for the public client ID.
-The in-app-browser check did not attempt another secret copy or rotation. No value was custodied; Jira has zero actual OAuth/API
-qualification and remains disabled. Sharing beyond the app owner is separate.
+secret was transferred directly through stdin into immutable encrypted production
+custody. The additive configuration reached fifteen broker profiles with
+health/readiness 200 and unsigned requests 401, preserving the existing profiles
+and Shopify QA gate. The [private app-owner beta49 trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/jira-product-1.1.0b49-2026-10-19.json) passed all nine released operations: resources, project list/details, issue search/details/create/update and comment create/list. Explicit renewal, a real same-profile restart with the same certificate, a post-restart read and ordinary disconnect/source removal passed. Credential, nonce and transaction fields were NULL before shutdown. Only one new generated issue and comment were written; seeded issues were untouched. One user-confirmed permanent Delete showed a frontend network error. The exact issue then became unavailable in two owner-authenticated browsers, while the QA board remained accessible and its unique marker returned no results. This records UI-reconciled absence, not a captured delete HTTP status. Jira remains limited to private app-owner use. Public sharing additionally requires implemented
+[personal-data reporting](https://developer.atlassian.com/cloud/jira/platform/user-privacy-developer-guide/),
+including the oldest retained account-data timestamp, reporting-cycle handling
+and completed erasure/refresh across receiving hosts. Those capabilities are
+not implemented and their provider confirmation remains unchecked. Private
+owner QA and public distribution are separate boundaries.
 
-Beta49 retains beta47's absent-setting default: **ClickUp, GitHub, Notion, Outlook Mail,
+Beta50 retains beta47's absent-setting default: **ClickUp, GitHub, Notion, Outlook Mail,
 Outlook Calendar, OneDrive and Slack**. Google remains explicit limited-trial
 opt-in; the full eleven-ID replacement example is in
 [operations](./connector-operations.md#standalone-configuration). SharePoint is
 separate, and broker availability for Postiz does not make it a default.
-App22 is unchanged: its GUI and the seven Google/Microsoft lifecycles retain
-server45/SDK18 attribution, with no App22/server47, server48 or server49 GUI claim.
+App22 is unchanged: its GUI retains server45/SDK18 attribution, with no new App22/server50 GUI claim. The initial seven Google/Microsoft lifecycles remain server45/SDK18 evidence; the later Google4 and Outlook Calendar trials retain their separately recorded server47/SDK19 attribution.
 
 The [Slack/Postiz configuration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4b1489e6ff8c0709f42e3fb4ac97584c42cd623f/deploy/connector-auth/qualification-2026-10-19-slack-postiz-activation.json)
 records the later thirteen-profile broker, preserving the same image and earlier
 rows. Public health/readiness returned 200 and unsigned requests 401. This
 configuration-only rollout added no grant or provider call; Postiz real-account
-acceptance remains unqualified and Atlassian is not enabled. Slack Public
+acceptance remained unqualified and Atlassian was not enabled at that historical checkpoint. The later Jira activation and owner trial are recorded above. Slack Public
 Distribution is active and its historical limited lifecycle passed; no new
 beta47 Slack provider acceptance was established. The first beta47
 Postiz OAuth poll returned HTTP503 and was cancelled normally without retry.
@@ -193,7 +260,7 @@ reviewed, then uploaded unlisted. Its reviewer URL was supplied privately in
 Google’s console, where the three
 justifications were saved in Google's actual form. At 12:11:38 UTC the
 Verification Center confirmed **data access in review**. Submission is complete;
-Google approval and required CASA completion are not established.
+Google approval and required CASA completion are not established. The owner-authenticated client detail was also checked on 19 October: **Use this client for an AI-powered agent** is already selected (`is_agentic = true`). This is a Google OAuth client classification, not an additional authorization URL parameter; no credentials or scopes were changed. It does not replace sensitive/restricted-scope verification. The current Google adapters still call the typed REST APIs; this classification does not add the Google Workspace remote MCP transport. A fresh owner-console check at 16:54 UTC confirmed the submission is still in review, with homepage and branding completed and five data-access steps in progress. The console reports no additional operator action at this checkpoint; its review window is a provider estimate, not a promised approval date. The [current registration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/cecbb4b/deploy/connector-auth/registrations/google.json) preserves the earlier preparation separately.
 
 The following beta46 evidence retains its actual version and counts.
 
@@ -632,6 +699,14 @@ quota. The bounded four-client burst had p95 latency 299 ms and no unexpected
 responses. This is bootstrap admission evidence; provider exchange, rotation
 and privacy backlog load remain separate qualification.
 
+## Same-app Shopify issuer handoff
+
+General Shopify enrollment is still closed. The existing approved app is being reused; another app registration or provider review is not the missing step. A receiving host that still obtains or refreshes the same app/shop credentials directly can invalidate the broker-coordinated pair. An authenticated legacy webhook relay does not coordinate those token operations.
+
+The handoff must preserve the emitting app and existing scopes, fence every direct acquisition and renewal path for that exact app, drain in-flight operations and require explicit reconnection through the common broker. A valid stored token can still serve permitted local reads until expiry. There is no public legacy-token import contract: do not relabel a stored pair, forge an authorization generation or silently drop previously granted scopes. Independent app registrations remain available.
+
+A native host also needs a durable encrypted version-two receipt intake and the authenticated cutoff/uninstall pair before it can advertise that capability. Merely upgrading the Go dependency or enabling a provider name is insufficient. New native admission stays off until that host implementation, migration and real deployment are qualified.
+
 ## Remaining implementation and activation gates
 
 1. Extend and qualify privacy coverage for each receiving host's enabled
@@ -648,20 +723,22 @@ and privacy backlog load remain separate qualification.
    lifecycles recorded above, including the historical Google Testing boundary. Google data-access verification, the required
    data-access review/approval and the required security assessment,
    eligible-account SharePoint acceptance and untested operations remain pending,
-   alongside Shopify genuine callback/general-rollout, natural envelope expiry
-   and no-surviving-copy recovery boundaries for the already approved existing
-   app, plus Postiz API acceptance. No additional provider
+   alongside Shopify native receipt processing/general rollout and delayed privacy
+   obligations for the already approved existing app, plus Postiz API acceptance.
+   The dated beta50 trial already covers natural envelope expiry and
+   no-surviving-copy recovery; its genuine callback exposed the host ordering
+   defect recorded above. No additional provider
    app review is inferred for either.
    Each product must qualify its own cancel, read, authorized write, renewal,
    restart and local disconnection; these trials do not attest every operation.
-4. Activate the central Shopify webhook path only after the legacy compatibility
-   delivery and each product's local privacy processing are tested, including
-   duplicate notifications and offline recipients.
-5. Extend the bounded two-server Shopify trial: qualify natural envelope expiry,
-   recovery with no surviving copy and genuine provider delivery/cutover. The
-   completed controlled lost-mail/restart and synthetic privacy cases above do
-   not replace these gates. Coordinate remaining legacy app-token issuers during
-   the transition.
+4. Preserve the completed central webhook cutover and authenticated legacy
+   receiver acceptance. Qualify each receiving product's native durable intake
+   and privacy processing, including duplicate notifications and offline
+   recipients; an HTTP acknowledgement alone does not establish data erasure.
+5. Preserve the qualified beta51 ordering correction, auth service 0.1.7 late
+   uninstall guard, dated beta50 recovery results and genuine queued receipt
+   trial. Coordinate remaining legacy app-token issuers and qualify cache
+   generation boundaries before general enrollment.
 6. Preserve the completed Linux x64 App beta 20/server 43 marketplace
    and five local keyless-control cycles. Qualify remaining native GUI platforms,
    sandbox security and native App provider operations independently. Keep SDK-only reads, beta 41 and beta 43 provider workflows, and each normal

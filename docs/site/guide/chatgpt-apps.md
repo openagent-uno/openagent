@@ -6,8 +6,8 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-The latest shared component is [SDK19](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9),
-with **114 official connectors plus Custom MCP**. [Server/CLI47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
+The current shared component is [SDK/runner 0.1.12](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.12),
+with **114 official connectors plus Custom MCP**. [Server/CLI51](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.51)
 adopts it with seven default common profiles; Google remains explicit opt-in,
 published with verified Branding, data access now in review and an observed
 100-user unverified-app cap; approval and required assessment remain incomplete.
@@ -18,7 +18,7 @@ full ChatGPT app parity. Provider token permissions and Google/Microsoft OAuth
 activation retain independent gates. [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
 is public; its [actual server45/SDK18 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 records 114 official cards, 30 registry results, 45 shared SVGs/12 bundled marks and
-ten reviewed screenshots, with zero provider/model calls. It is not a beta47 GUI or
+ten reviewed screenshots, with zero provider/model calls. It is not a beta51 GUI or
 OAuth-operation trial. The App21/server44/SDK17 receipt below remains historical.
 
 Separate normal server47/SDK19 provider trials now record the bounded

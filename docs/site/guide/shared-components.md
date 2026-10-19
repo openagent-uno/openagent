@@ -27,31 +27,14 @@ or a successful OAuth connection does not establish those application features.
 | OAuth app exchange, secret-dependent renewal and Shopify coordination | Separately deployed `connector-auth` | Explicitly configured receiving installations |
 | Accounts, tenants, grants, credential storage, audit, local privacy actions and UI | Each product | Its own installation and users |
 
-Current published Python components are **server/CLI beta45, Core beta22,
-connector SDK/runner 0.1.8 and Host Tools 1.0.0b6**, with **114 official connectors
-plus Custom MCP**. [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8)
-adds 90 manual-token profiles with two specific reads each, plus read-only
-OneDrive/SharePoint with server-verified account/site/drive bindings. Vendor
-permissions remain setup requirements enforced by each provider. Token connections
-do not attest OAuth scopes or promise automatic token renewal. Code and
-documented-response fixtures do not establish real-account acceptance.
+Current published product components are **server/CLI beta51, Core beta22 and Host Tools 1.0.0b6**. Independently published **connector SDK/runner 0.1.12** preserves **114 official connectors plus Custom MCP**, with 315 reads and 82 actions. A host must explicitly adopt and qualify a new component; publishing the SDK does not update an installed server.
 
-Go hosts pin
-`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.8`. The module
-Git tag is `packages/connectors/v0.1.8`; the independently versioned runner
-release is `connectors-v0.1.8`. [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
-adopts this public closure. Each host pins and qualifies its own credential
-storage, scope policy and deployment; component publication never updates an
-installation silently or establishes data-processing coverage.
+The 90 manual-token profiles introduced in SDK 0.1.8 have two specific reads each. OneDrive/SharePoint remain read-only with server-verified account/site/drive bindings. Vendor permissions are setup requirements enforced by each provider. Token connections do not attest OAuth scopes or promise automatic token renewal. Code and documented-response fixtures do not establish real-account acceptance.
 
-**App21 remains public; App22 publication and actual GUI qualification are
-pending.** The visually qualified pair is App21/server44/SDK17, with 22 official
-entries, 30 real registry results and 12 local marks. Its [actual Linux x64
-marketplace receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
-retains the original scope. Earlier [SDK17 qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json),
-[server44 installed qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json)
-and [public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json)
-remain historical; they do not qualify App22 or the new 114-entry GUI.
+Go hosts can pin
+`github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.12`. The module Git tag is `packages/connectors/v0.1.12`; the independently versioned runner release is [connectors-v0.1.12](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.12). Public [server/CLI51](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.51) explicitly adopts SDK 0.1.12 and native Shopify receipt v2. Each host qualifies its credential storage, scope policy, receipt capabilities and deployment; component publication never attests data-processing coverage.
+
+**App beta22 is public.** Its [actual Linux x64 App22/server45 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json) verified 114 official entries, 30 registry results, shared marks and blank token setup. This is the dated GUI boundary; it is not a claim about a newer server pair or every provider. Earlier App21/server44 and SDK 0.1.7 receipts below retain their original versions and counts.
 
 The Calendar/mail adapters introduced in SDK17 bind each account to its own local connection. Google sync
 checkpoints and Graph page cursors do not become shared application state:
@@ -75,21 +58,21 @@ receipts. [App beta 19/server 42](https://github.com/openagent-uno/openagent/blo
 and [App beta 18/server 40](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json)
 retain their original counts, screenshots and failures.
 
-The separately deployed [auth-only 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
-service includes the reviewed Slack refresh correction recorded in
-[release status](./connector-status.md). Its 17 October configuration rollout
-opened only ClickUp/GitHub/Notion as a limited beta, creating no new grant.
+The independently published [auth-only 0.1.7](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.7)
+service adds conservative Shopify acquisition-history guards; it does not publish
+a new SDK or runner. Its source is `7f6856f9`, with 96 unit and 96 race checks,
+vet and the recorded image scan passing. The earlier 0.1.6 service's Slack
+refresh correction remains in the release history. Publication and production
+image adoption are separate checkpoints in [release status](./connector-status.md).
 Each receiving host authorizes local access and every OAuth connection requires
-provider consent. Other providers retain their activation gates.
+provider consent. Provider and general-enrollment gates remain independent.
 
 A keyless connector still has an authorized connection and tool source. Only a
 reviewed no-auth adapter accepts explicit `{"kind":"none"}`; an omitted token
 never downgrades another provider. Fixed endpoints and tools remain in the
 adapter; owner/tenant grants, storage, enable/disable, disconnection and audit
 remain with the host. No provider token, refresh or broker exchange is needed.
-Server 43 defaults to ClickUp/GitHub/Notion catalog eligibility only when both
-operator settings are absent. Explicit empty settings stay disabled and no
-default creates a grant or automatic broker registration. Fresh keyless-only
+Current server defaults are ClickUp, GitHub, Notion, Outlook Mail/Calendar, OneDrive and Slack only when both operator settings are absent. Historical server43 defaulted to three profiles. Explicit empty settings stay disabled and no default creates a grant or automatic broker registration. Fresh keyless-only
 servers do not poll the broker. See [configuration precedence](./connector-operations.md#standalone-configuration).
 
 Existing catalog IDs and tool names are preserved. Adding a shared adapter
@@ -181,6 +164,9 @@ tenant and permitted result audience. In embedded host products, existing
 membership, connection/installation identity, project scope and agent grants
 remain authoritative. Sharing code never merges those permission systems.
 
+Catalog visibility and usable host integration are separate. OneDrive/SharePoint also require authenticated account discovery and verified site/drive selection in the receiving host. A provider allowlist cannot replace those routes or their account-change guards. Hosts must retain an unavailable state until those bindings are implemented and qualified; accepting arbitrary model-supplied identifiers or a generic token bypass is not a substitute.
+
+
 Normal Gmail, Drive, task, shop and other provider requests originate from the
 receiving product server. The broker performs confidential authentication
 exchanges and a minimal Shopify shop-identity check. It does not proxy normal
@@ -249,17 +235,40 @@ Privacy and uninstall notifications enter a durable queue with verification,
 deduplication, acknowledgments and retry. Products perform their own export and
 redaction. Acknowledging durable receipt is not proof that local privacy work
 has finished. The compatibility outbox can relay notifications to a legacy
-host processor during migration, but that relay has not been activated
-in production. Standalone beta 39 qualifies an opt-in worker for a fresh
+host processor during migration. The existing approved app's four routes were
+cut over on 19 October; the genuine QA uninstall received one acknowledged
+legacy delivery. That acknowledgement does not attest native processing or
+complete erasure. Standalone beta 39 qualified an opt-in worker for a fresh
 canonical text-history cohort; historical content and other enabled storage
 surfaces still require qualification. Common Shopify enrollment remains
 disabled. See [release gates](./connector-status.md).
+
+### Authenticated privacy generations
+
+SDK 0.1.12 introduces an explicit version-two receipt contract. A receiving host must request `receipt_version=2` at Shopify authorization and event polling; updating the runner alone does not claim host support. The receipt retains the original provider occurrence time and a separately authenticated authorization cutoff. A delayed `shop/redact` is bound to an eligible verified prior uninstall only when that history identifies exactly one candidate. Missing or ambiguous history remains durable and pending; neither the local receive time nor a guessed ordering can authorize erasure.
+
+The host must use the authenticated cutoff for credential revocation and its local content-generation fence, preserving a later new consent. It saves the complete encrypted receipt before acknowledging delivery and validates duplicates against that receipt. An old host requesting version one cannot receive and acknowledge a redaction it cannot process safely. Legacy full receipts without the new authenticated metadata stay blocked; they are not silently upgraded.
+
+A compatibility relay authenticates its fresh delivery time, exact configured receiving URL, topic, provider webhook identity/version and body digest, while retaining the immutable original occurrence time and provider body HMAC. A receiving product must independently qualify that relay and its local data processing. Once version-two events are persisted, an older broker that ignores their cutoff is not a safe rollback: keep the compatible broker and pause new consents while correcting routes or configuration.
+
+Auth service 0.1.7 also records successful authorization acquisition separately
+from refresh. A verified uninstall that may predate an unobserved or uncertain
+acquisition stays durable and pending; it cannot revoke a provably newer grant
+or be relayed as if its generation were established. Historical groups without
+that acquisition evidence are not backfilled by guessing. After the new durable
+fields are written, keep service 0.1.7 or a compatible successor paused for
+repair; an earlier broker or old-state restore is not a valid downgrade.
+
+These are published protocol and implementation contracts. Their deployed image, receiving product and actual provider cutover remain separately recorded in [release status](./connector-status.md).
 
 Existing credentials keep their issuing OAuth app. They are not silently
 reassigned. Shopify can retire credentials during a later acquisition or
 migration, so the rollout must coordinate remaining legacy token issuers and
 recipient reconnection; old tokens are not promised indefinite validity.
 See [Shopify's migration requirements](https://shopify.dev/docs/apps/build/authentication-authorization/migrate-to-expiring-offline-access-tokens).
+
+A receiving product must fence all direct token acquisition and renewal paths for the exact app before handing issuance to the broker, including embedded session exchange, pending callbacks and background refresh. Drain in-flight work before activation. Keep other app registrations and existing grants distinct; never infer the emitting app from a matching catalog ID. Native adoption also requires durable storage of the full v2 receipt and its original cutoff/pair. Until both transitions are qualified, keep new shared-app admissions paused; the compatibility webhook relay alone does not establish that handoff.
+
 
 ## Privacy processing still required
 
