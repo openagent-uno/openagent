@@ -42,5 +42,25 @@
       "bytes": 4075,
       "sha256": "3eed8e7dfff53f35abb55ffbed40cc95e81c4af515b50bd5325866b2a4b8d25f"
     }
+  },
+  "platforms": {
+    "linux-arm64": {
+      "manifest_sha256": "3e71532a82e8be14d667c6a1037896a65484d0b193d0f25ca2ed9f4948530b17"
+    },
+    "win32-arm64": {
+      "manifest_sha256": "a866df9718b58a60a91dd3d03fffb8749f91a4ffa3744db9bc23a55210321abe"
+    },
+    "darwin-arm64": {
+      "manifest_sha256": "bd8384ed956ee1c050e26df107c1cb732087d7b439136fcb4be17a1035df97ac"
+    },
+    "darwin-x64": {
+      "manifest_sha256": "bf0ef7fd4eeed930cdd98901f95d88607b2f894104947b339cad81fd0b2b1ffd"
+    },
+    "linux-x64": {
+      "manifest_sha256": "a61ca8b03700ef90c7f43fe6c2623cae63e5b08f466af8d5ac606730d2bc2d3b"
+    },
+    "win32-x64": {
+      "manifest_sha256": "262e1225b14dcc7350d81bc61e7691c0ad61c8e7c607800ae79f9a508e5f8a24"
+    }
   }
 }
