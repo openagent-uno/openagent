@@ -14,7 +14,7 @@ resolution-markers = [
 constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.22/openagent_capability_host-1.0.0b1-py3-none-any.whl" },
     { name = "openagent-client-transport", url = "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_client_transport-1.1.0b39-py3-none-any.whl" },
-    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.10/openagent_connectors-0.1.10-py3-none-any.whl" },
+    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.11/openagent_connectors-0.1.11-py3-none-any.whl" },
     { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.22/openagent_core-1.1.0b22-py3-none-any.whl" },
     { name = "openagent-dashboards", url = "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_dashboards-1.1.0b39-py3-none-any.whl" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_device_tools-1.0.0b4-py3-none-any.whl" },
@@ -1788,13 +1788,13 @@ requires-dist = [
 
 [[package]]
 name = "openagent-connectors"
-version = "0.1.10"
-source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.10/openagent_connectors-0.1.10-py3-none-any.whl" }
+version = "0.1.11"
+source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.11/openagent_connectors-0.1.11-py3-none-any.whl" }
 dependencies = [
     { name = "openagent-tool-protocol" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.10/openagent_connectors-0.1.10-py3-none-any.whl", hash = "sha256:7d3c278289c23a18af7cabed40da87c58b738c840241b0f8800c51c8528f387c" },
+    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.11/openagent_connectors-0.1.11-py3-none-any.whl", hash = "sha256:057681910a8c6bfd20076d735de3497a73a53948f0bb96367f59cff811d771e6" },
 ]
 
 [package.metadata]
@@ -1933,7 +1933,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b1" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.0b48"
+version = "1.1.0b49"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2036,7 +2036,7 @@ requires-dist = [
     { name = "mcp", extras = ["cli"], specifier = ">=1.0.0,<2" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "openagent-client-transport", specifier = "==1.1.0b39" },
-    { name = "openagent-connectors", specifier = "==0.1.10" },
+    { name = "openagent-connectors", specifier = "==0.1.11" },
     { name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b22" },
     { name = "openagent-dashboards", specifier = "==1.1.0b39" },
     { name = "openagent-execution", specifier = "==1.0.0b2" },
