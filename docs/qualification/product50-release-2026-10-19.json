@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "status": "passed-public-release-and-normal-public-source-install",
+  "product_version": "1.1.0b50",
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.50",
+  "release_id": 417463944,
+  "published_at": "2026-10-19T15:35:05Z",
+  "product_source": "c452e08438068f90d83a41d34a179fc4d79ef850",
+  "product_manifest_sha256": "598b000a01f0e04eeecd0ce8c6acb7ebddb79a70b5a7d087e433755d51ca3be3",
+  "qualification_sha256": "ab5e3113467e29f44619b28e7ecbc6e08d5e0221bcdf3dfa4905f7e7f1961384",
+  "sdk_version": "0.1.12",
+  "sdk_source": "e5cbc0d933ea202ceb5bd41f3d01dd2098ccb10d",
+  "sdk_manifest_sha256": "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9",
+  "core_version": "1.1.0b22",
+  "host_tools_version": "1.0.0b6",
+  "app_version_unchanged": "1.1.0-beta.22",
+  "checks": {
+    "installed_python_tests": 237,
+    "react_source_scenario_groups": 15,
+    "public_api_assets_verified": 12,
+    "anonymous_download_assets_verified": 12,
+    "new_wheels": 2,
+    "byte_identical_reused_wheels": 7,
+    "reused_source_files": 109,
+    "official_connectors": 114,
+    "custom_mcp": 1,
+    "read_operations": 315,
+    "action_operations": 82,
+    "default_common_providers": 7,
+    "real_core_delayed_redaction_regressions_installed": true,
+    "normal_server_and_separate_cli_install": true,
+    "pip_check_both": true,
+    "source_overlay": false,
+    "home_override": false
+  },
+  "installer": {
+    "installer_public_source_commit": "974d9f25a8ed91f569fdaf1c76687fa6b9e024bc",
+    "installer_sha256": "0e6ec843616cc9e4d57beabcc514cdf965485b90448d32a1181a8d46538b7763",
+    "installer_bytes": 8723,
+    "installer_distribution": "immutable-public-source-pending-canonical-Pages",
+    "canonical_website_verification": "pending-final-Pages"
+  },
+  "limits": {
+    "qualification_platform": "linux-x64",
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "native_app_rebuilt": false,
+    "new_gui_acceptance": false,
+    "live_shopify_privacy_acceptance": false
+  },
+  "evidence_sha256": {
+    "canonical_execution": "0051f86b3add4f085632483e6e631b63b01b2a4adbd104ae38d990c5e1050566",
+    "anonymous_download_receipt": "cb50f0b83cc9905202d118ea9350c2eebf8767837f156b4956c293b7e71041ce",
+    "normal_public_installer": "f2a343d6c35c6a0d418edf93780162a3ded35e22c3281a586021e24fe24146c5"
+  }
+}
