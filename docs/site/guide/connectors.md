@@ -7,12 +7,13 @@ from `0049bfd95cf722784c835897ce6175a6690a1bc1`; its installed qualification pas
 210 installed tests and 15 separate React component source scenarios. The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) also passed. The new SDK adds 90 token-based connectors
 with two read tools each, plus read-only OneDrive and SharePoint.
 
-**App beta21 remains the published App.** The visually qualified pair below is
-App21/server44/SDK17: 22 official entries and 30 real registry results in one
-grid, 12 loaded local marks and five local keyless control cycles. App22/server45
-publication and actual GUI qualification are pending; the existing screenshots
-are not evidence of the new 114-entry marketplace. Mac/Windows marketplace GUI
-and hosted sandbox security remain separate.
+**App beta22 is public.** The [App22/server45/SDK18 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+passed ordinary UI/SRP, device certification and native Iroh: 114 official entries
+and 30 registry results in one grid, 45 shared SVG marks and 12 bundled marks.
+Ten actual screenshots passed visual review. Postman setup stayed blank and was
+cancelled; one Exa local connect/disable/re-enable/disconnect cycle made no
+provider calls. Mac/Windows marketplace GUI and hosted sandbox security remain
+separate. Historical App21/server44 screenshots keep their original scope.
 
 Common OAuth enrollment remains a limited public beta for ClickUp, GitHub and
 Notion. Every connection needs local authorization and provider consent.
@@ -43,9 +44,10 @@ Use a dedicated API/access token authorized for those reads. The receiving
 server encrypts it locally; the provider checks its real permissions. These
 connections do not fabricate OAuth grants or promise automatic token renewal.
 Documented response fixtures and installed tests qualify the implementation;
-no real-account acceptance is claimed for all 90 providers. App22 adds the
-shared setup guidance and 45 shared provider marks, but its public native
-release and actual GUI checks remain pending.
+no real-account acceptance is claimed for all 90 providers. Public App22 adds
+the shared setup guidance and 45 shared provider marks. Its [actual Linux x64
+GUI trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json) verified the cards, marks and blank Postman token form
+without entering a token or calling a provider.
 
 OneDrive has five read tools for existing drives, file metadata, folder items
 and bounded file contents. SharePoint has seven, adding site search/details and
@@ -84,7 +86,7 @@ code, packages and isolated protocol fixtures. Real Google/Microsoft OAuth and
 provider operations remain pending, and common enrollment for these providers
 is closed. [Server/CLI44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 with 22 entries and [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call.
-[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed; the current screenshots show App21/server44, with historical App20/server43 evidence retained below.
+[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. These versioned historical receipts remain below the current App22/server45 screenshots.
 
 After a receiving host adopts and qualifies SDK17 and an operator configures an
 approved OAuth app, each account uses a separate connection through the same
@@ -169,6 +171,41 @@ be broader; a local read-only choice does not rewrite the provider's grant.
 A token connection being saved as Connected does not prove a successful
 provider API call; verify access with an appropriate authorized operation.
 
+### App22/server45 marketplace
+
+![App22/server45: provider and registry cards in one grid](/connectors/app22-server45-marketplace-top.png)
+
+![App22/server45: more connector cards and shared marks](/connectors/app22-server45-marketplace-scroll.png)
+
+![Supabase card](/connectors/app22-server45-supabase-visible.png)
+
+![Canva card](/connectors/app22-server45-canva-visible.png)
+
+![Postman card](/connectors/app22-server45-postman-visible.png)
+
+![Postman blank private API-token setup and provider instructions](/connectors/app22-server45-postman-token-setup.png)
+
+![Google Calendar unavailable until OAuth is configured](/connectors/app22-server45-google-calendar-visible.png)
+
+![Outlook Mail and Calendar unavailable until OAuth is configured](/connectors/app22-server45-outlook-mail-visible.png)
+
+![Exa local connection controls](/connectors/app22-server45-exa-connected.png)
+
+The [App22/server45 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json) binds all ten original captures, including
+[Outlook Calendar](/connectors/app22-server45-outlook-calendar-visible.png), which
+shares the same viewport as Outlook Mail. The public Linux x64 package used the
+normal public installer, ordinary Join/SRP, device certificate and native Iroh.
+The grid contained 114 official connectors and 30 real registry entries, with
+no official tab, label or divider. All 45 shared SVGs and 12 bundled marks passed
+load checks and visual review. Postman setup remained blank and was cancelled;
+Exa passed one local connect, disable/re-enable and disconnect cycle.
+Google Calendar, Outlook Mail/Calendar, OneDrive and SharePoint were unavailable
+by default. No provider call, model turn, token entry or OAuth grant occurred.
+Exact owned-process, staging and worker cleanup passed. Hosted `--no-sandbox`
+does not qualify sandbox security or Mac/Windows marketplace GUI.
+
+::: details Historical App21/server44 screenshots and scope
+
 ![App21/server44 shared marketplace grid](/connectors/app21-server44-marketplace-top.png)
 
 ![App21/server44 registry and provider cards](/connectors/app21-server44-marketplace-scroll.png)
@@ -188,6 +225,8 @@ provider API call; verify access with an appropriate authorized operation.
 ![Outlook Mail and Outlook Calendar cards and local marks](/connectors/app21-server44-outlook-mail-visible.png)
 
 These actual Linux x64 App21/server44 screenshots use ordinary UI/SRP, device certification and native Iroh. The catalog contains 22 official entries and 30 real registry results in one grid, without an official tab, label or divider; 12 local marks passed load/DOM checks. Five keyless providers passed local Connect, disable/re-enable and disconnect without provider calls or model turns. Three additional image files target Calendar/Outlook in two unique views; the [Outlook Calendar capture](/connectors/app21-server44-outlook-calendar-visible.png) is byte-identical to the Outlook Mail view because both cards are fully visible together. The [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) receipt records hashes, visual review and exact owned cleanup. Hosted `--no-sandbox` does not qualify sandbox security, Mac/Windows GUI or real Google/Microsoft access.
+
+:::
 
 ::: details Historical App20/server43 screenshots and scope
 
@@ -308,7 +347,7 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 
 | Service | Setup details |
 | --- | --- |
-| 90 provider API profiles | Dedicated authorized API/access token; two read tools per provider; local encrypted storage and provider permission checks; new App22 setup/GUI remains pending |
+| 90 provider API profiles | Dedicated authorized API/access token; two read tools per provider; local encrypted storage and provider permission checks. App22 Linux x64 cards and blank Postman setup passed; live provider access requires its own authorized trial |
 | OneDrive, SharePoint | Authorized Microsoft OAuth app and account consent, followed by server-verified drive/site selection; common enrollment and real-provider qualification remain pending |
 | Exa, Firecrawl, Parallel Search, Context7, CoinGecko | Keyless since server/CLI43 and App20; Linux x64 local controls passed; no account, key, OAuth consent or refresh; anonymous quotas and per-tool qualification limits apply |
 | Google Drive, Gmail, Google Analytics | Provider consent through the configured Google app; Google Analytics needs an accessible GA4 property |

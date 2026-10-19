@@ -1,12 +1,12 @@
 # Connector release and qualification status
 
-Status updated on **18 October 2026**. Current published Python components are
+Status updated on **19 October 2026**. Current published Python components are
 **SDK/runner 0.1.8 and server/CLI beta45**, with **114 official connectors plus
 Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
 connectors with two read tools each and read-only OneDrive/SharePoint.
-**App beta21 remains the published App**; App22 publication and actual GUI
-qualification are pending. App21/server44/SDK17 remain the visually qualified
-pair with 22 official entries and the immutable receipts below. A card,
+**App beta22 is public** and App22/server45/SDK18 is the visually qualified
+Linux x64 pair: 114 official cards and 30 registry results, with ten reviewed
+screenshots. Historical App21/server44 receipts remain unchanged below. A card,
 component release or health check does not establish provider access; each
 boundary has its own evidence.
 
@@ -17,7 +17,7 @@ boundary has its own evidence.
 | Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; Google/Microsoft real OAuth and API acceptance; native execution on every target |
 | Server/CLI | Beta45 public from `0049bfd9`, Core22/SDK0.1.8/B6; 210 installed tests, 15 separate React component source scenarios and the normal public installer45 passed | Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
-| Standalone App | Beta 21 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App21/server44 Linux x64 marketplace/local controls passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
+| Standalone App | Beta22 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App22/server45 Linux x64 marketplace, blank Postman setup and one local Exa cycle passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
 | Common authentication service | Reviewed `e2d33367` deployment; ClickUp/GitHub/Notion limited public beta, health/readiness and receiving-installation disclosure checks | Every new consent, further provider activation and loaded capacity qualification |
 
@@ -30,7 +30,7 @@ and its 114 official entries plus Custom MCP. Its public release manifest is
 `cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c`.
 The installed qualification passed 210 installed tests and 15 separate React component source scenarios. These are
 installed implementation fixtures, not new real-account provider trials.
-The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom installed catalog. It started no server/model and made no provider calls. App22 publication/GUI remains pending; no App21 screenshot is relabeled as App22/server45 evidence.
+The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom installed catalog. It started no server/model and made no provider calls. [App22 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22), with its [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-native-release-2026-10-18.json) and a separate [App22/server45 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json). The GUI trial loaded 114 official cards and 30 registry results, verified 45 shared SVGs and 12 bundled marks, and produced ten visually reviewed screenshots. Blank Postman setup was cancelled, and one Exa local cycle completed. Google/Microsoft remained unavailable by default. Provider/model calls and new OAuth grants were zero; exact owned cleanup passed.
 
 The 90 manual-token profiles expose two compiled reads each. Vendor permissions
 remain setup requirements enforced by the provider; an API token does not
@@ -157,7 +157,7 @@ and the [versioned SDK contract and limits](https://github.com/openagent-uno/ope
 
 ## What the tests establish
 
-The current SDK18/server45 boundary and the App21/server44 visual boundary are listed above.
+The current SDK18/server45 and App22/server45 Linux x64 visual boundaries are listed above; App21/server44 evidence remains historical.
 The following detailed trials are historical; their exact versions, original
 failures, provider gates and renderer-reload limitations remain unchanged.
 

@@ -4,7 +4,7 @@ OpenAgent can be used as the complete standalone product or embedded as a
 library. Current Python releases are **server/CLI v1.1.0-beta.45**, Core beta22,
 connector SDK/runner 0.1.8 and Host Tools 1.0.0b6: 114 official connectors plus
 Custom MCP, including 90 token profiles with two reads each. Desktop **App
-v1.1.0-beta.21** remains public; App22 publication and actual GUI checks are pending.
+v1.1.0-beta.22** is public, with an actual Linux x64 marketplace trial against server45.
 See [downloads](../downloads) and [qualification status](./connector-status.md)
 for the independently recorded installation, provider, packaging and GUI boundaries.
 
@@ -13,14 +13,16 @@ for the independently recorded installation, provider, packaging and GUI boundar
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your operating system and CPU, launch OpenAgent, and
-connect it to an existing standalone server. [App21](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
+connect it to an existing standalone server. [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
 has six qualified native targets and 36 verified assets; both macOS builds are
-signed and notarized. Its [Linux x64 App21/server44 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json)
-loaded 22 official connectors and 30 registry results in one grid, with five
-local keyless control cycles and no provider calls. These screenshots and
-receipts retain their original version scope, rather than qualifying the new
-114-entry App22/server45 GUI. Hosted Electron used `--no-sandbox`; this does not
-establish sandbox security or Mac/Windows marketplace GUI.
+signed and notarized. Its [Linux x64 App22/server45 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+loaded 114 official connectors and 30 registry results in one grid, verified
+45 shared SVGs and 12 bundled marks, and captured ten reviewed screenshots.
+Postman token setup stayed blank and was cancelled; one Exa local control cycle
+completed. No provider call, model turn or new OAuth grant occurred. Google and
+Microsoft common enrollment remained off. Historical App21/server44 receipts
+and images retain their original versions. Hosted Electron used `--no-sandbox`;
+this does not establish sandbox security or Mac/Windows marketplace GUI.
 The app registers dashboard and local-computer capabilities only for its
 authenticated device turns; Telegram, scheduled work and other clients do not inherit them.
 
