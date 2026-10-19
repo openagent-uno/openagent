@@ -1,0 +1,61 @@
+{
+  "format": 1,
+  "status": "passed-public-release-and-normal-public-source-install",
+  "product_version": "1.1.0b51",
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.51",
+  "release_id": 417584337,
+  "published_at": "2026-10-19T17:58:51Z",
+  "product_source": "1dd5c102d5ea6bc08314d713899a9a2d269e7dd7",
+  "product_manifest_sha256": "5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d",
+  "qualification_sha256": "f8a9e59ca6842eb1ffc1bd1166fdfc7e52893fc9e00e733d6ca3b50adddeb1f7",
+  "sdk_version": "0.1.12",
+  "sdk_source": "e5cbc0d933ea202ceb5bd41f3d01dd2098ccb10d",
+  "sdk_manifest_sha256": "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9",
+  "core_version": "1.1.0b22",
+  "host_tools_version": "1.0.0b6",
+  "app_version_unchanged": "1.1.0-beta.22",
+  "checks": {
+    "installed_python_tests": 241,
+    "react_source_scenario_groups": 15,
+    "public_api_assets_verified": 12,
+    "anonymous_download_assets_verified": 12,
+    "new_wheels": 2,
+    "byte_identical_reused_wheels": 7,
+    "reused_source_files": 109,
+    "official_connectors": 114,
+    "custom_mcp": 1,
+    "read_operations": 315,
+    "action_operations": 82,
+    "default_common_providers": 7,
+    "real_core_delayed_redaction_regressions_installed": true,
+    "normal_server_and_separate_cli_install": true,
+    "pip_check_both": true,
+    "source_overlay": false,
+    "home_override": false,
+    "source_files": 559,
+    "privacy_before_publication_regressions_installed": true,
+    "per_binding_failures_observable_after_healthy_bindings_attempted": true
+  },
+  "installer": {
+    "installer_public_source_commit": "4e3c134949807fe963616e169531483de2cd5411",
+    "installer_sha256": "c40b146f5fb31ee32d772fa3300d8b870c9b68b3432d01b8815656c01a963ede",
+    "installer_bytes": 8723,
+    "installer_distribution": "immutable-public-source-pending-canonical-Pages",
+    "canonical_website_verification": "pending-final-Pages"
+  },
+  "limits": {
+    "qualification_platform": "linux-x64",
+    "real_provider_calls": 0,
+    "new_provider_grants": 0,
+    "native_app_rebuilt": false,
+    "new_gui_acceptance": false,
+    "live_shopify_privacy_acceptance": false,
+    "live_evidence_separate": "shopify-product-1.1.0b51-2026-10-19.json"
+  },
+  "evidence_sha256": {
+    "public_download_receipt": "3194b383ee789c0cea7ab27c22ef77eae3099f0a06f67b424c73e1394cf79084",
+    "normal_public_installer": "0ce62b3bd11292a000f746065918eee43243bd093b94d79416f4ceaeda384786",
+    "qualification": "f8a9e59ca6842eb1ffc1bd1166fdfc7e52893fc9e00e733d6ca3b50adddeb1f7"
+  },
+  "qualification_url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.51/qualification.json"
+}

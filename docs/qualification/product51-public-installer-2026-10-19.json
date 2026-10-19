@@ -1,0 +1,38 @@
+{
+  "format": 1,
+  "status": "passed",
+  "product_version": "1.1.0b51",
+  "product_source": "1dd5c102d5ea6bc08314d713899a9a2d269e7dd7",
+  "sdk_version": "0.1.12",
+  "sdk_source": "e5cbc0d933ea202ceb5bd41f3d01dd2098ccb10d",
+  "product_manifest_sha256": "5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d",
+  "sdk_manifest_sha256": "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9",
+  "installer_distribution": "immutable-public-source-pending-canonical-Pages",
+  "installer_public_source_commit": "4e3c134949807fe963616e169531483de2cd5411",
+  "installer_sha256": "c40b146f5fb31ee32d772fa3300d8b870c9b68b3432d01b8815656c01a963ede",
+  "installer_bytes": 8723,
+  "normal_server_and_separate_cli_install": true,
+  "pip_check_both": true,
+  "installed_prefix_imports": true,
+  "official_connectors": 114,
+  "read_operations": 315,
+  "action_operations": 82,
+  "default_common_providers": 7,
+  "core_version": "1.1.0b22",
+  "host_tools_version": "1.0.0b6",
+  "server_model_or_provider_started": false,
+  "provider_calls": 0,
+  "identities_or_grants_created": 0,
+  "home_overridden": false,
+  "source_overlay": false,
+  "canonical_website_verification": {
+    "status": "pending-final-Pages",
+    "post_Pages_install_rerun_claimed": false
+  },
+  "finished_unix": 1792432943.9170582,
+  "evidence_sha256": {
+    "normal_installer_receipt": "1c81a22c950b9d0234c2066a1b3f1c7d7c433f706e1ad21094c9892d3fab8484",
+    "execution_quiescence": "8dfa469fff56adf8e02b374cb56ca4d0ca714ee999c9f46e19c3e5a6a2cc3ef8"
+  },
+  "installer_public_source_url": "https://raw.githubusercontent.com/openagent-uno/openagent/4e3c134949807fe963616e169531483de2cd5411/docs/site/public/install.sh"
+}
