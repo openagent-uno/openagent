@@ -1,0 +1,274 @@
+{
+  "schema_version": 1,
+  "qualification_status": "private_owner_supported_surface_and_lifecycle_passed",
+  "provider": "atlassian",
+  "catalog_name": "Jira",
+  "qualified_public_product": "1.1.0b49",
+  "qualified_public_product_source": "434b287ac952a3ee8b69bf8727aa67d0ad74a64f",
+  "qualified_public_sdk": "0.1.11",
+  "qualified_public_sdk_source": "20bc4d3d1747ce8676c70c34ad2edaa86e33901d",
+  "source_overlay": false,
+  "normal_certified_GatewayClient_workflows": true,
+  "operator_selected_verified_Free_QA_site": true,
+  "qa_requested_scopes": [
+    "read:jira-work",
+    "write:jira-work",
+    "offline_access"
+  ],
+  "supported_operations_exercised": [
+    "files.atlassian.issue_comments.create",
+    "files.atlassian.issue_comments.list",
+    "files.atlassian.issues.create",
+    "files.atlassian.issues.get",
+    "files.atlassian.issues.search",
+    "files.atlassian.issues.update",
+    "files.atlassian.projects.get",
+    "files.atlassian.projects.list",
+    "files.atlassian.resources.list"
+  ],
+  "stages": [
+    {
+      "stage": "catalog",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:09:22.224000+00:00",
+      "source_receipt_sha256": "1601341f4975947c490cc9eaa38098cc44f846050a0eb817e11b273977119816",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "start",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:09:25.167172+00:00",
+      "source_receipt_sha256": "d7b0ece95113fbd0db1cb0f03f33ec68341a4c0499cff548823032074b9ba657",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "poll",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:12:59.656511+00:00",
+      "source_receipt_sha256": "27ad4aa30dccd38a7165c0215ccc04eefc3266f24c77acf1549535b6c576ba77",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "sites",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:13:21.517954+00:00",
+      "source_receipt_sha256": "4b8c55b91772a781810a1a4d82dae8d7ceab10a8ee572c3aa21b2d96b2fb3d6d",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "select-site",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:13:28.264649+00:00",
+      "source_receipt_sha256": "1aa5fbcc268a5b26a0e48f5a1d1a35d9a69fd545b70348ebc58c64c253282b78",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "read",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:13:37.955500+00:00",
+      "source_receipt_sha256": "4130441f179019b3aa79a7fceaca39b83591e6ac794f41fd41103458f556bee6",
+      "workflow_submissions": 2
+    },
+    {
+      "stage": "issue-create",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:14:25.380629+00:00",
+      "source_receipt_sha256": "d2eb87cb8495080acb777ce825b62ad4603180369f45fe1031b0b413f3209ef7",
+      "workflow_submissions": 1
+    },
+    {
+      "stage": "issue-update",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:15:36.320441+00:00",
+      "source_receipt_sha256": "86b5e6d9427dae89c56b5187add2e4bc5ee0e55747f8ff31d0e25f13ac217aee",
+      "workflow_submissions": 2
+    },
+    {
+      "stage": "issue-read",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:15:52.575843+00:00",
+      "source_receipt_sha256": "f2cc78f4ef1763e0408acf0591d3cad63942f16f9fe3898e58a24c6e2ea03b21",
+      "workflow_submissions": 1
+    },
+    {
+      "stage": "comment-create",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:16:01.157505+00:00",
+      "source_receipt_sha256": "8fe41cb728fa47c9d25bbc095282e1b325e00c9b0c5cc68d60001d8d0fb612b7",
+      "workflow_submissions": 2
+    },
+    {
+      "stage": "comments-read",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:16:15.919460+00:00",
+      "source_receipt_sha256": "098d936872e17ae70b4e9f6400ab3657da766e697a191487d3fa4011b3598ff4",
+      "workflow_submissions": 2
+    },
+    {
+      "stage": "projects-list",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:17:08.846895+00:00",
+      "source_receipt_sha256": "99aea8310f9449947ca15babd3b753eed582b412fbfe5181839c012f072fc19c",
+      "workflow_submissions": 1
+    },
+    {
+      "stage": "refresh",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:19:43.874417+00:00",
+      "source_receipt_sha256": "ec476e78dc2d570779c49e3454bb87796c8017fb0abc48dcdd639838f1f45278",
+      "workflow_submissions": 0
+    },
+    {
+      "stage": "restart-read",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:20:48.829176+00:00",
+      "source_receipt_sha256": "b8b0b8deddf53cfcfb1eb5abbac903c3cfb8bda42bc264bb85c774a2068ce7ef",
+      "workflow_submissions": 2
+    },
+    {
+      "stage": "disconnect",
+      "status": "passed",
+      "receipt_recorded_at": "2026-10-19T15:21:18.636762+00:00",
+      "source_receipt_sha256": "78866a43a5a4c4757d0684d0949614b688502e6fec408aaf2f9c4b59f9da3141",
+      "workflow_submissions": 0
+    }
+  ],
+  "successful_workflow_submissions": 13,
+  "writes": {
+    "new_generated_QA_issue_create": 1,
+    "owned_issue_update": 1,
+    "owned_issue_comment_create": 1,
+    "existing_issue_writes": 0,
+    "workflow_mutation_resubmissions": 0,
+    "provider_attempt_count_observed": null,
+    "API_delete_exposed": false,
+    "API_delete_claimed": false
+  },
+  "lifecycle": {
+    "explicit_refresh": true,
+    "actual_same_profile_process_restart": true,
+    "certificate_unchanged": true,
+    "new_SRP_enrollment_during_restart": false,
+    "postrestart_project_read": true,
+    "normal_disconnect": true,
+    "tombstone_disabled": true,
+    "source_removed": true,
+    "credential_nonce_transaction_NULL_verified_before_stop": true,
+    "global_provider_authorization_revocation_claimed": false
+  },
+  "cleanup": {
+    "owned_runtime_processes_stopped": true,
+    "owned_QA_profile_retained": false,
+    "owned_issue_intent_retained": false,
+    "external_issue_owner_UI_delete": "single attempt; initial network alert; same-owner and independent-browser absence reconciled",
+    "owned_profile_erased": true,
+    "unrelated_SDK_worker_processes_stopped_or_modified": false,
+    "persistent_volume_removed": false,
+    "provider_bodies_keys_or_database_exported": false,
+    "completed_issue_record_retained_until_profile_erasure": false,
+    "owner_UI_cleanup_reconciled": true,
+    "API_delete_or_absence_HTTP_status": null,
+    "initial_UI_network_error_preserved": true,
+    "profile_erasure_preflight": "An initial guard stopped before deletion because completed bookkeeping matched an unresolved-intent filename. The retained profile was unchanged; only that completed filename was corrected on the approved successor before fresh checks and erasure.",
+    "profile_erased_at": "2026-10-19T15:30:19.316523+00:00",
+    "normal_disconnect_and_NULL_fields_verified_before_profile_erasure": true,
+    "owned_removed_entries": 115,
+    "owned_removed_regular_file_bytes": 4605755,
+    "successor_cleanup_guard": "Completed bookkeeping was renamed without changing its content; fresh owned-process quiescence, read-only credential clearance and verified safe export preceded profile erasure."
+  },
+  "remaining_gates": [
+    "General Jira app distribution remains private/owner-only until Personal Data Reporting API and full host data lifecycle are implemented and qualified; its declaration has not been attested."
+  ],
+  "evidence": {
+    "safe_export_index_sha256": "bc715e95ff7550e3689a548fc5592b3bc450c4048297faaaca51e11c87f1d08b",
+    "restart_receipt_sha256": "59b96455d9708543da6e7524f36a46ff704ade9c8a1041d494e59618b60b51a3",
+    "credential_clearance_receipt_sha256": "0272b8821f2a0e02b0f6228f9aa1c16a21e816447b2b669893d10ef363b2383b",
+    "owned_process_stop_receipt_sha256": "3e034e0d63ded9f001d98e81c19166498ffb2e607348ba08d35a64b4a77aa2ca",
+    "broker_configuration_receipt_sha256": "308dfd5ac1bc0e3fa7a5657c6f0ae243b69e62b86a044e0fa95672dd40ecb417",
+    "owner_UI_reconciliation_receipt_sha256": "992ccdefb35a8f7456bbe545d2eec80df9f83cf82be555b325bd361179025c4c",
+    "final_closed_export_verification_sha256": "bfb7de85c27be243c994abfefce0b25ba07fb76c0e5daa1bf7b6e0bf6a87c061",
+    "profile_removal_receipt_sha256": "18fd3824ff3c37822142d1d4b5aa6344a39e69463ca06ef7d18fc8cb6c518d3b",
+    "fresh_successor_cleanup_receipt_sha256": "574f823ef067319e13c646f4a497dd5f4a392dcefe404e1fda0779f7916fc6ef",
+    "safe_JSON_receipts_exported_before_erasure": 24
+  },
+  "limitations": {
+    "provider_HTTP_status_or_attempts_not_inferred_from_workflow_status": true,
+    "receipt_recorded_at_is_invocation_timestamp_not_provider_delivery_time": true,
+    "synthetic_fixtures_are_not_actual_provider_acceptance": true,
+    "general_public_Jira_qualification": false,
+    "private_owner_only": true,
+    "app_public_sharing_enabled": false,
+    "Personal_Data_Reporting_API_implemented": false,
+    "native_App_UI_acceptance_claimed": false,
+    "direct_provider_client_or_runner_calls": false,
+    "model_calls": 0
+  },
+  "qualification_date": "2026-10-19",
+  "workflow_results": [
+    {
+      "operation": "files.atlassian.projects.get",
+      "result_bytes": 4404,
+      "result_sha256": "36cbb96cd17d13ffeadf27bb1309f9d96b0db3a807b3880faed01921bf4f19ab"
+    },
+    {
+      "operation": "files.atlassian.issues.search",
+      "result_bytes": 4893,
+      "result_sha256": "f5daf57d9512aa636360e7a83004dc347cb2b28aa5f87a130d5b3555c88cbb0e"
+    },
+    {
+      "operation": "files.atlassian.issues.create",
+      "result_bytes": 136,
+      "result_sha256": "3eb7412d210d8e02aab8a7125f1820cf753e726522f911f57e76c424d41bec65"
+    },
+    {
+      "operation": "files.atlassian.issues.get",
+      "result_bytes": 1374,
+      "result_sha256": "8566ad6c6df94ddbe79d4703107b325acc1b1ee04a9a22aebc3aa4cd38522e5f"
+    },
+    {
+      "operation": "files.atlassian.issues.update",
+      "result_bytes": 4,
+      "result_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "operation": "files.atlassian.issues.get",
+      "result_bytes": 1382,
+      "result_sha256": "cad841fef72eca1636a810b3f1ada123e4acf20a248cdf6167cba945fa17c837"
+    },
+    {
+      "operation": "files.atlassian.issues.get",
+      "result_bytes": 1382,
+      "result_sha256": "cad841fef72eca1636a810b3f1ada123e4acf20a248cdf6167cba945fa17c837"
+    },
+    {
+      "operation": "files.atlassian.issue_comments.create",
+      "result_bytes": 2302,
+      "result_sha256": "65f738878f69e390c4703009cf0b9a068d1293d6bf4301581fadd393383512e9"
+    },
+    {
+      "operation": "files.atlassian.issues.get",
+      "result_bytes": 1382,
+      "result_sha256": "cad841fef72eca1636a810b3f1ada123e4acf20a248cdf6167cba945fa17c837"
+    },
+    {
+      "operation": "files.atlassian.issue_comments.list",
+      "result_bytes": 2361,
+      "result_sha256": "47e160ffab9c5b361c5f1b142651fa7312285de46d7420b1bf67f0f3b044f574"
+    },
+    {
+      "operation": "files.atlassian.projects.list",
+      "result_bytes": 1289,
+      "result_sha256": "068b1c824b6f2c2d2312425276436f838831c04393d09b278742b7ba4b9c63ef"
+    },
+    {
+      "operation": "files.atlassian.projects.get",
+      "result_bytes": 4404,
+      "result_sha256": "36cbb96cd17d13ffeadf27bb1309f9d96b0db3a807b3880faed01921bf4f19ab"
+    },
+    {
+      "operation": "files.atlassian.issues.search",
+      "result_bytes": 6550,
+      "result_sha256": "c67a9131c8a5b1cac8bdc63613a1e8c129ad631c2271141cabd83b544c180709"
+    }
+  ]
+}
