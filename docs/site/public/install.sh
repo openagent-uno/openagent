@@ -61,10 +61,10 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.47", "manifest.json", "bce5a7bf91fe3cd2672c2c98945662b057a8ec8aea5d83c2c75317dc956bc820"),
+    ("openagent-uno/openagent", "v1.1.0-beta.48", "manifest.json", "14fe6a8d2e8fa32ad0e9aafdeb198efa44f32da455bd1a27fda264ec93d16948"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.22", "manifest.json", "291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-uno/openagent-tools", "connectors-v0.1.9", "manifest.json", "00f0319e4dba6242eab8d085b4281da8019c53abee8ed8b9269186a6c59d4343"),
+    ("openagent-uno/openagent-tools", "connectors-v0.1.10", "manifest.json", "44226a90ff5a0226a5fadfa924db8da1d37bec85491cae8d6671843a2630ea6b"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -142,10 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b47"
+    DIST="openagent-framework==1.1.0b48"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b47"
+    DIST="openagent-cli==1.1.0b48"
     COMMAND="openagent-cli"
 fi
 
