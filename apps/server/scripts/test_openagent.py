@@ -366,6 +366,8 @@ _TEST_MODULES: tuple[str, ...] = (
     # handle as the row owner and ``list_all_sessions`` soft-falls back
     # to legacy device-pubkey rows via ``network_devices``.
     "test_sessions_cross_device",
+    "test_session_public_projection",
+    "test_attachment_publisher",
     "test_db_workflow_claim",
     # TeamRouterProvider — the v0.14 sub-agent architecture. Verifies
     # Team(mode=coordinate) construction from DB rows, role blurbs from

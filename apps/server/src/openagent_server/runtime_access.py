@@ -269,7 +269,7 @@ class NativeRuntimeAuthorizer:
             # New runtime rows use fully-qualified abstract principal keys;
             # legacy rows retain their historical typed handle unchanged.
             owner = _principal(row["owner_principal_id"], context.tenant_id)
-            permission = "view" if action in {"run.read", "run.replay"} else "admin"
+            permission = "view" if action in {"run.read", "run.replay", "session.read"} else "admin"
             if owner != context.initiator and not await resource_is_visible(
                 connection, row, access, permission=permission
             ):

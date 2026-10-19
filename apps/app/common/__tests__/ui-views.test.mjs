@@ -112,6 +112,28 @@ test('authoritative mixed parts retain text, image, UI and file ordering exactly
   ]);
 });
 
+test('canonical attachment-only parts keep file and media refs without provider text fallback', () => {
+  const refs = [
+    { type: 'file', filename: 'report.xlsx', mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', artifact_id: 'xlsx' },
+    { type: 'image', filename: 'photo.png', mime_type: 'image/png', artifact_id: 'image' },
+    { type: 'video', filename: 'clip.mp4', mime_type: 'video/mp4', artifact_id: 'video' },
+    { type: 'voice', filename: 'audio.ogg', mime_type: 'audio/ogg', artifact_id: 'voice' },
+  ];
+  const parts = normalizeMessageContent(
+    refs.map((attachment) => ({ kind: 'attachment', attachment })),
+    undefined,
+    '<attachment_reference>provider-only metadata</attachment_reference>',
+  );
+  assert.equal(parts.length, 4);
+  assert.ok(parts.every((part) => part.kind === 'attachment'));
+  assert.deepEqual(parts.map((part) => [part.attachment.type, part.attachment.filename, part.attachment.mime_type]),
+    refs.map((ref) => [ref.type, ref.filename, ref.mime_type]));
+  assert.deepEqual(parts.map((part) => part.attachment.url),
+    refs.map((ref) => `/api/artifacts/${ref.artifact_id}/content`));
+  assert.equal(JSON.stringify(parts).includes('provider-only'), false);
+  assert.ok(parts.every((part) => !('path' in part.attachment)));
+});
+
 test('legacy text and attachments remain a deterministic fallback', () => {
   assert.deepEqual(normalizeMessageParts(undefined, 'Hello', [
     { type: 'image', path: 'image-1', filename: 'chart.png' },

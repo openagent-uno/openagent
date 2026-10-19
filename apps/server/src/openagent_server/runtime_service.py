@@ -428,6 +428,10 @@ class NativeRuntimeService:
             MemoryAccess: self.memory_access,
             "memory_access": self.memory_access,
         })
+        from openagent_server.attachment_publisher import build_attachment_publisher
+        attachment_publisher = build_attachment_publisher(self)
+        if attachment_publisher is not None:
+            registry.bind("attachments.publisher", attachment_publisher)
         if self.code_executor is not None:
             registry.bind(CodeExecutor, self.code_executor)
             registry.bind("code_executor", self.code_executor)

@@ -418,12 +418,24 @@ async def t_legacy_session_endpoints_share_acl_boundary(ctx: TestContext) -> Non
         class _Gateway:
             def __init__(self):
                 self.agent = SimpleNamespace(
+                    name="synthetic-rest-acl-agent",
                     memory_db=db,
                     _db=db,
                     model=None,
                     forget_session=_forget,
                 )
                 self.sessions = SimpleNamespace(_clients={})
+                from openagent_server.runtime_access import NativeRuntimeAuthorizer
+                from openagent_server.runtime_service import NativeRuntimeService
+                from types import MethodType
+                self.runtime_service = SimpleNamespace(runtime=object(), agent=self.agent)
+                self.runtime_service.authorizer = NativeRuntimeAuthorizer(self, db.db_path)
+                self.runtime_service.context = MethodType(
+                    NativeRuntimeService.context, self.runtime_service
+                )
+
+            async def _request_device_still_authorized(self, request, certificate):
+                return True
 
             async def active_live_session_ids(self, *, client_id, handle):
                 return set()
@@ -448,6 +460,7 @@ async def t_legacy_session_endpoints_share_acl_boundary(ctx: TestContext) -> Non
                     capabilities=[],
                 )
                 super().__init__(
+                    auth_kind="device_cert",
                     device_cert=cert,
                     network_id="rest-acl-network",
                     user_handle=handle,
