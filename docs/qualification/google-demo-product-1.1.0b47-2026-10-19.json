@@ -1,0 +1,235 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-10-19T11:52:03.418308+00:00",
+  "status": "passed",
+  "product": {
+    "server_cli_version": "1.1.0b47",
+    "source_commit": "1140364d0e662237336df79166db9d8d10e54781",
+    "sdk_version": "0.1.9",
+    "sdk_source_commit": "58b47a81467944e604b6643f722041880ead0d6d",
+    "core_version": "1.1.0b22",
+    "path": "normal_installed_cli_gateway_and_workflow_apis",
+    "source_overlay": false,
+    "native_app_gui_acceptance_claimed": false
+  },
+  "providers": {
+    "google-drive": {
+      "single_generated_file_content_create": "passed",
+      "same_owned_file_content_read_and_update": "passed",
+      "api_metadata_update_tool_exposed": false,
+      "api_trash_qualified": false,
+      "cleanup": "exact_owned_file_trashed_in_provider_ui_then_two_normal_metadata_reads_verified_trashed_and_marker",
+      "permanent_delete": false,
+      "active_intent_removed": true
+    },
+    "gmail": {
+      "single_generated_draft_create": "passed",
+      "single_same_draft_send": "workflow_success",
+      "recipient_scope": "one_self_address_only",
+      "attachments": 0,
+      "exact_returned_sent_message_metadata": "same_self_nonce_subject_sent_without_draft_verified",
+      "pre_send_canonical_message_id_drafts_query": "empty_verified",
+      "resend": false,
+      "delivered_self_email": "intentionally_retained",
+      "active_intent_removed": true,
+      "earlier_mode_status_before_readonly_resolution": "needs_operator_cleanup",
+      "readonly_resolution": "passed",
+      "earlier_mode_reclassified": false
+    },
+    "google-calendar": {
+      "calendar": "actual_primary_verified_owner_by_normal_get",
+      "single_generated_private_event_cycle": "create_get_etag_update_get_delete_passed",
+      "attendees": 0,
+      "exact_event_delete_workflow": "success",
+      "independent_absence_read_claimed": false,
+      "active_intent_removed": true
+    },
+    "google-analytics": {
+      "account_summaries_list": "passed",
+      "collection_schema_valid": true,
+      "reports_executed": false,
+      "writes": false
+    }
+  },
+  "final_lifecycle": {
+    "status": "passed",
+    "provider_count": 4,
+    "normal_owner_refresh": true,
+    "same_identity_real_restart": true,
+    "post_restart_reads": true,
+    "normal_disconnect_and_source_removal": true,
+    "google_qa_artifact_intents_remaining": false,
+    "global_provider_consent_revocation_claimed": false,
+    "receiver_cleanup": "runtime_processes_stopped_and_temporary_private_profile_removed",
+    "restart_receipt_sha256": "193b53e0cd71a458d41a1db9c664b4f7591848690c43573c0d0e94482220fc89",
+    "aggregate_safe_receipt_sha256": "3ca5d26e3ecbb99fe8b0750362aced555dd13b652c4af514fdceb7711e3e92e7",
+    "pre_and_post_operations_not_assumed_equal": true,
+    "all_created_connections_normal_disconnected": true,
+    "all_owned_runtime_children_stopped": true,
+    "unresolved_resource_or_workflow_intents": false,
+    "temporary_qa_profile_removed": true,
+    "other_paths_or_pvc_removed": false,
+    "profile_or_database_exported": false,
+    "runtime_cleanup_receipt_sha256": "eef6f514397cb9efe8b87409c015344196fed70dbd6e6960ee2fac8b01ba4275",
+    "profile_removal_receipt_sha256": "07a037ed1f465d3b52961f91ff0dd86f17ec54a9bfafcd1eb4d7fb609be0ddb9",
+    "safe_export_index_sha256": "1403dbb5582d1bed3a774865736524f0338e281dda58ce0538c03980f96c6ad8",
+    "worker_cleanup": "pending_video_encoding_export_and_uid_rv_deletion",
+    "final_cleanup_aggregate_safe_receipt_sha256": "781a3afdd8684f1275997e4a3c04fecb368568048af9e31db9ea1f230e29cc5b"
+  },
+  "qualification_boundaries": {
+    "operator_configured_google_trial": true,
+    "general_public_provider_qualification": false,
+    "google_verification_complete": false,
+    "all_catalog_tools_qualified": false,
+    "provider_http_status_and_attempt_counters_exposed": false,
+    "no_direct_provider_or_runner_http": true,
+    "model_calls": 0,
+    "credentials_or_profiles_exported": false,
+    "existing_user_data_modified": false,
+    "no_account_resource_installation_or_infrastructure_identifiers_in_this_receipt": true
+  },
+  "sanitized_live_display": {
+    "actual_live_events": 53,
+    "exhaustive_provider_read_log": false,
+    "one_owned_draft_metadata_diagnostic_read_not_live_emitted": true,
+    "planned_or_synthetic_events_presented_as_actual": false,
+    "complete_trace_sha256": "ed7740eafb0590504ad53532facb98ad2606d462db390815d8a51a10ba3bbab6"
+  },
+  "preserved_prior_attempts": {
+    "drive_unexposed_metadata_tool_guard_blocked_before_submission": true,
+    "gmail_provider_message_id_canonicalization_required": true,
+    "prior_failed_or_ambiguous_receipts_retained_privately": true,
+    "provider_write_retries_used": false
+  },
+  "safe_evidence_sha256": {
+    "drive-create-receipt.json": "ce02a1bcb535a13e8c671a70ef07ccb219ae54f0a7e1e0feca1d824e5bed66ff",
+    "drive-update-receipt.json": "189c4dd93fa21fea54aac642c340dde733cbb9caca5f3dc89d919f23ace4ad7c",
+    "drive-trash-ui-verified-receipt.json": "977555c12ecb0ca2f419dd211cacab49d5c089c423268750e0d5403de6043c3c",
+    "receipt-gmail-sent-readonly-recovery.json": "77d62b6a6de896d1e0f3ab1b6284d565a0cd85a70bcbf63723adbb334b5eb1e9",
+    "receipt-google-calendar-read.json": "02873de8d375b5cb76ea9b7e873643524913d56ac0e2248a157b2b2bd2c13a12",
+    "receipt-google-calendar-event-write-cleanup.json": "a34790bce52130f353cb354d7738b8ef7b4090ec52674f08dd624ae91d159862",
+    "receipt-google-analytics-read.json": "13f92cf7aee106329e6385bf53644033bfcbd26b6eb0470982e0adea3f0c9282",
+    "google4-product47-lifecycle-safe.json": "3ca5d26e3ecbb99fe8b0750362aced555dd13b652c4af514fdceb7711e3e92e7",
+    "google4-product47-lifecycle-and-receiver-cleanup-safe.json": "781a3afdd8684f1275997e4a3c04fecb368568048af9e31db9ea1f230e29cc5b"
+  },
+  "qualification_scope": "One owner-approved generated-resource demo and four Google connector lifecycles through the normal installed product; provider verification and general availability are outside this receipt.",
+  "provider_lifecycle_evidence": {
+    "google-drive": {
+      "pre_read_source_mode_status": "passed",
+      "pre_read_operations_status": "success",
+      "pre_read_receipt_sha256": "189c4dd93fa21fea54aac642c340dde733cbb9caca5f3dc89d919f23ace4ad7c",
+      "pre_read_operations": [
+        {
+          "operation": "files.drive.files.get",
+          "workflow_result_bytes": 177,
+          "workflow_result_sha256": "8addaa097ffafa0da34fbe229d2ae6edd115c72090cc1a7797530301db95e185"
+        },
+        {
+          "operation": "files.drive.files.download",
+          "workflow_result_bytes": 142,
+          "workflow_result_sha256": "bc0e309551e8c0888cb96dd1460e8a6e861c76564e0190bc1bea248e74149af7"
+        }
+      ],
+      "refresh_receipt_sha256": "65f4951babe741e8a0b59ebaf653379218d71f9239204c33f74a856d9b3c6d23",
+      "post_restart_read": {
+        "status": "passed",
+        "at": "2026-10-19T11:38:03.294577+00:00",
+        "result": {
+          "operation": "files.drive.search",
+          "workflow_result_bytes": 1119,
+          "workflow_result_sha256": "b1dd56610ea03bce5129bafe93bf4ddd72c90353ba395de54be3d818307c7ad1",
+          "empty_collection_valid": false,
+          "collection_type_valid": true,
+          "post_restart": true
+        },
+        "receipt_sha256": "768c013abe8ba62fe293dc292cc46ea9a153babed27832a52419e68e79f40744"
+      },
+      "disconnect_receipt_sha256": "a00a889c2f0061a246c4c6e9edaa0a167e36e48cedccce5fd0deffbde403870e",
+      "source_removed": true
+    },
+    "gmail": {
+      "pre_read_source_mode_status": "needs_operator_cleanup",
+      "pre_read_operations_status": "success",
+      "pre_read_receipt_sha256": "42456b5f30e0aa3b504ee42c36da019c26088a2641f0c84b63976843acb04d96",
+      "pre_read_operations": [
+        {
+          "operation": "outreach.gmail.messages.get",
+          "workflow_result_bytes": 604,
+          "workflow_result_sha256": "c3c836261a7faa495e6e898ff5140c05f78e0a215b59816bb856b903044c6899"
+        }
+      ],
+      "refresh_receipt_sha256": "c256685f4a444aa3390e723c9abc61d6a20f8f2e0c59feacd74ae23d1aa5d305",
+      "post_restart_read": {
+        "status": "passed",
+        "at": "2026-10-19T11:38:10.340985+00:00",
+        "result": {
+          "operation": "outreach.gmail.messages.list",
+          "workflow_result_bytes": 382,
+          "workflow_result_sha256": "8e7c8db40fb598bacb3980659f599e7cf58982e8268193c52622c6c39e64ef0a",
+          "empty_collection_valid": false,
+          "collection_type_valid": true,
+          "post_restart": true
+        },
+        "receipt_sha256": "ac68065a65e0f42f5ba13a2af9c8e7b311c4e210528e88f9794118c57bb5905c"
+      },
+      "disconnect_receipt_sha256": "8952f9126c175563f787c1fdb0b8bfec72025b3121bb7725584789ed1e75cc63",
+      "source_removed": true
+    },
+    "google-calendar": {
+      "pre_read_source_mode_status": "passed",
+      "pre_read_operations_status": "success",
+      "pre_read_receipt_sha256": "02873de8d375b5cb76ea9b7e873643524913d56ac0e2248a157b2b2bd2c13a12",
+      "pre_read_operations": [
+        {
+          "operation": "files.google_calendar.calendars.list",
+          "workflow_result_bytes": 1739,
+          "workflow_result_sha256": "a48cee490c55e17f28f52d206e22ad66b82316163e99ebeec298e7aa1b35ff80"
+        }
+      ],
+      "refresh_receipt_sha256": "36590f32ac4e5af3a8ca375aa5b00e907b6c4a4ead37fb519e2145e9ae2986bc",
+      "post_restart_read": {
+        "status": "passed",
+        "at": "2026-10-19T11:38:16.777326+00:00",
+        "result": {
+          "operation": "files.google_calendar.calendars.list",
+          "workflow_result_bytes": 1739,
+          "workflow_result_sha256": "fa9cc6521cd3bf5e4d4850089b00ba654bf1bd6f4ef1f65e3d128b58be3663f2",
+          "empty_collection_valid": false,
+          "collection_type_valid": true,
+          "post_restart": true
+        },
+        "receipt_sha256": "421224e552b0e11542dc4ecef45249123fcfaace7c00d6a9c173a55044daee7a"
+      },
+      "disconnect_receipt_sha256": "11f96f117a8f1290952c0fce0fe27a03dac6639f1475b87d7325670ee3ee755e",
+      "source_removed": true
+    },
+    "google-analytics": {
+      "pre_read_source_mode_status": "passed",
+      "pre_read_operations_status": "success",
+      "pre_read_receipt_sha256": "13f92cf7aee106329e6385bf53644033bfcbd26b6eb0470982e0adea3f0c9282",
+      "pre_read_operations": [
+        {
+          "operation": "ads.google_analytics.account_summaries.list",
+          "workflow_result_bytes": 4098,
+          "workflow_result_sha256": "fdfdf2ed81c928affe081bd0f156b93181c28cf52cfef7d7dfba155c4f4e6638"
+        }
+      ],
+      "refresh_receipt_sha256": "43b28fc74ea431585a296d9b5a4273bf46704fbf349e7b9960909b18d81a9516",
+      "post_restart_read": {
+        "status": "passed",
+        "at": "2026-10-19T11:38:23.441601+00:00",
+        "result": {
+          "operation": "ads.google_analytics.account_summaries.list",
+          "workflow_result_bytes": 4098,
+          "workflow_result_sha256": "fdfdf2ed81c928affe081bd0f156b93181c28cf52cfef7d7dfba155c4f4e6638",
+          "empty_collection_valid": false,
+          "collection_type_valid": true,
+          "post_restart": true
+        },
+        "receipt_sha256": "4c8fce8352e721cac72612a653e8db69e7ab2f5b963111e376a0124e881e5df4"
+      },
+      "disconnect_receipt_sha256": "111ad41ca6457c4bdcded4f492c57feb510dd460ea2e87e32a39ea26510de3de",
+      "source_removed": true
+    }
+  }
+}
