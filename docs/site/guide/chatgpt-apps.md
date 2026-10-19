@@ -6,19 +6,29 @@ The directory does not publish adoption counts. The first 50 positions below pre
 
 The complete [readable inventory](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.md) and [machine-readable snapshot](https://github.com/openagent-uno/openagent-tools/blob/main/docs/chatgpt-app-coverage.json) preserve all observed category occurrences and provider research. Unresearched entries are explicitly unknown, rather than claimed unavailable APIs.
 
-The latest shared component is [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8),
-with **114 official connectors plus Custom MCP**. [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45)
-adopts it. Ninety new token profiles each expose two specific reads; read-only
+The latest shared component is [SDK19](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9),
+with **114 official connectors plus Custom MCP**. [Server/CLI47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
+adopts it with seven default common profiles; Google remains explicit opt-in,
+published with verified Branding, data access now in review and an observed
+100-user unverified-app cap; approval and required assessment remain incomplete.
+SharePoint's eligible-account acceptance remains separate. Ninety new token profiles each expose two specific reads; read-only
 OneDrive/SharePoint add explicit authorized resource selection. These are
 qualified implementation/protocol fixtures, not 90 new real-account trials or
 full ChatGPT app parity. Provider token permissions and Google/Microsoft OAuth
-activation retain independent gates. [App21](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21)
-remains public; App22 publication and actual 114-entry GUI qualification are
-pending. The App21/server44/SDK17 visual receipt below remains versioned.
+activation retain independent gates. [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
+is public; its [actual server45/SDK18 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
+records 114 official cards, 30 registry results, 45 shared SVGs/12 bundled marks and
+ten reviewed screenshots, with zero provider/model calls. It is not a beta47 GUI or
+OAuth-operation trial. The App21/server44/SDK17 receipt below remains historical.
+
+Separate normal server47/SDK19 provider trials now record the bounded
+[Google4 demonstration and lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-demo-product-1.1.0b47-2026-10-19.json)
+and [Outlook Calendar event lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/outlook-calendar-product-1.1.0b47-2026-10-19.json).
+Those are CLI/Gateway/workflow trials, not native App22 provider UI acceptance.
 
 ## Visually qualified standalone pair and retained provider evidence
 
-The current [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed 22 official entries and 30 actual registry results in one grid, 12 local mark checks and five keyless local control cycles. Seven original screenshots plus three supplementary files (two unique views) show the Calendar/Outlook cards. Normal SRP/Iroh and owned cleanup passed; zero provider calls or models. The SDK16/server43/App20 evidence below remains historical.
+The historical [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed 22 official entries and 30 actual registry results in one grid, 12 local mark checks and five keyless local control cycles. Seven original screenshots plus three supplementary files (two unique views) show the Calendar/Outlook cards. Normal SRP/Iroh and owned cleanup passed; zero provider calls or models. The SDK16/server43/App20 evidence below remains historical.
 
 [SDK/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
 is public from source `2ec7c114a49b72460addc00fc8e8d6547a683b59`, with 19 official
@@ -121,8 +131,10 @@ The published 0.1.4 library contains **9 Slack Web API tools** and **9 Jira REST
 | Slack | Token identity, conversations/list/info/history/replies, user information, text post/update/delete | Confidential OAuth user tokens, no bot-token fallback or impersonation. Preserves catalog ID `slack-import`. The workspace comes from Slack and cannot be changed during renewal. History and replies return at most 15 messages per page; no automatic retry. Unlisted commercial-app rate limits apply. |
 | Atlassian / Jira | Accessible sites, projects/list/get, enhanced JQL search, issues/get/create/update and comments/list/create | Resource-level OAuth app, classic read/write Jira scopes and rotating refresh. The server lists granted sites and verifies the selected `cloud_id` against the provider before saving it. Tools cannot provide another site or API URL. Supports a bounded field/text subset; no Confluence, admin operations or Rovo parity claim. |
 
-The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; one authorized receiving installation completed the limited lifecycle below. Slack public distribution remains disabled. Jira secret custody and real
-consent remain pending; neither is enabled for common enrollment. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
+The Atlassian app and callback are registered, with secret custody still pending. Slack's OpenAgent app, callback, ten user scopes and token rotation are saved, with its secret in encrypted production storage; one authorized receiving installation completed the limited lifecycle below. At that 16 October checkpoint Slack Public Distribution was disabled. It is now
+active, its historical limited lifecycle is preserved, and server47 includes
+Slack in its seven-provider default; fresh beta47 provider acceptance remains pending.
+Jira secret custody and real consent remain pending, with no common activation. [Primary Slack rate-limit reference](https://docs.slack.dev/changelog/2025/05/29/rate-limit-changes-for-non-marketplace-apps/) and [Atlassian OAuth reference](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) describe the provider constraints.
 
 ### Slack real-provider QA
 
@@ -197,7 +209,9 @@ connectors plus Custom MCP** and 11 verified release assets. Manifest SHA256:
 The [exact SDK qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-sdk-0.1.7-2026-10-17.json) records race/vet/vulnerability
 checks, six-target/twelve-binary packaging, Python and Linux-native runner/broker
 fixtures, and public installed-host acquisition. Other targets have cross-build
-evidence; **no real Google/Microsoft consent, provider read or mutation is qualified**.
+evidence. That SDK17 release alone qualified no real Google/Microsoft consent,
+provider read or mutation; later dated server45/47 trials are recorded in
+[current status](./connector-status.md).
 
 | SDK connector | Typed operations | Consent and execution boundary |
 | --- | --- | --- |
@@ -243,7 +257,7 @@ parity and Mac/Windows marketplace GUI are not qualified here.
 | 5 | [WPVibe](https://chatgpt.com/plugins/plugin_asdk_app_6a244fb509e481918985fee76373b0f9) | Not implemented/qualified | [Documented independent-client OAuth MCP](https://wpvibe.ai/docs/ai-client-setup/) |
 | 6 | [GitHub](https://chatgpt.com/plugins/plugin_connector_1p_1a69035c238881919c4190932b2df699) | SDK 0.1.4/server 40 published; limited standalone QA passed; App 18 published; native App provider acceptance separate; common OAuth beta open | [Documented official MCP](https://github.com/github/github-mcp-server) |
 | 7 | [Health](https://chatgpt.com/plugins/plugin_connector_1p_e569f8b8dfd08191903c9bd2cd7da9ac) | Not implemented/qualified | Not researched |
-| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | SDK18/server45: 9 mail tools; separate send permission; common OAuth and real account QA pending; App21/server44 GUI remains historical | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
+| 8 | [Outlook Email](https://chatgpt.com/plugins/plugin_connector_1p_6bcb5879c73c819196abc70016166099) | 9 mail tools; separate send permission; server45 common OAuth folders-read lifecycle passed with a separate mail app; message body, draft/send and native App provider acceptance remain separate | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview?view=graph-rest-1.0) |
 | 9 | [Supabase](https://chatgpt.com/plugins/plugin_asdk_app_69d3e5ee6a708191baa733f7b8931995) | SDK18/server45: list projects and read project details; own token; real-account QA pending | [Documented official MCP](https://supabase.com/docs/guides/ai-tools/mcp) |
 | 10 | [Firecrawl](https://chatgpt.com/plugins/plugin_asdk_app_6a314a73f8ac819195b0d55e36b9c609) | SDK 0.1.6/server 43/App beta 20 public; five keyless GUI controls passed on Linux x64, zero GUI provider calls; provider reads retain SDK 0.1.5/beta 41 scope | [Official keyless MCP](https://docs.firecrawl.dev/mcp-server/keyless) |
 | 11 | [Windsor.ai](https://chatgpt.com/plugins/plugin_asdk_app_694a52cfaa3c819192bea84eaa254968) | Not implemented/qualified | [Official OAuth/DCR MCP](https://mcp.windsor.ai/) |
@@ -283,6 +297,6 @@ parity and Mac/Windows marketplace GUI are not qualified here.
 | 45 | [Tredict](https://chatgpt.com/plugins/plugin_asdk_app_69aef5b699a0819184512d57743fc1cd) | Not implemented/qualified | Not researched |
 | 46 | [Webflow](https://chatgpt.com/plugins/plugin_asdk_app_6a0783a98c4c8191841404d786d4a4b9) | SDK18/server45: list sites and their collections; own token; real-account QA pending | [Documented public API](https://developers.webflow.com/data/reference/rest-introduction) |
 | 47 | [HYPD AI - Paid Ads & Analytics](https://chatgpt.com/plugins/plugin_asdk_app_6a3170ea7fc88191be6c0b9ff250a4b4) | Not implemented/qualified | Not researched |
-| 48 | [SharePoint](https://chatgpt.com/plugins/plugin_connector_1p_dca009ae2c848191ae14df3a47c5e7fd) | SDK18/server45: 7 read tools and verified site/library selection; common OAuth and real account QA pending | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/sharepoint?view=graph-rest-1.0) |
+| 48 | [SharePoint](https://chatgpt.com/plugins/plugin_connector_1p_dca009ae2c848191ae14df3a47c5e7fd) | 7 read tools and server-verified site/library selection; broker configured, but the observed personal account was refused before consent; eligible work/school-account site access remains unqualified | [Documented public API](https://learn.microsoft.com/en-us/graph/api/resources/sharepoint?view=graph-rest-1.0) |
 | 49 | [Floot](https://chatgpt.com/plugins/plugin_asdk_app_6a500d350f8c819194e30335a7b134af) | Not implemented/qualified | Not researched |
 | 50 | [Quo](https://chatgpt.com/plugins/plugin_asdk_app_69e6af3297d88191b4925772c50df286) | SDK18/server45: list phone numbers and conversations; own token; real-account QA pending | [Documented read API](https://www.quo.com/docs/api-reference/introduction/authentication) |

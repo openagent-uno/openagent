@@ -24,8 +24,9 @@ reported that verified branding is displayed to users, and enabled preparation
 for data-access verification. Private success-witness SHA256:
 `80b5976f73b64a7ab79b5cbb2ba0dd88c5f6be522987af96c60f8c7013cb02f3`.
 The first failed check and 24-hour warning are history, not a current waiting
-gate. Sensitive/restricted data-access verification is still unverified; no
-submission or security-assessment completion is recorded. Private witness SHA256:
+gate. At that earlier checkpoint no data-access application had been submitted.
+The later submission is now in review, as recorded below; scope approval and
+security-assessment completion are not established. Private witness SHA256:
 `91ab7a076030a3a639190eb0998c9c578f049bc327c5fbdcec425de6add27724`.
 Publication, brand verification and data-access verification are different
 states. Google describes published external apps with unverified sensitive or
@@ -88,12 +89,12 @@ removed here. Use the exact Google URI prefix
 
 | Scope suffix | Implemented purpose and proposed justification | Evidence and least-privilege gap |
 | --- | --- | --- |
-| `gmail.modify` | Restricted. Gmail message/thread/attachment reads, history/watch and unpublished draft creation support user-directed email processing. Source: SDK `providers/manifests.go` and `gmail.go`. | Real trial covered `outreach.gmail.messages.list` only. Read-only cannot create drafts; however the currently qualified read alone does not justify requesting every implemented write. Demonstrate the draft feature if retaining the broad profile. `gmail.modify` does not permit immediate permanent deletion. |
-| `gmail.send` | Sensitive. SDK message/draft send operations are separately classified as publish actions. | No real send or draft trial is claimed. Google also accepts `gmail.modify` for message sending, so a separate send scope is not additional provider-enforced isolation. Its overlap requires an honest least-privilege explanation or a future reviewed scope/profile change; a local publish gate does not narrow the raw token. |
-| `drive` | Restricted. The SDK can search existing account files and read/download/export them, and exposes separately admitted file/content/comment/permission operations. Source: SDK `providers/manifests.go` and `drive_upload.go`. | Real trial covered `files.drive.search` only. `drive.file` is Google's recommended per-file option; it does not provide unrestricted discovery of pre-existing unselected files. Broad existing-file discovery plus actual user-facing editing must be demonstrated if retaining `drive`. Do not describe this as a Picker-only integration or claim writes were tested. |
-| `analytics.readonly` | Lists accessible GA4 account/property summaries and reads bounded reports, realtime reports and metadata. No Analytics edit scope is requested. Source: SDK `providers/google_analytics.go`. | Real trial covered `ads.google_analytics.account_summaries.list`; report execution remains separate. The read-only scope is accepted by that endpoint. Retain the exact classification shown in the project's Data Access console rather than inventing a classification from its name. |
+| `gmail.modify` | Restricted. Gmail message/thread/attachment reads, history/watch and unpublished draft creation support user-directed email processing. Source: SDK `providers/manifests.go` and `gmail.go`. | The historical server45 trial covered `outreach.gmail.messages.list`. A new server47 trial created one generated self-addressed draft; its single normal `drafts.send` workflow succeeded at 11:22:52 UTC. A subsequent exact sent-message read verified the same sender/recipient, generated subject marker, SENT and no DRAFT; the pre-send canonical draft query returned no remaining draft. No resend occurred. Read-only access cannot create that draft; this bounded trial does not qualify all implemented writes. `gmail.modify` does not permit immediate permanent deletion. |
+| `gmail.send` | Sensitive. SDK message/draft send operations are separately classified as publish actions. | A new server47 trial created one generated draft and submitted that same draft once to its authorized sender at 11:22:52 UTC. An exact sent-message read subsequently verified self-addressing, the generated subject marker and SENT without DRAFT, while the prior canonical draft query found no remaining draft. No second send or external delivery claim is made. Google also accepts `gmail.modify` for message sending, so a separate send scope is not additional provider-enforced isolation. Its overlap requires an honest least-privilege explanation or a future reviewed scope/profile change; a local publish gate does not narrow the raw token. |
+| `drive` | Restricted. The released catalog exposes search, metadata get, content download, content create and content update. Other manifest operations are not automatically catalog tools. Source: SDK `catalog.go`, `providers/manifests.go` and `drive_upload.go`. | Server47 generated-file create/read/content-update passed on 19 October. The attempted cleanup helper stopped before any unexposed metadata workflow; the authorized owner moved that exact file to trash in Google's UI, followed by two normal API reads verifying trash state and the owned marker. API trash, comments and permissions edits are not qualified. `drive.file` does not preserve discovery of pre-existing unselected files; that broader discovery requirement remains part of the scope justification. |
+| `analytics.readonly` | Lists accessible GA4 account/property summaries and reads bounded reports, realtime reports and metadata. No Analytics edit scope is requested. Source: SDK `providers/google_analytics.go`. | The historical server45 lifecycle and new server47 demonstration both covered `ads.google_analytics.account_summaries.list`; no report or write was run in the new demonstration. The read-only scope is accepted by that endpoint. Retain the exact classification shown in the project's Data Access console rather than inventing a classification from its name. |
 | `calendar.calendarlist.readonly` | Lists/reads subscribed CalendarList entries so the user can select the target calendar. Source: SDK `providers/google_calendar.go`. | Real trial covered `files.google_calendar.calendars.list`. Does not require calendar ACL management or subscription writes. Confirm its sensitive/non-sensitive classification in Data Access. |
-| `calendar.events` | Reads and creates/updates/deletes events on calendars already accessible to the account, subject to host write admission and provider access. | Separate private-event create/read/update/delete trial exists; the fresh lifecycle tested CalendarList. Read-only event scope cannot write; `events.owned` or `app.created` would limit the supported calendar surface and require a reviewed implementation/profile change. No calendar creation, ACL or full `calendar` scope is requested. |
+| `calendar.events` | Reads and creates/updates/deletes events on calendars already accessible to the account, subject to host write admission and provider access. | Both the earlier private-event trial and the new server47 owner-verified, no-attendee create/get/ETag-update/get/delete cycle passed. No independent absence read after the new delete is claimed; the separate beta47 four-profile refresh/restart/post-read/disconnect cycle subsequently passed at 11:38:42 UTC, followed by stopped QA processes and erasure of the exact temporary profile, including credentials, at 11:50:35–36 UTC after verified safe evidence export. Read-only event scope cannot write; `events.owned` or `app.created` would limit the supported calendar surface and require a reviewed implementation/profile change. No calendar creation, ACL or full `calendar` scope is requested. |
 
 Official endpoint/scope references:
 [Gmail scope classification](https://developers.google.com/workspace/gmail/api/auth/scopes),
@@ -124,44 +125,83 @@ and show how revocation stops future access without pretending it deletes
 already stored history. Generalized model training is not an authorized use.
 [API User Data Policy](https://developers.google.com/terms/api-services-user-data-policy).
 
-## Actual data-access form and draft field text
+The separate [server47/SDK19 Google4 demonstration and full lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-demo-product-1.1.0b47-2026-10-19.json)
+records the new generated-file/draft/event operations, Analytics account summary,
+refresh, real restart, post-reads and normal disconnect. Owned processes were
+stopped and the exact temporary credential profile erased after verified safe
+evidence export. The owned worker was subsequently deleted after the final
+video export and remaining QA cleanup; shared persistent state was preserved.
 
-After published brand verification, the operator opened Google's data-access
-form. It requires three justifications (maximum 1,000 characters each): the
-sensitive group `calendar.events`, `gmail.send`, `analytics.readonly`; restricted
-`drive`; and restricted `gmail.modify`. The observed intended-use selections
-were **Produttività Drive** and **Produttività email**. The required YouTube URL
-is missing and Save is disabled. The operator entered the three texts and
-selected those categories, but no data-access application was saved/submitted.
-The private form-witness SHA256 is `f2e4698926c2da00698836f651c8493f7138a79926aff86a46467971597d92d8`.
-The following are the entered draft text, not submitted or approved answers.
+## Actual data-access form and entered field text
 
-### Sensitive group (861 characters)
+At 11:41:08 UTC on 19 October, the operator verified the following text in
+Google's actual form. These replace the earlier entered drafts, including their
+now-outdated "no real send" statement and the overly broad Drive description.
+The original checkpoint remains in source history. The intended-use categories
+are **Produttività Drive** and **Produttività email**. The unlisted demonstration video is now uploaded, and the reviewer URL was
+supplied privately in Google’s console and persisted in this form. Google confirmed that the
+data-access changes were saved, then at **12:11:38 UTC** the Verification
+Center confirmed **data access in review**. Submission is complete; no
+data-access approval or security-assessment completion is claimed. Form witness SHA256: `1f59dd740b9c71b0852918d93952c9e49bc3413d670031c7ffba26b8fb55a93e`.
 
-OpenAgent exposes user-authorized connector operations through its app/server workflows. calendar.events enables reading, creating, updating and deleting events on calendars the connected account can access; read-only event access cannot support these writes. analytics.readonly lists accessible GA4 accounts/properties and reads reports without Analytics administration writes. gmail.send is required by the current connector's separately admitted send/publish operations; no email is sent by simply connecting. gmail.modify also authorizes sending at Google, so the separate send scope is a local operation contract, not narrower provider access. The 19 October trial proved calendar selection, Analytics account summaries and refresh/restart/disconnect; a separate private Calendar event trial proved create/read/update/delete. No real Gmail send is claimed.
+### Sensitive scope group (954 characters)
 
-### Drive restricted (769 characters)
+OpenAgent exposes user-authorized connector operations through its app, CLI and receiving server. calendar.events enables event reads and create/update/delete operations on accessible calendars; read-only scope cannot support these writes. analytics.readonly lists accessible GA4 account/property summaries and supports read-only reports without Analytics administration writes. gmail.send is required by the connector's separately admitted send operations; connecting alone never sends mail. gmail.modify also allows sending at Google, so local publish admission does not narrow the token's provider permissions. Live QA demonstrated a private Calendar event create/read/update/delete without attendees, Analytics account summaries, and one generated Gmail draft sent once to the same authorized account. Credentials stay on the receiving server, which performs normal API calls. Google data-access approval and any applicable assessment remain pending.
 
-OpenAgent's Drive connector lets the user find existing files and folders in their connected account and invoke separately authorized metadata, content, comment and permission operations through the receiving server. The drive scope covers discovery and editing of pre-existing files that were not individually selected for this app. drive.file would limit access to app-created or individually shared/selected files and would not preserve that existing-file discovery surface. The implemented API surface includes writes, but the 19 October real-account trial proved only a bounded files search plus refresh, restart, reread and local disconnect. Broader feature demonstration remains to be supplied; no completed Google verification or security assessment is claimed.
+### Drive restricted (840 characters)
 
-### Gmail modify restricted (821 characters)
+OpenAgent searches and reads existing Drive files and supports creating and updating file content through user-authorized server workflows. The drive scope preserves access to pre-existing files not individually selected for this app; drive.file would limit access to app-created or individually shared/selected files. The released catalog exposes search, metadata get, content download, content create and content update only. The QA demonstrates generated-file create/read/content-update. Recoverable trash was performed by the authorized owner in Google's UI and independently checked through the connector; no connector trash or permission-edit operation is claimed. Credentials stay on the receiving server and normal Drive API traffic leaves that server. No completed Google data-access verification or security assessment is claimed.
 
-OpenAgent's Gmail connector supports user-directed email productivity: bounded message search/list, just-in-time message/thread/attachment reads, history/watch and creation of unpublished drafts. gmail.modify is requested for the implemented read-and-draft surface; gmail.readonly cannot create drafts and gmail.metadata cannot read bodies or attachments. Send operations have separate local publish admission and a gmail.send scope requirement, although gmail.modify itself also authorizes sending at Google. The 19 October real-account trial proved bounded message listing, explicit refresh, process restart, reread and local disconnect only; no real draft creation or email send is claimed. This justification does not attest Google verification, CASA completion or every receiving host/model provider's data handling.
+### Gmail modify restricted (879 characters)
 
-## Demo and assessment package still required
+OpenAgent supports user-directed Gmail productivity through the receiving server: bounded message search/list and just-in-time message, thread and attachment reads, plus creating unpublished drafts. gmail.readonly cannot create drafts and gmail.metadata cannot read message bodies or attachments. The current connector uses gmail.modify for read/draft operations and a separate local publish admission plus gmail.send requirement for sending; gmail.modify also permits sending at Google, so this local distinction does not narrow the raw token. The live QA created one new plain-text draft and submitted that same draft once to the authorized test account itself; no existing mail or other recipient was modified. Credentials are encrypted locally and ordinary Gmail API traffic leaves that server. Google data-access review and any applicable security assessment remain pending.
 
-No verification/demo video was found by filename in the existing activation
-folder or the delivery-evidence video inventory checked on 19 October. Screenshots,
-workflow hashes and signed receipts are partial evidence, not a video substitute.
-**No video URL is supplied.**
+The Gmail result was additionally checked by the exact returned sent-object
+ID: same sender/recipient, generated subject marker, SENT and no DRAFT; the
+pre-send canonical draft query found no remaining draft. The provider rewrote
+RFC Message-ID, so the original was retained and the verified returned object
+identity was used for follow-up reads. No resend occurred. This does not make
+the sanitized live viewer an exhaustive provider request log.
 
-Prepare an English recording of: the actual app and user-facing purpose; the
-normal connect/disclosure and OAuth grant with app/client identity visible;
-each requested sensitive/restricted feature; where workflow data moves; and
-local disconnect. For automation, show multiple real workflow definitions and
-data directions. Use bounded, explicitly approved non-sensitive test data;
-recording or additional write actions require their own authorization. Supply
-an unlisted reviewer-accessible video after it actually exists.
+## Actual demonstration video and pending assessment
+
+The approved demonstration now exists: **4 minutes 32 seconds**, 34 actual
+chronological browser captures, 1,920×1,080 H.264, **3,832,045 bytes**, SHA256
+`d82d5f007eacf90af1a9ac5876f0fc974a402e8be135808f35043a913c4a8450`.
+The operator reviewed five decoded thumbnails and accepted the readable render.
+It shows the real provider consent flows and sanitized normal server47
+CLI/Gateway workflow output. English captions identify the receiving path,
+original capture times, shortened pauses and the later scrolled views of
+recorded actual output. It is **not continuous screen recording or App22
+native UI**, and the visible event stream is not an exhaustive provider log.
+No planned or synthetic event is presented as a completed provider call.
+
+The first encoded version had oversized captions; it remains preserved
+privately as a visual failure. The replacement changed presentation only,
+using the same 34 source images, captions and 272-second chronology. No image
+content or provider result was edited. The Drive catalog boundary and owner
+UI-assisted trash remain visible rather than being replaced with API-success
+claims. Encoding took place on the bounded remote worker after QA processes
+stopped and the temporary credential profile was erased.
+
+**Unlisted reviewer URL supplied privately in Google’s console.** The URL,
+video ID and channel/account identifiers are deliberately not published here.
+YouTube Studio showed the saved unlisted visibility, completed SD/HD processing
+and no issues in its checks. The upload used the existing channel after explicit
+approval of the upload terms. The same URL was then saved in Google's data-access
+form with the three entered justifications unchanged. The subsequent Verification Center displayed that the app's data access is
+**in review** at 12:11:38 UTC. This is actual submission, distinct from the
+earlier form save and from approval. The video and lifecycle receipts support the review;
+they do not establish acceptance by Google or qualification of every operation,
+receiving host, model processor or account type.
+
+The additional information submitted with the application was:
+
+> OpenAgent is a self-hosted, model-agnostic agent runtime with an app, CLI and server. The attached 4:32 demonstration shows Google consents and normal public server47/SDK19 workflows. It is a chronological sequence of real browser captures with English captions, not continuous recording or native App22 UI. Drive starts at 0:08; Gmail at 1:36; Calendar at 2:40; Analytics at 3:20. Only generated QA files, one self-addressed email and a private event without attendees were changed. Normal Google API calls originate on the receiving server, which stores encrypted credentials; the shared service handles secret-dependent OAuth exchange/renewal. Google stays explicit opt-in, outside the seven-provider default. All four trial connections passed refresh/restart/read/disconnect; the disposable credential profile was erased. No data-access approval or applicable security-assessment completion is asserted. Setup/privacy: https://openagent.uno/guide/connectors and https://openagent.uno/privacy
+
+The submission flow stated that CASA is required before approval; the operator
+acknowledged that requirement. No assessment was purchased or completed.
+The actual submission witness SHA256 is `ff65518bed7ecaa4101049d2f90971acfd069ca7b3d446bcfbafa09443f06a50`.
 
 Restricted `drive` and `gmail.modify` mean a server-mediated design must not
 assume a self-hosting exemption. No Google-approved assessment, assessor report
@@ -172,7 +212,7 @@ encryption and lifecycle receipts are supporting engineering evidence, not
 CASA approval. No payment or assessor engagement is authorized here.
 [Restricted-scope verification and demo/assessment requirements](https://developers.google.com/identity/protocols/oauth2/production-readiness/restricted-scope-verification).
 
-## Submission handoff
+## Review follow-up
 
 1. Preserve the current app/client, six declared scopes and four callbacks,
    the verified published branding and URL-prefix ownership proof. Record Data
@@ -181,10 +221,13 @@ CASA approval. No payment or assessor engagement is authorized here.
 2. Confirm owner identity/contact, domain ownership and the privacy/recipient
    data-flow statements above. Resolve the Gmail scope overlap and justify the
    broad Drive surface using demonstrated features, not a catalog card.
-3. Attach the two immutable lifecycle receipts as partial evidence, then provide
-   the missing demo and any required security-assessment evidence.
-4. Submit only truthful answers through the existing console and record Google's
-   resulting status. Until approval, keep `verification_complete` and
+3. Attach the dated immutable lifecycle and demonstration receipts as partial
+   evidence; keep the uploaded unlisted reviewer URL in Google’s console and
+   private evidence only. Supply any
+   security-assessment evidence Google requests.
+4. Preserve the submitted answers and Google's actual in-review status. Respond
+   through the existing review if more evidence is requested. Until approval,
+   keep `verification_complete` and
    `general_public_qualification` false and disclose warnings/user limits.
 
 ## Explicit limited-trial preparation
@@ -216,9 +259,12 @@ unknown or verified-state metadata and cannot select a Microsoft profile.
 
 Output preserves the existing reviewed public rows and every other baseline
 row. It changes no live configuration, Secret, host default, scope or grant.
-The output receipt labels `production-unverified-limited-trial`, attests no
-provider review or public qualification, and authorizes no broker apply. It
-cannot replace an existing provider row; an existing eleven-profile deployment
+The finite preserve-only set also retains existing Slack/Postiz rows only when
+they exactly match reviewed source; neither can be selected for addition by this
+preparer, and unknown/Atlassian baseline additions remain rejected. The output
+receipt labels `production-unverified-limited-trial`, attests no provider review
+or public qualification, and authorizes no broker apply. It
+cannot replace an existing provider row; an existing thirteen-profile deployment
 needs no additive preparation merely because the console publication changed.
-The accompanying 18 standard-library file tests passed; they exercise
+The accompanying 20 standard-library file tests passed; they exercise
 preparation only and make no provider call.

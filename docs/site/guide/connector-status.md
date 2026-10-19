@@ -1,7 +1,7 @@
 # Connector release and qualification status
 
 Status updated on **19 October 2026**. Current published Python components are
-**SDK/runner 0.1.8 and server/CLI beta46**, with **114 official connectors plus
+**SDK/runner 0.1.9 and server/CLI beta47**, with **114 official connectors plus
 Custom MCP**, Core beta22 and Host Tools 1.0.0b6. This adds 90 token-based
 connectors with two read tools each and read-only OneDrive/SharePoint.
 **App beta22 is public** and App22/server45/SDK18 is the visually qualified
@@ -14,14 +14,106 @@ boundary has its own evidence.
 
 | Component | Qualified delivery | Remaining boundary |
 | --- | --- | --- |
-| Shared Go module, runner and Python/MCP | SDK 0.1.8 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
-| Server/CLI | Beta46 public from `6b0d62e4`, Core22/SDK0.1.8/B6; 215 installed tests and 15 React scenarios passed; two new wheels and seven exact beta45 reuses; normal public-source installer46 passed | Windows/macOS server execution and independent host rollout |
+| Shared Go module, runner and Python/MCP | SDK 0.1.9 public: 114 official connectors plus Custom MCP; canonical race/vet/vulnerability, cross-platform packaging and isolated Python/native qualification | Real-account acceptance for the 90 token profiles; untested Google/Microsoft operations and eligible-account SharePoint acceptance; native execution on every target |
+| Server/CLI | Beta47 public from `1140364d`, Core22/SDK0.1.9/B6; 215 installed tests and 15 React scenarios passed; two new wheels and seven exact beta46 reuses | Normal public installer47 passed; Windows/macOS server execution and independent host rollout |
 | Normal keyless workflows | Three connections and six reads across a real restart, followed by disconnect/tombstone/source removal and cleanup | Only Parallel fetch, Context7 query and CoinGecko global; workflow metrics do not expose provider HTTP attempt telemetry |
 | Standalone App | Beta22 public, 36 verified assets/six native targets; signed/notarized macOS and Intel ZIP/DMG launches; actual App22/server45 Linux x64 marketplace, blank Postman setup and one local Exa cycle passed | Mac/Windows marketplace GUI, hosted sandbox security and native App provider operations |
 | Core / Tools / Host Tools | Independently pinned public Core beta 22, Tools beta 4 and B6; unchanged component contracts and manifests | Component publication does not update an installed host or attest privacy coverage |
-| Common authentication service | Diagnostic broker `645e0484`, image `04d942f6`: eleven configured provider profiles; one Ready writer, health/readiness 200 and unsigned request 401 | General Google production audience; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
+| Common authentication service | Broker `60665d2f`, image `a303d481`: thirteen configured provider profiles; one Ready writer, health/readiness 200 and unsigned request 401 | Google data-access review/approval and required assessment; eligible-account SharePoint consent/site access; untested provider operations and loaded capacity |
 
 ### Current Python release and the visually qualified pair
+
+[Server/CLI47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
+is public from `1140364d`, adopting
+[SDK/runner 0.1.9](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.9)
+with 114 official entries plus Custom MCP. All twelve product asset sizes/digests
+matched API and anonymous downloads. Product manifest SHA256:
+`bce5a7bf91fe3cd2672c2c98945662b057a8ec8aea5d83c2c75317dc956bc820`;
+SDK manifest: `00f0319e4dba6242eab8d085b4281da8019c53abee8ed8b9269186a6c59d4343`.
+Its [qualification asset](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.47/qualification.json)
+records 215 installed tests and fifteen separate React source groups. Two
+server/CLI wheels changed; seven dependency wheels were reused byte for byte
+from beta46. The [normal live public installer47](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
+passed separate server/CLI installation, dependency checks, ORM, the 114-plus-Custom catalog and
+the seven-provider constructor default without source overlay, HOME/TMPDIR override, server/model
+startup or provider calls. Its live 8,722-byte script matched SHA256
+`f285a9c8d9670a74a8a3f881046ac0d5f408d1edcf3abd14f0333d970f486f15`.
+SDK19 adds optional
+read-only Calendar `canShare` metadata without new scopes; the startup and safe
+diagnostic fixes are already in its ancestry. These releases add no provider
+consent or newly repeated lifecycle trial.
+
+Beta47's absent-setting default is **ClickUp, GitHub, Notion, Outlook Mail,
+Outlook Calendar, OneDrive and Slack**. Google remains explicit limited-trial
+opt-in; the full eleven-ID replacement example is in
+[operations](./connector-operations.md#standalone-configuration). SharePoint is
+separate, and broker availability for Postiz does not make it a default.
+App22 is unchanged: its GUI and the seven Google/Microsoft lifecycles retain
+server45/SDK18 attribution, with no App22/server47 GUI claim.
+
+The [Slack/Postiz configuration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4b1489e6ff8c0709f42e3fb4ac97584c42cd623f/deploy/connector-auth/qualification-2026-10-19-slack-postiz-activation.json)
+records the later thirteen-profile broker, preserving the same image and earlier
+rows. Public health/readiness returned 200 and unsigned requests 401. This
+configuration-only rollout added no grant or provider call; Postiz real-account
+acceptance remains unqualified and Atlassian is not enabled. The first beta47
+Postiz OAuth poll returned HTTP503 and was cancelled normally without retry.
+The [broker-only compatibility correction](https://github.com/openagent-uno/openagent-tools/blob/b55cbebe8cf6838a445cf77cd4f2598b7152474f/deploy/connector-auth/qualification-2026-10-19-postiz-compatibility.json)
+then passed its tests, scan and image-only rollout at 12:13:26 UTC, retaining
+all thirteen profiles. Current source is `60665d2f90fb2ae3cee6a0f159ca12999af54819`,
+image `a303d481e9fd5462f77220c7e911247cb53f07e8764b27acd19522e08987aad4`.
+Its configuration remains unchanged. In the [subsequent normal beta47 trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/postiz-product-1.1.0b47-2026-10-19.json),
+a fresh OAuth connection succeeded, but the one advertised `social.postiz.integrations.list`
+workflow returned `failed`. The normal run-read HTTP200 did not turn that into
+a successful provider read; provider HTTP status and a fixed failure code were
+not captured. There was no workflow resubmission, write, forced refresh or
+restart/post-read; underlying provider attempt counts were not observed.
+Normal disconnect, source removal, process/profile cleanup and owned-worker
+deletion passed. Postiz remains non-default with API acceptance unqualified.
+The subsequent actual cloud-account UI showed Choose Plan: its advertised
+seven-day trial required a card and a USD2 authorization hold. No card, trial,
+subscription or payment was activated. The pinned primary source applies [authentication middleware](https://github.com/gitroomhq/postiz-app/blob/e7ceab7b661bb69d7479313b81935028c514d741/apps/backend/src/services/auth/public.auth.middleware.ts#L37-L65)
+to the [public integrations controller](https://github.com/gitroomhq/postiz-app/blob/e7ceab7b661bb69d7479313b81935028c514d741/apps/backend/src/public-api/public.api.module.ts#L34-L37).
+With Stripe billing configured, that guard rejects an organization without a
+subscription. This establishes a concrete cloud-plan prerequisite, not the
+HTTP status received by the earlier failed workflow. No new provider probe was made.
+
+### Additional real beta47 acceptance on 19 October
+
+[Outlook Calendar separately passed the normal server47/SDK19 owner-calendar
+flow](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/outlook-calendar-product-1.1.0b47-2026-10-19.json): `canShare` and `canEdit` were checked from real list/get results before
+creating an event with no attendees, reading it, updating with its version
+precondition, rereading and deleting it. Explicit refresh, a real same-profile
+process restart, post-restart read and ordinary disconnect/tombstone/source
+removal passed at 11:00:51 UTC. This adds no primary/private-calendar guarantee
+and does not qualify mail sending or every calendar/account.
+
+The separate [Google4 beta47 demonstration and lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-demo-product-1.1.0b47-2026-10-19.json)
+passed generated-file creation, metadata and
+content reads, content update and revision verification. SDK19 does not expose
+metadata trash as a catalog tool: the cleanup helper stopped before submitting
+that workflow. The authorized owner moved the exact QA file to trash in the
+Google UI; two normal API reads independently verified the trash state and
+owned marker at 11:11:51 UTC. This is UI-assisted cleanup, not connector trash
+acceptance. The new Gmail trial created one generated self-addressed draft and submitted
+that same draft once through a normal workflow at 11:22:52 UTC. The exact sent-message read verified the same sender/recipient, generated
+subject marker, SENT and no DRAFT; a query using the pre-send canonical draft
+identity found no remaining draft. There was no second send, existing-mail
+change or other recipient. Google Calendar also passed a newly generated private, no-attendee event
+create/get/ETag-update/get/delete cycle on the owner-verified calendar; no
+independent post-delete absence read is claimed. Analytics passed the normal
+account-summary read, with no report or write. All four beta47 Google connections then passed explicit refresh, a real
+same-profile restart, four post-restart reads and normal disconnect at
+11:38:42 UTC. This is a separate trial from the historical server45 lifecycle.
+Owned QA processes were stopped and the exact temporary profile, including
+credentials, was erased at 11:50:35–36 UTC after the safe evidence export was
+verified. The 272-second actual demonstration video is now encoded and visually
+reviewed, then uploaded unlisted. Its reviewer URL was supplied privately in
+Google’s console, where the three
+justifications were saved in Google's actual form. At 12:11:38 UTC the
+Verification Center confirmed **data access in review**. Submission is complete;
+Google approval and required CASA completion are not established.
+
+The following beta46 evidence retains its actual version and counts.
 
 [Server/CLI46](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.46)
 is public from `6b0d62e42abca87c0e0e07b5ae3f28848734840b`, with 12 assets whose
@@ -39,11 +131,9 @@ provider calls or enrollment. It used the immutable public script at `4e6a8bbb`
 The linked installer receipt tracks live website byte equality separately from
 the installation tests against the immutable public source script.
 
-Beta46's absent-setting default is **ClickUp, GitHub, Notion, Outlook Mail,
-Outlook Calendar and OneDrive**. Google Testing needs the full explicit ten-ID
-replacement list in [operations](./connector-operations.md#standalone-configuration);
-SharePoint remains a separate eligible-account opt-in. Explicit `[]` still
-disables common enrollment. App22 is unchanged; its actual native marketplace
+Beta46's historical absent-setting default was **ClickUp, GitHub, Notion,
+Outlook Mail, Outlook Calendar and OneDrive**. Beta47 adds Slack; Google and
+SharePoint remain explicit opt-ins. Explicit `[]` still disables common enrollment. App22 is unchanged; its actual native marketplace
 screenshots and the following provider trials remain attributed to server45.
 No App22/server46 GUI or newly repeated provider trial is claimed.
 
@@ -89,7 +179,8 @@ The following App21/server44 evidence retains its original versions and scope.
 is an independent configuration rollout, creating no new provider grant.
 Servers43–45 defaulted to those three only when both operator settings were
 absent. Beta46 adds the three bounded-qualified Microsoft profiles to that
-default. Explicit `[]` or an empty environment value disables common enrollment. Fresh
+default; beta47 then adds Slack following its broker activation. Explicit `[]`
+or an empty environment value disables common enrollment. Fresh
 keyless-only servers neither register with nor poll the broker. Released
 server 40 needs the explicit allowlist. Host operators preserve their own
 version pins, storage, grants, deployment receipts and release qualification.
@@ -145,7 +236,7 @@ then passed at **08:43:13 UTC**, preserving the same eleven-provider configurati
 The current broker is source `645e0484`, image
 `sha256:04d942f6cc69a59af958911a21a3f4ca2e1901a456d43220b8ac3061a6e13c5d`.
 At that server45 checkpoint, the receiving-server default was
-ClickUp/GitHub/Notion. Beta46's six-provider default is recorded above; explicit
+ClickUp/GitHub/Notion. The beta46/47 defaults are recorded above; explicit
 host configuration and each account's actual consent remain separate. Technical readiness is not an OAuth
 or provider API acceptance result.
 
@@ -162,8 +253,15 @@ This broker-only fix does not change the published SDK18 release or establish
 OAuth acceptance; the original failed attempt and rollback remain recorded.
 
 Google Calendar API enablement and both Calendar scope declarations were saved
-on 18 October. The Google app remains in Testing with one approved test user;
-this permits that user's trial and does not establish general production approval.
+on 18 October. The following four-connector lifecycle ran while the Google app
+was in Testing with one approved test user. Later on 19 October the existing
+external app was published In production, its HTTPS homepage URL-prefix was
+verified via Google's HTML file, and Branding was verified and published.
+Data-access verification remains incomplete. The real unlisted YouTube demo
+URL and three justifications were saved, then the Verification Center confirmed
+**data access in review**. Approval and the required assessment remain incomplete. The observed unverified user cap is 100. Google remains an explicit
+host opt-in; published branding does not add it to receiving-server defaults.
+See the [verification dossier](https://github.com/openagent-uno/openagent/blob/main/docs/verification/google-production-verification-2026-10-19.md).
 The original Microsoft shared registration initially verified four Web callbacks,
 work/school plus personal-account audience and seven delegated permissions: `User.Read`, `offline_access`,
 `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite`, `Files.Read` and
@@ -225,7 +323,7 @@ its own valid registration and qualified receiving host. See
 [setup and recovery](./connector-operations.md#calendar-and-mail-sdk-017)
 and the [versioned SDK contract and limits](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md).
 
-## Real-account trial scope — 19 October
+## Historical server45 real-account trial scope — 19 October
 
 These normal public server45/SDK18 trials are independent of the native App22
 marketplace screenshots. All seven successful rows include consent redemption,
@@ -248,15 +346,21 @@ passed. They do not qualify every operation or every account type.
 
 - **Google:** Existing OpenAgent client, callbacks, production secret reference
   and required APIs are preserved. Calendar scope declarations were saved on
-  18 October. On 19 October the verification center confirmed that review is
-  not required while the app is in Testing with its one approved test user.
-  This is a test-audience exception, not approval for general enrollment.
+  18 October. The historical four-profile trial used the Testing audience.
+  Later on 19 October the external app was published In production; Search
+  Console verified the HTTPS homepage URL-prefix using the vendor HTML file,
+  and Google verified/published its Branding. No DNS TXT/Domain-property
+  verification is claimed. Data-access verification is still unverified, with
+  an observed 100-user cap. Three scope justifications/categories are entered,
+  and the unlisted reviewer URL was saved privately in Google’s console. The Verification
+  Center subsequently confirmed **data access in review** at 12:11:38 UTC. Applicable security-assessment completion is not
+  recorded. These steps do not change scopes or enable Google by default.
   Fresh Gmail, Drive, Analytics and Calendar connection/read/refresh passed;
   the earlier private Calendar-event mutation/cleanup trial also passed. The
   fresh session's real restart, four post-reads and per-connection disconnect/
   tombstone/source removal passed. Final shared receiving-runtime and worker
-  cleanup also passed. Applicable general-production
-  verification/security assessment is separate.
+  cleanup also passed. That bounded server45/SDK18 evidence is separate from
+  scope verification, any assessment and untested operations.
 - **Microsoft:** Outlook Mail/Calendar and OneDrive/SharePoint are published in
   SDK18. The original shared registration verified four Web callbacks, global-cloud
   work/school plus personal audience, implicit tokens disabled and public-client
@@ -297,18 +401,20 @@ passed. They do not qualify every operation or every account type.
   **OpenAgent**, and its released version is Active. The common callback was
   added; existing page, scopes, secrets and legacy webhook endpoints were kept.
   This records the existing app's configuration, not a new review approval.
-- **Postiz:** the authorized account setup is complete without a paid subscription.
-  Its Developers screen initially contained no app. An **OpenAgent** registration
-  now uses the common callback; credentials are staged in encrypted production
-  Secret storage. Credential validation and rotation remain required before
-  activation. The provider remains disabled and
-  has no authorized product connections.
+- **Postiz:** the existing OpenAgent registration and common callback are
+  retained. The replacement credential was custodied and broker configuration
+  activated on 19 October. After the initial HTTP503 and the qualified broker
+  correction, a fresh normal beta47 OAuth connection succeeded. Its one
+  integrations-list workflow failed without a captured provider status or fixed
+  error classification. The connection was normally disconnected and owned
+  cleanup passed. No read, restart or refresh acceptance is inferred, and Postiz
+  is not a receiving-server default.
 - **Token/account connectors:** no common OAuth app is needed. Product-local
   configuration is implemented; dummy-token tests do not validate a real account.
 
 ## What the tests establish
 
-The current SDK18/server45 and App22/server45 Linux x64 visual boundaries are listed above; App21/server44 evidence remains historical.
+The historical SDK18/server45 and App22/server45 Linux x64 visual boundaries are listed above; App21/server44 evidence remains historical.
 The following detailed trials are historical; their exact versions, original
 failures, provider gates and renderer-reload limitations remain unchanged.
 
@@ -456,10 +562,13 @@ and privacy backlog load remain separate qualification.
    Encrypted production app-secret storage and matching backups are now
    verified. Bootstrap health is not the availability gate for a loaded
    production service.
-3. Preserve the bounded Google Testing and Microsoft Mail/Calendar/OneDrive
-   lifecycles recorded above. Wider Google production-audience approval,
+3. Preserve the dated Google and Microsoft Mail/Calendar/OneDrive
+   lifecycles recorded above, including the historical Google Testing boundary. Google data-access verification, the required
+   data-access review/approval and the required security assessment,
    eligible-account SharePoint acceptance and untested operations remain pending,
-   alongside the existing Shopify and Postiz review/callback/consent gates.
+   alongside Shopify privacy/multi-server acceptance for the already approved
+   existing app and Postiz API acceptance. No additional provider
+   app review is inferred for either.
    Each product must qualify its own cancel, read, authorized write, renewal,
    restart and local disconnection; these trials do not attest every operation.
 4. Activate the central Shopify webhook path only after the legacy compatibility

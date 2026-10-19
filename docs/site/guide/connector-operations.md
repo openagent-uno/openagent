@@ -1,10 +1,11 @@
 # Connector setup, embedding and recovery
 
 This guide is for server operators and embedding products. ClickUp, GitHub,
-Notion, Outlook Mail/Calendar and OneDrive common-app enrollment is available as
-a limited beta. Google is restricted to its approved Testing audience; SharePoint
+Notion, Outlook Mail/Calendar, OneDrive and Slack common-app enrollment is available as
+a limited beta. Google's external app is published but its data access remains
+unverified, with an observed 100-user cap and explicit host opt-in; SharePoint
 retains its eligible-account [qualification boundary](./connector-status.md).
-Current published Python components are **SDK/runner 0.1.8 and server/CLI beta46**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
+Current published Python components are **SDK/runner 0.1.9 and server/CLI beta47**: 114 official connectors plus Custom MCP, including 90 token profiles with two specific reads each and read-only OneDrive/SharePoint. Real account/provider acceptance remains separate.
 [App22 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22).
 The [App22/server45 Linux x64 marketplace receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 records 114 official cards, 30 registry results and ten reviewed images. It
@@ -27,8 +28,8 @@ on the client displaying the marketplace.
 connectors:
   runner_path: /opt/openagent/connectors/bin/openagent-connector-runner
   auth_url: https://auth.openagent.uno
-  # Controlled Google Testing: explicit lists REPLACE the server default.
-  # Keep the six qualified beta providers and add the four Google profiles.
+  # Limited Google trial (published, data access unverified): lists REPLACE the default.
+  # Keep the seven beta47 default providers and add the four Google profiles.
   # Use [] to disable common OAuth enrollment on this server.
   official_providers:
     - clickup
@@ -37,6 +38,7 @@ connectors:
     - outlook_mail
     - outlook_calendar
     - onedrive
+    - slack_import
     - gmail
     - google_drive
     - google_analytics
@@ -59,13 +61,13 @@ central provider or bypass product policy. Standalone Shopify is independently
 blocked until the local privacy processor is qualified. An empty OAuth list
 does not disable token/account connectors that are configured locally.
 
-Server beta46 resolves common OAuth availability in this order:
+Server beta47 resolves common OAuth availability in this order:
 
 1. An explicit `connectors.official_providers` list wins, including `[]`.
 2. Otherwise, a present `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` value supplies the
    comma-separated list. An empty value disables common OAuth enrollment.
 3. Only when both settings are absent, it defaults to `clickup`, `github`,
-   `notion`, `outlook_mail`, `outlook_calendar` and `onedrive`.
+   `notion`, `outlook_mail`, `outlook_calendar`, `onedrive` and `slack_import`.
 
 This changes catalog eligibility, not consent. It creates no connection,
 provider grant or automatic broker registration. A fresh keyless-only server
@@ -75,7 +77,17 @@ opt-in requirement; use the YAML list above or the environment variable to opt
 in. The three-provider broker beta was deployed separately, without new grants.
 Empty OAuth lists do not disable local token/account or keyless connections.
 
-The ten-provider example is for the approved Google **Testing** audience only.
+The eleven-provider beta47 example keeps Google explicitly opt-in. Its external app
+is now **In production**, with **verified published Branding** but **unverified
+data access** and an observed 100-user cap. The historical server45 lifecycle
+used an approved Testing account; it is not relabeled as verified production.
+The form's three justifications/categories are entered and its required YouTube
+URL has been supplied privately in Google’s console and saved in the actual
+data-access form.
+Google subsequently confirmed **data access in review** at 12:11:38 UTC on
+19 October. Approval and the CASA assessment required before approval remain
+incomplete. See the
+[verification dossier](https://github.com/openagent-uno/openagent/blob/main/docs/verification/google-production-verification-2026-10-19.md).
 Explicit configuration and `OPENAGENT_CONNECTOR_AUTH_PROVIDERS` replace the
 resolved list; they do not append to it. Include all desired providers rather
 than setting only the four Google IDs and unintentionally hiding the others.
@@ -84,12 +96,34 @@ eligible work/school account must explicitly include `sharepoint` while retainin
 any other desired IDs. That opt-in grants no tenant consent or site access;
 the eligible-account SharePoint lifecycle remains unqualified.
 
-[Published beta46](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.46)
-ships the six-provider default. Published betas43–45 retain their historical
-three-provider default; publishing beta46 does not update an existing host.
-Google Testing still needs the full explicit ten-provider override; SharePoint
-remains a separate opt-in. The real provider lifecycle receipts below used
-public server45 with an explicit opt-in and are not relabeled as beta46 trials.
+[Published beta47](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.47)
+ships the seven-provider default after Slack broker activation. Beta46 retains
+its six-provider default and betas43–45 retain their historical three-provider
+default; publication does not update an existing host. Broker Postiz availability
+does not add it to that default. The first beta47 Postiz OAuth poll failed
+HTTP503 and was cancelled without retry; the [broker compatibility correction](https://github.com/openagent-uno/openagent-tools/blob/b55cbebe8cf6838a445cf77cd4f2598b7152474f/deploy/connector-auth/qualification-2026-10-19-postiz-compatibility.json)
+subsequently qualified. A fresh normal OAuth connection succeeded, but its one
+`integrations.list` workflow failed without captured provider HTTP status or
+fixed failure classification; no workflow resubmission followed, and underlying
+provider attempt counts were not observed. Disconnect and cleanup
+passed, while API/read-restart acceptance remains unqualified. The observed
+cloud plan flow requires a card and authorization hold; no trial/subscription
+was activated. Treat cloud-plan eligibility as a prerequisite, not proof of the
+HTTP status returned to that earlier workflow. Google limited trials need the full explicit
+eleven-provider override; SharePoint remains a separate opt-in. The real provider lifecycle receipts below used
+public server45 with an explicit opt-in and are not relabeled. Separate
+[Google4 beta47 demonstration/lifecycle](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/google-demo-product-1.1.0b47-2026-10-19.json)
+and [Outlook Calendar47](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/outlook-calendar-product-1.1.0b47-2026-10-19.json)
+receipts record the newly exercised operations; neither makes every catalog
+operation or account eligible.
+Beta47 publication and installed fixtures passed. Its
+[normal live public installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product47-public-installer-2026-10-19.json)
+passed all eight stages, including separate server/CLI installs, dependency
+checks, ORM, the 114-plus-Custom catalog and the seven-provider constructor default. It used no
+HOME/TMPDIR override or source overlay, started no server/model and made no
+provider call. The live 8,722-byte script matched SHA256
+`f285a9c8d9670a74a8a3f881046ac0d5f408d1edcf3abd14f0333d970f486f15`.
+The following installer evidence remains specifically beta46.
 The [installed beta46 qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-installed-2026-10-19.json)
 and [normal public-source installer46](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product46-public-installer-2026-10-19.json)
 passed. The latter installed server and thin CLI separately, checked both
@@ -104,8 +138,9 @@ server settings; native App provider-operation acceptance remains separate.
 
 The [SDK18 broker image-only checkpoint](https://github.com/openagent-uno/openagent-tools/blob/7e3c6f829b22a8dcfa3bdce79416580a365ab12f/deploy/connector-auth/qualification-2026-10-19.md)
 retained those three providers. Preparing more provider rows or storing an app
-secret does not activate a receiving server. Google Testing trials use only the
-approved test audience. Microsoft's immutable secret is now stored and mounted
+secret does not activate a receiving server. The recorded Google server45 trials
+used the approved Testing audience; the later publication/Branding steps above
+are separate from that account-level evidence. Microsoft's immutable secret is now stored and mounted
 read-only; normal startup as UID 65532 verified the projected file. The first
 additive rollout was rolled back after a provider-specific startup-validation
 failure. The [source fix](https://github.com/openagent-uno/openagent-tools/commit/975d9426b1373b1db0c1b7f75d329451f3cf5d75)
@@ -114,8 +149,8 @@ passed auth/OAuth tests, vet and a static Linux amd64 build. Its scanned image
 recovered eleven-provider technical readiness at 08:14:17 UTC on 19 October:
 one Ready writer, health/readiness 200 and unsigned request 401. At that
 server45 checkpoint, its three-provider default was unchanged. Beta46's
-six-provider default is recorded above; Google Testing and SharePoint still
-need explicit host configuration. Broker readiness establishes neither general
+historical six-provider default is distinct from beta47 above; Google and SharePoint still need
+explicit host configuration. Broker readiness establishes neither general
 Google audience approval nor account access. The current [diagnostic broker](https://github.com/openagent-uno/openagent-tools/blob/4c73501009c7f9d81dd0adec2223232dee839fcc/deploy/connector-auth/qualification-2026-10-19-diagnostics.json)
 uses source `645e0484` and image
 `sha256:04d942f6cc69a59af958911a21a3f4ca2e1901a456d43220b8ac3061a6e13c5d`;
@@ -416,9 +451,20 @@ operation makes one HTTP attempt; uncertain writes are not replayed. Go hosts
 receive a bounded `ProviderError`; Python exposes `ConnectorError.code` and an
 optional validated `provider_status`. No provider error body, header, credential
 or request ID is exported through that error contract. Microsoft conditional
-write behavior still needs real provider qualification. Local disconnect
+write behavior is qualified only for the dated beta47 owner-calendar event
+cycle; other operations/accounts remain separate. Local disconnect
 removes only that product connection; this implementation does not expose a
 Microsoft-wide consent-revocation endpoint.
+
+Use provider-returned opaque object IDs for follow-up reads. Gmail can
+canonicalize the RFC Message-ID between a draft and the sent message; it is not
+a stable substitute for the returned object ID. Verify the exact owned object
+and expected recipients before adopting a returned identity, preserve the
+original evidence and never resend merely because a verification query missed.
+The beta47 trial sent one generated self-addressed draft once and verified its
+sent state and consumed draft. Drive's current catalog exposes content create
+and update, not metadata trash: the demo used owner UI trash followed by API
+read verification, without treating that catalog boundary as a provider failure.
 
 See the [published SDK contract](https://github.com/openagent-uno/openagent-tools/blob/main/docs/connector-calendar-mail-0.1.7-candidate.md),
 [Google Calendar authorization](https://developers.google.com/workspace/calendar/api/guides/auth),
@@ -465,8 +511,9 @@ distinguishes this storage qualification from outstanding provider/load tests.
 
 Monitor `/healthz` separately from `/readyz`. A bootstrap configuration can
 report healthy with zero configured providers while readiness correctly refuses
-enrollment. The dated current broker checkpoint has eleven configured profiles
-and health/readiness 200. Its readiness does not extend the specific provider
+enrollment. The [later configuration checkpoint](https://github.com/openagent-uno/openagent-tools/blob/4b1489e6ff8c0709f42e3fb4ac97584c42cd623f/deploy/connector-auth/qualification-2026-10-19-slack-postiz-activation.json)
+has thirteen configured profiles and health/readiness 200; adding Slack/Postiz
+created no new grant or provider API acceptance. Its readiness does not extend the specific provider
 acceptance recorded above or qualify loaded capacity, peer recovery and
 product-local privacy actions. The
 [deployment runbook](https://github.com/openagent-uno/openagent-tools/tree/main/deploy/connector-auth)

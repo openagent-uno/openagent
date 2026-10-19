@@ -1,0 +1,92 @@
+{
+  "format": 1,
+  "recorded_at": "2026-10-19T12:20:36.128172+00:00",
+  "status": "oauth_connected_read_workflow_failed_cleanup_passed",
+  "versions": {
+    "server_cli": "1.1.0b47",
+    "connectors_sdk": "0.1.9",
+    "core": "1.1.0b22",
+    "host_tools": "1.0.0b6"
+  },
+  "source_product": "1140364d0e662237336df79166db9d8d10e54781",
+  "source_sdk": "58b47a81467944e604b6643f722041880ead0d6d",
+  "source_broker": "60665d2f90fb2ae3cee6a0f159ca12999af54819",
+  "broker_image_sha256": "a303d481e9fd5462f77220c7e911247cb53f07e8764b27acd19522e08987aad4",
+  "connector": "postiz",
+  "execution_path": "normal_installed_product_certified_gateway_and_workflow_apis",
+  "steps": {
+    "fresh_receiver": true,
+    "oauth_connected": true,
+    "advertised_read_operation": "social.postiz.integrations.list",
+    "workflow_submissions": 1,
+    "ordinary_run_get_http_status": 200,
+    "workflow_status": "failed",
+    "call_trace_status": "failed",
+    "read_qualification_passed": false,
+    "same_profile_restart_performed": false,
+    "post_restart_read_performed": false,
+    "normal_disconnect_tombstone_and_source_removal": true
+  },
+  "unresolved_read_failure": {
+    "trace_error_type": "str",
+    "trace_error_sha256": "a9518bcf5899c44a5b15e6baf8f112b18f4bade4d7670f8dc2a18c05f74d1680",
+    "workflow_result_bytes": 1321,
+    "workflow_result_sha256": "a531512f5620fd98844ecaeea3c1b2d5b51a005491e8b343b11ca959cc130ff5",
+    "provider_http_status": null,
+    "provider_failure_inferred": false,
+    "provider_attempts_observed": null,
+    "workflow_resubmissions": 0,
+    "provider_retry_observed": null,
+    "static_hash_match": "ConnectorError: connector_request_failed",
+    "hash_match_algorithm": "sha256(json.dumps(error_string, sort_keys=True).encode())",
+    "generic_code_does_not_identify_provider_cause": true
+  },
+  "cleanup": {
+    "owned_workflow_removed": true,
+    "all_owned_runtime_processes_stopped": true,
+    "temporary_profile_removed": true,
+    "worker_uid_rv_delete_verified": true,
+    "worker_not_found": true,
+    "other_processes_signalled": false,
+    "pvc_and_other_persistent_state_preserved": true
+  },
+  "boundaries": {
+    "writes_performed": false,
+    "forced_refresh_performed": false,
+    "refresh_protocol_supported": false,
+    "general_read_qualification_claimed": false,
+    "global_provider_revocation_claimed": false,
+    "native_app_acceptance_claimed": false,
+    "profile_database_identity_or_credentials_exported": false,
+    "account_or_resource_identifiers_in_this_receipt": false
+  },
+  "safe_aggregate_sha256": "79e144b50935ffef50c1951bea50f8860cb6dfd1c8fdfc2f665d53fe0aae78a2",
+  "safe_evidence_sha256": {
+    "receipt-postiz-start.json": "f2acb29c7bc0e062795ffc5ce9ef97fe2c9e4eb5e3ae9a23f19b0b22be636c17",
+    "receipt-postiz-poll.json": "b54867cd7dbce109f74a827869e0f9a4990e4ca2e0e682ff74591eb2b02d072b",
+    "receipt-postiz-read.json": "20ee6709ef0118bc93e61387f1cdc47b38e04b864773e7a82ae28e076f5d26e7",
+    "receipt-postiz-workflow-cleanup.json": "707db50b6ec937b640f611bb5ecea52662723cbe822e9bcb510aec642fb03481",
+    "receipt-postiz-disconnect.json": "b2f2dae7a9d9e26fd11da435689a8231717161efa25fd5571dbe18bbcc642e98",
+    "postiz-run-failure-safe.json": "0b74f5825728aca733ee1cc0af89604653ea4517ce835c3737a83ba15ba85dc3",
+    "final-safe-export-index.json": "511cd52a6001416f965830dd689dfe21ec168ceb7a8aec081c619170ddc6b81d",
+    "cleanup-receipt.json": "20a0b22bbe91788a735584a60dfa129532f3456e43d7bd7851b55945b8736070",
+    "qa-profile-removal-receipt.json": "4d8b09257b03df02f3a4df8630eea83f7f5d3f3ac03014f7e016bca1f62812d9",
+    "worker-cleanup-receipt.json": "4a51f7e5e74a40068081ea5d63f01ddd6440849530ceb30441fffa78107864fc"
+  },
+  "account_prerequisite": {
+    "operator_observed_account_ui": "choose_plan",
+    "subscription_or_trial_started": false,
+    "payment_authorized_or_initiated": false,
+    "upstream_billing_gate": "With billing enabled, PublicAuthMiddleware rejects an organization without a subscription before Public API controller execution, including OAuth-token authorization.",
+    "upstream_rejection_status": 401,
+    "failed_workflow_provider_http_status_observed": false,
+    "failed_workflow_http_status_inferred_from_source": false,
+    "read_qualification_blocker": "Account plan prerequisite remains unsatisfied; the earlier generic workflow failure does not establish a provider HTTP status.",
+    "primary_sources": [
+      "https://github.com/gitroomhq/postiz-app/blob/e7ceab7b661bb69d7479313b81935028c514d741/apps/backend/src/services/auth/public.auth.middleware.ts#L37-L65",
+      "https://github.com/gitroomhq/postiz-app/blob/e7ceab7b661bb69d7479313b81935028c514d741/apps/backend/src/public-api/public.api.module.ts#L34-L37",
+      "https://postiz.com/pricing"
+    ],
+    "operator_account_ui_witness_sha256": "320aeca6a6518fe9f28f7aa4e07f52d318cfbaf9a853eec0a128ed23d9d07220"
+  }
+}

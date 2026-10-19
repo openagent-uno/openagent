@@ -1,6 +1,6 @@
 # OpenAgent privacy
 
-Updated: 12 October 2026.
+Updated: 19 October 2026.
 
 OpenAgent is a modular AI agent runtime and a standalone client/server product. Its official connectors let an authorized agent work with services such as Gmail, Google Drive, Google Analytics, Shopify and ClickUp. The same connector library can be embedded in independent host products.
 
@@ -10,7 +10,7 @@ OpenAgent is a modular AI agent runtime and a standalone client/server product. 
 
 This notice describes the OpenAgent website, standalone product and shared authentication service at `auth.openagent.uno`. Each receiving product's operator controls its own server, user accounts, connection permissions and stored content. For any independently operated host installation, also consult that operator's privacy notice. A product appearing in the authorization disclosure is the intended recipient; its name does not mean OpenAgent endorses it.
 
-The common OAuth apps are being qualified and are not yet available for general production enrollment. Provider approval and real end-to-end testing remain required. Existing connections using a product's own app continue under that registration.
+Common OAuth enrollment is available as a limited beta for the profiles and operations recorded in the [qualification status](/guide/connector-status). Google's external app is published with verified Branding, but its data access remains unverified and subject to the observed 100-user cap; Google remains an explicit host opt-in. Its unlisted demonstration video is uploaded and Google has confirmed data access is in review. Approval and the security assessment required before approval are not complete. Publication, branding and bounded account trials do not qualify every receiving product, operation or data-processing configuration. Existing connections using a product's own app continue under that registration.
 
 ## Information accessed and why
 
