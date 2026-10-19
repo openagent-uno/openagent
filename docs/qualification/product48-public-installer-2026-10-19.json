@@ -26,7 +26,7 @@
   "default_common_providers": 7,
   "shopify": "explicit-opt-in-and-verified-privacy-coverage-required",
   "normal_public_source_installer": "passed",
-  "canonical_website_installer": "pending",
+  "canonical_website_installer": "byte-identical-to-qualified-public-source",
   "normal_public_source_installer_commit": "85ab841b4d592fc0c00590b3c5c269b3c059db23",
   "normal_public_source_installer_sha256": "4678c5b37cf2201e770ae8feaab5b18bbff2bf5bcd221e46a7ec6c8425894285",
   "installer_receipt_sha256": "0642ec70d97616ca0131e0a0b2d3f075641b64b9051bc811120043539be6a7f8",
@@ -35,9 +35,17 @@
   "normal_public_source_installer_bytes": 8723,
   "source_receipt_sha256": "0642ec70d97616ca0131e0a0b2d3f075641b64b9051bc811120043539be6a7f8",
   "website_byte_verification": {
-    "status": "pending-final-Pages",
-    "expected_bytes": 8723,
-    "expected_sha256": "4678c5b37cf2201e770ae8feaab5b18bbff2bf5bcd221e46a7ec6c8425894285"
+    "status": "passed",
+    "at": "2026-10-19T13:35:26.607556+00:00",
+    "url": "https://openagent.uno/install.sh",
+    "http_status": 200,
+    "bytes": 8723,
+    "sha256": "4678c5b37cf2201e770ae8feaab5b18bbff2bf5bcd221e46a7ec6c8425894285",
+    "pages_commit": "659208ff02709b57e31a085351cb958ce32cdba3",
+    "pages_run": 39261295067,
+    "anonymous": true,
+    "witness_sha256": "93213e22c5efe9a2451c2584ee98e211eeb4edc46f1122230760f718f0d7a168",
+    "installer_reexecuted_after_Pages": false
   },
   "limits": {
     "server_or_model_started_by_installer": false,
