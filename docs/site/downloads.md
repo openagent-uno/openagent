@@ -1,16 +1,17 @@
 # Download OpenAgent
 
-The current server and CLI build is **v1.1.0-beta.48**, using Core beta 22,
-connector SDK/runner 0.1.10 and Host Tools 1.0.0b6. The current desktop App remains
+The current server and CLI build is **v1.1.0-beta.49**, using Core beta 22,
+connector SDK/runner 0.1.11 and Host Tools 1.0.0b6. The current desktop App remains
 **v1.1.0-beta.22**, published for macOS, Windows and Linux on ARM64 and x64.
 [App22/server45 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 passed with 114 official cards, 30 registry results and ten reviewed screenshots.
-It made zero provider/model calls and is not an App22/server48 GUI qualification.
+It made zero provider/model calls and is not an App22/server49 GUI qualification.
 Historical App21/server44 and App20/server43 evidence retain their actual scope.
 Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows marketplace GUI.
-Beta48's [installed qualification](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/qualification.json)
-passed 215 tests and fifteen React source groups. The [normal public-source installer48](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json) passed separate server/CLI installation and dependency, ORM/catalog/default checks; live website byte equality is recorded separately in the installer receipt; its immutable public source
-at `85ab841b` is pinned to 48/0.1.10. Provider acceptance remains separate; see
+Beta49's [installed qualification](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.49/qualification.json)
+passed 215 tests and fifteen React source groups. The [normal public-source installer49](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product49-public-installer-2026-10-19.json) passed separate server/CLI installation, dependency/import/catalog and seven-provider-default checks. Live website byte equality is recorded separately in that receipt. The dated
+[installer48 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product48-public-installer-2026-10-19.json)
+retains beta48 attribution. Provider acceptance remains separate; see
 [Connector release status](./guide/connector-status.md).
 
 Product source and server/CLI releases come from the canonical
@@ -77,14 +78,14 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
   — filesystem, editor, shell, web search, device capabilities and the optional
   Meta Ads MCP package with video upload support.
 - [OpenAgent host-tools v1.0.0b6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
-  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta48.
+  — six qualified platform bundles and the exact Python wheel reused by server/CLI beta49.
   The desktop App retains its own release lock.
-- [Shared connector module/runner 0.1.10](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.10)
+- [Shared connector module/runner 0.1.11](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.11)
   — 114 official entries plus Custom MCP, including 90 limited manual-token profiles; Python/MCP transport, platform manifests and checksums.
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
   — historical operator release; the current deployed broker checkpoint and
   provider-specific enrollment boundaries are recorded in [connector status](./guide/connector-status.md).
-- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.48/manifest.json)
+- [Product release manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.49/manifest.json)
   — component versions, source commits and SHA-256 digests.
 
 Existing 0.x installations continue to use their historical updater endpoints

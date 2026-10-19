@@ -1,0 +1,331 @@
+{
+  "recorded_at": "2026-10-19T14:33:27.049407+00:00",
+  "status": "real_two_host_lifecycle_and_operator_signed_privacy_QA_passed_with_explicit_boundaries",
+  "product_version": "1.1.0b49",
+  "product_source": "434b287ac952a3ee8b69bf8727aa67d0ad74a64f",
+  "sdk_version": "0.1.11",
+  "sdk_source": "20bc4d3d1747ce8676c70c34ad2edaa86e33901d",
+  "broker_source": "20bc4d3d1747ce8676c70c34ad2edaa86e33901d",
+  "broker_image_digest": "sha256:cdb0e3c3bb2d1e4582370acb2eb2d6e73e77eded612371c228fe93cec361bd1c",
+  "existing_app_only": true,
+  "new_apps_created": 0,
+  "new_stores_created": 0,
+  "new_review_requests": 0,
+  "actual_consent_distinct_hosts": 2,
+  "scopes": [
+    "read_inventory",
+    "read_products"
+  ],
+  "read_workflows": [
+    {
+      "host": "A",
+      "mode": "read",
+      "recorded_at": "2026-10-19T14:22:42.407178+00:00",
+      "status": "passed",
+      "operation": "commerce.shopify.products.list",
+      "result_bytes": 3702,
+      "result_sha256": "4c87f372816a3bd844496e451cd9e8b6c5bacb1405a202e4db2e0ce88776e951",
+      "normal_workflow_submissions": 1,
+      "safe_receipt_sha256": "827156359dd5c5d35dde54f52cac8b9fc18a7f90d3c7aac58d76c7d768df2d1a"
+    },
+    {
+      "host": "A",
+      "mode": "restart-read",
+      "recorded_at": "2026-10-19T14:25:24.540306+00:00",
+      "status": "passed",
+      "operation": "commerce.shopify.products.list",
+      "result_bytes": 3702,
+      "result_sha256": "4c87f372816a3bd844496e451cd9e8b6c5bacb1405a202e4db2e0ce88776e951",
+      "normal_workflow_submissions": 1,
+      "safe_receipt_sha256": "1fe8fb09d15646c623ba4f1d60cded7fe204622a7cf9faee2080351a292af353"
+    },
+    {
+      "host": "B",
+      "mode": "read",
+      "recorded_at": "2026-10-19T14:22:55.707213+00:00",
+      "status": "passed",
+      "operation": "commerce.shopify.products.list",
+      "result_bytes": 3702,
+      "result_sha256": "4c87f372816a3bd844496e451cd9e8b6c5bacb1405a202e4db2e0ce88776e951",
+      "normal_workflow_submissions": 1,
+      "safe_receipt_sha256": "6fb2ce22a71cd1ecc14ef9095190f37c59ccef73b78097263c443cbbf03db4c2"
+    },
+    {
+      "host": "B",
+      "mode": "restart-read",
+      "recorded_at": "2026-10-19T14:24:54.463848+00:00",
+      "status": "passed",
+      "operation": "commerce.shopify.products.list",
+      "result_bytes": 3702,
+      "result_sha256": "4c87f372816a3bd844496e451cd9e8b6c5bacb1405a202e4db2e0ce88776e951",
+      "normal_workflow_submissions": 1,
+      "safe_receipt_sha256": "81cb8592c54c58cbb08360f848001ca8ca31f788a50641323437fa3b96f57f3d"
+    }
+  ],
+  "initial_group_alignment": {
+    "A": 4,
+    "B": 4,
+    "same_app": true,
+    "same_group": true,
+    "source": "operator_observed_readonly_SQL_metadata_2026-10-19T14:20:31Z"
+  },
+  "concurrent_refresh": {
+    "normal_calls_per_host": 1,
+    "A_http_status": 503,
+    "B_status": "connected",
+    "versions_before": 4,
+    "versions_after": {
+      "A": 5,
+      "B": 5
+    },
+    "provider_attempt_count": null,
+    "refusal_reason": "unclassified_product_HTTP503",
+    "automatic_or_operator_refresh_retry": false,
+    "observed_converged_token_version_increment": 1,
+    "source_same_consent_and_single_rotation_guards_covered_by_SDK011_canonical_tests": true,
+    "live_provider_attempt_counter_instrumented": false
+  },
+  "offline_lost_delivery": {
+    "B_exact_owned_processes_stopped": true,
+    "A_new_scenario_refresh_status": "connected",
+    "public_sync_mail_calls": 1,
+    "encrypted_envelopes_discarded": 1,
+    "local_B_version_after_discard": 5,
+    "commit_before_local_save": false,
+    "local_credential_write_by_fault_injector": false,
+    "normal_resume_same_keys": true,
+    "versions_after_normal_resume": {
+      "A": 6,
+      "B": 6
+    },
+    "exclusive_recovery_versus_republication_mechanism_proven": false
+  },
+  "restarts": {
+    "A_normal_same_profile": true,
+    "B_normal_same_profile": true,
+    "private_keys_preserved": true,
+    "certificates_preserved": true,
+    "post_restart_normal_reads_passed": 2
+  },
+  "data_writes_to_provider": 0,
+  "raw_tokens_profiles_provider_bodies_exported": false,
+  "receiver_cleanup": {
+    "normal_disconnect": "passed_both",
+    "local_tool_sources_removed": true,
+    "credentials_nonce_pending_transaction_SQL_NULL_both": true,
+    "owned_processes_stopped_at": "2026-10-19T14:31:31.603927+00:00",
+    "QA_profiles_erased_at": "2026-10-19T14:31:53.789934+00:00",
+    "worker_exact_UID_delete_NotFound_at": "2026-10-19T14:32:22.374925+00:00",
+    "PVC_tools_and_public_installations_preserved": true,
+    "no_private_identity_or_token_export": true
+  },
+  "boundaries": {
+    "real_ten_minute_mail_expiry": "not_exercised; synthetic_fixture_only",
+    "no_surviving_updated_copy": "not_exercised_live",
+    "provider_refresh_HTTP_attempt_count": "not_observed",
+    "signed_QA_privacy_notifications": "passed_operator_signed_synthetic_only; no genuine provider delivery",
+    "genuine_provider_webhook_delivery": "not_exercised; legacy_webhook_routes_retained",
+    "legacy_webhook_cutover": "not_applied; private_compatibility_proposal_only",
+    "global_public_Shopify_activation": false,
+    "real_customer_privacy_erasure": "not_claimed; synthetic customer and owned QA provenance only",
+    "exclusive_lost_mail_recovery_mechanism": "not_instrumented; normal authenticated synchronization restored after deliberate encrypted-delivery loss"
+  },
+  "historical_48_failed_receipts_preserved": true,
+  "operator_signed_privacy_QA": {
+    "first_and_exact_duplicate_http_statuses": {
+      "customers/data_request": [
+        200,
+        200
+      ],
+      "customers/redact": [
+        200,
+        200
+      ],
+      "app/uninstalled": [
+        200,
+        200
+      ],
+      "shop/redact": [
+        200,
+        200
+      ]
+    },
+    "occurred_at_retained": "2026-10-19T14:29:09.801162Z",
+    "genuine_Shopify_delivery": false,
+    "B_offline_during_all_injections": true,
+    "B_receipts_before_resume": 0,
+    "normal_resume_same_keys": true,
+    "final_local_SQL": [
+      {
+        "host": "A",
+        "local_disconnected": true,
+        "credentials_erased": true,
+        "privacy_events": [
+          {
+            "topic": "app/uninstalled",
+            "status": "credential_revoked",
+            "count": 1
+          },
+          {
+            "topic": "customers/data_request",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "topic": "customers/redact",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "topic": "shop/redact",
+            "status": "complete",
+            "count": 1
+          }
+        ],
+        "privacy_jobs": [
+          {
+            "operation": "export",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "operation": "redact",
+            "status": "complete",
+            "count": 2
+          }
+        ]
+      },
+      {
+        "host": "B",
+        "local_disconnected": true,
+        "credentials_erased": true,
+        "privacy_events": [
+          {
+            "topic": "app/uninstalled",
+            "status": "credential_revoked",
+            "count": 1
+          },
+          {
+            "topic": "customers/data_request",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "topic": "customers/redact",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "topic": "shop/redact",
+            "status": "complete",
+            "count": 1
+          }
+        ],
+        "privacy_jobs": [
+          {
+            "operation": "export",
+            "status": "complete",
+            "count": 1
+          },
+          {
+            "operation": "redact",
+            "status": "complete",
+            "count": 2
+          }
+        ]
+      }
+    ],
+    "final_public_delivery_ACK_observation": [
+      {
+        "host": "A",
+        "durable_local_event_count": 4,
+        "remaining_unacknowledged_broker_events": 0,
+        "operator_events_ACK_calls": 0,
+        "normal_receiver_delivery_ACK_observed": true,
+        "privacy_target_count": 88,
+        "privacy_targets_complete": 88,
+        "export_delivery_rows": [
+          {
+            "state": "ready",
+            "delivered": true,
+            "count": 1
+          }
+        ]
+      },
+      {
+        "host": "B",
+        "durable_local_event_count": 4,
+        "remaining_unacknowledged_broker_events": 0,
+        "operator_events_ACK_calls": 0,
+        "normal_receiver_delivery_ACK_observed": true,
+        "privacy_target_count": 88,
+        "privacy_targets_complete": 88,
+        "export_delivery_rows": [
+          {
+            "state": "ready",
+            "delivered": true,
+            "count": 1
+          }
+        ]
+      }
+    ],
+    "owner_export_delivery": [
+      {
+        "status": "passed",
+        "host": "A",
+        "normal_owner_export_requests": 1,
+        "normal_owner_delivery_ACKs": 1,
+        "bundle_bytes": 92,
+        "bundle_sha256": "38ec5360e22bb5616ea3233caf70695099c2d27670dc0f3066f3710007190eec",
+        "bundle_or_delivery_token_exported": false,
+        "provider_customer_data_read": false
+      },
+      {
+        "status": "passed",
+        "host": "B",
+        "normal_owner_export_requests": 1,
+        "normal_owner_delivery_ACKs": 1,
+        "bundle_bytes": 92,
+        "bundle_sha256": "60647e29434fdd451a111ac3b6b5b9f2809e672fd02018d001cef782584e02d7",
+        "bundle_or_delivery_token_exported": false,
+        "provider_customer_data_read": false
+      }
+    ],
+    "synthetic_customer_identity_only": true,
+    "provider_customer_data_lookups": 0,
+    "real_customer_data_erasure_claimed": false,
+    "production_secret_only_in_master_RAM": true,
+    "secret_or_signature_logged_or_exported": false,
+    "production_legacy_webhook_routes_changed": false,
+    "empty_export_basis": "Synthetic customer selection with no customer lookup; both RAM-only bundles were 92 bytes (public export serialization request_id plus empty parts). No real-customer erasure claim."
+  },
+  "scope_qualification": "Two allowlisted QA installations/exact existing QA shop; no global public Shopify enrollment claim",
+  "evidence_sha256": {
+    "copy-index.final.json": "69f34c69124c739ad3442a845b6f3dfcb9f22b9f11951be6112147f9d49c76da",
+    "final49-runtime-quiescence.json": "f483f7e453f4769e68a24cfeaa60af5d25c98942b7ca640212046aac5f317429",
+    "final-profile-erasure.json": "8db20ca5e5ee86425158bff62a895e9c9dcfa35dcaddaece4fe35b8e37091ce2",
+    "final-worker-cleanup.json": "dbbc376dba3f0be7634b9b4edd17cf098685fa5612dcb243c4c381beb7512fa3",
+    "four-signed-synthetic-actual.json": "58c3300144399caa4271760b2a5cd0e64412ecbc879bfa1ed3ccb76d7d386900",
+    "privacy-status-latest.json": "187d76bcba816d63ced3434bef92f797de3f0352821db54b9ae8de27e3bb495f",
+    "privacy-final-delivery-ACK-safe.json": "a19d13ff9e05879d7acd2c6f8d495e84570cf94366d1ca4c914608c20993947b",
+    "A-privacy-export-ack.json": "80da183bb92e652c68507d5a62f38c82127c730ac8428ffb8394062172efdcba",
+    "B-privacy-export-ack.json": "cb45fddffe6451437df132c24928aa9fe431c5905f587007a713ea19f3323ec0",
+    "B-mail-loss49.stdout": "78f99be6e0981ea504f0471811cc1a301e4f9dcddb4e562c9f3f88b326e58032",
+    "sync-version-after-lost-delivery-safe.json": "0fd8a9b5817ddc63ccae0125381110a0b2317df151a9a450d4dbd283fdd76aed"
+  },
+  "format": 1,
+  "provider": "shopify",
+  "qualification_date": "2026-10-19",
+  "qualification_scope": "Existing approved application, two host-owned QA installations, readonly products/inventory authorization; owned QA cleanup",
+  "oauth_callback_evidence": {
+    "distinct_A_B_consents_on_existing_app": true,
+    "prior_normal_48_grants_preserved": true,
+    "A_fresh_reconsent_on_normal_49": true,
+    "B_preserved_grant_synchronized_by_normal_49": true,
+    "new_app_or_store_created": false
+  },
+  "product_manifest_sha256": "c2931a7ab65418615807e3d2ae7e5b715ab3f834c9dbc2ae1d704e4be1aa3c12",
+  "sdk_manifest_sha256": "6c8ebaf5d3db1c4252f6ae5c4fe8372636b4e244945ba54bf4e7ca10a25757ee",
+  "no_synthetic_provider_operation_count_claims": true,
+  "normal_installation_source_overlay": false
+}
