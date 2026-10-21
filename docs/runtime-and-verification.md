@@ -72,6 +72,14 @@ Kinds are `scheduled_task`, `event` and `workflow`. A changed digest returns a
 conflict. Disabling or changing a definition revokes the previous authority.
 No startup path adopts the installation owner as an automation principal.
 
+An event delivery claimed by the Scheduler drain carries a claim lease
+(`OPENAGENT_EVENT_LEASE_TTL_SECONDS`, default 120). The server's event execution
+beats that lease for the whole dispatch, from grant resolution and Runtime
+admission until the Runtime record is observed, in the dispatcher's own
+environment; Core's inner beat only covers the action body. Without it a
+healthy turn longer than the lease could be re-enqueued by the lease reaper and
+its replay would return the first record of the deterministic run ID.
+
 Pending, unclaimed deliveries may resume after explicit revision approval.
 Previously running or claimed deliveries require reconciliation of their exact
 run and possible external effects; they must not be requeued as new occurrences.
