@@ -188,6 +188,19 @@ class NativeAutomationAuthority:
                     "SELECT role,network_id FROM network WHERE singleton=1"
                 )
             ).fetchone()
+            from openagent_server.bridge_vault_access import (
+                bridge_owner_principal_active,
+                is_telegram_bridge_principal,
+            )
+
+            if is_telegram_bridge_principal(principal):
+                return bool(
+                    role is not None
+                    and role[1] == principal.tenant_id
+                    and bridge_owner_principal_active(
+                        principal, self.service.agent.config or {}
+                    )
+                )
             if (
                 role is None
                 or role[0] != "coordinator"

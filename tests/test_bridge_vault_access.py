@@ -25,8 +25,12 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
         async def owner_handle():
             return "alessandro"
 
+        async def no_official_source(context, resource):
+            return None
+
         service = SimpleNamespace(
             agent=SimpleNamespace(config=self.config),
+            official_connectors=SimpleNamespace(authorize_source=no_official_source),
             runtime=SimpleNamespace(capabilities=SimpleNamespace(has_source=lambda *_: True)),
             directory=SimpleNamespace(owner_handle=owner_handle),
             dashboards=None,

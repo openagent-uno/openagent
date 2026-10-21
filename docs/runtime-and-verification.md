@@ -23,6 +23,15 @@ sender ID. This does not grant vault access to WhatsApp or other Telegram users.
 The bridge grant applies to live private turns only; shared and deferred turns
 remain outside it.
 
+The same owner turn may approve automation definitions. Their durable grant is
+owned by the Telegram bridge principal, which is not a network user, so the
+directory treats it as active exactly while a Telegram channel is configured
+and at least one sender appears in both lists above, for this installation's
+own network. Removing the owner from either list, or removing the channel,
+deactivates every grant that principal captured, as revoking a user would.
+`openagent_server.bridge_vault_access` holds this single policy for both the
+live turn and the deferred grant.
+
 App dashboard capabilities require the authenticated WebSocket registration
 and the exact `app_connection_id` on a collaboration turn. Device tools also
 require the exact capability instance and consent. The persistent dashboard
