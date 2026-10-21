@@ -2,8 +2,10 @@
 
 Component release:
 [`0.1.0b2`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.2).
-Versioned qualification receipts distinguish source tests, normally installed
-wheel tests, minimal Core compatibility and remaining provider acceptance.
+The installed beta 2 wheel passes 133 tests and 30 subcases on Core beta 26,
+alongside 62 standalone source regressions and a minimal Core beta 24 smoke.
+The [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
+distinguishes component checks from remaining provider acceptance.
 They qualify the component boundary; they do not establish a live shared
 Slack bot installation or a new standalone product release. Beta 1 remains
 immutable; beta 2 adds explicit conversation type and audience attestation.
