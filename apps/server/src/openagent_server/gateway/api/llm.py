@@ -35,8 +35,8 @@ Contract:
     ``providers`` registry; unknown → 404, disabled → 400.
   - The upstream call is ``POST {base_url}/chat/completions`` with the
     body forwarded verbatim except ``model`` (rewritten to the bare
-    ``<model_id>``) and ``stream`` (forced false — this endpoint is
-    non-streaming).
+    ``<model_id>``) and ``stream`` (true relays the provider's SSE
+    stream as it arrives; anything else is forced false).
   - The upstream JSON is returned verbatim with the upstream status so
     ``choices`` / ``usage`` pass straight through. Any error (bad
     request, unknown provider, upstream non-2xx, timeout, connection
@@ -60,8 +60,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Non-streaming upstream call budget. Overridable per-deployment so a
-# slow self-hosted model doesn't get cut off — no URL/model/provider is
+# Upstream call budget: the whole call when non-streaming, connect and
+# each read when streaming. Overridable per-deployment so a slow
+# self-hosted model doesn't get cut off — no URL/model/provider is
 # hardcoded, and neither is this.
 _DEFAULT_TIMEOUT_S = 30.0
 # Truncate relayed upstream error bodies so a verbose provider error page
@@ -89,6 +90,79 @@ def _error(message: str, status: int, *, err_type: str = "gateway_error",
     payload: dict[str, Any] = {"message": message, "type": err_type}
     payload.update(extra)
     return _web.json_response({"error": payload}, status=status)
+
+
+async def _relay_stream(request: "web.Request", url: str, outbound: dict,
+                        headers: dict, provider_name: str,
+                        model_field: str) -> "web.StreamResponse":
+    """Relay a provider's SSE chat-completions stream byte for byte.
+
+    Errors before the first byte are the same JSON errors as the
+    non-streaming path. The timeout applies to connecting and to each read,
+    so a long answer that keeps producing tokens is never cut off.
+    """
+    from aiohttp import web as _web
+
+    timeout = _timeout_seconds()
+    client = httpx.AsyncClient(timeout=httpx.Timeout(timeout))
+    t0 = time.monotonic()
+    try:
+        upstream = await client.send(
+            client.build_request("POST", url, json=outbound, headers=headers),
+            stream=True,
+        )
+    except httpx.TimeoutException:
+        await client.aclose()
+        elog("llm_gateway.timeout", level="warning",
+             provider=provider_name, model=model_field, timeout_s=timeout)
+        return _error(
+            f"upstream provider '{provider_name}' timed out after {timeout}s",
+            502, err_type="upstream_timeout",
+        )
+    except Exception as exc:  # noqa: BLE001 — connection/transport failure
+        await client.aclose()
+        elog("llm_gateway.connect_error", level="warning",
+             provider=provider_name, model=model_field, error=str(exc))
+        return _error(
+            f"could not reach upstream provider '{provider_name}': {exc}",
+            502, err_type="upstream_unreachable",
+        )
+
+    status = upstream.status_code
+    if not 200 <= status < 300:
+        body_text = (await upstream.aread()).decode("utf-8", "replace")[:_ERR_BODY_CAP]
+        await upstream.aclose()
+        await client.aclose()
+        elog("llm_gateway.upstream_error", level="warning", provider=provider_name,
+             model=model_field, upstream_status=status, stream=True)
+        return _error(
+            f"upstream provider '{provider_name}' returned HTTP {status}",
+            status if status >= 400 else 502,
+            err_type="upstream_error",
+            upstream_status=status,
+            upstream_body=body_text,
+        )
+
+    response = _web.StreamResponse(status=200, headers={
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
+    await response.prepare(request)
+    try:
+        async for chunk in upstream.aiter_raw():
+            await response.write(chunk)
+        elog("llm_gateway.ok", level="info", provider=provider_name, model=model_field,
+             upstream_status=status, stream=True,
+             latency_ms=round((time.monotonic() - t0) * 1000, 1))
+    except Exception as exc:  # noqa: BLE001 — upstream or caller went away mid-stream
+        elog("llm_gateway.stream_error", level="warning", provider=provider_name,
+             model=model_field, error=str(exc))
+    finally:
+        await upstream.aclose()
+        await client.aclose()
+    await response.write_eof()
+    return response
 
 
 async def handle_chat_completions(request: "web.Request") -> "web.Response":
@@ -160,15 +234,20 @@ async def handle_chat_completions(request: "web.Request") -> "web.Response":
     # trailing slash so ``.../v1`` and ``.../v1/`` both yield one ``/``.
     url = f"{base_url.rstrip('/')}/chat/completions"
     # Copy the caller's body untouched except the two fields we own:
-    # ``model`` (bare id, prefix stripped) and ``stream`` (this endpoint
-    # is non-streaming, so force it off even if the caller asked for it).
+    # ``model`` (bare id, prefix stripped) and ``stream``: a caller that asks
+    # for ``stream: true`` gets the provider's server-sent events relayed as
+    # they arrive; anything else is a single JSON answer.
     outbound = dict(body)
     outbound["model"] = model_id
-    outbound["stream"] = False
+    streaming = body.get("stream") is True
+    outbound["stream"] = streaming
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    if streaming:
+        return await _relay_stream(request, url, outbound, headers,
+                                   provider_name, model_field)
 
     # ── Forward + relay ─────────────────────────────────────────────
     timeout = _timeout_seconds()
