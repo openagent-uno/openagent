@@ -1,11 +1,12 @@
 # Embedding official channels
 
 Component release:
-[`0.1.0b1`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.1).
-The installed wheel passes 62 tests and 17 subcases on Core beta 26, alongside
-62 standalone source regressions. A minimal Core beta 24 install/import smoke
-also passes. These qualify the component boundary; they do not establish a
-live shared Slack bot installation or a new standalone product release.
+[`0.1.0b2`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.2).
+Versioned qualification receipts distinguish source tests, normally installed
+wheel tests, minimal Core compatibility and remaining provider acceptance.
+They qualify the component boundary; they do not establish a live shared
+Slack bot installation or a new standalone product release. Beta 1 remains
+immutable; beta 2 adds explicit conversation type and audience attestation.
 
 Channels are conversational entrances to the host's existing agent. They are
 independent from MCP connectors that expose Slack, Discord or another service
@@ -26,7 +27,7 @@ The public API is `openagent_channel_bridges.contracts`, version 1:
 
 | Contract | Responsibility |
 | --- | --- |
-| `BridgeContext` | Immutable binding, provider account, actor, channel/conversation, event and optional thread/reply identifiers |
+| `BridgeContext` | Immutable binding, provider account, actor, conversation type, event and thread/reply identifiers; SDK-attested audience and verification time |
 | `BridgeMessage` | Ordered text/media parts, attributed bounded history and optional presentation overlay |
 | `BridgeTransport` | Binding-local lifecycle, authorization, public run dispatch, commands and configured media services |
 | `BridgeReply` / `BridgeEvent` | Ordered results/progress and opaque host session/run references |
@@ -58,10 +59,13 @@ The credential example is for an operator-managed Socket Mode installation.
 It is not a requirement for end users to register their own Slack app. Tokens
 belong in the host's secret store; settings carry references and status only.
 
-Implement `start`, `stop`, `authorize_context`, `send`, `command`, `transcribe`
-and `synthesize` on the transport. `authorize_context` validates the immutable
-binding, real sender, provider account, target and result audience before
-history reads, dispatch, media, commands and response delivery. `send` submits
+Implement `start`, `stop`, `authorize_context`, `authorize_delivery`, `send`,
+`command`, `transcribe` and `synthesize` on the transport. `authorize_context`
+validates the immutable binding, real sender, provider account and target
+before input and provider reads. After the SDK has attested the current
+audience, `authorize_delivery` rechecks every recipient against the host
+identity and agent policy before model dispatch, commands and every output
+chunk/file. Both must return a literal boolean. `send` submits
 through the same public runtime services as the host UI. Durable event
 deduplication, session mapping, principal resolution and current tool grants
 remain host responsibilities.
@@ -92,10 +96,23 @@ memory results. Access from one private session never implies publication to
 every channel member. Client-only tools remain unavailable unless that channel
 has its own valid capability grant; there is no fallback to an online computer.
 
-Contract v1 does not attest complete membership of a group. A host that cannot
-independently verify every result recipient must reject group delivery and
-qualify private direct messages first. A provider channel ID or the current
-sender's membership alone is not an audience attestation.
+Beta 2 adds `conversation_kind`, `audience_ids`, `audience_complete` and
+`audience_verified_at` to `BridgeContext`. The default is unknown/incomplete.
+Only provider SDK/API evidence establishes a direct conversation; channel ID
+prefixes and user-supplied recipient lists are insufficient. Group delivery
+requires a complete audience and an explicit `authorize_delivery` host policy.
+Each human must map to a host identity authorized for the selected agent; an
+unknown recipient or incomplete lookup denies dispatch and publication.
+
+Slack reads current membership through its authenticated Web API, bounded to
+ten pages of 100 members and excluding only its verified own bot. Discord
+requires explicit `members_intent=True` and the corresponding existing vendor
+grant to enumerate current guild members through REST with current roles and
+channel permissions. It defaults off; no vendor permission is silently
+enabled. Discord threads and group DMs remain incomplete and are denied.
+Membership is refreshed before the run and each result publication. This
+reduces stale authorization; provider reads and writes are not atomic, so a
+provider-side membership change in between remains an integration boundary.
 
 ## Process bridge for non-Python hosts
 
@@ -107,11 +124,13 @@ non-sensitive protocol metadata without starting an SDK. Logging goes to stderr.
 
 The parent sends one `configure` frame with `request_id`, provider, binding ID
 and provider configuration. The child replies `configured`, then sends
-correlated `request` frames for `start`, `authorize_context`, `send`, `command`,
+correlated `request` frames for `start`, `authorize_context`, `authorize_delivery`, `send`, `command`,
 `transcribe`, `synthesize` and `stop`. The parent returns `result` or `error` with
 the same request ID. Progress uses correlated `event` frames. No command lets
 the parent fabricate a provider event or select another runtime from message
 arguments. The host dispatches these requests through its existing services.
+`configured` and `start` acknowledge configuration/host capabilities; neither
+is proof of provider login, readiness or a live message round trip.
 
 Credentials are supplied by the parent secret store through the private pipe,
 never command-line arguments, logs or a model tool. Input media use an opaque,
@@ -171,3 +190,12 @@ memory fixture, authorization denial/revocation, event identity, bounded history
 thread routing and lifecycle ownership. Synthetic provider events do not prove
 real OAuth, SDK connectivity or an installed bot. Versioned release receipts
 identify those remaining provider boundaries explicitly.
+
+
+Telegram private conversations are verified through the authenticated SDK bot
+and a fresh `get_chat` result matching the actual actor. Telegram groups cannot
+provide a complete audience through the Bot API and remain denied. WhatsApp
+currently leaves the conversation kind unknown and audience incomplete; typed
+runtime dispatch and result delivery remain denied until an authenticated
+recipient proof is implemented. These limits also apply to the typed standalone
+adapter; the historical untyped compatibility API does not attest audiences.

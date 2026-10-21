@@ -44,6 +44,12 @@ class GatewayBridgeTransport:
         binding = getattr(bridge, "binding_id", None)
         return (context.provider == self.name and (binding is None or binding == context.binding_id))
 
+    async def authorize_delivery(self, context):
+        # The legacy gateway has no audience-wide capability policy. Never
+        # substitute actor admission for approval to disclose into a group.
+        return (getattr(context, "conversation_kind", "unknown") == "direct"
+                and await self.authorize_context(context))
+
     async def start(self):
         self._should_stop = False
         self._gateway_lost.clear()

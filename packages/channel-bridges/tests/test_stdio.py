@@ -20,7 +20,7 @@ from openagent_channel_bridges.stdio import (
 )
 from openagent_channel_bridges.wire import (
     ArtifactStore, MAX_CHUNK, MAX_FILES, MAX_LINE, PROTOCOL, WireError,
-    decode_line, encode_line,
+    capabilities, decode_line, encode_line,
 )
 
 
@@ -61,6 +61,49 @@ async def test_interleaved_requests_preserve_original_author_and_correlation():
     finally:
         transport.close()
         await asyncio.gather(alice, bob, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+async def test_delivery_authorization_correlates_the_same_provider_attested_audience():
+    transport, queue = fixture_transport()
+    group = replace(context(), conversation_kind="group", audience_ids=("alice", "bob"),
+                    audience_complete=True, audience_verified_at=1_700_000_000.0)
+    changed = replace(group, audience_ids=("alice", "bob", "charlie"), event_id="later")
+    first = asyncio.create_task(transport.authorize_delivery(group))
+    second = asyncio.create_task(transport.authorize_delivery(changed))
+    try:
+        original, updated = await queue.get(), await queue.get()
+        assert original["method"] == updated["method"] == "authorize_delivery"
+        assert original["params"]["actor_id"] == updated["params"]["actor_id"] == "alice"
+        assert original["params"]["conversation_kind"] == "group"
+        assert original["params"]["audience_ids"] == ["alice", "bob"]
+        assert original["params"]["audience_complete"] is True
+        assert original["params"]["audience_verified_at"] == 1_700_000_000.0
+        assert updated["params"]["audience_ids"] == ["alice", "bob", "charlie"]
+        await transport.receive(frame("result", updated["request_id"], result=False))
+        await transport.receive(frame("result", original["request_id"], result=True))
+        assert await first is True and await second is False
+        with pytest.raises(PermissionError):
+            await transport.authorize_delivery(replace(group, binding_id="different"))
+        assert queue.empty()
+    finally:
+        transport.close()
+        await asyncio.gather(first, second, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("result", [1, 0, "true", None, [], {"authorized": True}])
+async def test_delivery_authorization_rejects_truthy_or_structured_nonboolean_results(result):
+    transport, queue = fixture_transport()
+    task = asyncio.create_task(transport.authorize_delivery(context()))
+    try:
+        request = await queue.get()
+        await transport.receive(frame("result", request["request_id"], result=result))
+        with pytest.raises(WireError, match="invalid_authorization"):
+            await task
+    finally:
+        transport.close()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 @pytest.mark.asyncio
@@ -352,6 +395,13 @@ def test_strict_metadata_lines_duplicate_fields_ids_and_config_reject_without_sd
     with pytest.raises(WireError):
         configure(config, object())
     assert describe()["protocol"] == PROTOCOL
+    assert "authorize_delivery" in describe()["methods"]
+
+
+@pytest.mark.parametrize("commands", [{}, "", None, [dict(name="a", description="a")] * 257])
+def test_capabilities_rejects_nonlist_or_unbounded_commands(commands):
+    with pytest.raises(WireError, match="invalid_capabilities"):
+        capabilities({"commands": commands})
 
 
 def test_describe_is_nonsecret_and_unknown_arguments_exit_two(monkeypatch):
@@ -359,6 +409,29 @@ def test_describe_is_nonsecret_and_unknown_arguments_exit_two(monkeypatch):
     monkeypatch.setattr("sys.stdout", SimpleNamespace(buffer=output))
     monkeypatch.setattr("sys.stderr", error)
     assert main(["--describe"]) == 0
-    assert decode_line(output.getvalue())["providers"] == ["slack", "discord", "telegram", "whatsapp"]
+    description = decode_line(output.getvalue())
+    assert description["providers"] == ["slack", "discord", "telegram", "whatsapp"]
+    from openagent_channel_bridges import __version__
+    assert description["package_version"] == __version__
     assert main(["--unknown", "DO_NOT_PRINT"]) == 2
     assert "DO_NOT_PRINT" not in error.getvalue()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_discord_members_intent_is_forwarded_only_as_explicit_boolean(monkeypatch, enabled):
+    received = {}
+    def bridge(**kwargs):
+        received.update(kwargs)
+        return object()
+    monkeypatch.setattr("openagent_channel_bridges.stdio.import_module",
+                        lambda *args: SimpleNamespace(DiscordBridge=bridge))
+    config = frame("configure", "setup", provider="discord", binding_id="binding",
+                   config={"token": "DO_NOT_PRINT", "members_intent": enabled})
+    configure(config, object())
+    assert received["members_intent"] is enabled
+    config["config"]["members_intent"] = "true"
+    with pytest.raises(WireError):
+        configure(config, object())
+    config["config"] = {"token": "DO_NOT_PRINT", "unknown_intent": True}
+    with pytest.raises(WireError):
+        configure(config, object())

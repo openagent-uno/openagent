@@ -11,6 +11,8 @@ import contextlib
 import logging
 import shutil
 import tempfile
+import time
+from dataclasses import replace
 from pathlib import Path
 
 from openagent_channel_bridges.base import BaseBridge
@@ -83,6 +85,7 @@ def _build_picker_view(bridge, session_id: str, picker: dict):
                 context=context,
             )
             try:
+                await bridge._prepare_delivery_context(context)
                 await interaction.response.edit_message(
                     content=result or "Done.", view=None,
                 )
@@ -147,18 +150,24 @@ class DiscordBridge(BaseBridge):
         transport,
         binding_id: str,
         context_messages: int = 20,
+        members_intent: bool = False,
     ):
         super().__init__(transport=transport, binding_id=binding_id, personality=personality, live=live)
         if not isinstance(binding_id, str) or not binding_id:
             raise ValueError("A host-owned binding_id is required")
         self.binding_id = binding_id
         self.context_messages = validate_context_messages(context_messages)
+        if type(members_intent) is not bool:
+            raise ValueError("members_intent must be a boolean")
+        self.members_intent = members_intent
         self.token = token
         self.allowed_users = set(str(u) for u in (allowed_users or []))
         self.allowed_guilds = set(str(g) for g in (allowed_guilds or []))
         self.listen_channels = set(str(c) for c in (listen_channels or []))
         self.dm_only = dm_only
         self._client = None
+        self._event_clients: dict[tuple, object] = {}
+        self._audience_denied_events: set[tuple] = set()
 
     def _bridge_context(self, message) -> BridgeContext:
         actor = getattr(message, "author", None) or getattr(message, "user", None)
@@ -170,7 +179,127 @@ class DiscordBridge(BaseBridge):
         reply = str(reference.message_id) if getattr(reference, "message_id", None) is not None else None
         return BridgeContext(self.binding_id, self.name, account, str(actor.id),
                              str(channel.id), str(message.id), thread_id=thread,
-                             reply_to_event_id=reply)
+                             reply_to_event_id=reply,
+                             conversation_kind=self._conversation_kind(channel, guild))
+
+    @staticmethod
+    def _conversation_kind(channel, guild) -> str:
+        if getattr(channel, "parent_id", None) is not None:
+            return "thread"
+        if guild is not None:
+            return "channel"
+        # guild=None includes group DMs; only the SDK's actual DMChannel is
+        # a two-party direct conversation. A cached recipient list is no proof.
+        try:
+            import discord
+            if isinstance(channel, discord.DMChannel):
+                return "direct"
+            if isinstance(channel, discord.GroupChannel):
+                return "group"
+        except (ImportError, AttributeError):
+            pass
+        return "unknown"
+
+    @staticmethod
+    def _event_key(context: BridgeContext) -> tuple:
+        return tuple(getattr(context, field) for field in (
+            "binding_id", "provider", "account_id", "actor_id", "conversation_id",
+            "event_id", "thread_id", "reply_to_event_id", "api_version", "conversation_kind"))
+
+    async def _delivery_context(self, context: BridgeContext) -> BridgeContext:
+        await self.authorize_context(context)
+        incomplete = replace(context, audience_ids=(), audience_complete=False,
+                             audience_verified_at=None)
+        key = self._event_key(context)
+
+        def deny_audience():
+            # A failed proof ends this exact turn. Error/status rendering must
+            # not repeat a capped scan or turn an incomplete result into output.
+            if key in self._event_clients:
+                self._audience_denied_events.add(key)
+            if context.conversation_kind == "direct":
+                raise PermissionError("Discord direct audience cannot be verified")
+            return incomplete
+
+        if key in self._audience_denied_events:
+            return deny_audience()
+        client = self._event_clients.get(self._event_key(context)) or self._client
+        bot = getattr(getattr(client, "user", None), "id", None)
+        if bot is None:
+            return deny_audience()
+        guild_id = None if context.conversation_kind in ("direct", "group", "unknown") else context.account_id
+        if not self._scope_allowed(context.actor_id, context.conversation_id, guild_id,
+                                   is_dm=context.conversation_kind == "direct"):
+            raise PermissionError("Discord context is no longer admitted")
+        try:
+            if context.conversation_kind == "direct":
+                if str(bot) != context.account_id:
+                    raise ValueError("Discord bot account differs from its binding")
+                await self.authorize_context(context)
+                channel = await client.fetch_channel(int(context.conversation_id))
+                if (self._conversation_kind(channel, None) != "direct"
+                        or str(channel.id) != context.conversation_id
+                        or str(getattr(getattr(channel, "recipient", None), "id", "")) != context.actor_id):
+                    raise ValueError("Discord direct participant cannot be verified")
+                await self.authorize_context(context)
+                return replace(context, audience_ids=(context.actor_id,), audience_complete=True,
+                               audience_verified_at=time.time())
+            # Private-thread membership and group DMs have different visibility
+            # semantics. Until a complete REST proof exists, never use a cache
+            # or parent-channel membership as their audience.
+            if context.conversation_kind != "channel" or context.thread_id is not None:
+                return deny_audience()
+            if not self.members_intent or getattr(getattr(client, "intents", None), "members", False) is not True:
+                return deny_audience()
+            await self.authorize_context(context)
+            guild = await client.fetch_guild(int(context.account_id))
+            if str(guild.id) != context.account_id:
+                return deny_audience()
+            # REST guild metadata includes current roles; REST channel metadata
+            # includes current permission overwrites. Cached guild/channel/member
+            # objects must not silently turn into a complete audience snapshot.
+            await self.authorize_context(context)
+            channel = await guild.fetch_channel(int(context.conversation_id))
+            if (str(channel.id) != context.conversation_id
+                    or str(getattr(getattr(channel, "guild", None), "id", "")) != context.account_id
+                    or self._conversation_kind(channel, guild) != "channel"):
+                return deny_audience()
+            await self.authorize_context(context)
+            audience: set[str] = set()
+            seen: set[str] = set()
+            count = 0
+            iterator = guild.fetch_members(limit=1001).__aiter__()
+            while True:
+                # The SDK may request another REST page on any next item.
+                # Reauthorize before advancing it, not merely before page one.
+                await self.authorize_context(context)
+                try:
+                    member = await anext(iterator)
+                except StopAsyncIteration:
+                    break
+                count += 1
+                member_id = str(member.id)
+                if count > 1000 or member_id in seen:
+                    return deny_audience()
+                seen.add(member_id)
+                if str(getattr(getattr(member, "guild", None), "id", "")) != context.account_id:
+                    return deny_audience()
+                permissions = channel.permissions_for(member)
+                can_view = getattr(permissions, "view_channel", None)
+                if type(can_view) is not bool:
+                    return deny_audience()
+                if can_view and member_id != str(bot):
+                    audience.add(member_id)
+            if context.actor_id not in audience:
+                return deny_audience()
+            await self.authorize_context(context)
+            return replace(context, audience_ids=tuple(sorted(audience)), audience_complete=True,
+                           audience_verified_at=time.time())
+        except PermissionError:
+            raise
+        except Exception as exc:
+            logger.warning("Discord audience unavailable: %s", type(exc).__name__)
+            return deny_audience()
 
     async def _history(self, message, context: BridgeContext) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
@@ -258,6 +387,7 @@ class DiscordBridge(BaseBridge):
 
         intents = discord.Intents.default()
         intents.message_content = True
+        intents.members = self.members_intent
         client = discord.Client(intents=intents)
         tree = app_commands.CommandTree(client)
         self._client = client
@@ -371,6 +501,11 @@ class DiscordBridge(BaseBridge):
             attachments: list[dict] = []
             voice_detected = False
             tmp = tempfile.mkdtemp(prefix="oa_dc_")
+            key = self._event_key(bridge_context)
+            if key in self._event_clients:
+                shutil.rmtree(tmp, ignore_errors=True)
+                raise PermissionError("Discord event is already active")
+            self._event_clients[key] = client
             try:
                 for att in message.attachments:
                     filename = safe_attachment_filename(att.filename)
@@ -434,7 +569,7 @@ class DiscordBridge(BaseBridge):
                         content = f"{content}\n{t}" if content else t
 
                 if blocked:
-                    await self.authorize_context(bridge_context)
+                    await self._prepare_delivery_context(bridge_context)
                     await message.channel.send(f"⚠️ Blocked: {', '.join(blocked)}")
 
                 if not content and not attachments:
@@ -460,6 +595,8 @@ class DiscordBridge(BaseBridge):
                     },
                 )
             finally:
+                self._event_clients.pop(key, None)
+                self._audience_denied_events.discard(key)
                 shutil.rmtree(tmp, ignore_errors=True)
 
         await client.start(self.token)
@@ -544,15 +681,18 @@ class DiscordBridge(BaseBridge):
         # conversation; DM commands remain private to the issuing user.
         # Forward any inline argument (e.g. /model gpt-4o) via the arg field.
         session_id = self._session_id(uid, cid, gid, is_dm=is_dm)
+        context = self._bridge_context(interaction)
         result = await self.send_command_full(cmd, session_id=session_id, arg=arg or None,
-                                              context=self._bridge_context(interaction))
+                                              context=context)
         picker = result.get("picker") if isinstance(result, dict) else None
         if isinstance(picker, dict) and picker.get("options"):
             view = _build_picker_view(self, session_id, picker)
             if view is not None:
                 prompt = str(picker.get("prompt") or "Choose:")
+                await self._prepare_delivery_context(context)
                 await interaction.followup.send(prompt, view=view, ephemeral=True)
                 return
+        await self._prepare_delivery_context(context)
         await interaction.followup.send(result.get("text", ""), ephemeral=True)
 
     async def stop(self) -> None:

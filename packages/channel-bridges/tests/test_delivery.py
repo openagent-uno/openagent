@@ -65,7 +65,8 @@ class CaptureBridge(BaseBridge):
 
 
 def context():
-    return BridgeContext("binding", "slack", "team", "alice", "channel", "event", "thread")
+    return BridgeContext("binding", "slack", "team", "alice", "channel", "event", "thread",
+                         conversation_kind="direct", audience_ids=("alice",), audience_complete=True)
 
 
 @pytest.mark.asyncio
@@ -163,4 +164,135 @@ async def test_revocation_or_stop_during_start_cannot_dispatch_later(operation, 
         await asyncio.wait_for(stop, 1)
     assert not transport.commands
     assert not [event for event in transport.events if event[0] == "send"]
+    await bridge.stop()
+
+
+class AudienceTransport(Transport):
+    def __init__(self, approval=True):
+        super().__init__()
+        self.approval = approval
+        self.delivery_contexts = []
+        self.requests = []
+
+    async def authorize_delivery(self, context):
+        self.delivery_contexts.append(context)
+        return self.approval
+
+    async def send(self, request, *, on_event=None):
+        self.requests.append(request)
+        return await super().send(request, on_event=on_event)
+
+    async def command(self, request):
+        self.requests.append(request)
+        return await super().command(request)
+
+
+async def _invoke_bridge(bridge, operation, current):
+    if operation == "send":
+        return await bridge.send_message("question", "hint", context=current)
+    return await bridge.send_command_full("model", "hint", context=current)
+
+
+def _assert_no_runtime_invocation(transport):
+    assert not transport.commands
+    assert not [event for event in transport.events if event[0] == "send"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["send", "command"])
+@pytest.mark.parametrize("audience", [(), ("alice",)])
+async def test_group_missing_or_incomplete_audience_never_reaches_runtime(operation, audience):
+    transport = AudienceTransport()
+    bridge = CaptureBridge(transport)
+    current = replace(context(), conversation_kind="group", audience_ids=audience,
+                      audience_complete=False, audience_verified_at=None)
+    with pytest.raises(PermissionError):
+        await _invoke_bridge(bridge, operation, current)
+    _assert_no_runtime_invocation(transport)
+    assert not transport.delivery_contexts
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["send", "command"])
+@pytest.mark.parametrize("kind", ["group", "unknown"])
+async def test_non_direct_context_requires_explicit_host_delivery_policy(operation, kind):
+    transport = Transport()  # The old actor-only transport is compatible only for direct delivery.
+    bridge = CaptureBridge(transport)
+    with pytest.raises(PermissionError):
+        await _invoke_bridge(bridge, operation, replace(context(), conversation_kind=kind))
+    _assert_no_runtime_invocation(transport)
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["send", "command"])
+@pytest.mark.parametrize("approval", [False, None, 1, "true"])
+async def test_pre_rpc_delivery_denial_requires_literal_true_and_never_invokes_runtime(operation, approval):
+    transport = AudienceTransport(approval)
+    bridge = CaptureBridge(transport)
+    with pytest.raises(PermissionError):
+        await _invoke_bridge(bridge, operation, replace(context(), conversation_kind="group"))
+    assert len(transport.delivery_contexts) == 1
+    _assert_no_runtime_invocation(transport)
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field,value", [
+    ("binding_id", "other-binding"), ("provider", "discord"), ("account_id", "other-team"),
+    ("actor_id", "mallory"), ("conversation_id", "other-channel"), ("event_id", "other-event"),
+    ("thread_id", "other-thread"), ("reply_to_event_id", "other-reply"),
+    ("conversation_kind", "direct"),
+])
+async def test_provider_audience_hook_cannot_change_identity_or_downgrade_group(field, value):
+    transport = AudienceTransport()
+    bridge = CaptureBridge(transport)
+    async def changed(current):
+        return replace(current, **{field: value})
+    bridge._delivery_context = changed
+    with pytest.raises(PermissionError):
+        await bridge.send_message("question", "hint", context=replace(context(), conversation_kind="group"))
+    _assert_no_runtime_invocation(transport)
+    assert not transport.delivery_contexts
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["send", "command"])
+async def test_actor_admission_precedes_membership_read_and_runtime_receives_fresh_attestation(operation):
+    transport = AudienceTransport()
+    bridge = CaptureBridge(transport)
+    refreshed = []
+    async def fresh(current):
+        assert transport.events[-1] == ("authorize", "alice")
+        refreshed.append(current)
+        return replace(current, audience_ids=("alice", "bob"), audience_complete=True,
+                       audience_verified_at=12345.0)
+    bridge._delivery_context = fresh
+    original = replace(context(), conversation_kind="group", audience_ids=(), audience_complete=False)
+    await _invoke_bridge(bridge, operation, original)
+    delivered = transport.requests[0].context
+    assert delivered.audience_ids == ("alice", "bob")
+    assert delivered.audience_complete is True and delivered.audience_verified_at == 12345.0
+    assert delivered.conversation_kind == "group" and delivered.actor_id == original.actor_id
+    assert transport.delivery_contexts[0] == delivered
+    assert refreshed
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+async def test_non_boolean_actor_admission_cannot_trigger_membership_or_runtime():
+    transport = AudienceTransport()
+    async def non_boolean(_context):
+        return 1
+    transport.authorize_context = non_boolean
+    bridge = CaptureBridge(transport)
+    async def forbidden_membership(_context):
+        raise AssertionError("membership must follow successful actor admission")
+    bridge._delivery_context = forbidden_membership
+    with pytest.raises(PermissionError):
+        await bridge.send_message("question", "hint", context=replace(context(), conversation_kind="group"))
+    _assert_no_runtime_invocation(transport)
+    assert not transport.delivery_contexts
     await bridge.stop()

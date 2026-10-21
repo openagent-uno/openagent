@@ -13,9 +13,10 @@ class DiscordBridge(_provider.DiscordBridge, StandaloneBaseBridge):
                  listen_channels=None, dm_only=False,
                  gateway_url="ws://localhost:8765/ws", gateway_token=None,
                  personality=None, live=True, *, transport=None,
-                 binding_id="discord", context_messages=20):
+                 binding_id="discord", context_messages=20, members_intent=False):
         transport = transport if transport is not None else make_gateway_transport(
             gateway_url, gateway_token, name="discord", binding_id=binding_id)
         super().__init__(token, allowed_users, allowed_guilds, listen_channels, dm_only,
             personality=personality, live=live, transport=transport,
-            binding_id=binding_id, context_messages=context_messages)
+            binding_id=binding_id, context_messages=context_messages,
+            members_intent=members_intent)

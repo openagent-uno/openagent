@@ -286,7 +286,7 @@ async def t_discord_listened_channel_accepts_every_user(ctx: TestContext) -> Non
         restore()
 
 
-@test("bridges", "discord guild slash command and picker share channel session")
+@test("bridges", "discord slash picker preserves scope and denies unverified group delivery")
 async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
     import openagent_channel_bridges.discord as dc_mod
     from openagent_server.bridges.discord import DiscordBridge
@@ -323,7 +323,7 @@ async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
 
     class _Followup:
         async def send(self, *args, **kwargs):
-            return None
+            raise AssertionError("unverified group must not receive the picker")
 
     interaction = types.SimpleNamespace(
         id=1234501,
@@ -342,7 +342,12 @@ async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
 
     bridge.send_command_full = _command  # type: ignore[method-assign]
     with patch.object(dc_mod, "_build_picker_view", side_effect=_picker):
-        await bridge._handle_slash(interaction, "model")
+        try:
+            await bridge._handle_slash(interaction, "model")
+        except PermissionError:
+            pass  # Actor/session routing does not attest the group's audience.
+        else:
+            raise AssertionError("group without verified recipients must fail closed")
 
     expected = "dc:guild:42:channel:555"
     assert command_sessions == [expected], command_sessions

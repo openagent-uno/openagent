@@ -59,3 +59,29 @@ def test_sender_cannot_replace_current_actor_with_a_history_author():
     assert message.context.actor_id == "alice"
     assert message.history[0].actor_id == "bob"
     assert isinstance(message.parts, tuple) and isinstance(message.history, tuple)
+
+
+
+def test_audience_defaults_are_unknown_and_membership_input_is_frozen():
+    original = context()
+    assert original.conversation_kind == "unknown"
+    assert original.audience_ids == () and original.audience_complete is False
+    assert original.audience_verified_at is None
+    values = ["alice", "bob"]
+    current = context(conversation_kind="channel", audience_ids=values,
+                      audience_complete=True, audience_verified_at=1.0)
+    values.append("mallory")
+    assert current.audience_ids == ("alice", "bob")
+
+
+@pytest.mark.parametrize("fields", [
+    {"conversation_kind": "private-ish"}, {"audience_ids": "alice"},
+    {"audience_ids": ("alice", "alice")}, {"audience_ids": ("alice\nowner",)},
+    {"audience_ids": tuple(str(i) for i in range(1001))},
+    {"audience_complete": 1}, {"audience_complete": "true"},
+    {"audience_verified_at": float("nan")}, {"audience_verified_at": float("inf")},
+    {"audience_verified_at": True}, {"audience_verified_at": -1.0},
+])
+def test_audience_attestation_rejects_ambiguous_or_unbounded_fields(fields):
+    with pytest.raises(ValueError):
+        context(**fields)

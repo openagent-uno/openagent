@@ -319,8 +319,11 @@ def _parts(value, store, request_id):
 def capabilities(value):
     allowed = {field.name for field in fields(BridgeCapabilities)}
     object_fields(value, allowed)
+    raw_commands = value.get("commands", [])
+    if not isinstance(raw_commands, list) or len(raw_commands) > 256:
+        raise WireError("invalid_capabilities")
     commands = []
-    for command in value.get("commands", []):
+    for command in raw_commands:
         object_fields(command, {"name", "description", "confirmation_required"}, {"name", "description"})
         identifier(command["name"])
         if not isinstance(command["description"], str) or type(command.get("confirmation_required", False)) is not bool:
@@ -336,7 +339,7 @@ def capabilities(value):
 def result_dto(method, value, store, request_id):
     if method == "start":
         return capabilities(value)
-    if method == "authorize_context":
+    if method in ("authorize_context", "authorize_delivery"):
         if type(value) is not bool:
             raise WireError("invalid_authorization")
         return value

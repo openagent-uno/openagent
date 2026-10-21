@@ -11,15 +11,25 @@ Install the versioned wheel with the required optional provider extra, such as
 `[engine]` or a standalone framework pin. Importing contracts uses only the
 standard library and starts no process or listener.
 
-## Host contract v1
+## Host contract v1 (beta 2 additions)
 
 Implement `BridgeTransport` in `openagent_channel_bridges.contracts`:
 
 - `start() -> BridgeCapabilities` and idempotent `stop()` own binding-local
   resources. Stopping a bridge never closes a shared host runtime.
 - `authorize_context(BridgeContext) -> bool` checks the current actor, immutable
-  binding, selected account/channel/thread and result audience before history
-  reads, dispatch, commands, media and delivery.
+  binding and selected account/channel/thread before provider reads, dispatch,
+  commands and media. It admits the actor; it does not authorize every member
+  of a group to receive the agent's answer.
+- `authorize_delivery(BridgeContext) -> bool` checks current host permissions for
+  the complete provider-attested audience, including the tools and memory that
+  may contribute to the answer. Before `send` or `command`, and before each
+  outbound text, media or progress operation, the bridge refreshes that audience
+  and asks the host again. The host must check the verification timestamp and
+  deny stale or unmappable recipients. A missing method, incomplete audience or
+  non-boolean approval fails closed for groups, channels, threads and unknown
+  conversation kinds. A verified direct conversation retains the actor-only
+  compatibility fallback when an older transport lacks this method.
 - `send(BridgeMessage, *, on_event=None) -> BridgeReply` resolves the host session
   and submits through its usual public run services. Use its current tools,
   prompt and vault policy. Host-owned durable event deduplication prevents
@@ -32,9 +42,13 @@ Implement `BridgeTransport` in `openagent_channel_bridges.contracts`:
 
 DTOs are frozen dataclasses, with `api_version=1`. `BridgeContext` carries
 `binding_id`, `provider`, provider `account_id`, `actor_id`, `conversation_id`,
-`event_id`, optional `thread_id` and `reply_to_event_id`. These are provider
-routing data, not host permission claims. The host maps verified SDK actors to
-its own principals; another participant's message never inherits the owner.
+`event_id`, optional `thread_id` and `reply_to_event_id`. Beta 2 adds
+`conversation_kind` (`unknown`, `direct`, `group`, `channel` or `thread`),
+`audience_ids`, `audience_complete` and `audience_verified_at` (Unix seconds).
+Defaults are `unknown`, an empty tuple, `False` and `None`; they do not attest a
+group audience. The provider SDK supplies these routing and membership facts,
+never host permission claims. The host maps verified SDK actors and recipients
+to its own principals; another participant's message never inherits the owner.
 
 `BridgeMessage` contains ordered `BridgePart` text/media and separately
 attributed `history`. Slack/Discord history defaults to 20 messages, configurable
@@ -50,14 +64,19 @@ Host integrations must revalidate output audience for shared channels, including
 tool results and memory reads. Sharing an agent's memory does not make all of its
 private knowledge visible to every channel member. Persistent learning follows
 the same host policy and vault as other sessions, without a channel-only copy.
-Contract v1 does not attest full group membership: hosts must deny group
-delivery until they independently verify every result recipient.
+Provider membership proof and host authorization are separate requirements:
+listing everyone in a channel does not grant them access to private results.
+Unsupported or incomplete membership paths remain blocked rather than using
+message authors or a partial cache as a substitute audience.
 
 Non-Python hosts can run `openagent-channel-bridge` as a binding-local child.
 Its NDJSON protocol is `channel-bridge-ipc/v1`; `--describe` prints the contract
 without starting a provider. Typed requests and responses preserve the same
 transport authorization boundary. Media cross the pipe through bounded,
 request-scoped readers/uploads and SHA-256, never a local filesystem path.
+`--describe` also reports the package version. A `configured` reply accepts the
+binding configuration; `start()` exchanges host capabilities. Neither proves
+that provider authentication, intake or live model delivery is ready.
 
 ## Provider installation
 
@@ -73,6 +92,35 @@ capabilities. One shared app identity can support distinct user and bot grants;
 the channel must not inherit connector permissions. Do not create duplicate apps
 or require each user to register an app to conceal a missing hosted flow.
 
+Slack refreshes the authenticated bot/workspace binding and reads real Web API
+membership with `conversations.members`, bounded to ten pages of at most 100
+members and 1,000 IDs. Missing scopes, API failures, repeated cursors or a
+truncated result leave the audience incomplete and block group dispatch and
+delivery. Direct participants are verified through `conversations.info`.
+Thread delivery uses the complete channel audience, not only thread authors.
+The installation needs the corresponding provider permissions; host ACL approval
+is still required for all recipients.
+
+Discord defaults to `members_intent=False`. An operator can explicitly enable
+it to request the SDK guild-member intent; this does not change Discord's app
+configuration or grant a provider permission. For ordinary guild channels,
+the bridge uses fresh REST guild/channel metadata and at most 1,001 member
+records to detect the 1,000-member limit, then computes visibility with current
+channel permissions. Missing intent, incomplete membership or an unsupported
+channel leaves the audience incomplete. Discord threads and group DMs remain
+blocked until their full visibility can be attested; a parent channel's members
+are not substituted. Direct-message recipients are verified through the SDK.
+Complete group audience support is not asserted for the other providers.
+
 Real provider installation, OAuth consent and live model acceptance are separate
 from SDK fixtures. See the qualification receipt accompanying each release for
 the exact tested boundary.
+
+
+Telegram private conversations are verified through the authenticated SDK bot
+and a fresh `get_chat` result matching the actual actor. Telegram groups cannot
+provide a complete audience through the Bot API and remain denied. WhatsApp
+currently leaves the conversation kind unknown and audience incomplete; typed
+runtime dispatch and result delivery remain denied until an authenticated
+recipient proof is implemented. These limits also apply to the typed standalone
+adapter; the historical untyped compatibility API does not attest audiences.

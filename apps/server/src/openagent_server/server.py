@@ -1502,6 +1502,7 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
                 allowed_guilds=cfg.get("allowed_guilds"),
                 listen_channels=listen_channels,
                 dm_only=bool(cfg.get("dm_only", False)),
+                members_intent=cfg.get("members_intent", False),
                 context_messages=cfg.get("context_messages", 20),
                 gateway_url=gateway_url,
                 gateway_token=None,

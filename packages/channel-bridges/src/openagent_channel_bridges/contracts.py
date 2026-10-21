@@ -40,6 +40,10 @@ class BridgeContext:
     thread_id: str | None = None
     reply_to_event_id: str | None = None
     api_version: int = API_VERSION
+    conversation_kind: Literal["unknown", "direct", "group", "channel", "thread"] = "unknown"
+    audience_ids: tuple[str, ...] = ()
+    audience_complete: bool = False
+    audience_verified_at: float | None = None
 
     def __post_init__(self) -> None:
         _version(self.api_version)
@@ -47,6 +51,22 @@ class BridgeContext:
             _identifier(getattr(self, name), name)
         for name in ("thread_id", "reply_to_event_id"):
             _identifier(getattr(self, name), name, optional=True)
+        if self.conversation_kind not in ("unknown", "direct", "group", "channel", "thread"):
+            raise ValueError("unknown conversation kind")
+        if not isinstance(self.audience_ids, (tuple, list)) or len(self.audience_ids) > 1000:
+            raise ValueError("audience must contain at most 1000 provider IDs")
+        object.__setattr__(self, "audience_ids", tuple(self.audience_ids))
+        for actor in self.audience_ids:
+            _identifier(actor, "audience actor")
+        if len(set(self.audience_ids)) != len(self.audience_ids):
+            raise ValueError("audience must contain distinct provider IDs")
+        if type(self.audience_complete) is not bool:
+            raise ValueError("audience completeness must be a boolean")
+        if self.audience_verified_at is not None:
+            import math
+            if (type(self.audience_verified_at) not in (int, float)
+                    or not math.isfinite(self.audience_verified_at) or self.audience_verified_at < 0):
+                raise ValueError("audience verification time is invalid")
 
     @property
     def deduplication_key(self) -> tuple[str, str, str, str]:
@@ -216,7 +236,14 @@ class BridgeTransport(Protocol):
     async def start(self) -> BridgeCapabilities: ...
     async def stop(self) -> None: ...
     async def authorize_context(self, context: BridgeContext) -> bool:
-        """Revalidate current actor, binding and result audience before IO."""
+        """Revalidate current actor and binding before input/provider IO."""
+        ...
+    async def authorize_delivery(self, context: BridgeContext) -> bool:
+        """Authorize all freshly verified result recipients; required for groups.
+
+        Older direct-message transports may omit this additive method and use
+        authorize_context. Missing group authorization always denies delivery.
+        """
         ...
     async def send(self, request: BridgeMessage, *,
                    on_event: Callable[[BridgeEvent], Awaitable[None]] | None = None) -> BridgeReply: ...

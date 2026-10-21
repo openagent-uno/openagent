@@ -23,6 +23,7 @@ import sys
 import threading
 from dataclasses import dataclass, field
 
+from . import __version__
 from .contracts import BridgeContext
 from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
     WireError, decode_line, encode_line, identifier, object_fields,
@@ -32,7 +33,7 @@ MAX_PENDING = 64
 PROVIDERS = ("slack", "discord", "telegram", "whatsapp")
 _CONFIG = {
     "slack": ({"bot_token"}, {"bot_token", "app_token", "allowed_users", "listen_channels", "context_messages", "personality", "live"}),
-    "discord": ({"token"}, {"token", "allowed_users", "allowed_guilds", "listen_channels", "dm_only", "context_messages", "personality", "live"}),
+    "discord": ({"token"}, {"token", "allowed_users", "allowed_guilds", "listen_channels", "dm_only", "members_intent", "context_messages", "personality", "live"}),
     "telegram": ({"token"}, {"token", "allowed_users", "allowed_chats", "streaming", "personality", "live"}),
     "whatsapp": ({"instance_id", "api_token"}, {"instance_id", "api_token", "allowed_users", "personality", "live"}),
 }
@@ -127,6 +128,10 @@ class StdioBridgeTransport:
     async def authorize_context(self, context):
         self._context(context)
         return await self._request("authorize_context", context)
+
+    async def authorize_delivery(self, context):
+        self._context(context)
+        return await self._request("authorize_delivery", context)
 
     async def send(self, request, *, on_event=None):
         self._context(request.context)
@@ -233,7 +238,7 @@ def configure(frame, transport):
     required, allowed = _CONFIG[provider]
     config = object_fields(frame["config"], allowed, required)
     for name, value in config.items():
-        if name in ("live", "streaming", "dm_only"):
+        if name in ("live", "streaming", "dm_only", "members_intent"):
             if type(value) is not bool:
                 raise WireError("invalid_configuration")
         elif name == "context_messages":
@@ -251,10 +256,10 @@ def configure(frame, transport):
 
 
 def describe():
-    return {"protocol": PROTOCOL, "type": "description", "providers": list(PROVIDERS),
+    return {"protocol": PROTOCOL, "type": "description", "package_version": __version__, "providers": list(PROVIDERS),
             "max_line_bytes": MAX_LINE, "max_pending": MAX_PENDING,
             "max_chunk_bytes": MAX_CHUNK, "max_artifact_bytes": MAX_ARTIFACT,
-            "methods": ["start", "authorize_context", "send", "command", "transcribe", "synthesize", "stop"],
+            "methods": ["start", "authorize_context", "authorize_delivery", "send", "command", "transcribe", "synthesize", "stop"],
             "artifact_methods": ["read_artifact", "upload_begin", "upload_chunk", "upload_finish"]}
 
 

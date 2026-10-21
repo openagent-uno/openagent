@@ -33,7 +33,8 @@ import contextlib
 import logging
 import shutil
 import tempfile
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
@@ -154,16 +155,113 @@ class SlackBridge(BaseBridge):
         self._socket_handler: Any = None
         self._bot_user_id: str | None = None
         self._download_session = None
+        self._event_clients: dict[tuple, Any] = {}
+        self._audience_denied_events: set[tuple] = set()
 
     def _is_authorized(self, user_id: str) -> bool:
         return self.allowed_users is None or user_id in self.allowed_users
 
     def _bridge_context(self, *, account: str, actor: str, channel: str, event: str,
-                 thread: str | None = None) -> BridgeContext:
+                 thread: str | None = None, channel_type: str = "") -> BridgeContext:
         if self._account_id and account != self._account_id:
             raise PermissionError("Slack workspace does not match this binding")
         return BridgeContext(self.binding_id, self.name, account, actor, channel,
-                             event, thread_id=thread)
+                             event, thread_id=thread,
+                             conversation_kind=("thread" if thread else "direct"
+                                 if self._is_dm_channel(channel, channel_type) else "group"
+                                 if channel_type == "mpim" else "channel"))
+
+    @staticmethod
+    def _event_key(context: BridgeContext) -> tuple:
+        return tuple(getattr(context, field) for field in (
+            "binding_id", "provider", "account_id", "actor_id", "conversation_id",
+            "event_id", "thread_id", "reply_to_event_id", "api_version", "conversation_kind"))
+
+    async def _delivery_context(self, context: BridgeContext) -> BridgeContext:
+        # A client belongs to the exact authenticated incoming event. Never let
+        # overlapping events borrow another workspace's client or target.
+        await self.authorize_context(context)
+        if (not self._is_authorized(context.actor_id) or not self._channel_listened(
+                context.conversation_id, self._is_dm_channel(context.conversation_id))):
+            raise PermissionError("Slack context is no longer admitted")
+        client = self._event_clients.get(self._event_key(context))
+        if client is None and (self._account_id == context.account_id
+                and self._bot_user_id and self._app is not None):
+            client = self._app.client  # SDK auth_test verified this binding.
+        incomplete = replace(context, audience_ids=(), audience_complete=False,
+                             audience_verified_at=None)
+        key = self._event_key(context)
+
+        def deny_audience():
+            # A failed proof ends this exact turn. Error/status rendering must
+            # not repeat a capped scan or turn an incomplete result into output.
+            if key in self._event_clients:
+                self._audience_denied_events.add(key)
+            if context.conversation_kind == "direct":
+                raise PermissionError("Slack direct audience cannot be verified")
+            return incomplete
+
+        if key in self._audience_denied_events:
+            return deny_audience()
+        if client is None:
+            return deny_audience()
+        try:
+            await self.authorize_context(context)
+            auth = await client.auth_test()
+            bot = auth.get("user_id")
+            if (auth.get("ok") is False or auth.get("team_id") != context.account_id
+                    or not isinstance(bot, str) or not bot
+                    or self._bot_user_id is not None and bot != self._bot_user_id):
+                raise ValueError("Slack client binding is not verified")
+            # Direct-channel metadata comes from the authenticated Web API,
+            # not a user-supplied list of audience IDs or a channel ID prefix.
+            if context.conversation_kind == "direct" or self._is_dm_channel(context.conversation_id):
+                await self.authorize_context(context)
+                info = await client.conversations_info(channel=context.conversation_id)
+                channel = info.get("channel") or {}
+                if (info.get("ok") is False or channel.get("id") != context.conversation_id
+                        or channel.get("is_im") is not True or channel.get("user") != context.actor_id):
+                    raise ValueError("Slack direct participant cannot be verified")
+                await self.authorize_context(context)
+                return replace(context, audience_ids=(context.actor_id,), audience_complete=True,
+                               audience_verified_at=time.time())
+            members: set[str] = set()
+            cursor = ""
+            cursors: set[str] = set()
+            for page in range(10):
+                await self.authorize_context(context)
+                args = {"channel": context.conversation_id, "limit": 100}
+                if cursor:
+                    args["cursor"] = cursor
+                response = await client.conversations_members(**args)
+                values = response.get("members")
+                if response.get("ok") is False or not isinstance(values, list) or len(values) > 100:
+                    raise ValueError("Slack audience response is invalid")
+                for member in values:
+                    if not isinstance(member, str) or not member:
+                        raise ValueError("Slack audience member is invalid")
+                    members.add(member)
+                if len(members) > 1000:
+                    return deny_audience()
+                cursor = str((response.get("response_metadata") or {}).get("next_cursor") or "")
+                if not cursor:
+                    if response.get("has_more"):
+                        return deny_audience()
+                    break
+                if cursor in cursors or page == 9:
+                    return deny_audience()
+                cursors.add(cursor)
+            if context.actor_id not in members or context.actor_id == bot:
+                return deny_audience()
+            members.discard(bot)  # Only the SDK auth_test-known self bot.
+            await self.authorize_context(context)
+            return replace(context, audience_ids=tuple(sorted(members)), audience_complete=True,
+                           audience_verified_at=time.time())
+        except PermissionError:
+            raise
+        except Exception as exc:
+            logger.warning("Slack audience unavailable: %s", type(exc).__name__)
+            return deny_audience()
 
     async def _history(self, client, context: BridgeContext, *, is_dm: bool, trigger_ts: str) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
@@ -288,7 +386,7 @@ class SlackBridge(BaseBridge):
         bridge_context = self._bridge_context(
             account=account_id,
             actor=str(user_id), channel=str(channel_id), event=event_id,
-            thread=str(event["thread_ts"]) if event.get("thread_ts") else None,
+            thread=str(event["thread_ts"]) if event.get("thread_ts") else None, channel_type=channel_type,
         )
         await self.authorize_context(bridge_context)
         # Strip a leading <@BOTID> mention so the model doesn't see
@@ -304,12 +402,17 @@ class SlackBridge(BaseBridge):
         session_id = self._session_id(
             str(user_id), str(channel_id), channel_type=channel_type,
         )
+        key = self._event_key(bridge_context)
+        if key in self._event_clients:
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise PermissionError("Slack event is already active")
+        self._event_clients[key] = client
         try:
             async def _notify_attachment(message: str) -> None:
                 kwargs = {"channel": channel_id, "text": message}
                 if event.get("thread_ts"):
                     kwargs["thread_ts"] = event["thread_ts"]
-                await self.authorize_context(bridge_context)
+                await self._prepare_delivery_context(bridge_context)
                 with contextlib.suppress(Exception):
                     await client.chat_postMessage(**kwargs)
 
@@ -423,6 +526,8 @@ class SlackBridge(BaseBridge):
             logger.error("slack dispatch failed: %s", type(e).__name__)
             elog("bridge.error", name="slack", session_id=session_id, error_type=type(e).__name__)
         finally:
+            self._event_clients.pop(key, None)
+            self._audience_denied_events.discard(key)
             shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -509,10 +614,10 @@ class SlackBridge(BaseBridge):
                 except Exception as e:  # noqa: BLE001
                     logger.warning("slack /%s failed: %s", command_name, type(e).__name__)
                     if bridge_context is not None:
-                        await self.authorize_context(bridge_context)
+                        await self._prepare_delivery_context(bridge_context)
                         await respond(f"/{command_name} failed.")
                     return
-                await self.authorize_context(bridge_context)
+                await self._prepare_delivery_context(bridge_context)
                 picker = result.get("picker") if isinstance(result, dict) else None
                 blocks = _build_picker_blocks(picker) if isinstance(picker, dict) else None
                 if blocks:
@@ -566,7 +671,7 @@ class SlackBridge(BaseBridge):
                 result = f"/{command} failed."
             if bridge_context is None:
                 return
-            await self.authorize_context(bridge_context)
+            await self._prepare_delivery_context(bridge_context)
             with contextlib.suppress(Exception):
                 await respond(text=result or "Done.", replace_original=True)
 

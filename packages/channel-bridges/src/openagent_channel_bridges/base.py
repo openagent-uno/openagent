@@ -269,8 +269,48 @@ class BaseBridge:
             raise PermissionError("bridge is stopped")
         _active_context.set(value)
 
+    async def _delivery_context(self, context: BridgeContext) -> BridgeContext:
+        """Providers may refresh SDK-attested audience fields before egress."""
+        return context
+
+    @staticmethod
+    def _same_delivery_identity(left: BridgeContext, right: BridgeContext) -> bool:
+        return all(getattr(left, field) == getattr(right, field) for field in (
+            "binding_id", "provider", "account_id", "actor_id", "conversation_id",
+            "event_id", "thread_id", "reply_to_event_id", "api_version", "conversation_kind"))
+
+    async def _prepare_delivery_context(self, current: BridgeContext) -> BridgeContext:
+        """Refresh audience once and obtain the host's current delivery grant."""
+        current = self._resolve_context(current)
+        generation = self._generation
+        # Membership reads must themselves follow actor/binding admission.
+        await self._authorize_generation(current, generation)
+        self._resolve_context(current)
+        delivery = await self._delivery_context(current)
+        if self._should_stop or generation != self._generation:
+            raise PermissionError("bridge generation changed")
+        if not isinstance(delivery, BridgeContext) or not self._same_delivery_identity(current, delivery):
+            raise PermissionError("delivery audience refresh changed bridge identity")
+        self._resolve_context(delivery)
+        await self._authorize_generation(delivery, generation)
+        self._resolve_context(delivery)
+        authorize_delivery = getattr(self.transport, "authorize_delivery", None)
+        if getattr(delivery, "conversation_kind", "unknown") != "direct":
+            if getattr(delivery, "audience_complete", False) is not True or not callable(authorize_delivery):
+                raise PermissionError("group delivery requires a complete audience and host policy")
+        if callable(authorize_delivery):
+            if await authorize_delivery(delivery) is not True:
+                raise PermissionError("bridge delivery audience is no longer authorized")
+            if self._should_stop or generation != self._generation:
+                raise PermissionError("bridge generation changed")
+            self._resolve_context(delivery)
+            if not self._same_delivery_identity(delivery, self._resolve_context()):
+                raise PermissionError("bridge delivery identity changed")
+        _active_context.set(delivery)
+        return delivery
+
     async def _authorize_outbound(self) -> None:
-        await self.authorize_context(self._resolve_context())
+        await self._prepare_delivery_context(self._resolve_context())
 
     async def _ensure_transport_started(self) -> None:
         generation = self._generation
@@ -408,9 +448,6 @@ class BaseBridge:
             if attachment.kind not in self._capabilities.input_media:
                 raise ValueError("transport does not support this input media kind")
             parts.append(BridgePart(attachment=attachment))
-        request = BridgeMessage(context=current, parts=tuple(parts), history=tuple(history) if history is not None else _active_history.get(),
-                                source="voice" if input_was_voice or source == "stt" else "text",
-                                presentation=self._personality_directive)
         async def on_event(event: BridgeEvent):
             if not isinstance(event, BridgeEvent):
                 raise TypeError("transport must emit BridgeEvent")
@@ -435,6 +472,10 @@ class BaseBridge:
         self._pending_transports.add(task)
         try:
             await self._authorize_generation(current, generation)
+            current = await self._prepare_delivery_context(current)
+            request = BridgeMessage(context=current, parts=tuple(parts), history=tuple(history) if history is not None else _active_history.get(),
+                                    source="voice" if input_was_voice or source == "stt" else "text",
+                                    presentation=self._personality_directive)
             reply = await self.transport.send(request, on_event=on_event)
             latest_target = _legacy_reply_target.get() if getattr(self.transport, "legacy_markers", False) else None
         finally:
@@ -445,6 +486,7 @@ class BaseBridge:
         if not isinstance(reply, BridgeReply):
             raise TypeError("transport must return BridgeReply")
         await self._authorize_generation(current, generation)
+        current = await self._prepare_delivery_context(current)
         legacy = {"type": "duplicate" if reply.status == "coalesced" else "error" if reply.status in ("failed", "cancelled") else "response",
                   "text": "\n".join(part.text for part in reply.parts if part.text is not None),
                   "model": reply.model, "attachments": [], "target": latest_target or target,
@@ -535,11 +577,13 @@ class BaseBridge:
         self._pending_transports.add(task)
         try:
             await self._authorize_generation(current, generation)
+            current = await self._prepare_delivery_context(current)
             result = await self.transport.command(BridgeCommand(context=current, name=name, argument=arg, confirmed=confirmed))
         finally:
             self._pending_transports.discard(task)
             _legacy_session_hint.reset(hint)
         await self._authorize_generation(current, generation)
+        current = await self._prepare_delivery_context(current)
         options = [{"value": option.value, "label": option.label, "subtitle": option.subtitle, "active": option.active}
                    for option in result.options]
         return {"text": "\n".join(p.text for p in result.parts if p.text is not None),
@@ -552,14 +596,12 @@ class BaseBridge:
             voice = await self._synthesize(text) if text else None
             if voice is not None:
                 try:
-                    await self._authorize_outbound()
                     await self.send_attachment(target, self._platform_attachment(voice))
                 finally:
                     self._cleanup_owned_temp_artifact(voice.local_path)
         text_indexes = [index for index, part in enumerate(parts) if part.text is not None]
         skip = live.posted_chars if live is not None and live.posted_any else 0
         for index, part in enumerate(parts):
-            await self._authorize_outbound()
             if part.text is not None:
                 text = part.text
                 consumed = min(skip, len(text))
@@ -1092,7 +1134,6 @@ class BaseBridge:
         keyboard via ``send_choice_buttons`` (no-op on platforms that
         can't render one).
         """
-        await self._authorize_outbound()
         if not text:
             return
         clean_text, choice_options = _extract_choice_marker(text)

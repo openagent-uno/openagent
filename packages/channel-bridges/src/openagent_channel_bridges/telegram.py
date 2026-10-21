@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import time
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -270,6 +270,7 @@ class TelegramBridge(BaseBridge):
                 "channels.telegram.allowed_users to restrict it.",
             )
         self._app = None
+        self._context_bot = None
         # Highest update_id we've seen from Telegram. Used during shutdown
         # to directly ACK the offset so a queued ``/restart`` cannot
         # replay on next boot. The original failure mode: shutdown hung
@@ -302,17 +303,51 @@ class TelegramBridge(BaseBridge):
     def _bridge_context(self, message, *, actor_id: str | None = None,
                  event_id: str | None = None) -> BridgeContext:
         bot = message.get_bot()
+        if self._context_bot is not None and str(self._context_bot.id) != str(bot.id):
+            raise PermissionError("Telegram bot account differs from this binding")
+        self._context_bot = bot
         actor = actor_id or str(message.from_user.id)
         chat = message.chat
         if str(chat.type).lower() == "channel" or not self._is_authorized(actor):
             raise PermissionError("Telegram actor/conversation is not admitted")
         if str(chat.type).lower() in {"group", "supergroup"} and self.allowed_chats is not None and int(chat.id) not in self.allowed_chats:
             raise PermissionError("Telegram group is not admitted")
+        private = str(chat.type).lower() == "private"
+        if private and str(chat.id) != actor:
+            raise PermissionError("Telegram direct participant differs from its actor")
         thread = getattr(message, "message_thread_id", None)
         reply = getattr(message, "reply_to_message", None)
         return BridgeContext(self.binding_id, self.name, str(bot.id), actor, str(chat.id),
             event_id or str(message.message_id), thread_id=str(thread) if thread is not None else None,
-            reply_to_event_id=str(reply.message_id) if reply is not None else None)
+            reply_to_event_id=str(reply.message_id) if reply is not None else None,
+            conversation_kind="thread" if thread is not None else "direct" if private else "group")
+
+    async def _delivery_context(self, context: BridgeContext) -> BridgeContext:
+        await self.authorize_context(context)
+        if not self._is_authorized(context.actor_id):
+            raise PermissionError("Telegram actor is no longer admitted")
+        incomplete = replace(context, audience_ids=(), audience_complete=False,
+                             audience_verified_at=None)
+        # Telegram Bot API cannot enumerate a complete group audience. Do not
+        # replace it with administrators, cached users, or a member count.
+        if context.conversation_kind not in ("direct", "thread") or context.conversation_id != context.actor_id:
+            return incomplete
+        bot = self._context_bot
+        if bot is None or str(bot.id) != context.account_id:
+            raise PermissionError("Telegram bot account is not verified")
+        try:
+            await self.authorize_context(context)
+            chat = await bot.get_chat(chat_id=int(context.conversation_id))
+            if str(chat.type).lower() != "private" or str(chat.id) != context.actor_id:
+                raise PermissionError("Telegram direct participant is not verified")
+            await self.authorize_context(context)
+            return replace(context, audience_ids=(context.actor_id,), audience_complete=True,
+                           audience_verified_at=time.time())
+        except PermissionError:
+            raise
+        except Exception as exc:
+            logger.warning("Telegram direct audience unavailable: %s", type(exc).__name__)
+            raise PermissionError("Telegram direct audience cannot be verified") from None
 
     def _is_authorized(self, uid: str) -> bool:
         return self.allowed_users is None or uid in self.allowed_users

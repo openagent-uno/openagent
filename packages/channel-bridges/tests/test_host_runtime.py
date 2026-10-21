@@ -96,7 +96,8 @@ async def test_channel_and_host_sessions_share_actual_runtime_tools_and_memory(t
     await runtime.start()
     transport = HostTransport(runtime, principal)
     bridge = Channel(transport=transport)
-    channel_context = BridgeContext("binding", "slack", "team", "alice", "channel", "event", "thread")
+    channel_context = BridgeContext("binding", "slack", "team", "alice", "channel", "event", "thread",
+                                    conversation_kind="direct", audience_ids=("alice",), audience_complete=True)
     try:
         result = await bridge.send_message("remember", "routing-hint", context=channel_context)
         assert "Channel fact" in result["text"]
