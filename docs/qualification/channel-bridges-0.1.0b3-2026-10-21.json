@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "date": "2026-10-21",
+  "status": "component-qualified-managed-provider-consent-pending",
+  "package": "openagent-channel-bridges",
+  "version": "0.1.0b3",
+  "source_commit": "3e54bda69cbcaa8fffe816f72134e2d56178e1e2",
+  "clean_build_snapshot": true,
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b3-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b3",
+    "sha256": "bbba515676d8c9a76056333ad11cea464698909ac5ceaa289c41b019b80b8c7f",
+    "bytes": 100542
+  },
+  "api_version": 1,
+  "ipc_protocol": "channel-bridge-ipc/v1",
+  "qualification": {
+    "normally_installed_wheel_core26_tests": {
+      "passed": 154,
+      "subtests": 30,
+      "failed": 0
+    },
+    "pip_check_core24_core26": true,
+    "minimum_core24_normal_install_and_import_smoke": true,
+    "core26_preserved": true,
+    "actual_console_start_rpc_and_eof": true,
+    "hosted_configuration_tests": true,
+    "engine_extra_required": false,
+    "standalone_dependency": false,
+    "default_state_written_on_import": false
+  },
+  "managed_service": {
+    "source_commit": "dfca393d3d2ac1f83c15a9b39529abf2dc8eac25",
+    "origin": "https://auth.openagent.uno",
+    "protocol": "openagent-slack-channel/v1",
+    "https_health_and_signed_challenge": "passed",
+    "unsigned_event": "denied",
+    "provider_grant_created": false,
+    "bot_token_to_consumer": false,
+    "session_max_hours": 8,
+    "scopes": [
+      "app_mentions:read",
+      "channels:history",
+      "channels:read",
+      "chat:write",
+      "groups:history",
+      "groups:read"
+    ]
+  },
+  "remaining_boundaries": [
+    "Managed Slack official app bot scopes, event subscription and callback changes are prepared but not saved; no live bot grant or model roundtrip is claimed.",
+    "Consumer pilot must supply its exact existing registered installation and recipient identity plus chosen private channel. Service pilot allowlist currently admits only existing OpenAgent operator QA.",
+    "Hosts must enforce per-agent full recipient authorization and durable event/run admission; provider audience proof is not host permission.",
+    "Managed profile is text-only; no files, media, slash commands, pickers or DMs.",
+    "This component release does not publish a new standalone App, server or CLI installer."
+  ],
+  "operation": {
+    "new_provider_apps": 0,
+    "paid_ci_used": false,
+    "paid_subscriptions": 0,
+    "consumer_production_changed": false,
+    "managed_service_opt_in_deployed": true
+  },
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3",
+  "public_delivery_verified": true
+}

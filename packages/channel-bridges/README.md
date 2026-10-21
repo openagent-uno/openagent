@@ -6,9 +6,15 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-Current source targets **candidate `0.1.0b3`**, adding the optional managed Slack
-mode below. Beta 3 is not published yet; no release artifact or live bot grant
-is established by this source documentation.
+Released component:
+[`0.1.0b3`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3),
+adding the optional managed Slack mode below. The normally installed wheel
+passes 154 tests and 30 subcases on Core beta 26, with a Core beta 24 normal
+install/import smoke and actual console/start-RPC/EOF checks. Public artifact
+bytes and normal URL installation were verified. The
+[qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
+records source and wheel digests. These component results do not establish a
+live bot grant or a new standalone release.
 
 Install the versioned wheel with the required optional provider extra, such as
 `openagent-channel-bridges[slack]`. Core is a compatible dependency, without
@@ -89,20 +95,23 @@ operator's existing bot and app-level credentials; this is an operator-managed
 deployment option, not an end-user onboarding requirement. A user OAuth token
 from the Slack MCP connector is not a channel bot token.
 
-The managed Slack candidate uses the existing official OpenAgent app with a
+The managed Slack mode uses the existing official OpenAgent app with a
 separately authorized bot grant and authenticated, binding-scoped event routing.
 Existing connector public distribution alone does not establish a live bot.
 User connector grants and bot grants remain separate; this mode does not inherit
 MCP permissions or require users to register another app.
 
-## Managed Slack candidate (beta 3)
+## Managed Slack (beta 3)
 
 `HostedSlackBridge` uses the optional central service protocol
 `openagent-slack-channel/v1`. Its [service/API contract](https://github.com/openagent-uno/openagent-tools/blob/dfca393d3d2ac1f83c15a9b39529abf2dc8eac25/packages/connectors/channels/slack/README.md)
 describes the existing-host `Start`, `Status`, `Activate`, `Session` and
 `Disconnect` calls, six bot scopes, callback/events routes and additive app
-configuration. This component does not deploy or enable that service. Production
-bot consent and a real mention-to-agent-to-reply grant remain pending.
+configuration. The opt-in service is online: HTTPS health 200, unsigned event
+403 and a signed challenge 200 were verified with a dedicated encrypted channel
+vault. The app manifest changes have not been saved; no bot grant or real
+mention-to-agent-to-reply acceptance is claimed. Service readiness does not
+automatically enable a consumer binding.
 
 The host selects one existing agent with the explicit recipient
 `(workspace_id, subject_id, agent_id)`, then starts a binding for one Slack

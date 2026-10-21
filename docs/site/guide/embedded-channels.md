@@ -1,19 +1,21 @@
 # Embedding official channels
 
 Component release:
-[`0.1.0b2`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.2).
-The installed beta 2 wheel passes 133 tests and 30 subcases on Core beta 26,
-alongside 62 standalone source regressions and a minimal Core beta 24 smoke.
-The [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
-distinguishes component checks from remaining provider acceptance.
-They qualify the component boundary; they do not establish a live shared
-Slack bot installation or a new standalone product release. Beta 1 remains
-immutable; beta 2 adds explicit conversation type and audience attestation.
+[`0.1.0b3`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3).
+The normally installed beta 3 wheel passes **154 tests and 30 subcases on Core
+beta 26**, with a Core beta 24 normal install/import smoke and actual
+console/start-RPC/EOF checks. Anonymous artifact bytes, normal public-URL
+installation and the installed runner were verified. The
+[beta 3 qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
+records source `3e54bda69cbcaa8fffe816f72134e2d56178e1e2`, the 100,542-byte wheel
+and its SHA-256. Beta 3 adds optional `HostedSlackBridge` and hosted Slack IPC.
+These results qualify the component; they do not establish a live bot grant or
+a new standalone App/server/CLI release.
 
-Source candidate **`0.1.0b3`** adds optional `HostedSlackBridge` and hosted Slack
-IPC configuration. It is not published yet. The beta 2 results above remain
-beta 2 evidence; production bot grant and live managed-channel acceptance are
-still pending.
+The earlier [beta 2 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
+records 133 installed tests, 30 subcases and 62 standalone source regressions.
+Those remain historical beta 2 evidence, not a claim that all 62 were rerun for
+beta 3. Beta 1 remains immutable; beta 2 introduced audience attestation.
 
 Channels are conversational entrances to the host's existing agent. They are
 independent from MCP connectors that expose Slack, Discord or another service
@@ -153,15 +155,21 @@ stopping the parent's agent. An uncertain provider mutation or accepted host
 run is not automatically retried. The durable host event/run journal owns
 reconciliation after process or network failure.
 
-## Managed official Slack candidate
+## Managed official Slack
 
-The beta 3 source candidate adds `HostedSlackBridge` for a centrally managed
+Beta 3 adds `HostedSlackBridge` for a centrally managed
 OpenAgent Slack bot. End users connect the existing official app; they do not
 supply Slack bot/app credentials or create their own app. The separate
 [`openagent-slack-channel/v1` service contract](https://github.com/openagent-uno/openagent-tools/blob/dfca393d3d2ac1f83c15a9b39529abf2dc8eac25/packages/connectors/channels/slack/README.md)
 covers installation authentication, bot scope/rotation checks, callback/events
 routes, encrypted custody and the additive app configuration. The Slack user
 connector/MCP grant remains a different capability.
+
+The opt-in managed service is online: HTTPS health returned 200, unsigned events
+were denied with 403, and a signed challenge returned 200. Its channel vault is
+dedicated and encrypted. The Slack app manifest changes are **not saved** and no
+production bot grant or live mention-to-agent-to-reply acceptance exists yet.
+A healthy service does not activate any host or agent automatically.
 
 The host's authenticated product selects an existing agent and records an exact
 recipient `(workspace_id, subject_id, agent_id)` and Slack workspace/channel.
@@ -225,9 +233,9 @@ to the host's existing run before acknowledging successful processing. A replay
 or restarted child must find that run/outcome, not repeat tools or append a new
 turn. The service's durable queue ACK and outgoing operation IDs do not provide
 host run idempotency by themselves. Unknown write outcomes need reconciliation,
-not blind resend. This source configuration, `configured`/`start`, a service
-health response or synthetic fixtures do not establish production OAuth or a
-real managed-channel round trip; those remain pending evidence.
+not blind resend. The released component, `configured`/`start`, service health
+and synthetic fixtures do not establish production OAuth or a real
+managed-channel round trip; those remain pending evidence.
 
 ## Operator-managed Slack HTTP intake
 
