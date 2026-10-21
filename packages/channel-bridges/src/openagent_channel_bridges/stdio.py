@@ -235,7 +235,12 @@ def configure(frame, transport):
     provider = frame["provider"]
     if frame["type"] != "configure" or not isinstance(provider, str) or provider not in _CONFIG:
         raise WireError("invalid_configuration")
-    required, allowed = _CONFIG[provider]
+    hosted_slack = provider == "slack" and isinstance(frame["config"], dict) and "service_origin" in frame["config"]
+    if hosted_slack:
+        required = {"service_origin", "service_binding_id", "session_token", "service_app_id"}
+        allowed = required | {"allowed_users", "listen_channels", "context_messages", "personality", "live"}
+    else:
+        required, allowed = _CONFIG[provider]
     config = object_fields(frame["config"], allowed, required)
     for name, value in config.items():
         if name in ("live", "streaming", "dm_only", "members_intent"):
@@ -251,12 +256,15 @@ def configure(frame, transport):
             raise WireError("invalid_configuration")
     if any(not isinstance(config[name], str) or not config[name] for name in required):
         raise WireError("invalid_configuration")
-    cls = getattr(import_module(f".{provider}", __package__), provider.capitalize() + "Bridge" if provider != "whatsapp" else "WhatsAppBridge")
+    if hosted_slack:
+        cls = getattr(import_module(".hosted_slack", __package__), "HostedSlackBridge")
+    else:
+        cls = getattr(import_module(f".{provider}", __package__), provider.capitalize() + "Bridge" if provider != "whatsapp" else "WhatsAppBridge")
     return cls(transport=transport, binding_id=frame["binding_id"], **config)
 
 
 def describe():
-    return {"protocol": PROTOCOL, "type": "description", "package_version": __version__, "providers": list(PROVIDERS),
+    return {"protocol": PROTOCOL, "type": "description", "package_version": __version__, "providers": list(PROVIDERS), "hosted_modes": {"slack": "openagent-slack-channel/v1"},
             "max_line_bytes": MAX_LINE, "max_pending": MAX_PENDING,
             "max_chunk_bytes": MAX_CHUNK, "max_artifact_bytes": MAX_ARTIFACT,
             "methods": ["start", "authorize_context", "authorize_delivery", "send", "command", "transcribe", "synthesize", "stop"],

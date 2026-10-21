@@ -9,11 +9,11 @@ from .contracts import (
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )
 
-__version__ = "0.1.0b2"
+__version__ = "0.1.0b3"
 
 
 def __getattr__(name: str):
-    providers = {"SlackBridge": "slack", "DiscordBridge": "discord",
+    providers = {"HostedSlackBridge": "hosted_slack", "SlackBridge": "slack", "DiscordBridge": "discord",
                  "TelegramBridge": "telegram", "WhatsAppBridge": "whatsapp",
                  "BaseBridge": "base"}
     if name not in providers:

@@ -435,3 +435,21 @@ def test_discord_members_intent_is_forwarded_only_as_explicit_boolean(monkeypatc
     config["config"] = {"token": "DO_NOT_PRINT", "unknown_intent": True}
     with pytest.raises(WireError):
         configure(config, object())
+
+
+
+def test_hosted_slack_configuration_is_a_separate_bound_service_mode():
+    from openagent_channel_bridges.hosted_slack import HostedSlackBridge
+    from openagent_channel_bridges.stdio import configure
+    frame = {"protocol": PROTOCOL, "type": "configure", "request_id": "setup",
+             "provider": "slack", "binding_id": "binding",
+             "config": {"service_origin": "https://auth.openagent.uno",
+                        "service_binding_id": "binding", "session_token": "service-session",
+                        "service_app_id": "AAPP"}}
+    bridge = configure(frame, object())
+    assert isinstance(bridge, HostedSlackBridge)
+    for update in ({"bot_token": "forbidden"}, {"app_token": "forbidden"},
+                   {"allow_loopback": True}, {"service_binding_id": "different"}):
+        changed = {**frame, "config": {**frame["config"], **update}}
+        with pytest.raises((ValueError, WireError)):
+            configure(changed, object())

@@ -6,6 +6,10 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
+Current source targets **candidate `0.1.0b3`**, adding the optional managed Slack
+mode below. Beta 3 is not published yet; no release artifact or live bot grant
+is established by this source documentation.
+
 Install the versioned wheel with the required optional provider extra, such as
 `openagent-channel-bridges[slack]`. Core is a compatible dependency, without
 `[engine]` or a standalone framework pin. Importing contracts uses only the
@@ -85,12 +89,92 @@ operator's existing bot and app-level credentials; this is an operator-managed
 deployment option, not an end-user onboarding requirement. A user OAuth token
 from the Slack MCP connector is not a channel bot token.
 
-The shared official Slack member-bot setup requires a separately authorized bot
-installation, channel event ingress and authenticated installation-to-host
-routing. Existing connector public distribution alone does not establish those
-capabilities. One shared app identity can support distinct user and bot grants;
-the channel must not inherit connector permissions. Do not create duplicate apps
-or require each user to register an app to conceal a missing hosted flow.
+The managed Slack candidate uses the existing official OpenAgent app with a
+separately authorized bot grant and authenticated, binding-scoped event routing.
+Existing connector public distribution alone does not establish a live bot.
+User connector grants and bot grants remain separate; this mode does not inherit
+MCP permissions or require users to register another app.
+
+## Managed Slack candidate (beta 3)
+
+`HostedSlackBridge` uses the optional central service protocol
+`openagent-slack-channel/v1`. Its [service/API contract](https://github.com/openagent-uno/openagent-tools/blob/dfca393d3d2ac1f83c15a9b39529abf2dc8eac25/packages/connectors/channels/slack/README.md)
+describes the existing-host `Start`, `Status`, `Activate`, `Session` and
+`Disconnect` calls, six bot scopes, callback/events routes and additive app
+configuration. This component does not deploy or enable that service. Production
+bot consent and a real mention-to-agent-to-reply grant remain pending.
+
+The host selects one existing agent with the explicit recipient
+`(workspace_id, subject_id, agent_id)`, then starts a binding for one Slack
+workspace/channel. The human sees that destination before Slack consent.
+After bot installation, invitation and channel verification, the host explicitly
+activates the binding and obtains an **8-hour binding-scoped service session**.
+It keeps that capability private; central custody retains the bot access and
+refresh tokens. Creating a new session replaces the previous session for that
+binding. Expiry/revocation stops intake and requires the host to obtain a valid
+session; there is no token fallback or automatic host enrollment.
+
+```python
+from openagent_channel_bridges import HostedSlackBridge
+
+bridge = HostedSlackBridge(
+    transport=host_transport,
+    binding_id=stored_service_binding_id,
+    service_binding_id=stored_service_binding_id,
+    service_origin=configured_service_origin,
+    service_app_id="A0C9XC9JHTK",
+    session_token=private_service_session.token,
+    context_messages=20,
+    live=False,
+)
+await bridge.start()
+# Host lifecycle owns shutdown; the existing host runtime stays alive.
+await bridge.stop()
+```
+
+The hosted implementation needs the package's normal HTTP dependency, not the
+optional Socket Mode SDK extra. Non-Python hosts use the same child/host IPC;
+send this configuration through **private stdin**, never argv or logs:
+
+```json
+{
+  "protocol": "channel-bridge-ipc/v1",
+  "type": "configure",
+  "request_id": "configure-slack",
+  "provider": "slack",
+  "binding_id": "<service binding ID>",
+  "config": {
+    "service_origin": "https://auth.openagent.uno",
+    "service_binding_id": "<same service binding ID>",
+    "service_app_id": "A0C9XC9JHTK",
+    "session_token": "<private service session>",
+    "context_messages": 20,
+    "live": false
+  }
+}
+```
+
+These are placeholders. The outer and service binding IDs must match. This
+hosted configuration accepts no Slack bot/app token. With `listen_channels`
+omitted, only the service binding's channel is selected; optional local user or
+channel restrictions cannot broaden it. A binding routes to its selected agent,
+not a global broadcast, another agent or an implicit standalone fallback.
+
+This profile is **opt-in and text-only**: mentions, bounded same-channel/thread
+history and text replies. DMs, attachments, pickers and slash-command ingress
+are outside the managed profile. The host still supplies `authorize_context`,
+`authorize_delivery` and its own normal runtime/run services. Every participant
+must map to an authorized host principal; a bot/channel membership proof does
+not make private tools or memory visible to the whole audience.
+
+The central queue ACK and write-operation deduplication do not replace durable
+host event/run idempotency. The host must persist the immutable accepted request
+and outcome under a binding/account/event key so a replay or restarted child
+finds the same run instead of executing tools again. Keep unknown write outcomes
+for reconciliation; do not issue a new operation ID and blindly resend. Hosted
+`configured`/`start` or a healthy service are not real provider acceptance.
+
+## Provider audience boundaries
 
 Slack refreshes the authenticated bot/workspace binding and reads real Web API
 membership with `conversations.members`, bounded to ten pages of at most 100
