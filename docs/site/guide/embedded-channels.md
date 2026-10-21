@@ -1,5 +1,12 @@
 # Embedding official channels
 
+Component release:
+[`0.1.0b1`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.1).
+The installed wheel passes 62 tests and 17 subcases on Core beta 26, alongside
+62 standalone source regressions. A minimal Core beta 24 install/import smoke
+also passes. These qualify the component boundary; they do not establish a
+live shared Slack bot installation or a new standalone product release.
+
 Channels are conversational entrances to the host's existing agent. They are
 independent from MCP connectors that expose Slack, Discord or another service
 as tools. A message arriving through a channel uses the host's normal public
@@ -91,6 +98,8 @@ qualify private direct messages first. A provider channel ID or the current
 sender's membership alone is not an audience attestation.
 
 ## Process bridge for non-Python hosts
+
+See the exact [NDJSON frame and media contract](https://github.com/openagent-uno/openagent/blob/main/packages/channel-bridges/PROTOCOL.md).
 
 `openagent-channel-bridge` runs one configured binding as a child process, using
 NDJSON protocol `channel-bridge-ipc/v1` on stdin/stdout. `--describe` returns the

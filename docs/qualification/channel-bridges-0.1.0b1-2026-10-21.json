@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "date": "2026-10-21",
+  "status": "component-qualified-provider-activation-not-qualified",
+  "package": "openagent-channel-bridges",
+  "version": "0.1.0b1",
+  "api_version": 1,
+  "ipc_protocol": "channel-bridge-ipc/v1",
+  "source_commit": "9be3ad8a0643aac0eceadd8d0aa1d0ce36850687",
+  "clean_build_snapshot": true,
+  "source_sha256": "5e38c524e7353b78d65f53cd7436f642408995cb96d15cdb72d859b4ce9bf874",
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b1-py3-none-any.whl",
+    "bytes": 88511,
+    "sha256": "58b66b574f36b10064a0c7a34e980cd224180a2ee76a17544b895f56f63d86a9"
+  },
+  "qualification": {
+    "shared_source_tests": {"passed": 62, "subtests": 17, "failed": 0},
+    "normally_installed_wheel_tests_core26": {"passed": 62, "subtests": 17, "failed": 0},
+    "standalone_source_regressions": {"passed": 62, "failed": 0},
+    "core26_version_preserved": true,
+    "minimum_core24_normal_install_and_import_smoke": true,
+    "pip_check_core24_core26": true,
+    "minimal_install_distribution_count": 12,
+    "standalone_dependency": false,
+    "engine_extra_required_for_channel_runtime": false,
+    "provider_sdk_imports_lazy": true,
+    "default_agent_state_created_on_import": false,
+    "actual_console_entrypoint_description_start_rpc_and_eof": true,
+    "host_runtime_constructed_by_runner": false,
+    "provider_network_used_by_runner_process_test": false,
+    "host_parity_fixture": "actual public Core runtime, capability catalog, SQLite journal and shared filesystem memory; deterministic executor and tools",
+    "history_bounds": {"default_messages": 20, "maximum_messages": 100, "maximum_json_utf8_bytes": 65536},
+    "ipc_media": "request-scoped reader references, separate provider ID and SHA-256, bounded uploads, no local paths on wire"
+  },
+  "remaining_boundaries": [
+    "No new live Slack, Discord, Telegram or WhatsApp installation/model acceptance was performed for this component.",
+    "Shared official Slack member-bot OAuth installation, bot scopes/events, signing custody and authenticated installation-to-host intake still require configuration and live qualification; the MCP user connector grant is separate.",
+    "Group delivery must remain denied until the host independently verifies the complete result audience; contract v1 does not attest full group membership.",
+    "The legacy standalone WebSocket TextFinal contract has no durable provider event ID; its restart-safe external event deduplication is not qualified.",
+    "Core24 qualification is a minimal installed import/dependency smoke; actual public runtime parity was exercised on Core26.",
+    "This independent component does not publish a new standalone App, server or CLI product build."
+  ],
+  "operation": {
+    "new_provider_apps": 0,
+    "provider_grants_changed": false,
+    "production_changed": false,
+    "paid_subscriptions": 0,
+    "native_builds_started": 0,
+    "paid_ci_used": false,
+    "local_execution": "light Python qualification processes in sequence at nice 15; no competing native compilation"
+  },
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.1"
+}
