@@ -25,6 +25,7 @@ const guideSidebar = [
       { text: "Phone & SMS MCP", link: "/guide/phone-mcp" },
       { text: "Gateway", link: "/guide/gateway" },
       { text: "Channels", link: "/guide/channels" },
+      { text: "Embedded Channels", link: "/guide/embedded-channels" },
       { text: "Memory & Vault", link: "/guide/memory" },
       { text: "Vault Quality System", link: "/guide/vault-quality" },
       { text: "Scheduler & Dream Mode", link: "/guide/scheduler" },

@@ -4,6 +4,11 @@ All channels support text, images, files, voice, and video. The "is writing" ind
 
 All channels share the same command vocabulary: `/new`, `/stop`, `/status`, `/queue`, `/help`, `/usage`.
 
+Hosts embedding their own runtime use the independently versioned
+[official channel bridges](./embedded-channels.md), rather than installing the
+standalone framework. Conversational channels and provider MCP connectors are
+separate capabilities with separate grants.
+
 ## Telegram
 
 ```yaml
@@ -32,6 +37,7 @@ channels:
     listen_channels:             # all members may talk in these channels
       - "234567890123456789"
     # dm_only: false             # true = DMs only
+    context_messages: 20         # prior messages, 0..100; hard 64 KiB budget
 ```
 
 Discord has separate private and shared access boundaries. `allowed_users`

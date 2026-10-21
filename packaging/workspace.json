@@ -73,6 +73,12 @@
       "distribution": "openagent-product-config",
       "artifact_prefix": "openagent-product-config"
     },
+    "channel-bridges": {
+      "path": "packages/channel-bridges",
+      "kind": "python",
+      "distribution": "openagent-channel-bridges",
+      "artifact_prefix": "openagent-channel-bridges"
+    },
     "client-transport": {
       "path": "packages/client-transport",
       "kind": "python",

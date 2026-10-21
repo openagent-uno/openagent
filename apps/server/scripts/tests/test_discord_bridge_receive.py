@@ -3,7 +3,7 @@
 Pins the independent Discord access boundaries:
 
 1. ``listen_channels`` is the hard boundary for guild messages. Every
-   human member of a listed channel can talk to the agent, while even a
+   human member of a listed channel can mention the agent, while even a
    user in ``allowed_users`` is dropped outside those channels.
 
 2. ``allowed_users`` controls private DMs and slash commands only. It
@@ -31,7 +31,15 @@ from ._framework import TestContext, test
 # ── Fake discord module shim ─────────────────────────────────────────
 
 
-class _FakeDMChannel:
+class _FakeChannelHistory:
+    def history(self, **kwargs):
+        async def messages():
+            for message in ():
+                yield message
+        return messages()
+
+
+class _FakeDMChannel(_FakeChannelHistory):
     """Sentinel type used purely for ``isinstance`` checks inside
     ``on_message`` — we install ``_FakeDMChannel`` as ``discord.DMChannel``
     so the bridge's ``isinstance(message.channel, discord.DMChannel)``
@@ -41,7 +49,7 @@ class _FakeDMChannel:
         self.id = channel_id
 
 
-class _FakeGuildChannel:
+class _FakeGuildChannel(_FakeChannelHistory):
     def __init__(self, channel_id: int = 555):
         self.id = channel_id
 
@@ -71,13 +79,17 @@ class _FakeMessage:
         mentions=None,
         content: str = "hello",
         attachments=None,
+        event_id: int = 1234500,
     ):
+        self.id = event_id
         self.author = _FakeUser(author_id)
         self.channel = channel
         self.guild = guild
         self.mentions = mentions or []
         self.content = content
         self.attachments = attachments or []
+        self.reference = None
+        self.created_at = None
 
 
 def _install_fake_discord_modules():
@@ -227,7 +239,7 @@ async def t_discord_channel_only_config_builds_bridge(ctx: TestContext) -> None:
     assert bridges[0].listen_channels == {"555"}, bridges[0].listen_channels
 
 
-@test("bridges", "discord on_message: every user in a listened channel is dispatched")
+@test("bridges", "discord on_message: every mentioning user in a listened channel is dispatched")
 async def t_discord_listened_channel_accepts_every_user(ctx: TestContext) -> None:
     on_message, bridge, restore = await _capture_on_message()
     try:
@@ -242,8 +254,8 @@ async def t_discord_listened_channel_accepts_every_user(ctx: TestContext) -> Non
             author_id=999,  # deliberately NOT in allowed_users
             channel=_FakeGuildChannel(channel_id=555),
             guild=_FakeGuild(guild_id=42),
-            mentions=[],
-            content="hi from a shared channel member",
+            mentions=[_FakeUser(99999999, name="bot")],
+            content="<@99999999> hi from a shared channel member",
         )
 
         events: list[tuple[str, dict]] = []
@@ -251,7 +263,7 @@ async def t_discord_listened_channel_accepts_every_user(ctx: TestContext) -> Non
         def capture(event: str, *_a, **kw):
             events.append((event, kw))
 
-        import openagent_server.bridges.discord as dc_mod
+        import openagent_channel_bridges.discord as dc_mod
         with patch.object(dc_mod, "elog", side_effect=capture):
             await on_message(msg)
 
@@ -276,7 +288,7 @@ async def t_discord_listened_channel_accepts_every_user(ctx: TestContext) -> Non
 
 @test("bridges", "discord guild slash command and picker share channel session")
 async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
-    import openagent_server.bridges.discord as dc_mod
+    import openagent_channel_bridges.discord as dc_mod
     from openagent_server.bridges.discord import DiscordBridge
 
     bridge = DiscordBridge(
@@ -287,7 +299,11 @@ async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
     command_sessions: list[str] = []
     picker_sessions: list[str] = []
 
-    async def _command(cmd, *, session_id, arg=None):
+    async def _command(cmd, *, session_id, arg=None, context=None):
+        assert context.actor_id == "999"
+        assert context.conversation_id == "555"
+        assert context.account_id == "42"
+        assert context.event_id == "1234501"
         command_sessions.append(session_id)
         return {
             "text": "pick",
@@ -310,7 +326,10 @@ async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
             return None
 
     interaction = types.SimpleNamespace(
+        id=1234501,
         user=_FakeUser(999),
+        channel=_FakeGuildChannel(555),
+        guild=_FakeGuild(42),
         channel_id=555,
         guild_id=42,
         response=_Response(),
@@ -334,6 +353,28 @@ async def t_discord_slash_picker_shared_scope(ctx: TestContext) -> None:
     ) == "dc:123"
 
 
+@test("bridges", "discord listened channels require a bot mention before dispatch")
+async def t_discord_unmentioned_channel_message_is_not_dispatched(ctx: TestContext) -> None:
+    import openagent_channel_bridges.discord as dc_mod
+    on_message, bridge, restore = await _capture_on_message()
+    try:
+        dispatched = []
+        events = []
+
+        async def capture_dispatch(*args, **kwargs):
+            dispatched.append((args, kwargs))
+
+        bridge.dispatch_turn = capture_dispatch
+        with patch.object(dc_mod, "elog", side_effect=lambda name, **fields: events.append((name, fields))):
+            await on_message(_FakeMessage(author_id=999, channel=_FakeGuildChannel(555),
+                guild=_FakeGuild(42), mentions=[], content="ordinary channel discussion"))
+        assert not dispatched, dispatched
+        assert any(name == "bridge.discord.dropped" and fields.get("reason") == "not_mentioned"
+                   for name, fields in events), events
+    finally:
+        restore()
+
+
 @test("bridges", "discord attachment staging basename stays below NAME_MAX")
 async def t_discord_attachment_staging_name_max(ctx: TestContext) -> None:
     from pathlib import Path
@@ -341,7 +382,7 @@ async def t_discord_attachment_staging_name_max(ctx: TestContext) -> None:
     on_message, bridge, restore = await _capture_on_message()
     try:
         class _Attachment:
-            id = "📎" * 200
+            id = 123456789012345678
             filename = ("界" * 200) + ".pdf"
             content_type = "application/pdf"
             size = 2
@@ -356,6 +397,7 @@ async def t_discord_attachment_staging_name_max(ctx: TestContext) -> None:
             for attachment in kwargs["attachments"]:
                 assert len(Path(attachment["path"]).name.encode("utf-8")) <= 240
                 assert Path(attachment["path"]).read_bytes() == b"ok"
+                assert attachment["provider_attachment_id"] == "123456789012345678"
 
         bridge.dispatch_turn = _dispatch  # type: ignore[method-assign]
         await on_message(_FakeMessage(
@@ -363,6 +405,7 @@ async def t_discord_attachment_staging_name_max(ctx: TestContext) -> None:
             channel=_FakeGuildChannel(channel_id=555),
             guild=_FakeGuild(guild_id=42),
             content="inspect",
+            mentions=[_FakeUser(99999999, name="bot")],
             attachments=[_Attachment()],
         ))
         assert len(captured) == 1
@@ -394,7 +437,7 @@ async def t_discord_allowed_user_outside_listened_channel_is_dropped(ctx: TestCo
         def capture(event: str, *_a, **kw):
             events.append((event, kw))
 
-        import openagent_server.bridges.discord as dc_mod
+        import openagent_channel_bridges.discord as dc_mod
         with patch.object(dc_mod, "elog", side_effect=capture):
             await on_message(msg)
 
@@ -430,7 +473,7 @@ async def t_discord_dm_user_allowlist(ctx: TestContext) -> None:
         def capture(event: str, *_a, **kw):
             events.append((event, kw))
 
-        import openagent_server.bridges.discord as dc_mod
+        import openagent_channel_bridges.discord as dc_mod
         with patch.object(dc_mod, "elog", side_effect=capture):
             await on_message(_FakeMessage(
                 author_id=123,
@@ -483,7 +526,7 @@ async def t_discord_disallowed_guild_drop(ctx: TestContext) -> None:
         def capture(event: str, *_a, **kw):
             events.append((event, kw))
 
-        import openagent_server.bridges.discord as dc_mod
+        import openagent_channel_bridges.discord as dc_mod
         with patch.object(dc_mod, "elog", side_effect=capture):
             await on_message(msg)
 

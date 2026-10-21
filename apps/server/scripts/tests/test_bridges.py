@@ -12,6 +12,13 @@ import inspect
 from ._framework import TestContext, test
 
 
+def _initialize_standalone_bridge(bridge):
+    # Construct adapter state without connecting the gateway or platform SDK.
+    from openagent_server.bridges.base import BaseBridge
+    BaseBridge.__init__(bridge)
+    return bridge
+
+
 @test("bridges", "telegram bridge module imports")
 async def t_telegram_import(ctx: TestContext) -> None:
     import openagent_server.bridges.telegram as mod  # noqa: F401
@@ -375,7 +382,7 @@ async def t_dispatch_turn_skips_duplicate(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             attachments_sent.append(att)
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     async def _dup(text, session_id, **kwargs):
@@ -407,7 +414,7 @@ async def t_dispatch_turn_owner_renders(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     async def _ok(text, session_id, **kwargs):
@@ -438,7 +445,7 @@ async def t_dispatch_turn_cleans_owned_temp_attachments(ctx: TestContext) -> Non
             sent_paths.append(att.path)
             assert Path(att.path).exists(), att.path
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     tmp = tempfile.NamedTemporaryFile(
@@ -484,7 +491,7 @@ async def t_dispatch_turn_anchors_to_latest_in_spam(ctx: TestContext) -> None:
     import asyncio
     from openagent_server.bridges.base import BaseBridge
     from openagent_core.stream.events import SessionOpen, TextFinal, now_ms
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     posted_chunks: list[tuple[object, str]] = []
 
@@ -501,7 +508,7 @@ async def t_dispatch_turn_anchors_to_latest_in_spam(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
     bridge._stream_opened = set()
     bridge._stream_pending = {}
@@ -574,7 +581,7 @@ async def t_dispatch_turn_late_follower_does_not_poison(ctx: TestContext) -> Non
     from openagent_server.bridges.base import BaseBridge
     from openagent_core.stream.collector import StreamCollector
 
-    bridge = BaseBridge.__new__(BaseBridge)
+    bridge = _initialize_standalone_bridge(BaseBridge.__new__(BaseBridge))
     bridge.name = "fake"
     bridge._stream_opened = set()
     bridge._stream_pending = {}
@@ -639,9 +646,8 @@ async def t_bridges_use_shared_dispatch(ctx: TestContext) -> None:
     import openagent_server.bridges.whatsapp as wa
 
     for label, src in (
-        ("telegram", inspect.getsource(tg.TelegramBridge)),
-        ("discord",  inspect.getsource(dc.DiscordBridge)),
-        ("whatsapp", inspect.getsource(wa.WhatsAppBridge)),
+        (label, inspect.getsource(__import__(f"openagent_channel_bridges.{label}", fromlist=["*"])))
+        for label in ("telegram", "discord", "whatsapp")
     ):
         assert "self.dispatch_turn(" in src, (
             f"{label} bridge must call BaseBridge.dispatch_turn — found no "
@@ -684,7 +690,7 @@ async def t_listen_gateway_diag_emits_on_crash(ctx: TestContext) -> None:
     ``except`` and emits ``bridge.listener_died`` so the next tick has
     actionable data."""
     from unittest.mock import patch
-    import openagent_server.bridges.base as bridge_mod
+    import openagent_server.bridges.gateway_transport as bridge_mod
 
     fb = _FakeBridge()
     real = fb._real
@@ -710,7 +716,7 @@ async def t_listen_gateway_diag_emits_on_crash(ctx: TestContext) -> None:
     _, kw = died[0]
     assert kw.get("error_type") == "RuntimeError", kw
     assert kw.get("name") == "fake", kw
-    assert "simulated zlib boom" in kw.get("error", ""), kw
+    assert "error" not in kw, "exception bodies must not enter channel diagnostics"
 
     exit_evt = [(e, kw) for e, kw in events if e == "bridge.listener_exit"]
     assert exit_evt and exit_evt[0][1].get("exit_kind", "").startswith("exception:RuntimeError"), exit_evt
@@ -857,7 +863,11 @@ class _FakeTgMessage:
         # (the only kind these replay-defense tests exercise) passes
         # straight through the gate.
         self.chat = type("C", (), {"id": int(uid), "type": "private"})()
+        self.message_id = 1
         self.replies: list[str] = []
+
+    def get_bot(self):
+        return type("Bot", (), {"id": 100})()
 
     async def reply_text(self, text, reply_markup=None):
         self.replies.append(text)
@@ -1111,7 +1121,7 @@ async def t_telegram_gateway_lost_stops_app(ctx: TestContext) -> None:
 def _fresh_whatsapp_bridge():
     from openagent_server.bridges.whatsapp import WhatsAppBridge
 
-    bridge = WhatsAppBridge.__new__(WhatsAppBridge)
+    bridge = _initialize_standalone_bridge(WhatsAppBridge.__new__(WhatsAppBridge))
     bridge.name = "whatsapp"
     bridge._greenapi = None  # never used — we stub _send_text below
     sent: list[tuple[str, str]] = []
@@ -1151,7 +1161,7 @@ async def t_discord_native_typing(ctx: TestContext) -> None:
     import asyncio
     from openagent_server.bridges.discord import DiscordBridge
 
-    bridge = DiscordBridge.__new__(DiscordBridge)
+    bridge = _initialize_standalone_bridge(DiscordBridge.__new__(DiscordBridge))
     bridge.name = "discord"
 
     sends: list[str] = []
@@ -1190,7 +1200,7 @@ async def t_discord_native_typing(ctx: TestContext) -> None:
 async def t_slack_no_placeholder(ctx: TestContext) -> None:
     from openagent_server.bridges.slack import SlackBridge
 
-    bridge = SlackBridge.__new__(SlackBridge)
+    bridge = _initialize_standalone_bridge(SlackBridge.__new__(SlackBridge))
     bridge.name = "slack"
 
     posted: list = []
@@ -1361,7 +1371,7 @@ async def t_dispatch_turn_voice_mirror_synth(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             sent_attachments.append(att)
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     async def _fake_send_message(text, session_id, *, target=None, **kwargs):
@@ -1412,7 +1422,7 @@ async def t_dispatch_turn_voice_synth_failure_posts_text(ctx: TestContext) -> No
         async def send_attachment(self, target, att):
             sent_attachments.append(att)
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     async def _fake_send_message(text, session_id, **kwargs):
@@ -1444,7 +1454,7 @@ async def t_telegram_send_attachment_dispatch(ctx: TestContext) -> None:
     from openagent_server.bridges.telegram import TelegramBridge
     from openagent_core.media import Attachment
 
-    bridge = TelegramBridge.__new__(TelegramBridge)
+    bridge = _initialize_standalone_bridge(TelegramBridge.__new__(TelegramBridge))
     bridge.name = "telegram"
 
     calls: list[tuple[str, str]] = []  # (method, suffix)
@@ -1491,7 +1501,7 @@ async def t_telegram_send_attachment_missing_file(ctx: TestContext) -> None:
     from openagent_server.bridges.telegram import TelegramBridge
     from openagent_core.media import Attachment
 
-    bridge = TelegramBridge.__new__(TelegramBridge)
+    bridge = _initialize_standalone_bridge(TelegramBridge.__new__(TelegramBridge))
     bridge.name = "telegram"
     calls: list[str] = []
 
@@ -1514,7 +1524,7 @@ async def t_telegram_send_text_chunk_html_fallback(ctx: TestContext) -> None:
     silent drop."""
     from openagent_server.bridges.telegram import TelegramBridge
 
-    bridge = TelegramBridge.__new__(TelegramBridge)
+    bridge = _initialize_standalone_bridge(TelegramBridge.__new__(TelegramBridge))
     bridge.name = "telegram"
     sent: list[tuple[str, dict]] = []
 
@@ -1555,7 +1565,7 @@ async def t_dispatch_turn_post_status_raises(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
     # This test pins the NON-live status path (on_status → update_status,
     # which no-ops when post_status returned no handle). Live mode posts
@@ -1593,7 +1603,7 @@ async def t_dispatch_turn_attachment_raise(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             raise RuntimeError("disk full")
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     # Inject an attachment marker so dispatch_turn calls send_attachment.
@@ -1632,7 +1642,7 @@ async def t_dispatch_turn_chunk_raise_continues(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "stub"
 
     long_text = "First half of the message.\n\n" + ("x" * 60)
@@ -1989,7 +1999,7 @@ async def t_live_mode_tool_error_message(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "livestub"
     bridge._live = True
     bridge._stream_pending = {}
@@ -2035,7 +2045,7 @@ async def t_live_mode_off_for_voice(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "livestub"
     bridge._live = True
 
@@ -2076,7 +2086,7 @@ async def t_live_mode_model_footer(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    bridge = _Stub.__new__(_Stub)
+    bridge = _initialize_standalone_bridge(_Stub.__new__(_Stub))
     bridge.name = "livestub"
     bridge._live = True
     bridge._stream_pending = {}
@@ -2124,7 +2134,7 @@ async def t_deliver_command_result(ctx: TestContext) -> None:
         async def send_attachment(self, target, att):
             pass
 
-    plain = _TextOnly.__new__(_TextOnly)
+    plain = _initialize_standalone_bridge(_TextOnly.__new__(_TextOnly))
     plain.name = "textonly"
     await plain.deliver_command_result("target", result)
     assert text_chunks == ["text list of models"], text_chunks
@@ -2147,7 +2157,7 @@ async def t_deliver_command_result(ctx: TestContext) -> None:
             rendered.append(pk)
             return True
 
-    native = _Native.__new__(_Native)
+    native = _initialize_standalone_bridge(_Native.__new__(_Native))
     native.name = "native"
     await native.deliver_command_result("target", result)
     assert rendered == [picker], rendered
@@ -2169,14 +2179,15 @@ async def t_run_compact_command_no_edit(ctx: TestContext) -> None:
     from openagent_server.bridges.base import BaseBridge
 
     class _Stub(BaseBridge):
-        def __init__(self) -> None:  # noqa: D401 — skip WS connect
+        def __init__(self) -> None:  # noqa: D401 — no network connection
+            _initialize_standalone_bridge(self)
             self.name = "stub"
             self.sent: list[str] = []
 
         async def send_text_chunk(self, target, chunk: str) -> None:  # noqa: ANN001
             self.sent.append(chunk)
 
-        async def send_command(self, name, session_id=None, arg=None) -> str:  # noqa: ANN001
+        async def send_command(self, name, session_id=None, arg=None, **kwargs) -> str:  # noqa: ANN001
             assert name == "compact", name
             assert session_id == "s1", session_id
             self.sent.append(f"__cmd:{name}")
@@ -2201,13 +2212,14 @@ async def t_run_compact_command_edit(ctx: TestContext) -> None:
 
     class _EditStub(BaseBridge):
         def __init__(self) -> None:
+            _initialize_standalone_bridge(self)
             self.name = "editstub"
             self.events: list = []
 
         async def send_text_chunk(self, target, chunk: str) -> None:  # noqa: ANN001
             self.events.append(("send", chunk))
 
-        async def send_command(self, name, session_id=None, arg=None) -> str:  # noqa: ANN001
+        async def send_command(self, name, session_id=None, arg=None, **kwargs) -> str:  # noqa: ANN001
             return "Compacted conversation."
 
         async def post_compaction_notice(self, target):  # noqa: ANN001

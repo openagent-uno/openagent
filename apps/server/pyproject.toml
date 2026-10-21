@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
+    "openagent-channel-bridges==0.1.0b1",
     "openagent-connectors==0.1.12",
     "openagent-storage-sqlite==1.1.0b24",
     "openagent-modules==1.1.0b3",
@@ -237,6 +238,7 @@ constraint-dependencies = [
 
 # Same-product source composition; independently published Core remains checksum-pinned above.
 [tool.uv.sources]
+openagent-channel-bridges = { path = "../../packages/channel-bridges" }
 openagent-client-transport = { path = "../../packages/client-transport" }
 openagent-dashboards = { path = "../../packages/dashboards" }
 openagent-identity = { path = "../../packages/identity" }

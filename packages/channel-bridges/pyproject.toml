@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "openagent-channel-bridges"
+version = "0.1.0b1"
+description = "Official stateless messaging channels for embedded and standalone OpenAgent"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{name = "OpenAgent contributors"}]
+dependencies = [
+    "openagent-core>=1.1.0b24,<2", "aiohttp>=3.9,<4",
+]
+
+[project.optional-dependencies]
+slack = ["slack-bolt>=1.18,<2"]
+discord = ["discord.py>=2.3,<3"]
+telegram = ["python-telegram-bot>=21,<23"]
+whatsapp = ["whatsapp-api-client-python>=0.0.46,<1"]
+test = [
+    "pytest>=8", "pytest-asyncio>=0.23", "openagent-storage-sqlite>=1.1.0b24,<2",
+    # The integration fixture exercises the real SQLite host implementation;
+    # runtime consumers do not install these optional engine dependencies.
+    "openagent-core[engine]>=1.1.0b24,<2",
+]
+
+[project.urls]
+Homepage = "https://openagent.uno"
+Repository = "https://github.com/openagent-uno/openagent"
+
+[project.scripts]
+openagent-channel-bridge = "openagent_channel_bridges.stdio:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/openagent_channel_bridges"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "PROTOCOL.md", "pyproject.toml", "LICENSE"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
