@@ -16,6 +16,7 @@ const guideSidebar = [
       { text: "Models", link: "/guide/models" },
       { text: "MCP Tools", link: "/guide/mcp" },
       { text: "Using Connectors", link: "/guide/connectors" },
+      { text: "Central Connectors", link: "/guide/central-connectors" },
       { text: "ChatGPT App Coverage", link: "/guide/chatgpt-apps" },
       { text: "Connector Setup & Recovery", link: "/guide/connector-operations" },
       { text: "Provider API Profiles", link: "/guide/connector-api-profiles" },
