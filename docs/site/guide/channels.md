@@ -17,6 +17,11 @@ Features: inline stop button, voice transcription (faster-whisper local or OpenA
 
 ## Discord
 
+Discord, Slack and WhatsApp need their bridge SDK (`openagent-framework[discord]`,
+`[slack]`, `[whatsapp]`). The frozen server is built with `[all]` and the source installer requests
+them; for a manual wheel installation, install the matching extra. A configured
+channel whose SDK is missing logs one startup error and is skipped.
+
 ```yaml
 channels:
   discord:

@@ -52,7 +52,12 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --server
 The server installer selects `openagent-core[engine,providers,modules]==1.1.0b22`,
 including SQLAlchemy async support. When assembling directly from release wheels,
 install those extras too: the bare Framework wheel is not the qualified
-`NativeProvider` dependency closure. The CLI remains a thin remote client.
+`NativeProvider` dependency closure. The installer source also requests the
+Framework's `discord`, `slack` and `whatsapp` extras with pinned SDK versions,
+because those bridges import their SDK only when a configured channel starts;
+a server without the SDK now reports one startup error and skips that channel.
+Release-asset installers up to beta52 install the bare Framework wheel. The CLI
+remains a thin remote client.
 The [normal public beta 43 installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
 passed server-plus-CLI installation and dependency checks on Linux x64/CPython
 3.11.14 with default HOME/TMPDIR. This does not qualify Windows/macOS server

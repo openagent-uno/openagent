@@ -61,6 +61,23 @@ class NativeRuntimeDirectory:
         return None
 
     async def principal_active(self, principal):
+        from openagent_server.bridge_vault_access import (
+            bridge_owner_principal_active,
+            is_telegram_bridge_principal,
+        )
+
+        if is_telegram_bridge_principal(principal):
+            # The bridge is never a network user. Its grants stay active
+            # exactly while the owner bridge policy that admitted them holds,
+            # and only for this installation's own network.
+            config = getattr(self.agent, "config", None) or {}
+            if not bridge_owner_principal_active(principal, config):
+                return False
+            try:
+                network = await CoordinatorStore(self.agent.memory_db).get_network_role()
+            except Exception:
+                return False
+            return bool(network and network["network_id"] == principal.tenant_id)
         if principal.authority != "openagent" or principal.kind not in {
             "user",
             "agent",

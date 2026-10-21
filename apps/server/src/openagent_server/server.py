@@ -1380,6 +1380,45 @@ def _channel_live_default() -> bool:
     )
 
 
+# Optional channel SDKs: the import name each bridge needs and the Framework
+# extra that provides it. Telegram's SDK is a base dependency.
+_BRIDGE_SDKS = {
+    "discord": ("discord", "discord"),
+    "slack": ("slack_bolt", "slack"),
+    "whatsapp": ("whatsapp_api_client_python", "whatsapp"),
+}
+
+
+def _bridge_sdk_available(module: str) -> bool:
+    import importlib.util
+    import sys
+
+    if module in sys.modules:
+        return True
+    try:
+        return importlib.util.find_spec(module) is not None
+    except (ImportError, ValueError):
+        return False
+
+
+def _missing_bridge_sdk(name: str) -> str | None:
+    """Explain a configured channel whose SDK is not installed, or ``None``.
+
+    The bridges import their SDK lazily inside the platform loop. A missing
+    package used to surface there as a retry every BRIDGE_RETRY_SECONDS for
+    the whole process lifetime; it can never succeed without a reinstall, so
+    report it once at startup and skip the channel instead.
+    """
+    module, extra = _BRIDGE_SDKS.get(name, (None, None))
+    if module is None or _bridge_sdk_available(module):
+        return None
+    return (
+        f"channels.{name} is configured but its SDK ({module}) is not installed; "
+        f"the {name} bridge will not start. Install it with "
+        f"pip install 'openagent-framework[{extra}]' and restart the server."
+    )
+
+
 def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
     """Build platform bridges from config. Each connects to the Gateway via WS.
 
@@ -1400,6 +1439,12 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
             # Not a WS-client bridge: the webhook is an INBOUND HTTP listener
             # owned by the Gateway (see Gateway._maybe_start_webhook_listener).
             # Skip it here so it never looks for a per-bridge loopback URL.
+            continue
+
+        missing_sdk = _missing_bridge_sdk(name)
+        if missing_sdk is not None:
+            logger.error(missing_sdk)
+            elog("bridge.sdk_missing", level="error", name=name, error=missing_sdk)
             continue
 
         gateway_url = per_bridge_url.get(name)

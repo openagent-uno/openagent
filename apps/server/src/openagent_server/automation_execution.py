@@ -314,4 +314,29 @@ class NativeAutomationExecution:
                 raise RuntimeError("Event action did not complete successfully")
             return result
 
-        return await self._execute("event", event, delivery_id, operation, payload)
+        # The delivery's claim lease must stay alive for the whole dispatch,
+        # not only while Core's action body runs. Core starts its heartbeat
+        # inside ``_execute_event``, i.e. after grant resolution, Runtime
+        # admission, durable acceptance and pre-execution authorization, and
+        # it reads its cadence from the Runtime environment while the claim
+        # stamped ``claim_expires`` from the dispatcher's environment. A
+        # delivery claimed by the Scheduler drain therefore had no owner beat
+        # for that window and ``reap_expired_event_leases`` could re-enqueue a
+        # healthy turn; its replay then reused the deterministic run ID and
+        # returned the first record. Beat from here, in the claim's own
+        # environment, until the Runtime record has been observed. Core's
+        # inner beat is harmless alongside it (same row, same owner).
+        from openagent_core.core.event_dispatcher import (
+            _start_lease_heartbeat,
+            _stop_lease_heartbeat,
+        )
+
+        heartbeat = (
+            _start_lease_heartbeat(db, delivery_id)
+            if db is not None and delivery_id
+            else None
+        )
+        try:
+            return await self._execute("event", event, delivery_id, operation, payload)
+        finally:
+            await _stop_lease_heartbeat(heartbeat)

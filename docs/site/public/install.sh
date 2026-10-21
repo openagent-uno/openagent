@@ -142,7 +142,10 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 
 if [ "$PRODUCT" = "server" ]; then
-    DIST="openagent-framework==1.1.0b52"
+    # The Discord, Slack and WhatsApp bridges import their SDKs only when a
+    # configured channel starts, so a bare Framework wheel cannot run them.
+    # Telegram is already a base dependency of the Framework wheel.
+    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b52"
     COMMAND="openagent"
 else
     DIST="openagent-cli==1.1.0b52"
@@ -161,6 +164,12 @@ pydantic-core==2.50.1
 SQLAlchemy==2.1.4
 PyJWT==2.14.0
 urllib3==2.8.0
+discord.py==2.7.1
+slack-bolt==1.30.0
+slack-sdk==3.45.0
+# Newer WhatsApp clients require aiogram, which caps pydantic below the
+# qualified 2.14 line. 0.0.49 has the same Green API surface over requests.
+whatsapp-api-client-python==0.0.49
 EOF
 
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
