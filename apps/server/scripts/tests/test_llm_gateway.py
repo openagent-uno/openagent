@@ -237,7 +237,7 @@ async def t_outbound_body(ctx: TestContext) -> None:
         "temperature": 0.2,
         "max_tokens": 256,
         "top_p": 0.9,
-        "stream": True,               # must be overridden to False
+        "stream": "yes",              # only a literal true streams; forced False
         "some_future_field": "keep",  # arbitrary standard field passes through
     }
     req = _make_request(db, caller_body)

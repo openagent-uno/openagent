@@ -333,6 +333,10 @@ _TEST_MODULES: tuple[str, ...] = (
     # OpenAI-client usable. Pure-unit: fake providers DB + patched
     # httpx.AsyncClient + the real auth middleware; no live gateway/network.
     "test_llm_gateway",
+    # ``stream: true`` SSE relay through the same endpoint, over real local
+    # sockets: incremental in-order relay, per-read timeout, unchanged
+    # non-streaming path, JSON errors before the first byte. Loopback only.
+    "test_llm_gateway_stream",
     # Least-privilege scoped LLM token: the optional ``OPENAGENT_LLM_TOKEN``
     # authenticates ONLY ``/api/llm/*`` and is rejected on every other route,
     # while the full ``OPENAGENT_HTTP_TOKEN`` keeps working everywhere. Pure-unit:
