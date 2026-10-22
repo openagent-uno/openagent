@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from openagent_channel_bridges.contracts import (
-    BridgeAttachment, BridgeCommand, BridgeContext, BridgeEvent, BridgeMessage,
+    BridgeAttachment, BridgeCommand, BridgeContext, BridgeEvent, BridgeHistoryMessage, BridgeMessage,
     BridgePart, BridgeReply,
 )
 from openagent_channel_bridges.stdio import (
@@ -89,6 +89,70 @@ async def test_delivery_authorization_correlates_the_same_provider_attested_audi
     finally:
         transport.close()
         await asyncio.gather(first, second, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["result", "error", "event"])
+async def test_cancelled_rpc_late_control_never_reuses_authority_or_kills_the_reader(kind):
+    transport, queue = fixture_transport()
+    task = asyncio.create_task(transport.authorize_delivery(context()))
+    request = await queue.get()
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    value = {"result": True} if kind == "result" else {"error": {"code": "denied"}} if kind == "error" else {"event": {"kind": "text", "text": "cancelled progress"}}
+    await transport.receive(frame(kind, request["request_id"], **value))
+    # The cancelled True is not a cached grant for the next operation.
+    fresh = asyncio.create_task(transport.authorize_delivery(context()))
+    current = await queue.get()
+    await transport.receive(frame("result", current["request_id"], result=False))
+    assert await fresh is False
+    with pytest.raises(WireError, match="unknown_request"):
+        await transport.receive(frame("result", "never-issued", result=True))
+    with pytest.raises(WireError, match="unknown_request"):
+        await transport.receive(frame("result", current["request_id"], result=True))
+    transport.close()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_future_race_before_request_cleanup_ignores_late_result():
+    transport, queue = fixture_transport()
+    task = asyncio.create_task(transport.authorize_context(context()))
+    request = await queue.get()
+    transport._pending[request["request_id"]].future.cancel()
+    # No scheduling yield: the pending entry still exists at this boundary.
+    await transport.receive(frame("result", request["request_id"], result=True))
+    assert transport._pending[request["request_id"]].future.cancelled()
+    await asyncio.gather(task, return_exceptions=True)
+    transport.close()
+
+
+@pytest.mark.asyncio
+async def test_cancelled_response_tombstones_are_bounded_and_do_not_grant_artifact_reads(tmp_path):
+    transport, queue = fixture_transport()
+    first = None
+    for _ in range(2 * MAX_PENDING + 1):
+        task = asyncio.create_task(transport.authorize_context(context()))
+        request = await queue.get()
+        first = first or request["request_id"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    assert len(transport._cancelled_requests) == 2 * MAX_PENDING
+    with pytest.raises(WireError, match="unknown_request"):
+        await transport.receive(frame("result", first, result=True))
+    path = tmp_path / "input.txt"
+    path.write_bytes(b"synthetic")
+    task = asyncio.create_task(transport.send(message(parts=(BridgePart(attachment=BridgeAttachment(
+        "file", path.name, size_bytes=9, local_path=str(path))),))))
+    request = await queue.get()
+    reader = request["params"]["parts"][0]["attachment"]["reader_ref"]
+    task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+    await transport.receive(frame("result", request["request_id"], result={"parts": [{"text": "late"}]}))
+    await transport.receive(frame("request", "late-read", parent_request_id=request["request_id"],
+        method="read_artifact", params={"reader_ref": reader, "offset": 0, "length": 9}))
+    assert (await queue.get())["error"]["code"] == "artifact_rejected"
+    assert path.read_bytes() == b"synthetic"
+    transport.close()
 
 
 @pytest.mark.asyncio
@@ -453,3 +517,70 @@ def test_hosted_slack_configuration_is_a_separate_bound_service_mode():
         changed = {**frame, "config": {**frame["config"], **update}}
         with pytest.raises((ValueError, WireError)):
             configure(changed, object())
+
+
+@pytest.mark.asyncio
+async def test_history_64_opt_in_readers_expire_on_cancel_and_current_inputs_stay_16(tmp_path):
+    transport, queue = fixture_transport()
+    start = asyncio.create_task(transport.start())
+    request = await queue.get()
+    await transport.receive(frame("result", request["request_id"], result={"history_media": True, "history_max_files": 64}))
+    assert (await start).history_max_files == 64
+    source = tmp_path / "historical.bin"; source.write_bytes(b"historical fixture")
+    attachment = BridgeAttachment("file", source.name, local_path=str(source))
+    history = tuple(BridgeHistoryMessage(str(index), "bob", (BridgePart(attachment=attachment),)) for index in range(38))
+    task = asyncio.create_task(transport.send(replace(message(), history=history)))
+    request = await queue.get()
+    readers = [row["parts"][0]["attachment"]["reader_ref"] for row in request["params"]["history"]]
+    fds = [record["fd"] for record in transport.artifacts._scopes[request["request_id"]].values()]
+    assert len(readers) == len(set(readers)) == 38
+    for index, ref in enumerate(readers):
+        await transport.receive(frame("request", f"read-{index}", parent_request_id=request["request_id"],
+            method="read_artifact", params={"reader_ref": ref, "offset": 0, "length": 64}))
+        result = await queue.get()
+        assert base64.b64decode(result["result"]["data_base64"]) == b"historical fixture"
+    task.cancel(); await asyncio.gather(task, return_exceptions=True)
+    import os
+    for fd in fds:
+        with pytest.raises(OSError): os.fstat(fd)
+    assert not transport.artifacts._scopes and not transport.artifacts._limits and source.exists()
+    await transport.receive(frame("request", "expired-read", parent_request_id=request["request_id"],
+        method="read_artifact", params={"reader_ref": readers[0], "offset": 0, "length": 1}))
+    assert (await queue.get())["error"]["code"] == "artifact_rejected"
+    for old in ((), history):
+        with pytest.raises(WireError, match="artifact_limit"):
+            await transport.send(replace(message(), parts=(BridgePart(attachment=attachment),) * 17, history=old))
+    assert queue.empty() and not transport.artifacts._scopes
+    transport.close()
+
+
+def test_history_registry_count_bytes_output_and_type_limits_remain_bounded(tmp_path):
+    store = ArtifactStore()
+    small = tmp_path / "small"; small.write_bytes(b"x")
+    attachment = BridgeAttachment("file", "small", local_path=str(small))
+    try:
+        for invalid in (True, "64", 15, 65):
+            with pytest.raises(WireError, match="invalid_artifact_limit"):
+                store.begin("invalid", max_files=invalid)
+        store.begin("count", max_files=64)
+        for _ in range(64): store.register("count", attachment)
+        with pytest.raises(WireError, match="artifact_limit"): store.register("count", attachment)
+        store.end("count")
+        store.begin("output", max_files=64)
+        for _ in range(16):
+            store.upload_begin("output", {"kind": "file", "filename": "empty", "size_bytes": 0,
+                "sha256": hashlib.sha256(b"").hexdigest()})
+        with pytest.raises(WireError, match="artifact_limit"):
+            store.upload_begin("output", {"kind": "file", "filename": "empty", "size_bytes": 0,
+                "sha256": hashlib.sha256(b"").hexdigest()})
+        store.end("output")
+        large = tmp_path / "large"
+        with large.open("wb") as stream: stream.truncate(32 << 20)
+        store.begin("bytes", max_files=64)
+        big = BridgeAttachment("file", "large", local_path=str(large))
+        store.register("bytes", big); store.register("bytes", big)
+        with pytest.raises(WireError, match="artifact_limit"): store.register("bytes", attachment)
+        assert store._total == 64 << 20
+        store.end("bytes")
+        assert store._total == 0 and not store._limits and small.exists() and large.exists()
+    finally: store.close()

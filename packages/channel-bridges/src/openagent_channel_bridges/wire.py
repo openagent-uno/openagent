@@ -114,14 +114,21 @@ class ArtifactStore:
         self._directory = tempfile.TemporaryDirectory(prefix="oa-channel-ipc-")
         os.chmod(self._directory.name, 0o700)
         self._scopes = {}
+        self._limits = {}
         self._retained = {}
         self._total = 0
 
-    def begin(self, request_id):
+    def begin(self, request_id, *, max_files=MAX_FILES, max_input_bytes=None):
         identifier(request_id)
+        if type(max_files) is int and max_files > MAX_FILES and max_input_bytes is None:
+            max_input_bytes = 64 << 20
+        if (type(max_files) is not int or not MAX_FILES <= max_files <= 64
+                or max_input_bytes is not None and max_input_bytes != 64 << 20):
+            raise WireError("invalid_artifact_limit")
         if request_id in self._scopes:
             raise WireError("duplicate_request")
         self._scopes[request_id] = {}
+        self._limits[request_id] = (max_files, max_input_bytes)
 
     def _scope(self, request_id):
         if request_id not in self._scopes:
@@ -136,7 +143,11 @@ class ArtifactStore:
                 self._total -= size
                 del self._retained[path]
         scope = self._scope(request_id)
-        if len(scope) >= MAX_FILES or self._total + record["size"] > MAX_SESSION_BYTES:
+        max_files, input_bytes = self._limits[request_id]
+        if (len(scope) >= max_files or self._total + record["size"] > MAX_SESSION_BYTES
+                or not record["input"] and sum(not item["input"] for item in scope.values()) >= MAX_FILES
+                or record["input"] and input_bytes is not None
+                    and sum(item["size"] for item in scope.values() if item["input"]) + record["size"] > input_bytes):
             raise WireError("artifact_limit")
         ref = secrets.token_urlsafe(24)
         scope[ref] = record
@@ -267,6 +278,7 @@ class ArtifactStore:
             sha256=record["digest"], reader_ref=value["reader_ref"])
 
     def end(self, request_id):
+        self._limits.pop(request_id, None)
         for record in self._scopes.pop(request_id, {}).values():
             os.close(record["fd"])
             if record["input"]:

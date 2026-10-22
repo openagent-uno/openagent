@@ -1,7 +1,8 @@
-# Channel history media and quiet delivery — unreleased source
+# Channel history media and quiet delivery — component contract
 
-This is a source candidate, not an update to the immutable beta6 wheel or a
-claim of live Slack/Discord acceptance. No provider account, model, release or
+Beta7 introduced this contract; beta8 adds cancellation safety and an explicit
+history count capability. Immutable earlier releases are unchanged. This is not
+a claim of live Slack/Discord acceptance. No provider account, model, release or
 deployment is exercised by its deterministic fixtures.
 
 Slack and Discord default to quiet delivery: one acknowledgement followed by
@@ -44,8 +45,14 @@ and `reason` (`unsupported`, `limit`, `unavailable` or `blocked`). Such a notice
 is not a readable artifact. An older host receives these notices rather than
 being told that a metadata-only file was made accessible.
 
-Current media has priority. Current plus historical input is bounded to 16
-files and 64 MiB, with at most 32 MiB per historical file and 256 total parts.
+Current media has priority. `BridgeCapabilities.history_max_files` defaults to
+16. A host with `history_media: true` may advertise an integer from 16 to 64;
+that count applies only to combined current/historical input for a selected
+history request. Current-only inputs and output uploads stay bounded to 16.
+Combined input remains limited to 64 MiB, with at most 32 MiB per historical
+file and 256 total parts. The request-local registry expires on cancellation
+and closes its pinned descriptors; its aggregate retained-byte bound remains
+128 MiB. Raising the count does not raise any byte limit.
 Only the selected newest context window is downloaded; the context is still
 limited to 0–100 records and 64 KiB of attributed IPC metadata. Staging stays
 inside the one provider request until host ingestion completes and is then

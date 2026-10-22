@@ -143,7 +143,7 @@ class NativeChannelTransport:
         self.enabled = True
         return BridgeCapabilities(input_media=("file", "image", "audio", "voice", "video"),
                                   output_media=("file", "image", "audio", "voice", "video"),
-                                  progress_kinds=("status", "text"), history_media=True)
+                                  progress_kinds=("status", "text"), history_media=True, history_max_files=64)
 
     async def stop(self):
         self.enabled = False
@@ -185,7 +185,9 @@ class NativeChannelTransport:
         input_parts = request.parts + tuple(part for record in request.history for part in record.parts
                                             if part.attachment is not None)
         media_parts = [part for part in input_parts if part.attachment is not None]
-        if len(media_parts) > 16 or sum(part.attachment.size_bytes for part in media_parts) > 64 << 20:
+        if (sum(part.attachment is not None for part in request.parts) > 16
+                or len(media_parts) > (64 if request.history else 16)
+                or sum(part.attachment.size_bytes for part in media_parts) > 64 << 20):
             raise ValueError("Channel input media limit reached")
         for part in (() if accepted is not None else input_parts):
             attachment = part.attachment

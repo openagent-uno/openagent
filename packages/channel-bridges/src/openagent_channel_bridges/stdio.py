@@ -24,7 +24,7 @@ import threading
 from dataclasses import dataclass, field
 
 from . import __version__
-from .contracts import BridgeContext
+from .contracts import BridgeContext, BridgeMessage
 from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
     WireError, decode_line, encode_line, identifier, object_fields,
     progress, result_dto, to_wire)
@@ -71,7 +71,12 @@ class StdioBridgeTransport:
         self._pending = {}
         self._serial = 0
         self._closed = False
+        # Late replies to a locally cancelled operation carry no reusable
+        # authorization or output. Retain only a bounded tombstone window;
+        # genuinely unknown and normally completed duplicate IDs stay errors.
+        self._cancelled_requests = {}
         self._event_count = 0
+        self._history_max_files = 16
         self.artifacts = ArtifactStore()
 
     async def emit(self, value):
@@ -89,11 +94,15 @@ class StdioBridgeTransport:
             raise HostClosed()
         if len(self._pending) >= MAX_PENDING:
             raise WireError("pending_limit")
+        history_limit = self._history_max_files if method == "send" and isinstance(value, BridgeMessage) and value.history else 16
+        if history_limit > 16 and sum(part.attachment is not None for part in value.parts) > 16:
+            raise WireError("artifact_limit")
         self._serial += 1
         request_id = f"child-{self._serial}"
         pending = _Pending(method, asyncio.get_running_loop().create_future(), on_event)
         self._pending[request_id] = pending
-        self.artifacts.begin(request_id)
+        self.artifacts.begin(request_id, max_files=history_limit,
+                             max_input_bytes=(64 << 20) if history_limit > 16 else None)
         try:
             params = to_wire(value, self.artifacts, request_id) if value is not None else None
             await self.emit({"type": "request", "request_id": request_id, "method": method, "params": params})
@@ -115,12 +124,18 @@ class StdioBridgeTransport:
                 await asyncio.gather(*active_events, return_exceptions=True)
             if not pending.future.done():
                 pending.future.cancel()
-            elif not pending.future.cancelled():
+            if pending.future.cancelled():
+                self._cancelled_requests[request_id] = None
+                if len(self._cancelled_requests) > 2 * MAX_PENDING:
+                    self._cancelled_requests.pop(next(iter(self._cancelled_requests)))
+            else:
                 pending.future.exception()  # consume EOF racing request emission
             self.artifacts.end(request_id)
 
     async def start(self):
-        return await self._request("start")
+        capabilities = await self._request("start")
+        self._history_max_files = capabilities.history_max_files
+        return capabilities
 
     async def stop(self):
         return await self._request("stop")
@@ -165,6 +180,8 @@ class StdioBridgeTransport:
             object_fields(frame, allowed, {"protocol", "type", "request_id", kind if kind != "event" else "event"})
             request_id = identifier(frame["request_id"])
             pending = self._pending.get(request_id)
+            if request_id in self._cancelled_requests or pending is not None and pending.future.cancelled():
+                return
             if pending is None or pending.future.done():
                 raise WireError("unknown_request")
             if kind == "error":

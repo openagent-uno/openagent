@@ -12,8 +12,8 @@ resolution-markers = [
 
 [manifest]
 constraints = [
-    { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_capability_host-1.0.0b1-py3-none-any.whl" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_core-1.1.0b27-py3-none-any.whl" },
+    { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_capability_host-1.0.0b1-py3-none-any.whl" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_core-1.1.0b28-py3-none-any.whl" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_device_tools-1.0.0b4-py3-none-any.whl" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_editor-1.0.0b2-py3-none-any.whl" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_filesystem-1.0.0b2-py3-none-any.whl" },
@@ -773,12 +773,12 @@ wheels = [
 [[package]]
 name = "openagent-capability-host"
 version = "1.0.0b1"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_capability_host-1.0.0b1-py3-none-any.whl" }
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_capability_host-1.0.0b1-py3-none-any.whl" }
 dependencies = [
     { name = "openagent-tool-protocol" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_capability_host-1.0.0b1-py3-none-any.whl", hash = "sha256:227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_capability_host-1.0.0b1-py3-none-any.whl", hash = "sha256:227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342" },
 ]
 
 [package.metadata]
@@ -830,16 +830,16 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b27" },
+    { name = "openagent-core", specifier = "==1.1.0b28" },
     { name = "openagent-identity", specifier = "==1.1.0b56" },
 ]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b27"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_core-1.1.0b27-py3-none-any.whl" }
+version = "1.1.0b28"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_core-1.1.0b28-py3-none-any.whl" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.27/openagent_core-1.1.0b27-py3-none-any.whl", hash = "sha256:6c1de9d4f607f520341018e23f18ae127d3a1cae50caf36a4d6301cec54b3764" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.28/openagent_core-1.1.0b28-py3-none-any.whl", hash = "sha256:c3ffae40ca232f1e009ef3af8f3f7888b8a307536ddd013a49ac8446b2e9235c" },
 ]
 
 [package.metadata]
@@ -960,7 +960,7 @@ requires-dist = [
     { name = "cbor2", specifier = ">=5.5" },
     { name = "cryptography", specifier = ">=42,<49" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b27" },
+    { name = "openagent-core", specifier = "==1.1.0b28" },
     { name = "srptools", specifier = ">=1.0.1" },
 ]
 

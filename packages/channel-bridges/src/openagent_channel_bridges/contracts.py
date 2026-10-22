@@ -233,11 +233,15 @@ class BridgeCapabilities:
     progress_kinds: tuple[str, ...] = ()
     api_version: int = API_VERSION
     history_media: bool = False
+    history_max_files: int = 16
 
     def __post_init__(self) -> None:
         _version(self.api_version)
         if type(self.history_media) is not bool:
             raise ValueError("history_media must be a boolean")
+        if (type(self.history_max_files) is not int or not 16 <= self.history_max_files <= 64
+                or not self.history_media and self.history_max_files != 16):
+            raise ValueError("history_max_files requires history media and a bound between 16 and 64")
         for name in ("commands", "input_media", "output_media", "progress_kinds"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
 

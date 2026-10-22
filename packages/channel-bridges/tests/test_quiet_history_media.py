@@ -18,9 +18,10 @@ from openagent_channel_bridges.wire import ArtifactStore, WireError, to_wire
 
 
 class Host:
-    def __init__(self, *, history_media=True):
+    def __init__(self, *, history_media=True, history_max_files=16):
         self.allowed = True
         self.history_media = history_media
+        self.history_max_files = history_max_files
         self.requests, self.inputs, self.speech = [], [], []
         self.revoke_on_send = False
 
@@ -32,7 +33,7 @@ class Host:
 
     async def start(self):
         return BridgeCapabilities(input_media=("file", "image", "video", "voice", "audio"),
-                                  history_media=self.history_media)
+                                  history_media=self.history_media, history_max_files=self.history_max_files)
 
     async def stop(self):
         pass
@@ -261,3 +262,56 @@ def test_quiet_configuration_rejects_ambiguous_legacy_and_explicit_modes():
         Capture(Host(), delivery_mode="guess-the-last-paragraph")
     with pytest.raises(ValueError):
         BridgeCapabilities(history_media="true")
+    for invalid in (True, 15, 65, "64"):
+        with pytest.raises(ValueError):
+            BridgeCapabilities(history_media=True, history_max_files=invalid)
+    with pytest.raises(ValueError):
+        BridgeCapabilities(history_max_files=64)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("advertised,count,available", [(16, 38, 16), (64, 38, 38), (64, 65, 64)])
+async def test_history_count_opt_in_keeps_byte_limit_and_explicit_omissions(tmp_path, advertised, count, available):
+    from openagent_channel_bridges.history_media import prepare_history_media
+    host = Host(history_max_files=advertised)
+    bridge = Capture(host)
+    rows = tuple(BridgeHistoryMessage(str(index), "bob", (BridgePart(attachment=BridgeAttachment(
+        "image", f"image-{index}.png", "image/png", 7, provider_attachment_id=f"F{index}")),))
+        for index in range(count))
+    reads = []
+    async def load(record, attachment, remaining):
+        assert 0 < remaining <= 32 << 20
+        path = tmp_path / attachment.filename
+        path.write_bytes(b"fixture")
+        reads.append(path)
+        return replace(attachment, local_path=str(path))
+    result = await prepare_history_media(bridge, rows, context(), load)
+    assert len(reads) == available
+    assert sum(part.attachment is not None for row in result for part in row.parts) == available
+    assert sum(len(row.omitted_attachments) for row in result) == count - available
+    blocked = await prepare_history_media(bridge, rows, context(), load,
+        current_attachments=({"size_bytes": 64 << 20},))
+    assert not any(part.attachment for row in blocked for part in row.parts)
+    assert len(reads) == available  # Raising the count never raises 64 MiB.
+
+
+@pytest.mark.asyncio
+async def test_history_38_provider_fixture_records_keep_all_media_in_the_selected_window():
+    host = Host(history_max_files=64)
+    files = [{**media_files()[index % 4], "id": f"F{index}"} for index in range(38)]
+    client = SlackClient(files)
+    async def history(**kwargs):
+        return {"messages": [{"ts": str(10 + index) + ".0", "user": "bob", "text": "",
+            "files": [file]} for index, file in enumerate(files)]}
+    client.conversations_history = history
+    downloads = []
+    bridge = slack(host, client, downloads)
+    bridge.context_messages = 100
+    await bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> inspect the reports", "ts": "100.0"}, client,
+        account_id="T", event_id="100.0")
+    assert len(downloads) == len(host.inputs) == 38
+    assert len(host.requests[0].history) == 38
+    assert not any(row.omitted_attachments for row in host.requests[0].history)
+    assert all(not Path(value.local_path).exists() for value in host.inputs)
+    assert len(client.posts) == 2

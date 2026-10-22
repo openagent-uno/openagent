@@ -19,6 +19,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
     until dispatch finishes, including IPC reads and host artifact ingestion.
     """
     await bridge._ensure_transport_started()
+    file_limit = bridge._capabilities.history_max_files
     count = len(current_attachments)
     size = sum(int(value.get("size_bytes") or 0) for value in current_attachments)
     selected, part_count = [], count + 1  # current human text is a part too
@@ -40,7 +41,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                 reason = "blocked"
             elif not bridge._capabilities.history_media or attachment.kind not in bridge._capabilities.input_media:
                 reason = "unsupported"
-            elif (count >= MAX_HISTORY_FILES or attachment.size_bytes > MAX_HISTORY_FILE_BYTES
+            elif (count >= file_limit or attachment.size_bytes > MAX_HISTORY_FILE_BYTES
                   or size + attachment.size_bytes > MAX_HISTORY_INPUT_BYTES):
                 reason = "limit"
             else:

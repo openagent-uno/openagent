@@ -6,7 +6,7 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b7`. Source qualification covers 226 tests
+This source targets component `0.1.0b8`. Source qualification covers 237 tests
 and 84 subcases; closed-wheel/public artifact qualification is recorded
 separately and records its normally installed Core version. These counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
@@ -253,3 +253,12 @@ currently leaves the conversation kind unknown and audience incomplete; typed
 runtime dispatch and result delivery remain denied until an authenticated
 recipient proof is implemented. These limits also apply to the typed standalone
 adapter; the historical untyped compatibility API does not attest audiences.
+
+
+Beta8 keeps late replies to canceled IPC requests from terminating the control
+reader. IDs are never reused, ignored cancellation tombstones are bounded and
+carry no authority. Normal unknown and duplicate responses still fail closed.
+`history_max_files` defaults to 16 and may be explicitly advertised as 16–64
+only together with `history_media`. Current-only inputs and output uploads
+remain capped at 16; historical input remains limited to 64 MiB combined and
+32 MiB per file. This is a bounded selected window, not an all-history tool.

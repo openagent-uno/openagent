@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Channel bridges beta8 cancellation and bounded history media](releases/channel-bridges-0.1.0-beta.8.md)
+
 - [Channel bridges beta7 public wheel qualification](qualification/channel-bridges-0.1.0b7-2026-10-22.json)
 - [Beta56 quiet final replies and historical channel media](releases/v1.1.0-beta.56.md)
 - [Channel bridges beta7 historical media and quiet delivery](releases/channel-bridges-0.1.0-beta.7.md)

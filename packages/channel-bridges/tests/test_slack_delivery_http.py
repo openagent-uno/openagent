@@ -151,8 +151,12 @@ async def test_full_slack_ipc_delivery_waits_for_bytes_not_generator_eof(mode, m
             # reuse its descriptor number without retaining the file itself.
             assert (current.st_dev, current.st_ino) != (device, inode)
     finally:
-        await bridge.stop()
-        await asyncio.wait_for(worker, 2)
-        transport.artifacts.close()
-        await http.close()
-        await server.close()
+        try:
+            await asyncio.wait_for(bridge.stop(), 2)
+            await asyncio.wait_for(worker, 2)
+        finally:
+            transport.close()
+            worker.cancel()
+            await asyncio.gather(worker, return_exceptions=True)
+            await http.close()
+            await server.close()

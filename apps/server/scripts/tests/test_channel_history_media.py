@@ -15,48 +15,54 @@ async def t_history_media_ordinary_ingestion(ctx: TestContext) -> None:
         BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgeMessage, BridgePart,
     )
     from openagent_server.bridges.native_transport import NativeChannelTransport
-    async with _fixture() as (db, _conn, gateway, request):
-        service = gateway.runtime_service
-        execution = replace(await service.context(request(), "session"), ingress_id=None)
-        submitted = []
-        class Runtime:
-            async def accepted_request(self, *args):
-                raise LookupError
-            async def submit(self, value, actor):
-                submitted.append(value)
-            async def events(self, *args):
-                return [SimpleNamespace(cursor=1, kind="run.stream", payload={
-                    "kind": "done", "text": "Intermediate narration and final answer",
-                    "final_answer": {"text": "Only the authoritative final answer"},
-                })]
-            async def get_run(self, *args):
-                return SimpleNamespace(terminal=True, status="success", output="legacy aggregate")
-        service.runtime = Runtime()
-        class Host(NativeChannelTransport):
-            async def _execution(self, *args, **kwargs):
-                return execution
-            async def _fresh(self, *args):
-                return True
-        host = Host(service, "slack", "binding")
-        provider = BridgeContext("binding", "slack", "team", "alice", "channel", "event",
-            conversation_kind="direct", audience_ids=("alice",), audience_complete=True)
-        path = Path(db.db_path).parent / "historical.png"
-        path.write_bytes(b"synthetic image")
-        media = BridgeAttachment("image", path.name, "image/png", path.stat().st_size,
-                                 local_path=str(path), provider_attachment_id="history-file")
-        reply = await host.send(BridgeMessage(provider, (BridgePart(text="Inspect the earlier image"),),
-            history=(BridgeHistoryMessage("earlier-event", "another-speaker",
-                (BridgePart(text="Quoted report"), BridgePart(attachment=media))),)))
-        assert reply.parts == (BridgePart(text="Only the authoritative final answer"),)
-        assert len(submitted) == 1 and len(submitted[0].attachments) == 1
-        assert "another-speaker" in submitted[0].input and "Quoted report" in submitted[0].input
-        assert str(path) not in submitted[0].input
-        class ReadPolicy:
-            async def authorize(self, actor, action, resource, **kwargs):
-                return actor == execution and action == "artifact.read"
-        ref = submitted[0].attachments[0]
-        stored = await ArtifactRepository(db, ReadPolicy()).read(execution, artifact_id=ref["artifact_id"])
-        assert stored.content == b"synthetic image" and stored.filename == "historical.png"
+    for count in (1, 38):
+        async with _fixture() as (db, _conn, gateway, request):
+            service = gateway.runtime_service
+            execution = replace(await service.context(request(), "session"), ingress_id=None)
+            submitted = []
+            class Runtime:
+                async def accepted_request(self, *args):
+                    raise LookupError
+                async def submit(self, value, actor):
+                    submitted.append(value)
+                async def events(self, *args):
+                    return [SimpleNamespace(cursor=1, kind="run.stream", payload={
+                        "kind": "done", "text": "Intermediate narration and final answer",
+                        "final_answer": {"text": "Only the authoritative final answer"},
+                    })]
+                async def get_run(self, *args):
+                    return SimpleNamespace(terminal=True, status="success", output="legacy aggregate")
+            service.runtime = Runtime()
+            class Host(NativeChannelTransport):
+                async def _execution(self, *args, **kwargs):
+                    return execution
+                async def _fresh(self, *args):
+                    return True
+            host = Host(service, "slack", "binding")
+            provider = BridgeContext("binding", "slack", "team", "alice", "channel", "event",
+                conversation_kind="direct", audience_ids=("alice",), audience_complete=True)
+            assert (await host.start()).history_max_files == 64
+            media = []
+            for index in range(count):
+                path = Path(db.db_path).parent / f"historical-{index}.png"
+                path.write_bytes(f"synthetic image {index}".encode())
+                media.append(BridgeAttachment("image", path.name, "image/png", path.stat().st_size,
+                    local_path=str(path), provider_attachment_id=f"history-file-{index}"))
+            reply = await host.send(BridgeMessage(provider, (BridgePart(text="Inspect the earlier image"),),
+                history=tuple(BridgeHistoryMessage(f"earlier-event-{index}", "another-speaker",
+                    (BridgePart(text="Quoted report"), BridgePart(attachment=value))) for index, value in enumerate(media))))
+            assert reply.parts == (BridgePart(text="Only the authoritative final answer"),)
+            assert len(submitted) == 1 and len(submitted[0].attachments) == count
+            assert "another-speaker" in submitted[0].input and "Quoted report" in submitted[0].input
+            assert str(path) not in submitted[0].input
+            class ReadPolicy:
+                async def authorize(self, actor, action, resource, **kwargs):
+                    return actor == execution and action == "artifact.read"
+            for index, ref in enumerate(submitted[0].attachments):
+                stored = await ArtifactRepository(db, ReadPolicy()).read(execution, artifact_id=ref["artifact_id"])
+                assert stored.content == f"synthetic image {index}".encode()
+                assert stored.filename == f"historical-{index}.png"
+
 
 
 @test("channel_history_media", "quiet final metadata never strips or guesses legitimate prose")
