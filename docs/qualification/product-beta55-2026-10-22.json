@@ -1,0 +1,142 @@
+{
+  "status": "official-public-wheels-normal-installed-qualified",
+  "sourceCommit": "d022660e328e523ecda44448a33f1ce4e1f39929",
+  "version": "1.1.0b55",
+  "coreVersion": "1.1.0b24",
+  "bridgeVersion": "0.1.0b6",
+  "bridgeSourceCommit": "9d8bd7f006eedc37afc028a8ed869f3d679e2d55",
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.55",
+  "manifestSHA256": "c85c7ed9cb5b5e93d3e805173dc7d39501efa4df6f3a9fda5e263f3e691483e5",
+  "fullPublicAssetsVerified": true,
+  "tests": {
+    "tests": 184,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "normalFreshInstallPassed": true,
+  "pipCheckPassed": true,
+  "importPrefixesInstalled": true,
+  "realProviderAcceptance": false,
+  "nativeAppRebuilt": false,
+  "nativeFrozenServerRebuilt": false,
+  "automaticUpdateQualified": false,
+  "assets": [
+    {
+      "file": "SHA256SUMS",
+      "sha256": "13c94c28352b88757ea8cf81cec539137971a5c0428b6e7c415366d65d206de2",
+      "bytes": 1455,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/SHA256SUMS",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "install.sh",
+      "sha256": "8aa5f4367c06cf04aeeab0eaf3e5cf47250c77a56b12f2e26d14e5803983dedf",
+      "bytes": 9356,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/install.sh",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "c85c7ed9cb5b5e93d3e805173dc7d39501efa4df6f3a9fda5e263f3e691483e5",
+      "bytes": 80762,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/manifest.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent-product-1.1.0-beta.55-source.tar.gz",
+      "sha256": "bc0d527e662faf1c397e865567832afd5bc1aa303ebe7ec2de08f26456b9b9b9",
+      "bytes": 268433377,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent-product-1.1.0-beta.55-source.tar.gz",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_cli-1.1.0b52-py3-none-any.whl",
+      "sha256": "d9de267f0721a2de624eecabc9d0e44dace12163f1a77db02140022086e81fa5",
+      "bytes": 72724,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_cli-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_client_transport-1.1.0b52-py3-none-any.whl",
+      "sha256": "f12dbc7f41582a123d7af2709730d1e4ccf90140b9ca8f9a70f9be434c74cf47",
+      "bytes": 20222,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_client_transport-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_dashboards-1.1.0b52-py3-none-any.whl",
+      "sha256": "d357554e8de18acd9a467481603fbbc4e32fb6de0e5be8bfef4bf40e0193bd10",
+      "bytes": 54848,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_dashboards-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_framework-1.1.0b55-py3-none-any.whl",
+      "sha256": "e39fd5a2fc8dc2d9ab6e5492e6704e6f010dc53c88969a48f4b928d25796fe72",
+      "bytes": 442399,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_framework-1.1.0b55-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "sha256": "b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e",
+      "bytes": 47103,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_identity-1.1.0b52-py3-none-any.whl",
+      "sha256": "9ef38e5b7860747f23a58c4be24823bc680b98d613d6b3c3be17360b73bf7ecd",
+      "bytes": 100356,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_identity-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_mcp-1.1.0b52-py3-none-any.whl",
+      "sha256": "1a1eddc901de9f8b65b061c932d1b4b451713052dba62b1e3998ad8de8636ad1",
+      "bytes": 22011,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_mcp-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "sha256": "dc66eb3ef0142e5778b6f7eca284ea5a2f2c1e19fc70711783e5188730d22e61",
+      "bytes": 18885,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_support_integration-1.1.0b52-py3-none-any.whl",
+      "sha256": "45b04c8cbeeb92a548e823d41f726c4111166f02e05c39dc4fc0c2fce18d0af1",
+      "bytes": 7394,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/openagent_support_integration-1.1.0b52-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "qualification.json",
+      "sha256": "8894505ad19d99fb0457776c48478c12880a8e0c3d412a3d1abd9f5feaab74d7",
+      "bytes": 1559,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/qualification.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "release-notes.md",
+      "sha256": "c11cf21086fc11a586f85bf17849416b1352c4779bc6d450974ce14d0ed178e7",
+      "bytes": 894,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/release-notes.md",
+      "fullHTTPSHashVerified": true
+    }
+  ],
+  "postPublicationProofAsset": {
+    "file": "post-publish-qualification.json",
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.55/post-publish-qualification.json",
+    "sha256": "ece200637eb867dd064a84b8eea42eb043b86641c12fb3789db61fe67b6f4875",
+    "bytes": 6723,
+    "fullHTTPSHashVerified": true
+  },
+  "publicAssetCountIncludingPostProof": 16,
+  "passingTopLevelTests": 100,
+  "passingSubtests": 84,
+  "paidCI": false
+}

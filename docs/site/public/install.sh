@@ -61,7 +61,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "v1.1.0-beta.52", "manifest.json", "982c7010319de11e2e7aa4d1930330d89f2ada85b622fd99db04c878119d6794"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.6", "manifest.json", "d8453981e00fd1eca824443ab1945f80d67e586915d45a5c41ee027f08d55592"),
+    ("openagent-uno/openagent", "v1.1.0-beta.55", "manifest.json", "c85c7ed9cb5b5e93d3e805173dc7d39501efa4df6f3a9fda5e263f3e691483e5"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.24", "manifest.json", "6401435f9475c5fadeee00df550c18e13289489fa0628050e8c3a996c9fd7b0a"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
@@ -145,7 +146,7 @@ if [ "$PRODUCT" = "server" ]; then
     # The Discord, Slack and WhatsApp bridges import their SDKs only when a
     # configured channel starts, so a bare Framework wheel cannot run them.
     # Telegram is already a base dependency of the Framework wheel.
-    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b52"
+    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b55"
     COMMAND="openagent"
 else
     DIST="openagent-cli==1.1.0b52"
