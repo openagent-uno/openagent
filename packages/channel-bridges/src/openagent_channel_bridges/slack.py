@@ -780,21 +780,40 @@ class SlackBridge(BaseBridge):
         session = await self._audio_session()
         await authorize()
         transferred = 0
-        complete = False
-        async def upload():
-            nonlocal transferred, complete
-            async for chunk in authorized_file_chunks(path, authorize, snapshot=snapshot, limit=limit):
-                transferred += len(chunk)
-                yield chunk
-            complete = True
-        # No reusable bot authorization is forwarded to the pre-signed edge URL.
-        async with session.post(upload_url,
-                data=upload(),
-                headers={"Content-Type": "application/octet-stream", "Content-Length": str(snapshot[2])},
-                allow_redirects=False, timeout=aiohttp.ClientTimeout(total=_SLACK_MEDIA_DOWNLOAD_TIMEOUT)) as response:
-            if response.status != 200:
-                raise RuntimeError("Slack media byte upload failed")
-            await read_authorized_response(response.content, authorize)
+        source = authorized_file_chunks(path, authorize, snapshot=snapshot, limit=limit)
+        body = None
+        try:
+            # With Content-Length, a receiver can acknowledge the final bytes
+            # before aiohttp resumes the producer. Drain/validate the source
+            # before the last yield instead of relying on generator exhaustion
+            # after that acknowledgement. At most two bounded chunks are held.
+            first = await anext(source, None)
+            complete = first is None
+            async def upload():
+                nonlocal transferred, complete
+                chunk = first
+                while chunk is not None:
+                    following = await anext(source, None)
+                    await authorize()
+                    if media_file_snapshot(path, limit=limit) != snapshot:
+                        raise ValueError("Media file changed during transfer")
+                    complete = following is None
+                    transferred += len(chunk)
+                    yield chunk
+                    chunk = following
+            body = upload()
+            # No reusable bot authorization is forwarded to the pre-signed URL.
+            async with session.post(upload_url,
+                    data=body,
+                    headers={"Content-Type": "application/octet-stream", "Content-Length": str(snapshot[2])},
+                    allow_redirects=False, timeout=aiohttp.ClientTimeout(total=_SLACK_MEDIA_DOWNLOAD_TIMEOUT)) as response:
+                if response.status != 200:
+                    raise RuntimeError("Slack media byte upload failed")
+                await read_authorized_response(response.content, authorize)
+        finally:
+            if body is not None:
+                await body.aclose()
+            await source.aclose()
         await authorize()
         if not complete or transferred != snapshot[2]:
             raise RuntimeError("Slack media byte upload was incomplete")

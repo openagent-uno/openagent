@@ -6,21 +6,28 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b4`. Source qualification covers 206 tests
+This source targets component `0.1.0b5`. Source qualification covers 213 tests
 and 84 subcases on normally installed public Core beta 26. Closed-wheel/public
 artifact qualification is recorded separately; these counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
 is explicitly outside this delivery's scope, not inherited from Slack tests.
 
 Previous immutable released component:
-[`0.1.0b3`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3),
-adding the optional managed Slack mode below. The normally installed wheel
-passes 154 tests and 30 subcases on Core beta 26, with a Core beta 24 normal
-install/import smoke and actual console/start-RPC/EOF checks. Public artifact
-bytes and normal URL installation were verified. The
-[qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
-records source and wheel digests. These component results do not establish a
-live bot grant or a new standalone release.
+[`0.1.0b4`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4),
+with 206 normally installed tests and 84 subcases on Core beta26. Its
+[public qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b4-2026-10-22.json)
+records anonymous full asset readback, fresh normal URL installation and
+Core beta24/beta26 install/import/console checks. Those receipts remain
+immutable and do not establish live provider acceptance.
+
+Beta5 repairs Slack file delivery when a real HTTP receiver acknowledges the
+Content-Length bytes before the request generator resumes. A bounded two-chunk
+lookahead validates EOF before yielding the final bytes. Exact byte counts,
+file identity, fresh authorization before publication and source cleanup remain
+required. Real loopback HTTP regressions cover empty and multi-chunk files,
+early incomplete responses, HTTP errors, revocation and file mutation. These
+tests are separate from live provider and embedded-host acceptance. See the
+[source qualification](../../docs/qualification/channel-slack-upload-source-2026-10-22.json).
 
 Install the versioned wheel with the required optional provider extra, such as
 `openagent-channel-bridges[slack]`. Core is a compatible dependency, without
@@ -29,14 +36,14 @@ standard library and starts no process or listener.
 
 ## Host contract v1 (beta 2 additions)
 
-Beta 4 source adds a provider-attested `BridgeConversation`, automatically
+Beta4 introduced a provider-attested `BridgeConversation`, automatically
 derived on messages and commands. Shared channel/thread keys exclude the
 current actor and include a stable audience epoch; current actor and mapped
 recipient permissions remain host-owned. An epoch change during a running
 answer denies outward delivery. See [PROTOCOL.md](PROTOCOL.md) for exact
 cross-language vectors, and the [standalone/embedding guide](../../docs/site/guide/embedded-channels.md)
-for explicit network-user mapping. These source changes require their own
-artifact qualification; the beta 3 receipt above is historical evidence.
+for explicit network-user mapping. Each component release has its own qualification; earlier receipts remain
+historical evidence.
 
 Implement `BridgeTransport` in `openagent_channel_bridges.contracts`:
 

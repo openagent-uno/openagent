@@ -6,6 +6,7 @@
 - [Shared tools, connectors and MCP architecture](site/guide/shared-components.md)
 - [Embedding official conversational channels and explicitly mapped shared sessions](site/guide/embedded-channels.md)
 - [Channel bridges beta 4 public artifact qualification](qualification/channel-bridges-0.1.0b4-2026-10-22.json)
+- [Slack file delivery: HTTP acknowledgement source regression](qualification/channel-slack-upload-source-2026-10-22.json)
 - [Composable applications and multi-source architecture](site/guide/application-composition.md)
 - [Using connectors in the App and CLI](site/guide/connectors.md)
 - [Shared catalog and central connector execution](site/guide/central-connectors.md)

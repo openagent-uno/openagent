@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "status": "source-debug-passed-public-beta5-pending",
+  "version": "0.1.0b5",
+  "scope": "Slack file upload acknowledgement versus generator exhaustion; unchanged public wire and permissions",
+  "sourceTests": {
+    "passed": 213,
+    "subtestsPassed": 84,
+    "skipped": 0,
+    "core": "1.1.0b26",
+    "sourceOverlay": "channel package only; Core/SDK dependencies normally installed"
+  },
+  "newLoopbackHTTPTests": 7,
+  "cases": [
+    "complete small file",
+    "empty file",
+    "multi-chunk file",
+    "early 200 incomplete body denied",
+    "HTTP500 denied",
+    "recipient revocation after body denied",
+    "file mutation after body denied"
+  ],
+  "sourceFDIdentityClosed": true,
+  "ownedOutputCleaned": true,
+  "lookaheadMaxChunks": 2,
+  "guardsPreserved": [
+    "exact transferred bytes",
+    "source size/inode/mtime",
+    "source final EOF validation",
+    "fresh authorization before each yielded chunk and publication",
+    "exact provider channel/thread"
+  ],
+  "publishedBeta4MockFullPathPassed": true,
+  "publishedCore26CanonicalLiveProjectionPassed": true,
+  "realProviderIsolatedDiagnostic": {
+    "attempts": 1,
+    "fileBytes": 13,
+    "slotAttempts": 1,
+    "completionAttempts": 0,
+    "exceptionClass": "RuntimeError",
+    "exactCauseCaptured": false,
+    "automaticRetry": false,
+    "notHostE2E": true
+  },
+  "offlineRealHTTPBeta4RED": {
+    "receivedAllBytes": true,
+    "HTTPStatus": 200,
+    "exception": "Slack media byte upload was incomplete",
+    "publicSourceLine": 800
+  },
+  "liveBeta5Acceptance": "pending coordinated acceptance",
+  "discordLive": "explicitly excluded; not qualified",
+  "logsSHA256": {
+    "installed-beta4-r2.log": "61e361e853c1649fe4ace024989d77daea94df95c982133ae8b05bff04f19bc2",
+    "core26-live.log": "a966fbb45f614b3137a3c67d092be8a06b2ed027622b3f63936a2aabc1ebd753",
+    "local-http-red.log": "e33aaf90ca938bd635ced2ea3feca7066deca7ed5495229a6385df2bc93569c2",
+    "upstream-source-red.log": "9978efa9d42019bb1c97be3e09db8f2ab4725b32348286afb4cb71cd382a5834",
+    "upstream-source-green-r2.log": "de52a81ba6820102f4f3216fa3ceeaf878e19fee00e99db6c00bd7537a207105",
+    "upstream-full-source-green.log": "cc1953343173a989c0df595b3f942955cc97216a9a67b679027cbfe0c64bf4f6"
+  },
+  "paidCI": false
+}
