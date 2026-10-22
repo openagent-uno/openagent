@@ -1,0 +1,464 @@
+[
+  {
+    "name": "shared-channel-alice",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-cd70dfaa9c05fbb6c74a837825dc2aaeb8510debd925fb580e785d025b3e0605",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d000000076368616e6e656c000000076368616e6e656c00000000000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "shared-channel-bob-reordered",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "bob",
+      "conversation_id": "channel",
+      "event_id": "other",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000010.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-cd70dfaa9c05fbb6c74a837825dc2aaeb8510debd925fb580e785d025b3e0605",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d000000076368616e6e656c000000076368616e6e656c00000000000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "second-channel",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel2",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel2",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-0082915699be00fe55ad58889268b0f619d34c2d1498f9bd4d80cba591a7364f",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d000000076368616e6e656c000000086368616e6e656c3200000000000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "first-thread",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": "thread1",
+      "conversation_kind": "thread",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "thread",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": "thread1",
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-8982ba3794bbbe47b67e89f08ff0c1c15540528a130405a5dea28b496deefb5f",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d00000006746872656164000000076368616e6e656c0000000774687265616431000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "second-thread",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": "thread2",
+      "conversation_kind": "thread",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "thread",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": "thread2",
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-88ea7bf7dcba21e095d21ec0424ede7646edfd30b6a43246be07083bf253daf1",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d00000006746872656164000000076368616e6e656c0000000774687265616432000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "new-member-epoch",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "alice",
+        "bob",
+        "new"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob",
+        "new"
+      ],
+      "audience_epoch": "6557b29b04172515b17896300234f30f92623bf1b8340a9d72474ddd7ad1fe10",
+      "session_key": "oa-channel-v1-70d6ead0d1bfc869e5963c968366ffb3189d3b40bb0f9d351271811cbeac956c",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d000000076368616e6e656c000000076368616e6e656c00000000000000000000004036353537623239623034313732353135623137383936333030323334663330663932363233626631623833343061396437323437346464643761643166653130"
+  },
+  {
+    "name": "revoked-member-epoch",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_epoch": "de34c6ac6917ca5371c05ce4e4fdda001d1c034b2741c81e24086990bc53c361",
+      "session_key": "oa-channel-v1-dbab20aa88e43f35e313f3ec716665e87b4d39555bcf31fd13d72a0297695266",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d000000076368616e6e656c000000076368616e6e656c00000000000000000000004064653334633661633639313763613533373163303563653465346664646130303164316330333462323734316338316532343038363939306263353363333631"
+  },
+  {
+    "name": "private-alice",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "direct",
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "private",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": "alice",
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_epoch": "de34c6ac6917ca5371c05ce4e4fdda001d1c034b2741c81e24086990bc53c361",
+      "session_key": "oa-channel-v1-741ee24f5e4bcaec85873b936ec7a1af6a4afe1acc66f5536aaf298462f449d0",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d0000000770726976617465000000076368616e6e656c0000000000000005616c6963650000004064653334633661633639313763613533373163303563653465346664646130303164316330333462323734316338316532343038363939306263353363333631"
+  },
+  {
+    "name": "private-bob",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "bob",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "direct",
+      "audience_ids": [
+        "bob"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "private",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": "bob",
+      "audience_ids": [
+        "bob"
+      ],
+      "audience_epoch": "c6b1ddce02c2d28080655f9df935159f93f64b212f3d13c0d00a25bf51fd3005",
+      "session_key": "oa-channel-v1-f98052f6f11c2fcf0346c896abb8d096f465ac11de1146aaf178fcda07267a5e",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d0000000770726976617465000000076368616e6e656c0000000000000003626f620000004063366231646463653032633264323830383036353566396466393335313539663933663634623231326633643133633064303061323562663531666433303035"
+  },
+  {
+    "name": "private-thread-alice",
+    "context": {
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": "dm-thread",
+      "conversation_kind": "direct",
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "private",
+      "binding_id": "binding",
+      "provider": "slack",
+      "account_id": "team",
+      "conversation_id": "channel",
+      "thread_id": "dm-thread",
+      "private_actor_id": "alice",
+      "audience_ids": [
+        "alice"
+      ],
+      "audience_epoch": "de34c6ac6917ca5371c05ce4e4fdda001d1c034b2741c81e24086990bc53c361",
+      "session_key": "oa-channel-v1-5dc6facf9ba83ad78011dc9ff48ca5fe9bf5b8e462bb75d90aa9fcbfc5f96fb6",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f76310000000762696e64696e6700000005736c61636b000000047465616d0000000770726976617465000000076368616e6e656c00000009646d2d74687265616400000005616c6963650000004064653334633661633639313763613533373163303563653465346664646130303164316330333462323734316338316532343038363939306263353363333631"
+  },
+  {
+    "name": "utf8-and-delimiters",
+    "context": {
+      "binding_id": "b:ø|1",
+      "provider": "slack",
+      "account_id": "租户:東京",
+      "actor_id": "àlice:😀",
+      "conversation_id": "κ:channel/with|delim",
+      "event_id": "event",
+      "thread_id": "线程:1|/😀",
+      "conversation_kind": "thread",
+      "audience_ids": [
+        "àlice:😀",
+        "bob|:€"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "thread",
+      "binding_id": "b:ø|1",
+      "provider": "slack",
+      "account_id": "租户:東京",
+      "conversation_id": "κ:channel/with|delim",
+      "thread_id": "线程:1|/😀",
+      "private_actor_id": null,
+      "audience_ids": [
+        "bob|:€",
+        "àlice:😀"
+      ],
+      "audience_epoch": "f2a5901ff85093143864778ec0c9b0c72f14f96b75d5b6ea8302d62c67f72bc8",
+      "session_key": "oa-channel-v1-eb50f46545a2c1a47b4714be3aabc4316a12999aad7b02af0bdbcb2832c6c303",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f763100000006623ac3b87c3100000005736c61636b0000000de7a79fe688b73ae69db1e4baac0000000674687265616400000015ceba3a6368616e6e656c2f776974687c64656c696d0000000ee7babfe7a88b3a317c2ff09f9880000000000000004066326135393031666638353039333134333836343737386563306339623063373266313466393662373564356236656138333032643632633637663732626338"
+  },
+  {
+    "name": "delimiter-left",
+    "context": {
+      "binding_id": "a:b",
+      "provider": "slack",
+      "account_id": "c",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "a:b",
+      "provider": "slack",
+      "account_id": "c",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-92d9e6a249e80ae76a082523744edace2ebadd0c253c1ad1e390cfe0e20b2ae5",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f763100000003613a6200000005736c61636b0000000163000000076368616e6e656c000000076368616e6e656c00000000000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  },
+  {
+    "name": "delimiter-right",
+    "context": {
+      "binding_id": "a",
+      "provider": "slack",
+      "account_id": "b:c",
+      "actor_id": "alice",
+      "conversation_id": "channel",
+      "event_id": "event",
+      "thread_id": null,
+      "conversation_kind": "channel",
+      "audience_ids": [
+        "bob",
+        "alice"
+      ],
+      "audience_complete": true,
+      "audience_verified_at": 1700000000.0
+    },
+    "conversation": {
+      "mode": "channel",
+      "binding_id": "a",
+      "provider": "slack",
+      "account_id": "b:c",
+      "conversation_id": "channel",
+      "thread_id": null,
+      "private_actor_id": null,
+      "audience_ids": [
+        "alice",
+        "bob"
+      ],
+      "audience_epoch": "b52e3d7b021cdc403752bf557b35c3da4697d8a62ef4bad884590d68503992c1",
+      "session_key": "oa-channel-v1-406b041ba2688c4796ad58fd1ff935f4d74d9448bde4b209f9dc4792394d1350",
+      "api_version": 1
+    },
+    "session_framed_hex": "0000001c6f70656e6167656e742d6368616e6e656c2d73657373696f6e2f7631000000016100000005736c61636b00000003623a63000000076368616e6e656c000000076368616e6e656c00000000000000000000004062353265336437623032316364633430333735326266353537623335633364613436393764386136326566346261643838343539306436383530333939326331"
+  }
+]

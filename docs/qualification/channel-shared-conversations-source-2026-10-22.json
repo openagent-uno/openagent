@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "status": "source-debug-passed-public-wheel-pending",
+  "date": "2026-10-22",
+  "base_commit": "18e358f8ade9618e3a8ae5cad14f356d2449abd9",
+  "bridge_version": "0.1.0b4",
+  "framework_version": "1.1.0b53",
+  "unchanged_public_dependencies": {
+    "standalone_core": "1.1.0b24",
+    "standalone_sqlite": "1.1.0b24",
+    "bridge_qualification_core": "1.1.0b26",
+    "other_product_components": "reused unchanged from public beta52"
+  },
+  "sources": {
+    "apps/server/pyproject.toml": "5ddcecbd436217925ce9889837edee188fd64b2032332a85e6bacc250bd90587",
+    "apps/server/src/openagent_server/__init__.py": "e8823d5437d5b9e64234f1ad3417dfe0cfdcbe2a8f785492b3395972bc6f25be",
+    "apps/server/src/openagent_server/audio_service.py": "eca3f6726e507321355fa703f9ed8b8659f98b9ff49f4361724788608aaaf934",
+    "apps/server/src/openagent_server/bridges/native_transport.py": "327e3329cc59e6d5ee8db44e20512716cf3366b8734a612991a46a1f628e1e6f",
+    "apps/server/src/openagent_server/runtime_access.py": "e116375d906674da82322313c4b324518bc97e7955e12b05e3ff289393d9d659",
+    "apps/server/src/openagent_server/server.py": "b4c330bee1a2694e24f437b3a5eeb52c0b4d7b88b1f5d202e5180455d96c82c6",
+    "apps/server/uv.lock": "653ac8737c079774d553362e8ee818819089ffa2745bea28c9d5fbacb640ce6b",
+    "docs/README.md": "c8c9a8d7e950b867c5120aad650134b1d5b491fbced4cad748bd003cc2d79bfe",
+    "docs/site/guide/embedded-channels.md": "341a1ad91a744ded020406dd9b04ac6bf87d21d5a8b1334d59b5ce78de19b1cd",
+    "packages/channel-bridges/PROTOCOL.md": "2223a55b7b4a04920922a06a92e1abc556b19f33f530108cf0ef7e140e5ec82f",
+    "packages/channel-bridges/README.md": "fb9ed7aae0fa31c1916272afe5c42e6372014a48a8124211159b46dd0bd0b91e",
+    "packages/channel-bridges/pyproject.toml": "4dd27bb617988d2c4e77173a4255ab21ac8bd798e9713a65fed03a9ffb7ab332",
+    "packages/channel-bridges/src/openagent_channel_bridges/__init__.py": "d3cd053fca6e78eb5b2414fe625ed3aee2f3d2939ae4905254b893e3438069e3",
+    "packages/channel-bridges/src/openagent_channel_bridges/base.py": "3fd5d410d6b2abc2c02bd4d8e1b9694c190f79e509283fad261b807e1a86f702",
+    "packages/channel-bridges/src/openagent_channel_bridges/contracts.py": "cf46bca4fcb2e4bf98d8aee3352b0788c1407f5e5a0e46a5f8ac08e2478fc1bf",
+    "packages/channel-bridges/src/openagent_channel_bridges/conversation.py": "7af7fa84e1748ff8e01052929bafe28f237327713e096ea04564ed9b5c5cd963",
+    "packages/channel-bridges/src/openagent_channel_bridges/discord.py": "ffcf1bbab16329843fb2d3d65b4e47504f91b2aa707c4075a640aeabfe87e1da",
+    "packages/channel-bridges/src/openagent_channel_bridges/hosted_slack.py": "648991c7de40f9f438b97fea9ffd7ff6424ab436619e37f8d9853cdc828e6295",
+    "packages/channel-bridges/src/openagent_channel_bridges/media.py": "6172dd048b1b8a100eb650b06d86c3dfd123ab8f812aab812bf4272a903ef4d9",
+    "packages/channel-bridges/src/openagent_channel_bridges/slack.py": "4297df415ccae9d343f2f911cf10bc20d9e0b1be1cf3ef337cee12ca21f7c680",
+    "packages/channel-bridges/tests/conversation-v1-vectors.json": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+    "packages/channel-bridges/tests/test_conversation.py": "273f008a3d8284e338a393a8a456392cfda042eeddf4626293e90e7c941ab531",
+    "packages/channel-bridges/tests/test_conversation_runtime.py": "88add826fef23adc40897625f0ff1d7fe6ac3d245ae3d70295e1d7088de419af",
+    "packages/channel-bridges/tests/test_hosted_slack.py": "15dba461890fc8ac068249f210496f15862f6c42c024ddcb647ecaeb03e61c26",
+    "packages/channel-bridges/tests/test_provider_context.py": "b4323995a0799ecff12fe3cb9b43a32592385715fbc43537e682c0b116f81e7b",
+    "packages/channel-bridges/tests/test_provider_media.py": "ce8c74ce7a56aa598b7d0158f8e87f932530cec3202e88407379c9e68664d980",
+    "packaging/workspace.json": "173ca3e6402665398fe59b29dd83bbd148ec43ff9194fd78079607dc405337d5",
+    "tests/test_bridge_sdk_preflight.py": "007161dfc63279b055983bb765b4650f61e3cc5a78426cd7467c4f5c8b6ac659",
+    "tests/test_native_channel_transport.py": "a17a109e3bc481717b3c6d95367d00217dd992463c6c5a9214d5dd2c85f638d3"
+  },
+  "source_tree_sha256": "b2c6fb87ad1e47a2cfc009477de981d3ac220e76b5c20a62a1d628753e17aed2",
+  "conversation_vectors": {
+    "file": "packages/channel-bridges/tests/conversation-v1-vectors.json",
+    "sha256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+    "cases": 13
+  },
+  "tests": {
+    "component": {
+      "passed": 206,
+      "subtests_passed": 84,
+      "skipped": 0,
+      "core": "normally installed public beta26",
+      "provider": "deterministic SDK/HTTP fixtures"
+    },
+    "standalone": {
+      "passed": 20,
+      "skipped": 0,
+      "core": "normally installed public beta24 product52 dependency environment",
+      "payload": "changed server source; unchanged identity source; pytest harness only appended to normal installed product52 environment",
+      "coverage": [
+        "two actors/current individual authority",
+        "two channels and threads",
+        "normal Runtime and SQLite restart/dedup",
+        "audience and principal mapping epoch",
+        "late recipient revocation",
+        "public CAS binary/image input and CSV output",
+        "normal Runtime.spawn child lineage and forged-parent denial",
+        "public VoiceService child worker protocol for WebM/M4A/Ogg/Opus",
+        "normal speech factory default/true/false parity",
+        "mapped host selection and absent-runtime failclosed"
+      ]
+    }
+  },
+  "local_log_sha256": {
+    "full-source-r1.log": "d283cc4235ac89cfe5ccd82e93aa47f9e4d8a83eab808925a28011682cdd218d",
+    "source-final-r2.log": "7b3181d57316d518143b47b88debac48a65603585a8a838b5d6680ada4ebb351",
+    "source-final-r3.log": "9bd19997fbe3348b10d0a9d6e13de3c3ed6db1dac8fab16c67ca5a1545d0df18"
+  },
+  "acceptance_boundaries": {
+    "slack_real_provider": "pending coordinated acceptance",
+    "discord_real_provider": "not run; explicitly excluded by human; never inferred from Slack",
+    "public_b4_installed_wheel": "pending separate qualification",
+    "public_framework53_installed_wheel": "pending separate qualification",
+    "frozen_apps_and_updater": "not qualified",
+    "paid_ci": "not run"
+  }
+}

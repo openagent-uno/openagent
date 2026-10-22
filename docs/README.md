@@ -4,7 +4,7 @@
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)
 - [Shared tools, connectors and MCP architecture](site/guide/shared-components.md)
-- [Embedding official conversational channels](site/guide/embedded-channels.md)
+- [Embedding official conversational channels and explicitly mapped shared sessions](site/guide/embedded-channels.md)
 - [Composable applications and multi-source architecture](site/guide/application-composition.md)
 - [Using connectors in the App and CLI](site/guide/connectors.md)
 - [Shared catalog and central connector execution](site/guide/central-connectors.md)

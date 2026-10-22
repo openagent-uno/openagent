@@ -25,6 +25,15 @@ agent or copy its knowledge into a provider-specific database.
 
 ## Package and contract
 
+The next beta 4 source adds stable channel/thread descriptors and keeps actor
+authority separate from shared history. This is source work pending its own
+public artifact qualification; beta 3 results above remain historical. See the
+[protocol](https://github.com/openagent-uno/openagent/blob/main/packages/channel-bridges/PROTOCOL.md)
+for exact framing, audience epochs and golden vectors. Discord provider fixtures
+cover threads and media; real Discord end-to-end acceptance has not been run and
+is explicitly outside this delivery's acceptance scope. Slack live acceptance
+is tracked separately and must not be inferred from fixture or IPC results.
+
 `openagent-channel-bridges` is independently versioned in this repository under
 `packages/channel-bridges`. It contains the shared delivery orchestration and
 Slack, Discord, Telegram and WhatsApp adapters. Optional SDK extras are selected
@@ -78,6 +87,50 @@ chunk/file. Both must return a literal boolean. `send` submits
 through the same public runtime services as the host UI. Durable event
 deduplication, session mapping, principal resolution and current tool grants
 remain host responsibilities.
+
+## Standalone mapped channels
+
+Standalone Slack/Discord can explicitly map an authenticated provider account
+to current network users. Configure `channels.<provider>.identity` with exactly
+`tenant_id`, `account_id`, and `user_bindings` (provider-user-ID to network-user
+handle). Every audience member needs a distinct current mapping; there is no
+default-owner identity. Keep the provider `allowed_users`/`listen_channels`
+configuration explicit as well. For example, an operator configuration contains:
+
+```yaml
+channels:
+  slack:
+    # Resolve provider credentials through the normal operator configuration.
+    listen_channels: [C_PRIVATE_TEAM]
+    identity:
+      tenant_id: network-example
+      account_id: T_EXAMPLE
+      user_bindings:
+        U_ALICE: alice
+        U_BOB: bob
+```
+
+This selects an in-process transport into the installation's existing public
+Runtime, SQLite journal, catalog, model and vault policy. It does not create a
+bot runtime or a certificate impersonating the owner. The canonical store owns
+session/history/recipient rows. Events deduplicate across restarts; shared
+session scope excludes the current actor and includes the provider audience and
+current mapped-principal epoch. New membership or changed mappings open a new
+epoch rather than disclosing old history. Existing private bridge journals are
+retained; they are not rewritten or deleted. Missing mapping keeps the legacy
+DM transport; it does not enable groups. Gateway slash commands are not executed
+with the internal bridge certificate in mapped mode.
+
+Inbound generic files/images use the same public session-scoped
+`ArtifactRepository` as normal sessions, with bounded authorized staged reads.
+Output uses canonical session-linked artifacts and reauthorizes before reading
+and delivery. Unlinked local paths do not become downloadable file authority.
+Voice uploads preserve their original filename, MIME, digest and provider ID.
+Slack WebM/M4A and Discord Ogg/Opus use the same speech-service factory and
+configuration as the normal gateway/Telegram path, including its existing local
+fallback default. `voice.local_fallback: false` explicitly disables that route.
+When neither configured STT nor the selected fallback produces text, the normal
+voice-unavailable response asks the sender to type the message.
 
 ## Mentions, history and response routing
 

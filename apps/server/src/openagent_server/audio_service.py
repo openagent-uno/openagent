@@ -30,6 +30,11 @@ def service_for_gateway(gateway):
     service = getattr(gateway, "runtime_service", None)
     if service is None or service.runtime is None:
         raise web.HTTPServiceUnavailable(text="Audio is not ready")
+    return service_for_runtime(service)
+
+
+def service_for_runtime(service):
+    """The same configured speech route for gateway, Telegram and mapped channels."""
     settings = service.agent.config.get("voice") or {}
     fallback = LocalAudioFallback(service.runtime) if settings.get("local_fallback", True) else None
     worker = (sys.executable, "_audio-worker") if getattr(sys, "frozen", False) else None

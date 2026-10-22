@@ -6,7 +6,13 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-Released component:
+This source targets component `0.1.0b4`. Source qualification covers 206 tests
+and 84 subcases on normally installed public Core beta 26. Closed-wheel/public
+artifact qualification is recorded separately; these counts do not establish
+real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
+is explicitly outside this delivery's scope, not inherited from Slack tests.
+
+Previous immutable released component:
 [`0.1.0b3`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3),
 adding the optional managed Slack mode below. The normally installed wheel
 passes 154 tests and 30 subcases on Core beta 26, with a Core beta 24 normal
@@ -22,6 +28,15 @@ Install the versioned wheel with the required optional provider extra, such as
 standard library and starts no process or listener.
 
 ## Host contract v1 (beta 2 additions)
+
+Beta 4 source adds a provider-attested `BridgeConversation`, automatically
+derived on messages and commands. Shared channel/thread keys exclude the
+current actor and include a stable audience epoch; current actor and mapped
+recipient permissions remain host-owned. An epoch change during a running
+answer denies outward delivery. See [PROTOCOL.md](PROTOCOL.md) for exact
+cross-language vectors, and the [standalone/embedding guide](../../docs/site/guide/embedded-channels.md)
+for explicit network-user mapping. These source changes require their own
+artifact qualification; the beta 3 receipt above is historical evidence.
 
 Implement `BridgeTransport` in `openagent_channel_bridges.contracts`:
 

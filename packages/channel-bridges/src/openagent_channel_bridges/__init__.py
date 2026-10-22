@@ -5,11 +5,11 @@ Provider SDK imports remain lazy; contracts can be used without an SDK or Core.
 from .contracts import (
     API_VERSION, DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES,
     BridgeAttachment, BridgeCapabilities, BridgeCommand, BridgeCommandDefinition,
-    BridgeCommandResult, BridgeContext, BridgeEvent, BridgeHistoryMessage,
+    BridgeCommandResult, BridgeContext, BridgeConversation, BridgeEvent, BridgeHistoryMessage,
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )
 
-__version__ = "0.1.0b3"
+__version__ = "0.1.0b4"
 
 
 def __getattr__(name: str):
@@ -20,3 +20,5 @@ def __getattr__(name: str):
         raise AttributeError(name)
     from importlib import import_module
     return getattr(import_module(f".{providers[name]}", __name__), name)
+
+from .conversation import describe_conversation

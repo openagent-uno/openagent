@@ -1419,7 +1419,7 @@ def _missing_bridge_sdk(name: str) -> str | None:
     )
 
 
-def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
+def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_service=None) -> list:
     """Build platform bridges from config. Each connects to the Gateway via WS.
 
     With the iroh transport the gateway no longer listens on a fixed
@@ -1464,6 +1464,13 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
         # with ``channels.<name>.live: false`` or globally with the
         # ``OPENAGENT_CHANNEL_LIVE`` env var.
         live = bool(cfg.get("live", _channel_live_default()))
+        transport = None
+        if name in {"slack", "discord"} and cfg.get("identity") is not None:
+            if runtime_service is None:
+                logger.error("Channel identity mapping requires the normal runtime service")
+                continue
+            from openagent_server.bridges.native_transport import NativeChannelTransport
+            transport = NativeChannelTransport(runtime_service, name, name)
 
         if name == "telegram":
             from openagent_server.bridges.telegram import TelegramBridge
@@ -1508,6 +1515,7 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
                 gateway_token=None,
                 personality=personality,
                 live=live,
+                transport=transport,
             ))
 
         elif name == "whatsapp":
@@ -1544,6 +1552,7 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str]) -> list:
                 gateway_token=None,
                 personality=personality,
                 live=live,
+                transport=transport,
             ))
 
         else:
@@ -1941,6 +1950,12 @@ class AgentServer:
         gateway_site = getattr(self._gateway, "_site", None)
         per_bridge_url: dict[str, str] = {}
         for name in enabled_bridges:
+            if (name in {"slack", "discord"}
+                    and (self.config.get("channels", {}).get(name) or {}).get("identity") is not None):
+                # An explicitly mapped channel calls this installation's normal
+                # runtime in-process. No bridge certificate/loopback is needed.
+                per_bridge_url[name] = ""
+                continue
             session = BridgeSession(bridge_name=name)
             try:
                 await session.start(
@@ -1964,7 +1979,8 @@ class AgentServer:
         if not per_bridge_url:
             return
 
-        self._bridges = _build_bridges(self.config, per_bridge_url=per_bridge_url)
+        self._bridges = _build_bridges(self.config, per_bridge_url=per_bridge_url,
+                                     runtime_service=self._gateway.runtime_service)
         # Keep the gateway's reference in sync — it uses ``self._bridges``
         # for shutdown signaling on gateway.stop().
         if self._gateway is not None:

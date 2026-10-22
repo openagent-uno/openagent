@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import asyncio
+import copy
+import json
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import patch
 import unittest
@@ -150,6 +153,57 @@ class RestGuild:
         self.members_to_fetch = list(members)
         self.calls = []
         self.on_member = None
+        self.role_assignments = {}
+        self.raw_guild = {"id": "22", "owner_id": "90", "roles": [
+            {"id": "22", "permissions": str((1 << 10) | (1 << 11) | (1 << 16) | (1 << 38))},
+            {"id": "40", "permissions": str(1 << 34)},
+            {"id": "41", "permissions": str(1 << 3)},
+        ]}
+        self.raw_channel = {"id": str(channel.id), "guild_id": "22", "type": 0, "permission_overwrites": []}
+        self.raw_parent = None
+        if channel.parent_id is not None:
+            self.raw_channel = {"id": str(channel.id), "guild_id": "22", "type": 11,
+                                "parent_id": str(channel.parent_id), "thread_metadata": {"archived": False, "locked": False}}
+            self.raw_parent = {"id": str(channel.parent_id), "guild_id": "22", "type": 0, "permission_overwrites": []}
+        self.joined = [7, 999]
+        self.thread_pages = None
+        self.after_rest = None
+
+    def member(self, member):
+        return {"user": {"id": str(member)}, "roles": self.role_assignments.get(str(member), [])}
+
+    async def rest(self, context, path, *, params=None):
+        self.calls.append((path, params))
+        if path == "/guilds/22":
+            value = self.raw_guild
+        elif path == "/guilds/22/members":
+            after = int((params or {}).get("after", "0"))
+            value = [self.member(member) for member in sorted(self.members_to_fetch)
+                     if int(member) > after][:params["limit"]]
+            if self.on_member:
+                self.on_member()
+        elif path == "/channels/33/thread-members":
+            if self.thread_pages is not None:
+                cursor = (params or {}).get("after")
+                value = self.thread_pages[cursor]
+            else:
+                after = int((params or {}).get("after", "0"))
+                value = [{"id": "33", "user_id": str(member), "member": self.member(member)}
+                         for member in sorted(self.joined) if int(member) > after][:params["limit"]]
+        elif path == "/channels/33":
+            value = self.raw_channel
+            if self.channel.visible is not None and self.channel.parent_id is None:
+                value = copy.deepcopy(value)
+                value["permission_overwrites"].extend({"id": str(member), "type": 1, "allow": "0", "deny": str(1 << 10)}
+                    for member in self.members_to_fetch if str(member) not in self.channel.visible)
+        elif self.raw_parent is not None and path == f"/channels/{self.raw_parent['id']}":
+            value = self.raw_parent
+        else:
+            raise AssertionError("Unexpected provider endpoint " + path)
+        result = copy.deepcopy(value)
+        if self.after_rest:
+            self.after_rest(path, params)
+        return result
 
     async def fetch_channel(self, channel_id):
         self.calls.append(("channel", channel_id))
@@ -267,10 +321,8 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(history_size_bytes(history), 65536)
 
     async def test_discord_thread_history_is_exact_chronological_and_authorized(self):
-        transport = Transport()
-        bridge = DiscordBridge("synthetic-token", allowed_guilds=["22"], listen_channels=["33"],
-            transport=transport, binding_id="binding-discord", context_messages=2)
-        channel = DiscordChannel(parent_id=30)
+        bridge, transport, channel, _ = self.discord(parent_id=30)
+        bridge.context_messages = 2
         trigger = discord_message(channel, 50)
         channel.messages = [discord_message(channel, 49, text="new"),
             discord_message(DiscordChannel("34"), 48, text="wrong channel"),
@@ -278,21 +330,19 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
             discord_message(channel, 47, guild="23", text="wrong guild")]
         context = bridge._bridge_context(trigger)
         history = await bridge._history(trigger, context)
-        self.assertEqual((context.account_id, context.actor_id, context.conversation_id, context.thread_id), ("22", "7", "33", "33"))
+        self.assertEqual((context.account_id, context.actor_id, context.conversation_id, context.thread_id), ("22", "7", "30", "33"))
         self.assertEqual([m.event_id for m in history], ["48", "49"])
         self.assertEqual(len(channel.calls), 1)
         self.assertIs(channel.calls[0]["before"], trigger)
         self.assertFalse(channel.calls[0]["oldest_first"])
-        # Thread visibility is not inferred from its parent or guild cache.
-        with self.assertRaises(PermissionError):
-            await bridge.send_message("current", context=context, history=history)
-        self.assertEqual(transport.requests, [])
+        await bridge.send_message("current", context=context, history=history)
+        request = transport.requests[0]
+        self.assertEqual(request.context.conversation_kind, "thread")
+        self.assertEqual(request.context.audience_ids, ("7", "8"))
+        self.assertEqual([m.event_id for m in request.history], ["48", "49"])
 
     async def test_discord_denied_or_revoked_context_never_reaches_transport(self):
-        transport = Transport()
-        bridge = DiscordBridge("synthetic-token", listen_channels=["33"],
-            transport=transport, binding_id="binding-discord")
-        channel = DiscordChannel()
+        bridge, transport, channel, _ = self.discord()
         trigger = discord_message(channel, 50)
         context = bridge._bridge_context(trigger)
         transport.allowed = False
@@ -367,7 +417,9 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         await bridge.handle_event(slack_event(), client, account_id="Tfixture", event_id="Ev-new-member")
         self.assertEqual(len(transport.requests), 1)
         self.assertNotIn("Unew", transport.requests[0].context.audience_ids)
-        self.assertIn("Unew", transport.deliveries[-1].audience_ids)
+        # The pinned conversation epoch blocks before a new delivery grant.
+        self.assertNotIn("Unew", transport.deliveries[-1].audience_ids)
+        self.assertGreater(len(client.member_calls), 1)
         self.assertEqual(client.posts, [])
         self.assertEqual(bridge._event_clients, {})
 
@@ -381,7 +433,8 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(transport.requests), 1)
         self.assertEqual(len(client.posts), 1)
         self.assertLess(len(client.posts[0]["text"]), len(transport.reply_text))
-        self.assertIn("Unew", transport.deliveries[-1].audience_ids)
+        self.assertNotIn("Unew", transport.deliveries[-1].audience_ids)
+        self.assertGreater(len(client.member_calls), 1)
 
     async def test_slack_revocation_during_membership_stops_before_rpc(self):
         bridge, transport = self.slack(count=0)
@@ -421,11 +474,17 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
 
     def discord(self, *, members=(7, 8, 999), intent=True, parent_id=None):
         transport = Transport()
-        bridge = DiscordBridge("synthetic-token", allowed_guilds=["22"], listen_channels=["33"],
+        bridge = DiscordBridge("synthetic-token", allowed_guilds=["22"], listen_channels=[str(parent_id) if parent_id is not None else "33"],
             transport=transport, binding_id="binding-discord", members_intent=intent)
         channel = DiscordChannel(parent_id=parent_id)
         guild = RestGuild(channel, members)
         bridge._client = DiscordClient(guild)
+        async def rest(context, path, *, params=None):
+            await bridge.authorize_context(context)
+            result = await guild.rest(context, path, params=params)
+            await bridge.authorize_context(context)
+            return result
+        bridge._audience_rest = rest
         return bridge, transport, channel, guild
 
     async def test_discord_uses_fresh_rest_roles_channel_and_members_before_rpc(self):
@@ -438,27 +497,33 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(delivered.conversation_kind, "channel")
         self.assertTrue(delivered.audience_complete)
         self.assertIsNotNone(delivered.audience_verified_at)
-        self.assertEqual(bridge._client.calls[0], ("guild", 22))
-        self.assertEqual(guild.calls[:2], [("channel", 33), ("members", 1001)])
-        self.assertGreaterEqual(len(bridge._client.calls), 2)
+        self.assertEqual(bridge._client.calls, [])  # No cache/SDK filtered role view.
+        self.assertEqual(guild.calls[:3], [("/guilds/22", None), ("/channels/33", None), ("/guilds/22/members", {"limit": 1000})])
+        self.assertGreaterEqual(len(guild.calls), 10)
 
-    async def test_discord_missing_actor_overflow_intent_and_threads_stay_incomplete(self):
-        for case in ("unknown-actor", "overflow", "intent-off", "thread", "permissions-unavailable", "one-unknown-permission"):
+    async def test_discord_missing_actor_bot_overflow_intent_and_incomplete_roles_are_denied(self):
+        for case in ("unknown-actor", "overflow", "intent-off", "missing-bot", "hidden-bot", "permissions-unavailable", "unknown-role", "unknown-overwrite-role"):
             with self.subTest(case=case):
                 bridge, transport, channel, guild = self.discord(
                     members=tuple(range(1, 1002)) if case == "overflow" else (7, 8, 999),
-                    intent=case != "intent-off", parent_id=30 if case == "thread" else None)
+                    intent=case != "intent-off")
                 if case == "unknown-actor":
                     channel.visible = {"8", "999"}
                 if case == "permissions-unavailable":
-                    channel.permissions_for = lambda member: SimpleNamespace()
-                if case == "one-unknown-permission":
-                    channel.permissions_for = lambda member: SimpleNamespace(view_channel=True) if member.id == 7 else SimpleNamespace()
+                    guild.raw_guild["roles"][0].pop("permissions")
+                if case == "missing-bot":
+                    guild.members_to_fetch.remove(999)
+                if case == "hidden-bot":
+                    channel.visible = {"7", "8"}
+                if case == "unknown-role":
+                    guild.role_assignments["8"] = ["404"]
+                if case == "unknown-overwrite-role":
+                    guild.raw_channel["permission_overwrites"] = [{"id": "404", "type": 0, "allow": "1024", "deny": "0"}]
                 context = bridge._bridge_context(discord_message(channel, 50))
                 with self.assertRaises(PermissionError):
                     await bridge.send_message("current", context=context)
                 self.assertEqual(transport.requests, [])
-                if case in ("intent-off", "thread"):
+                if case == "intent-off":
                     self.assertEqual(guild.calls, [])
 
     async def test_discord_revocation_while_fetching_members_stops_before_rpc(self):
@@ -469,6 +534,268 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
             await bridge.send_message("current", context=context)
         self.assertEqual(transport.requests, [])
 
+    async def test_discord_public_threads_include_parent_viewers_not_only_subscribers(self):
+        for thread_type, parent_type in ((10, 5), (11, 0), (11, 15), (11, 16)):
+            with self.subTest(thread=thread_type, parent=parent_type):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                guild.raw_channel["type"] = thread_type
+                guild.raw_parent["type"] = parent_type
+                guild.joined = [7, 999]  # 8 can still read a public thread.
+                context = bridge._bridge_context(discord_message(channel, 50))
+                await bridge.send_message("shared thread", context=context)
+                self.assertEqual(transport.requests[0].context.audience_ids, ("7", "8"))
+                self.assertFalse(any(path.endswith("thread-members") for path, _ in guild.calls))
+                await bridge.send_text_chunk(channel, "same thread")
+                self.assertEqual(channel.posts, ["same thread"])
+                self.assertEqual(context.thread_id, "33")
+                self.assertEqual(context.conversation_id, "30")
+
+    async def test_discord_parent_authorization_and_rest_thread_relationship_are_independent(self):
+        for case in ("authorized", "parent-not-authorized", "foreign-thread-parent"):
+            with self.subTest(case=case):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                bridge.listen_channels = {"30", "31"}
+                original = transport.authorize_context
+                async def authorize(value):
+                    return await original(value) and value.conversation_id in {"30"}
+                transport.authorize_context = authorize
+                if case == "parent-not-authorized":
+                    channel.parent_id = 31
+                elif case == "foreign-thread-parent":
+                    guild.raw_channel["parent_id"] = "31"
+                message = discord_message(channel, 50)
+                context = bridge._bridge_context(message)
+                interaction = SimpleNamespace(user=message.author, channel=channel, channel_id=33,
+                                              guild=message.guild, guild_id=22)
+                self.assertEqual(bridge._interaction_scope(interaction),
+                                 ("7", "31" if case == "parent-not-authorized" else "30", "22", False))
+                if case == "authorized":
+                    await bridge.send_message("thread", context=context)
+                    self.assertEqual((context.conversation_id, context.thread_id), ("30", "33"))
+                    self.assertTrue(any(path == "/channels/30" for path, _ in guild.calls))
+                    self.assertEqual(len(transport.requests), 1)
+                    parent = DiscordChannel("30")
+                    with self.assertRaises(PermissionError):
+                        await bridge.send_text_chunk(parent, "private response must stay in thread")
+                    with self.assertRaises(PermissionError):
+                        await bridge._history(discord_message(parent, 50), context)
+                    self.assertEqual((parent.posts, parent.calls), ([], []))
+                else:
+                    with self.assertRaises(PermissionError):
+                        await bridge.send_message("must not dispatch", context=context)
+                    self.assertEqual(transport.requests, [])
+                    if case == "parent-not-authorized":
+                        self.assertEqual(guild.calls, [])
+
+    async def test_discord_private_thread_includes_joined_managers_admin_and_owner(self):
+        bridge, transport, channel, guild = self.discord(parent_id=30, members=(7, 8, 9, 10, 11, 12, 999))
+        guild.raw_channel["type"] = 12
+        guild.raw_guild["owner_id"] = "11"
+        guild.role_assignments = {"9": ["40"], "10": ["41"], "12": ["40"]}
+        guild.raw_parent["permission_overwrites"] = [{"id": "12", "type": 1, "allow": "0", "deny": "1024"}]
+        context = bridge._bridge_context(discord_message(channel, 50))
+        await bridge.send_message("private thread", context=context)
+        # Parent viewer 8 is not invited; manager 12 cannot view the parent.
+        self.assertEqual(transport.requests[0].context.audience_ids, ("10", "11", "7", "9"))
+        self.assertTrue(all(params["with_member"] == "true" and params["limit"] == 100
+                            for path, params in guild.calls if path.endswith("thread-members")))
+        self.assertEqual(context.conversation_kind, "thread")
+
+    async def test_discord_private_thread_can_use_existing_manager_bot_without_joining(self):
+        bridge, transport, channel, guild = self.discord(parent_id=30)
+        guild.raw_channel["type"] = 12
+        guild.joined = [7]
+        guild.role_assignments["999"] = ["40"]
+        await bridge.send_message("already authorized manager", context=bridge._bridge_context(discord_message(channel, 50)))
+        self.assertEqual(transport.requests[0].context.audience_ids, ("7",))
+
+    async def test_discord_private_or_unverifiable_thread_never_falls_back_to_parent(self):
+        cases = ("actor-unjoined", "bot-unjoined", "bot-cannot-send", "foreign-member", "duplicate-member",
+                 "missing-expanded-member", "changed-member-roles", "unknown-role", "archived", "locked", "metadata-missing",
+                 "foreign-parent-guild", "foreign-parent-id", "wrong-parent-type", "mismatched-thread-context")
+        for case in cases:
+            with self.subTest(case=case):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                guild.raw_channel["type"] = 12
+                if case == "actor-unjoined":
+                    guild.joined = [999]
+                elif case == "bot-unjoined":
+                    guild.joined = [7]
+                elif case == "bot-cannot-send":
+                    guild.raw_parent["permission_overwrites"] = [{"id": "999", "type": 1, "allow": "0", "deny": str(1 << 38)}]
+                elif case in ("foreign-member", "duplicate-member", "missing-expanded-member", "changed-member-roles"):
+                    members = [{"id": "33", "user_id": "7", "member": guild.member(7)},
+                               {"id": "33", "user_id": "999", "member": guild.member(999)}]
+                    if case == "foreign-member":
+                        members[0]["id"] = "34"
+                    elif case == "duplicate-member":
+                        members.append(copy.deepcopy(members[0]))
+                    elif case == "missing-expanded-member":
+                        members[0].pop("member")
+                    else:
+                        members[0]["member"]["roles"] = ["40"]
+                    guild.thread_pages = {None: members}
+                elif case == "unknown-role":
+                    guild.role_assignments["8"] = ["404"]
+                elif case in ("archived", "locked"):
+                    guild.raw_channel["thread_metadata"][case] = True
+                elif case == "metadata-missing":
+                    guild.raw_channel.pop("thread_metadata")
+                elif case == "foreign-parent-guild":
+                    guild.raw_parent["guild_id"] = "23"
+                elif case == "foreign-parent-id":
+                    guild.raw_channel["parent_id"] = "31"
+                elif case == "wrong-parent-type":
+                    guild.raw_parent["type"] = 15
+                context = bridge._bridge_context(discord_message(channel, 50))
+                if case == "mismatched-thread-context":
+                    context = replace(context, thread_id="34")
+                with self.assertRaises(PermissionError):
+                    await bridge.send_message("private", context=context)
+                self.assertEqual((transport.requests, channel.posts), ([], []))
+
+    async def test_discord_exact_member_cap_requires_empty_overflow_probe(self):
+        bridge, transport, channel, guild = self.discord(members=tuple(range(1, 1001)))
+        await bridge.send_message("at cap", context=bridge._bridge_context(discord_message(channel, 50)))
+        context = transport.requests[0].context
+        self.assertEqual(len(context.audience_ids), 999)
+        self.assertIn(("/guilds/22/members", {"limit": 1, "after": "1000"}), guild.calls)
+
+    async def test_discord_exact_private_thread_cap_is_paginated_and_probed(self):
+        bridge, transport, channel, guild = self.discord(parent_id=30, members=tuple(range(1, 1001)))
+        guild.raw_channel["type"] = 12
+        guild.joined = list(range(1, 1001))
+        await bridge.send_message("at thread cap", context=bridge._bridge_context(discord_message(channel, 50)))
+        self.assertEqual(len(transport.requests[0].context.audience_ids), 999)
+        pages = [params for path, params in guild.calls if path.endswith("thread-members")]
+        self.assertIn({"with_member": "true", "limit": 1, "after": "1000"}, pages)
+        self.assertTrue(any(params.get("after") == "100" and params["limit"] == 100 for params in pages))
+
+    async def test_discord_roles_or_overwrites_changing_during_scan_deny_before_rpc(self):
+        for case in ("roles", "assigned-roles", "parent-overwrites", "thread-topology", "thread-roster", "guild-members"):
+            with self.subTest(case=case):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                guild.raw_channel["type"] = 12
+                changed = False
+                def mutate(path, params):
+                    nonlocal changed
+                    if changed:
+                        return
+                    if path == "/guilds/22/members" and case != "thread-roster":
+                        changed = True
+                        if case == "roles":
+                            guild.raw_guild["roles"][0]["permissions"] = str(1024 | 2048)
+                        elif case == "assigned-roles":
+                            guild.role_assignments["8"] = ["40"]
+                        elif case == "guild-members":
+                            guild.members_to_fetch.append(10)
+                        elif case == "parent-overwrites":
+                            guild.raw_parent["permission_overwrites"].append({"id": "8", "type": 1, "allow": "0", "deny": "1024"})
+                        else:
+                            guild.raw_channel["parent_id"] = "31"
+                    elif path.endswith("thread-members") and case == "thread-roster":
+                        changed = True
+                        guild.joined.append(8)
+                guild.after_rest = mutate
+                with self.assertRaises(PermissionError):
+                    await bridge.send_message("must not dispatch", context=bridge._bridge_context(discord_message(channel, 50)))
+                self.assertEqual(transport.requests, [])
+
+    async def test_discord_private_membership_changes_before_egress_are_reauthorized(self):
+        for remove_actor in (True, False):
+            with self.subTest(remove_actor=remove_actor):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                guild.raw_channel["type"] = 12
+                transport.delivery_policy = lambda value: "8" not in value.audience_ids
+                transport.before_reply = lambda: guild.joined.remove(7) if remove_actor else guild.joined.append(8)
+                with self.assertRaises(PermissionError):
+                    await bridge.send_message("current", context=bridge._bridge_context(discord_message(channel, 50)))
+                self.assertEqual(len(transport.requests), 1)
+                self.assertEqual(channel.posts, [])
+
+    async def test_discord_gateway_mention_gate_uses_authorized_parent_and_exact_thread_route(self):
+        for mention, listened in ((False, "30"), (True, "30"), (True, "33"), (True, "31")):
+            with self.subTest(mention=mention, listened=listened):
+                bridge, transport, channel, guild = self.discord(parent_id=30)
+                bridge.listen_channels = {listened}
+                bridge.context_messages = 0
+                bridge._live = False
+                client = bridge._client
+                message = discord_message(channel, 50, text="<@999> thread question")
+                message.attachments = []
+                message.mentions = [client.user] if mention else []
+                callbacks = {}
+                client.event = lambda fn: callbacks.setdefault(fn.__name__, fn)
+                async def start(token):
+                    await callbacks["on_message"](message)
+                client.start = start
+                class Tree:
+                    def command(self, **kwargs):
+                        return lambda fn: fn
+                sdk = SimpleNamespace(
+                    Intents=SimpleNamespace(default=lambda: SimpleNamespace()), Client=lambda **kwargs: client,
+                    DMChannel=type("DMChannel", (), {}), app_commands=SimpleNamespace(CommandTree=lambda client: Tree()),
+                )
+                with patch.dict("sys.modules", {"discord": sdk}):
+                    await bridge._run()
+                expected = mention and listened == "30"
+                self.assertEqual(bool(transport.requests), expected)
+                self.assertEqual(bool(channel.posts), expected)
+                if expected:
+                    context = transport.requests[0].context
+                    self.assertEqual((context.actor_id, context.conversation_id, context.thread_id), ("7", "30", "33"))
+                else:
+                    self.assertEqual(guild.calls, [])
+
+    async def test_discord_audience_rest_is_fixed_bounded_and_revocable(self):
+        class Content:
+            def __init__(self, raw, after_read=None):
+                self.raw, self.position, self.after_read = raw, 0, after_read
+            async def read(self, length):
+                chunk = self.raw[self.position:self.position + min(length, 3)]
+                self.position += len(chunk)
+                if self.after_read:
+                    self.after_read()
+                return chunk
+        class Response:
+            def __init__(self, raw, status=200, after_read=None):
+                self.status, self.content = status, Content(raw, after_read)
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *args):
+                pass
+        class Session:
+            closed = False
+            def __init__(self, response):
+                self.response, self.calls = response, []
+            def get(self, url, **kwargs):
+                self.calls.append((url, kwargs))
+                return self.response
+            async def close(self):
+                self.closed = True
+        for case in ("success", "revoked", "redirect", "bad-json"):
+            with self.subTest(case=case):
+                bridge, transport, channel, _ = self.discord()
+                raw = json.dumps({"id": "22"}).encode() if case != "bad-json" else b"not json"
+                response = Response(raw, status=302 if case == "redirect" else 200,
+                    after_read=(lambda: setattr(transport, "allowed", False)) if case == "revoked" else None)
+                session = Session(response)
+                bridge._audience_session = session
+                context = bridge._bridge_context(discord_message(channel, 50))
+                method = DiscordBridge._audience_rest
+                if case == "success":
+                    self.assertEqual(await method(bridge, context, "/guilds/22"), {"id": "22"})
+                    self.assertGreater(len(transport.checked), 4)
+                else:
+                    with self.assertRaises((PermissionError, ValueError)):
+                        await method(bridge, context, "/guilds/22")
+                self.assertEqual(session.calls[0][0], "https://discord.com/api/v10/guilds/22")
+                self.assertIs(session.calls[0][1]["allow_redirects"], False)
+                self.assertEqual(len(session.calls), 1)
+                bridge._client = None
+                await bridge.stop()
+                self.assertTrue(session.closed)
+
     async def test_discord_new_member_during_model_is_attested_and_denied_before_output(self):
         bridge, transport, channel, guild = self.discord()
         context = bridge._bridge_context(discord_message(channel, 50))
@@ -477,7 +804,8 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(PermissionError):
             await bridge.send_message("current", context=context)
         self.assertEqual(len(transport.requests), 1)
-        self.assertIn("10", transport.deliveries[-1].audience_ids)
+        self.assertNotIn("10", transport.deliveries[-1].audience_ids)
+        self.assertGreater(sum(path == "/guilds/22/members" for path, _ in guild.calls), 2)
         with self.assertRaises(PermissionError):
             await bridge.send_text_chunk(channel, "must not escape")
         self.assertEqual(channel.posts, [])
@@ -488,11 +816,11 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         await bridge.send_message("current", context=context)
         transport.delivery_policy = lambda value: "10" not in value.audience_ids
         await bridge.send_text_chunk(channel, "first permitted chunk")
-        first_reads = len(bridge._client.calls)
+        first_reads = len(guild.calls)
         guild.members_to_fetch.append(10)
         with self.assertRaises(PermissionError):
             await bridge.send_text_chunk(channel, "second forbidden chunk")
-        self.assertGreater(len(bridge._client.calls), first_reads)
+        self.assertGreater(len(guild.calls), first_reads)
         self.assertEqual(channel.posts, ["first permitted chunk"])
 
     async def test_discord_direct_requires_actual_sdk_dm_and_recipient(self):

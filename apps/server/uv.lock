@@ -1764,6 +1764,30 @@ wheels = [
 requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b1" }]
 
 [[package]]
+name = "openagent-channel-bridges"
+version = "0.1.0b4"
+source = { directory = "../../packages/channel-bridges" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "openagent-core" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.9,<4" },
+    { name = "discord-py", marker = "extra == 'discord'", specifier = ">=2.3,<3" },
+    { name = "openagent-core", specifier = ">=1.1.0b24,<2" },
+    { name = "openagent-core", extras = ["engine"], marker = "extra == 'test'", specifier = ">=1.1.0b24,<2" },
+    { name = "openagent-storage-sqlite", marker = "extra == 'test'", specifier = ">=1.1.0b24,<2" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8" },
+    { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=0.23" },
+    { name = "python-telegram-bot", marker = "extra == 'telegram'", specifier = ">=21,<23" },
+    { name = "slack-bolt", marker = "extra == 'slack'", specifier = ">=1.18,<2" },
+    { name = "whatsapp-api-client-python", marker = "extra == 'whatsapp'", specifier = ">=0.0.46,<1" },
+]
+provides-extras = ["slack", "discord", "telegram", "whatsapp", "test"]
+
+[[package]]
 name = "openagent-client-transport"
 version = "1.1.0b52"
 source = { directory = "../../packages/client-transport" }
@@ -1922,7 +1946,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b1" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.0b52"
+version = "1.1.0b53"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -1946,6 +1970,7 @@ dependencies = [
     { name = "litellm" },
     { name = "mcp", extra = ["cli"] },
     { name = "numpy" },
+    { name = "openagent-channel-bridges" },
     { name = "openagent-client-transport" },
     { name = "openagent-connectors" },
     { name = "openagent-core", extra = ["engine"] },
@@ -2024,6 +2049,7 @@ requires-dist = [
     { name = "litellm", specifier = ">=1.50.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0.0,<2" },
     { name = "numpy", specifier = ">=1.24" },
+    { name = "openagent-channel-bridges", directory = "../../packages/channel-bridges" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
     { name = "openagent-connectors", specifier = "==0.1.12" },
     { name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b24" },

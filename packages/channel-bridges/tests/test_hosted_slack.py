@@ -7,7 +7,7 @@ import pytest
 
 from openagent_channel_bridges.contracts import BridgeCapabilities, BridgePart, BridgeReply
 from openagent_channel_bridges.hosted_slack import (
-    HostedSlackBridge, HostedSlackError, HostedSlackSessionExpired, PREFIX, PROTOCOL,
+    HostedSlackBridge, HostedSlackClient, HostedSlackError, HostedSlackSessionExpired, PREFIX, PROTOCOL,
 )
 
 TOKEN = "private-service-session-canary"
@@ -137,7 +137,7 @@ async def test_hosted_normal_bridge_preserves_host_context_history_and_ack_after
             request.context.conversation_id, request.context.event_id) == ("binding", "Tfixture", "Uactor", "Cfixture", "Evfixture")
     assert request.context.audience_complete and request.context.audience_ids == ("Uactor", "Uother")
     assert request.parts[0].text == "question" and request.history[0].parts[0].text == "previous"
-    assert http.posts[0]["arguments"] == {"channel": "Cfixture", "text": "host reply"}
+    assert http.posts[0]["arguments"] == {"channel": "Cfixture", "text": "host reply", "thread_ts": "50.000001"}
     assert http.posts[0]["operation_id"] == hashlib.sha256(b"delivery:post:0").hexdigest()
     assert http.calls[-1] == ("POST", "ack")
     assert http.acks == [{"delivery_id": "delivery", "body_sha256": "a" * 64, "outcome": "accepted"}]
@@ -146,6 +146,22 @@ async def test_hosted_normal_bridge_preserves_host_context_history_and_ack_after
     assert len(transport.requests) == len(http.posts) == 1 and len(http.api) == api_count
     await current.stop()
     assert http.closed == 0  # An injected HTTP transport is borrowed.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('incoming_thread', [None, '40.000001'])
+async def test_root_thread_fallback_never_authorizes_an_unrelated_reply_thread(incoming_thread):
+    http = ServiceHTTP()
+    current = bridge(http)
+    delivery = inbox()['deliveries'][0]
+    if incoming_thread is not None:
+        delivery['payload']['event']['thread_ts'] = incoming_thread
+    client = HostedSlackClient(current, delivery, 'Cfixture')
+    with pytest.raises(PermissionError):
+        await client._call('chat.postMessage', {'channel':'Cfixture', 'text':'wrong destination',
+                                             'thread_ts':'99.000001'}, write=True)
+    assert client.denied and not http.api and not http.posts
+    await current.stop()
 
 
 @pytest.mark.asyncio

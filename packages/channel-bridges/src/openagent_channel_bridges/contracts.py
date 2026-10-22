@@ -6,7 +6,7 @@ This module deliberately depends only on the Python standard library.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Awaitable, Callable, Literal, Protocol, runtime_checkable
 
 API_VERSION = 1
@@ -27,6 +27,47 @@ def _identifier(value: str, name: str, *, optional: bool = False) -> None:
         raise ValueError(f"{name} must be a nonempty identifier of at most 512 bytes")
     if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
         raise ValueError(f"{name} contains control characters")
+
+
+@dataclass(frozen=True, slots=True)
+class BridgeConversation:
+    """Stable routing descriptor; provider audience evidence is not a host grant."""
+    mode: Literal["private", "channel", "thread"]
+    binding_id: str
+    provider: str
+    account_id: str
+    conversation_id: str
+    thread_id: str | None
+    private_actor_id: str | None
+    audience_ids: tuple[str, ...]
+    audience_epoch: str
+    session_key: str
+    api_version: int = API_VERSION
+
+    def __post_init__(self) -> None:
+        import re
+        _version(self.api_version)
+        if self.mode not in ("private", "channel", "thread"):
+            raise ValueError("unknown conversation mode")
+        for name in ("binding_id", "provider", "account_id", "conversation_id"):
+            _identifier(getattr(self, name), name)
+        for name in ("thread_id", "private_actor_id"):
+            _identifier(getattr(self, name), name, optional=True)
+        object.__setattr__(self, "audience_ids", tuple(self.audience_ids))
+        if (not 1 <= len(self.audience_ids) <= 1000
+                or len(set(self.audience_ids)) != len(self.audience_ids)):
+            raise ValueError("invalid conversation audience")
+        for actor in self.audience_ids:
+            _identifier(actor, "conversation audience actor")
+        if self.audience_ids != tuple(sorted(self.audience_ids, key=lambda value: value.encode("utf-8"))):
+            raise ValueError("conversation audience must be in UTF-8 byte order")
+        if (self.mode == "private" and self.audience_ids != (self.private_actor_id,)
+                or self.mode != "private" and self.private_actor_id is not None
+                or self.mode == "channel" and self.thread_id is not None
+                or self.mode == "thread" and self.thread_id is None
+                or not re.fullmatch("[a-f0-9]{64}", self.audience_epoch)
+                or not re.fullmatch("oa-channel-v1-[a-f0-9]{64}", self.session_key)):
+            raise ValueError("invalid conversation routing descriptor")
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +108,11 @@ class BridgeContext:
             if (type(self.audience_verified_at) not in (int, float)
                     or not math.isfinite(self.audience_verified_at) or self.audience_verified_at < 0):
                 raise ValueError("audience verification time is invalid")
+
+    @property
+    def conversation(self) -> BridgeConversation | None:
+        from .conversation import describe_conversation
+        return describe_conversation(self)
 
     @property
     def deduplication_key(self) -> tuple[str, str, str, str]:
@@ -134,9 +180,11 @@ class BridgeMessage:
     source: str = "text"
     presentation: str | None = None
     api_version: int = API_VERSION
+    conversation: BridgeConversation | None = field(init=False)
 
     def __post_init__(self) -> None:
         _version(self.api_version)
+        object.__setattr__(self, "conversation", self.context.conversation)
         object.__setattr__(self, "parts", tuple(self.parts))
         object.__setattr__(self, "history", tuple(self.history))
         if len(self.history) > MAX_CONTEXT_MESSAGES:
@@ -202,9 +250,11 @@ class BridgeCommand:
     argument: str | None = None
     confirmed: bool = False
     api_version: int = API_VERSION
+    conversation: BridgeConversation | None = field(init=False)
 
     def __post_init__(self) -> None:
         _version(self.api_version)
+        object.__setattr__(self, "conversation", self.context.conversation)
         _identifier(self.name, "command name")
 
 

@@ -7,7 +7,7 @@ run snapshot, and reads current canonical ACLs before each authorization.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -28,6 +28,13 @@ class _Binding:
     identity: OnBehalfIdentity
     request: Any
     certificate: Any
+
+
+@dataclass(frozen=True)
+class _ChannelBinding:
+    context: ExecutionContext
+    validate: Callable[[], Awaitable[bool]]
+    validate_child: Callable[[ExecutionContext], Awaitable[bool]] | None = None
 
 
 class _TrustedRequest(dict):
@@ -76,6 +83,42 @@ class NativeRuntimeAuthorizer:
         self.memory_authorizer = None
         self._bindings: dict[str, _Binding] = {}
         self._identity_bindings: dict[str, str] = {}
+        self._channel_bindings: dict[str, _ChannelBinding] = {}
+
+    def bind_channel(self, context: ExecutionContext, validate: Callable[[], Awaitable[bool]], *,
+                     validate_child: Callable[[ExecutionContext], Awaitable[bool]] | None = None) -> ExecutionContext:
+        """Bind only the product's in-process, provider-authenticated channel host.
+
+        This is not an HTTP identity override or a device-certificate alias.
+        The callback re-resolves the entire provider/mapped audience on every
+        runtime authorization, including before tools and result publication.
+        """
+        if (context.ingress_id is not None or context.author != context.initiator
+                or context.authority != context.initiator or context.delegation_id
+                or context.capabilities or context.authority.kind != "user"
+                or context.authority.authority != "openagent" or not callable(validate)):
+            raise PermissionError("Invalid channel host binding")
+        identifier = "channel:" + hashlib.sha256(json.dumps(context.snapshot(), sort_keys=True).encode()).hexdigest()
+        bound = replace(context, ingress_id=identifier)
+        if identifier not in self._channel_bindings and len(self._channel_bindings) >= 4096:
+            raise PermissionError("Channel host binding limit reached")
+        self._channel_bindings[identifier] = _ChannelBinding(bound, validate, validate_child)
+        return bound
+
+    async def _channel(self, context):
+        binding = self._channel_bindings.get(context.ingress_id or "")
+        if binding is None:
+            return None
+        if context != binding.context:
+            base = binding.context
+            if (any(getattr(context, name) != getattr(base, name) for name in (
+                    "initiator", "authority", "agent_id", "audience", "scopes", "capabilities",
+                    "delegation_id", "deferred", "ingress_id"))
+                    or context.author.kind != "agent" or context.author.tenant_id != base.tenant_id
+                    or not context.parent_run_id or binding.validate_child is None
+                    or not await binding.validate_child(context)):
+                return None
+        return binding if await binding.validate() is True else None
 
     @staticmethod
     def binding_id(identity: OnBehalfIdentity) -> str:
@@ -137,7 +180,7 @@ class NativeRuntimeAuthorizer:
         return await (
             await connection.execute(
                 "SELECT id AS resource_id, 'session' AS resource_type, tenant_id, "
-                "owner_principal_id, visibility, acl_version FROM sessions_v2 "
+                "owner_principal_id, visibility, acl_version, root_session_id FROM sessions_v2 "
                 "WHERE id=? AND deleted_at_ms IS NULL",
                 (session_id,),
             )
@@ -229,6 +272,41 @@ class NativeRuntimeAuthorizer:
         *,
         audience: tuple[PrincipalRef, ...] = (),
     ) -> bool:
+        if (context.ingress_id or "").startswith("channel:"):
+            binding = await self._channel(context)
+            if binding is None or resource.tenant_id != context.tenant_id:
+                return False
+            if resource.kind == "session":
+                if action not in {
+                    "run.submit", "run.execute", "run.publish", "run.read", "run.replay", "run.cancel", "session.read", "run.delegate",
+                }:
+                    return False
+                if tuple(audience) != context.audience:
+                    return False
+                async with self._connection() as connection:
+                    connection.row_factory = aiosqlite.Row
+                    row = await self._session(connection, resource.resource_id)
+                    if resource.resource_id != context.session_id and not (
+                            action in {"run.read", "run.replay", "session.read"} and row is not None
+                            and row["root_session_id"] == binding.context.session_id):
+                        return False
+                    if row is None:
+                        return action == "run.submit" and await self._channel(context) is not None
+                    if row["tenant_id"] != context.tenant_id:
+                        return False
+                    # The normal public store writes the session/recipient ACLs.
+                    # A later ACL edit cannot enlarge or shrink this epoch.
+                    current = await self._audience(connection, row, context.initiator)
+                    return set(current) == set(context.audience) and await self._channel(context) is not None
+            if action.startswith("memory."):
+                allowed = bool(self.memory_authorizer is not None and await self.memory_authorizer(
+                    context, action, resource, audience=audience))
+            else:
+                if tuple(audience) != context.audience:
+                    return False
+                allowed = bool(self.source_authorizer is not None and await self.source_authorizer(
+                    context, action, resource, audience=audience))
+            return allowed and await self._channel(context) is not None
         binding = None
         if context.delegation_id:
             if self.delegations is None or not await self.delegations.validate(context):

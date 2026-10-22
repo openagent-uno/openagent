@@ -291,6 +291,10 @@ class BaseBridge:
             raise PermissionError("bridge generation changed")
         if not isinstance(delivery, BridgeContext) or not self._same_delivery_identity(current, delivery):
             raise PermissionError("delivery audience refresh changed bridge identity")
+        if current.conversation is not None and current.conversation != delivery.conversation:
+            # A freshly admitted recipient is not retroactively an audience of
+            # an answer already running under the previous membership epoch.
+            raise PermissionError("delivery conversation audience epoch changed")
         self._resolve_context(delivery)
         await self._authorize_generation(delivery, generation)
         self._resolve_context(delivery)
@@ -512,7 +516,9 @@ class BaseBridge:
             _active_history.reset(history_token)
             _active_context.reset(token)
 
-    async def transcribe_with_fallback(self, file_path: str, *, context: BridgeContext | None = None) -> str:
+    async def transcribe_with_fallback(self, file_path: str, *, context: BridgeContext | None = None,
+                                       attachment: BridgeAttachment | None = None) -> str:
+        """Use the host speech callback, preserving supplied provider metadata."""
         generation = self._generation
         current = self._resolve_context(context)
         await self.authorize_context(current)
@@ -521,7 +527,12 @@ class BaseBridge:
         if not {"voice", "audio"}.intersection(self._capabilities.input_media):
             return VOICE_FALLBACK
         path = Path(file_path)
-        attachment = BridgeAttachment(kind="voice", filename=path.name, mime_type="audio/ogg", size_bytes=path.stat().st_size, local_path=str(path))
+        if attachment is None:
+            attachment = BridgeAttachment(kind="voice", filename=path.name, mime_type="audio/ogg", size_bytes=path.stat().st_size, local_path=str(path))
+        elif (not isinstance(attachment, BridgeAttachment) or attachment.kind not in {"voice", "audio"}
+              or attachment.local_path is None or Path(attachment.local_path).resolve() != path.resolve()
+              or attachment.size_bytes is not None and attachment.size_bytes != path.stat().st_size):
+            raise ValueError("Speech attachment differs from the staged audio")
         await self._authorize_generation(current, generation)
         text = await self.transport.transcribe(current, attachment)
         await self._authorize_generation(current, generation)

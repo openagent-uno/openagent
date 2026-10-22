@@ -85,12 +85,52 @@ group dispatch/delivery. Discord's optional `config.members_intent` is a strict
 boolean and defaults to `false`; enabling it requests the SDK intent but does
 not enable a provider grant. Guild channel audience uses fresh REST metadata,
 current visibility permissions and a complete bounded member list. Discord
-threads and group DMs remain incomplete and blocked. No partial cache or parent
-channel list is accepted as proof for those contexts.
+group DMs remain incomplete and blocked. Thread authorization uses the real
+REST-confirmed parent channel and native thread ID, with a complete current
+audience appropriate to public or private threads. No partial cache or parent
+channel list alone is accepted as private-thread audience proof.
 
 Hosts still provision provider permissions and map each recipient to their
 ordinary authorization system. These protocol guarantees and SDK fixtures do
 not claim a real installation, provider consent or live channel acceptance.
+
+## Stable conversation descriptor (beta 4)
+
+`send` and `command` contain an additive nullable `conversation` derived from
+their context. Hosts recompute and compare the entire descriptor. An
+unattested/ambiguous shared context must be denied, never silently routed to a
+private session. Provider identifiers and this descriptor are not host grants.
+
+Fields are `api_version:1`, `mode` (`private`, `channel`, `thread`),
+`binding_id`, `provider`, `account_id`, `conversation_id`, nullable `thread_id`,
+nullable `private_actor_id`, `audience_ids`, `audience_epoch`, and `session_key`.
+Direct mode has private precedence even with a DM thread. Channel mode requires
+no thread; thread mode requires one. Group/unknown, channel-with-thread,
+thread-without-ID, incomplete audience, missing actor or verification time
+produce no descriptor. Duplicate IDs are rejected. Distinct IDs are sorted by
+UTF-8 bytes without Unicode/case normalization.
+
+Frame each string as its unsigned 32-bit big-endian UTF-8 byte length followed
+by its bytes, and concatenate without delimiters:
+
+- `audience_epoch` is lowercase SHA-256 of the framed strings
+  `("openagent-channel-audience/v1", *sorted_audience_ids)`.
+- `session_key` is `oa-channel-v1-` plus lowercase SHA-256 of
+  `("openagent-channel-session/v1", binding_id, provider, account_id, mode,
+  conversation_id, thread_id_or_empty, private_actor_id_or_empty, audience_epoch)`.
+
+The actor enters only private keys. Events and proof timestamps do not fork a
+shared session. Hosts persist their normal mapping and add a current principal
+binding/permission epoch. Membership change creates a new epoch; reordering
+does not. Root Slack mentions retain channel scope when a reply starts a new
+thread. Only real incoming threads select thread scope. Discord conversation
+IDs are verified parent-channel IDs; thread IDs remain separate native IDs.
+
+Once a turn has an attested descriptor, a changed epoch denies outward
+delivery. Approval of new recipients cannot retroactively disclose an answer
+generated for the previous cohort. Each delivery still requires fresh provider
+proof and current host actor/recipient ACLs. Golden vectors, including Unicode
+and delimiter collisions, are in `tests/conversation-v1-vectors.json`.
 
 ## Media
 

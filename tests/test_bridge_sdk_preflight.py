@@ -42,6 +42,25 @@ class BridgeSdkPreflightTests(unittest.TestCase):
         self.assertIsNone(server._missing_bridge_sdk("telegram"))
         self.assertIsNone(server._missing_bridge_sdk("webhook"))
 
+    def test_explicit_mapping_selects_normal_runtime_transport_without_owner_alias(self):
+        from openagent_server.bridges.native_transport import NativeChannelTransport
+        identity = {"tenant_id": "network", "account_id": "guild",
+                    "user_bindings": {"1": "alice", "2": "bob"}}
+        config = {"channels": {"discord": {**CHANNELS["discord"], "identity": identity}}}
+        service = types.SimpleNamespace(agent=types.SimpleNamespace(config=config))
+        with mock.patch.dict(sys.modules, {"discord": types.ModuleType("discord")}):
+            bridges = server._build_bridges(config, {"discord": ""}, runtime_service=service)
+        self.assertEqual(len(bridges), 1)
+        self.assertIsInstance(bridges[0].transport, NativeChannelTransport)
+        self.assertIs(bridges[0].transport.service, service)
+        self.assertEqual(bridges[0].transport.binding_id, "discord")
+
+    def test_explicit_mapping_never_silently_falls_back_to_legacy_without_runtime(self):
+        config = {"channels": {"discord": {**CHANNELS["discord"], "identity": {}}}}
+        with mock.patch.dict(sys.modules, {"discord": types.ModuleType("discord")}), \
+                self.assertLogs(server.logger, level="ERROR"):
+            self.assertEqual(server._build_bridges(config, URLS), [])
+
 
 if __name__ == "__main__":
     unittest.main()

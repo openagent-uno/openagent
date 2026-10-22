@@ -65,3 +65,105 @@ def safe_attachment_staging_name(prefix: Any, filename: Any) -> str:
     safe_prefix = safe_attachment_filename(prefix, fallback="attachment-id")
     safe_name = safe_attachment_filename(filename)
     return safe_attachment_filename(f"{safe_prefix}-{safe_name}")
+
+
+MEDIA_CHUNK_BYTES = 64 * 1024
+
+
+class MediaTransferTooLarge(ValueError):
+    def __init__(self, size_bytes):
+        super().__init__("Inbound media exceeds the byte limit")
+        self.size_bytes = size_bytes
+
+
+def media_file_snapshot(path, *, limit: int = 0) -> tuple[int, int, int, int]:
+    """Bind an ordinary host-supplied file without following a symlink."""
+    import stat
+    info = os.stat(path, follow_symlinks=False)
+    if not stat.S_ISREG(info.st_mode) or limit and info.st_size > limit:
+        raise ValueError("Media file is unavailable or exceeds the byte limit")
+    return info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns
+
+
+async def authorized_file_chunks(path, authorize, *, snapshot, limit: int = 0):
+    """Read/yield bounded bytes only after current host authorization.
+
+    The provider receives an async iterable instead of a pathname that its SDK
+    could eagerly read without an authorization boundary for each chunk.
+    """
+    await authorize()
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(descriptor, "rb") as source:
+        def unchanged():
+            info = os.fstat(source.fileno())
+            actual = info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns
+            if actual != snapshot or limit and info.st_size > limit:
+                raise ValueError("Media file changed during transfer")
+        unchanged()
+        copied = 0
+        while True:
+            await authorize()
+            unchanged()
+            chunk = source.read(MEDIA_CHUNK_BYTES)
+            if not chunk:
+                break
+            copied += len(chunk)
+            if copied > snapshot[2] or limit and copied > limit:
+                raise ValueError("Media file exceeds the byte limit")
+            await authorize()
+            unchanged()
+            yield chunk
+        await authorize()
+        unchanged()
+        if copied != snapshot[2]:
+            raise ValueError("Media file transfer was incomplete")
+
+
+async def write_authorized_download(content, path, authorize, *, limit: int = 0) -> int:
+    """Stage only new private files; reject/revoke before every chunk write."""
+    target = Path(path)
+    owned_identity = None
+    try:
+        await authorize()
+        with target.open("xb") as output:
+            info = os.fstat(output.fileno())
+            owned_identity = info.st_dev, info.st_ino
+            copied = 0
+            iterator = content.iter_chunked(MEDIA_CHUNK_BYTES).__aiter__()
+            while True:
+                await authorize()
+                try:
+                    chunk = await anext(iterator)
+                except StopAsyncIteration:
+                    break
+                await authorize()
+                copied += len(chunk)
+                if limit and copied > limit:
+                    raise MediaTransferTooLarge(copied)
+                output.write(chunk)
+            await authorize()
+        return copied
+    except BaseException:
+        if owned_identity is not None:
+            try:
+                info = target.lstat()
+                if (info.st_dev, info.st_ino) == owned_identity and not target.is_symlink():
+                    target.unlink()
+            except OSError:
+                pass
+        raise
+
+
+async def read_authorized_response(content, authorize, *, limit: int = 65536) -> bytes:
+    """Read a bounded provider response only while the host grant remains valid."""
+    chunks, copied = [], 0
+    while True:
+        await authorize()
+        chunk = await content.read(min(MEDIA_CHUNK_BYTES, limit + 1 - copied))
+        await authorize()
+        if not chunk:
+            return b"".join(chunks)
+        copied += len(chunk)
+        if copied > limit:
+            raise ValueError("Media response exceeds the byte limit")
+        chunks.append(chunk)
