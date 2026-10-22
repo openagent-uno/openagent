@@ -43,7 +43,8 @@ from urllib.parse import urlparse
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.history import bound_history, validate_context_messages
-from openagent_channel_bridges.history_media import prepare_history_media
+from openagent_channel_bridges.history_media import prepare_history_media, HistoryUnavailable
+from openagent_channel_bridges.diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
 from openagent_channel_bridges.media import is_audio_file
 from openagent_channel_bridges.base import elog
@@ -301,7 +302,8 @@ class SlackBridge(BaseBridge):
             except Exception:
                 logger.warning("Slack channel context unavailable")
                 await self.authorize_context(context)
-                return ()
+                emit_diagnostic(context, "history", "unavailable")
+                raise HistoryUnavailable("Requested channel history is unavailable") from None
             for message in response.get("messages", [])[:100]:
                 event = str(message.get("ts") or "")
                 actor = str(message.get("user") or message.get("bot_id") or "")
@@ -337,7 +339,8 @@ class SlackBridge(BaseBridge):
                 break
             if not cursor or page == 9:
                 logger.warning("Slack thread context omitted: bounded history scan incomplete")
-                return ()
+                emit_diagnostic(context, "history", "unavailable")
+                raise HistoryUnavailable("Requested thread history is incomplete")
         records.sort(key=lambda item: Decimal(item.event_id))
         await self.authorize_context(context)
         selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=trigger_ts)
@@ -442,8 +445,14 @@ class SlackBridge(BaseBridge):
             shutil.rmtree(tmp, ignore_errors=True)
             raise PermissionError("Slack event is already active")
         self._event_clients[key] = client
+        target = _SlackTarget(client=client, channel=channel_id, user=user_id, thread_ts=reply_thread)
+        acknowledged = False
         try:
             bridge_context = await self._prepare_delivery_context(bridge_context)
+            emit_diagnostic(bridge_context, "admission", "completed")
+            if not text and not event.get("files"):
+                return
+            acknowledged = await self.acknowledge_turn(target, context=bridge_context)
             async def _notify_attachment(message: str) -> None:
                 kwargs = {"channel": channel_id, "text": message}
                 if reply_thread:
@@ -548,13 +557,16 @@ class SlackBridge(BaseBridge):
                 user=user_id,
                 thread_ts=reply_thread,
             )
+            emit_diagnostic(bridge_context, "history", "started")
             history = await self._history(client, bridge_context, is_dm=is_dm, trigger_ts=str(event.get("ts") or ""),
                                           media_directory=tmp, current_attachments=attachments)
+            emit_diagnostic(bridge_context, "submission", "started")
             await self.dispatch_turn(
                 target,
                 session_id,
                 text,
                 context=bridge_context,
+                acknowledged=acknowledged,
                 history=history,
                 voice_detected=voice_detected,
                 attachments=attachments,
@@ -564,7 +576,17 @@ class SlackBridge(BaseBridge):
                     "display": str(user_id),
                 },
             )
+        except asyncio.CancelledError:
+            emit_diagnostic(bridge_context, "terminal", "cancelled")
+            raise
         except Exception as e:  # noqa: BLE001
+            emit_diagnostic(bridge_context, "terminal", "authorization_denied" if isinstance(e, PermissionError) else "failed")
+            if not isinstance(e, PermissionError):
+                try:
+                    failure = "I couldn’t read the requested channel history. No agent task was started." if isinstance(e, HistoryUnavailable) else "I couldn’t complete this channel request. Please check the agent session before trying again."
+                    await self.send_text_chunk(target, failure)
+                except Exception:
+                    pass
             logger.error("slack dispatch failed: %s", type(e).__name__)
             elog("bridge.error", name="slack", session_id=session_id, error_type=type(e).__name__)
         finally:
@@ -782,6 +804,7 @@ class SlackBridge(BaseBridge):
             await target.client.chat_postMessage(**kwargs)
         except Exception as e:  # noqa: BLE001
             logger.warning("slack send_text_chunk failed: %s", type(e).__name__)
+            raise
 
     async def send_attachment(self, target, att) -> None:
         """Stage guarded bytes, then explicitly publish the exact Slack file.
@@ -816,7 +839,8 @@ class SlackBridge(BaseBridge):
         session = await self._audio_session()
         await authorize()
         transferred = 0
-        source = authorized_file_chunks(path, authorize, snapshot=snapshot, limit=limit)
+        chunk_authorize = self._transfer_authorizer(self._resolve_context())
+        source = authorized_file_chunks(path, chunk_authorize, snapshot=snapshot, limit=limit)
         body = None
         try:
             # With Content-Length, a receiver can acknowledge the final bytes
@@ -830,7 +854,7 @@ class SlackBridge(BaseBridge):
                 chunk = first
                 while chunk is not None:
                     following = await anext(source, None)
-                    await authorize()
+                    await chunk_authorize()
                     if media_file_snapshot(path, limit=limit) != snapshot:
                         raise ValueError("Media file changed during transfer")
                     complete = following is None
@@ -845,7 +869,7 @@ class SlackBridge(BaseBridge):
                     allow_redirects=False, timeout=aiohttp.ClientTimeout(total=_SLACK_MEDIA_DOWNLOAD_TIMEOUT)) as response:
                 if response.status != 200:
                     raise RuntimeError("Slack media byte upload failed")
-                await read_authorized_response(response.content, authorize)
+                await read_authorized_response(response.content, chunk_authorize)
         finally:
             if body is not None:
                 await body.aclose()
@@ -938,7 +962,7 @@ class SlackBridge(BaseBridge):
                 if limit and header_size > limit:
                     return _SlackDownloadOutcome(path=None, error="too_large", size_bytes=header_size)
                 copied = await write_authorized_download(
-                    response.content, target, lambda: self._prepare_delivery_context(current), limit=limit)
+                    response.content, target, self._transfer_authorizer(self._resolve_context()), limit=limit)
                 owned_download = True
                 if header_size and copied != header_size or declared_size and copied != declared_size:
                     raise ValueError("Incomplete Slack media download")

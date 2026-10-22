@@ -4,7 +4,12 @@ from __future__ import annotations
 from dataclasses import replace
 from .contracts import BridgeAttachment, BridgeAttachmentNotice, BridgePart
 from .media import media_file_snapshot
+from .diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
+
+class HistoryUnavailable(RuntimeError):
+    """Requested provider history was not obtained; never invent empty input."""
+
 
 MAX_HISTORY_FILES = 16
 MAX_HISTORY_INPUT_BYTES = 64 << 20
@@ -29,6 +34,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
             selected.insert(0, record)
             part_count += added
     result = []
+    transcriptions = 0
     for record in selected:
         parts, omitted = [], list(record.omitted_attachments)
         for part in record.parts:
@@ -60,6 +66,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                         raise ValueError("Historical media identity or budget changed")
                     count += 1
                     size += snapshot[2]
+                    emit_diagnostic(context, "history", "completed", files=count, bytes=size, transcriptions=transcriptions)
                     parts.append(BridgePart(attachment=loaded))
                 except PermissionError:
                     raise
@@ -69,6 +76,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                     transcript = await bridge.transcribe_with_fallback(
                         loaded.local_path, context=context, attachment=loaded)
                     await bridge._prepare_delivery_context(context)
+                    transcriptions += 1
                     if part_count < 256:
                         parts.append(BridgePart(text="Audio transcript (quoted historical message):\n" + transcript))
                         part_count += 1
@@ -76,4 +84,5 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                 omitted.append(BridgeAttachmentNotice(attachment.kind, attachment.filename,
                     attachment.mime_type, attachment.size_bytes, attachment.provider_attachment_id, reason))
         result.append(replace(record, parts=tuple(parts), omitted_attachments=tuple(omitted)))
+    emit_diagnostic(context, "history", "completed", files=count, bytes=size, transcriptions=transcriptions)
     return tuple(result)

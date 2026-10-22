@@ -315,3 +315,161 @@ async def test_history_38_provider_fixture_records_keep_all_media_in_the_selecte
     assert not any(row.omitted_attachments for row in host.requests[0].history)
     assert all(not Path(value.local_path).exists() for value in host.inputs)
     assert len(client.posts) == 2
+
+
+@pytest.mark.asyncio
+async def test_quiet_ack_precedes_blocked_history_without_creating_an_agent_run():
+    import asyncio
+    host = Host(); client = SlackClient([]); bridge = slack(host, client, [])
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def history(**kwargs):
+        entered.set(); await release.wait()
+        return {"messages": []}
+    client.conversations_history = history
+    task = asyncio.create_task(bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> inspect reports", "ts": "50.0"}, client, account_id="T", event_id="event-secret"))
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        assert [p["text"] for p in client.posts] == ["Received. I’ll reply when finished."]
+        assert host.requests == []
+    finally:
+        release.set(); await asyncio.wait_for(task, 2)
+    assert len(client.posts) == 2 and len(host.requests) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["normal", "revoke", "audience-change", "initial-deny"])
+async def test_38_streamed_history_files_bound_provider_calls_not_chunks_and_revoke_safely(mode, capsys):
+    from openagent_channel_bridges.media import MEDIA_CHUNK_BYTES
+    size = 8 * MEDIA_CHUNK_BYTES
+    host = Host(history_max_files=64)
+    if mode == "initial-deny": host.allowed = False
+    files = [{"id": f"F{i}", "name": f"image-{i}.png", "mimetype": "image/png", "size": size,
+        "url_private_download": f"https://files.slack.com/F{i}"} for i in range(38)]
+    class Client(SlackClient):
+        def __init__(self):
+            super().__init__(files); self.scans = 0
+        async def conversations_members(self, **kwargs):
+            self.scans += 1
+            return await super().conversations_members(**kwargs)
+        async def conversations_history(self, **kwargs):
+            return {"messages": [{"ts": str(10+i)+".0", "user": "bob", "text": "", "files": [file]}
+                                 for i, file in enumerate(files)]}
+    client = Client(); reads = []
+    class Content:
+        async def iter_chunked(self, limit):
+            assert limit == MEDIA_CHUNK_BYTES
+            for index in range(8):
+                reads.append(index)
+                if len(reads) == 1:
+                    if mode == "revoke": host.allowed = False
+                    if mode == "audience-change": client.members.append("new-recipient")
+                yield b"x" * MEDIA_CHUNK_BYTES
+    class Response:
+        status = 200
+        headers = {"Content-Length": str(size)}
+        content = Content()
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return False
+    class HTTP:
+        def get(self, *args, **kwargs): return Response()
+    bridge = SlackBridge("not-a-token", allowed_users=["alice"], listen_channels=["C"], context_messages=100,
+        transport=host, binding_id="binding", delivery_mode="quiet")
+    bridge._bot_user_id = "BOT"
+    async def session(): return HTTP()
+    bridge._audio_session = session
+    # Admission rejection remains a hard exception before any provider output.
+    event = {"type": "app_mention", "channel": "C", "user": "alice", "text": "<@BOT> inspect", "ts": "100.0"}
+    if mode == "initial-deny":
+        with pytest.raises(PermissionError):
+            await bridge.handle_event(event, client, account_id="T", event_id="100.0")
+        assert client.posts == [] and reads == [] and host.requests == []
+        return
+    await bridge.handle_event(event, client, account_id="T", event_id="100.0")
+    if mode == "normal":
+        assert len(reads) == 38 * 8 and len(host.requests[0].history) == len(host.inputs) == 38
+        assert client.scans <= 8 * 38 + 30  # O(files), not O(chunks).
+        assert len(client.posts) == 2
+        assert all(not Path(value.local_path).exists() for value in host.inputs)
+    else:
+        assert host.requests == [] and len(client.posts) == 1
+        assert len(reads) == (1 if mode == "revoke" else 8)
+        assert '"code":"authorization_denied"' in capsys.readouterr().err
+
+
+@pytest.mark.asyncio
+async def test_requested_history_failure_has_one_authorized_final_and_no_empty_run(capsys):
+    host = Host(); client = SlackClient([]); bridge = slack(host, client, [])
+    async def unavailable(**kwargs): raise RuntimeError("PRIVATE_URL_TOKEN_CONTENT_MUST_NOT_ESCAPE")
+    client.conversations_history = unavailable
+    await bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> inspect", "ts": "50.0"}, client, account_id="T", event_id="private-event")
+    assert len(client.posts) == 2 and not host.requests
+    assert "No agent task was started" in client.posts[-1]["text"]
+    assert "PRIVATE_URL_TOKEN_CONTENT" not in str(client.posts) + capsys.readouterr().err
+    bridge.context_messages = 0
+    await bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> ordinary message", "ts": "51.0"}, client, account_id="T", event_id="next-event")
+    assert len(host.requests) == 1 and len(client.posts) == 4
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revoked", [False, True])
+async def test_transcription_timeout_keeps_original_audio_only_with_fresh_authorization(tmp_path, revoked):
+    from openagent_channel_bridges.base import VOICE_FALLBACK
+    host = Host()
+    async def transcribe(*args):
+        if revoked: host.allowed = False
+        raise TimeoutError("PRIVATE_PROVIDER_ENDPOINT")
+    host.transcribe = transcribe
+    bridge = Capture(host)
+    path = tmp_path / "voice.ogg"; path.write_bytes(b"original audio")
+    media = BridgeAttachment("voice", path.name, "audio/ogg", path.stat().st_size, local_path=str(path))
+    if revoked:
+        with pytest.raises(PermissionError):
+            await bridge.transcribe_with_fallback(str(path), context=context(), attachment=media)
+    else:
+        assert await bridge.transcribe_with_fallback(str(path), context=context(), attachment=media) == VOICE_FALLBACK
+    assert path.read_bytes() == b"original audio"
+
+
+def test_diagnostic_lines_have_closed_schema_and_no_identifiers_or_content(capsys):
+    import hashlib, json
+    from openagent_channel_bridges.diagnostics import emit_diagnostic, PREFIX
+    ctx = context()
+    emit_diagnostic(ctx, "history", "completed", files=38, bytes=52968872, transcriptions=4)
+    line = capsys.readouterr().err
+    assert line.startswith(PREFIX) and len(line.encode()) <= 1024
+    value = json.loads(line[len(PREFIX):])
+    assert set(value) == {"schema_version", "provider", "stage", "code", "event_sha256", "counters"}
+    assert value["counters"] == {"files": 38, "bytes": 52968872, "transcriptions": 4}
+    expected = hashlib.sha256(b"oa-channel-diagnostic/v1\n" + json.dumps(list(ctx.deduplication_key),
+        ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+    assert value["event_sha256"] == expected
+    assert "alice" not in line and "binding" not in line and "50.0" not in line
+    for field, bad in (("files", True), ("files", 65), ("bytes", (64<<20)+1), ("transcriptions", -1)):
+        with pytest.raises(ValueError): emit_diagnostic(ctx, "history", "failed", **{field: bad})
+    for stage, code in (("PRIVATE_PATH", "failed"), ("history", "SECRET")):
+        with pytest.raises(ValueError): emit_diagnostic(ctx, stage, code)
+
+
+@pytest.mark.asyncio
+async def test_slow_transfer_renews_only_request_local_provider_proof_and_never_caches_host_grants(monkeypatch):
+    clock = [100.0]
+    monkeypatch.setattr("openagent_channel_bridges.base.time.monotonic", lambda: clock[0])
+    class Bridge(Capture):
+        calls = 0
+        async def _delivery_context(self, value):
+            self.calls += 1
+            return value
+    host = Host(); bridge = Bridge(host)
+    proof = await bridge._prepare_delivery_context(context())
+    authorize = bridge._transfer_authorizer(proof)
+    for _ in range(100): await authorize()
+    assert bridge.calls == 1
+    clock[0] += 11
+    await authorize()
+    assert bridge.calls == 2
+    host.allowed = False
+    with pytest.raises(PermissionError): await authorize()
+    assert bridge.calls == 2  # A fresh host denial is immediate, never cached.

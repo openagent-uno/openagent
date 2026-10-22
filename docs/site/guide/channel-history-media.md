@@ -65,3 +65,55 @@ If the task exceeds the configured window or file budget, omissions remain
 explicit. Reading additional history requires a separately supported,
 normally authorized capability; no broader search, channel fallback or token
 alias is introduced by this contract.
+
+
+## Beta9 admission and streaming authorization
+
+Quiet Slack and Discord turns send their initial acknowledgement immediately
+after provider-complete audience attestation and the host's current actor,
+binding and delivery authorization. Downloads and transcription follow it.
+An internal request-local flag prevents a second acknowledgement in dispatch;
+legacy explicit live/final-only choices remain unchanged.
+
+Media chunks reauthorize the host before and after IO. They do not refetch the
+whole provider membership per 64 KiB. Provider checks remain before and after
+files, before ordinary host ingestion and before each outward publication.
+Slow transfers refresh their request-local provider proof after 10 seconds,
+checking the original audience epoch; this proof is not a host grant and
+never outlives the transfer closure. The host still authorizes each chunk.
+Slack staged uploads recheck provider audience before external-file completion.
+Discord outbound multipart publication retains its previous stricter checks.
+
+A requested history fetch failure or incomplete bounded thread scan does not
+become an empty-history run. The bridge emits an explicit error only through
+fresh normal outbound authorization. With `context_messages: 0` no history is
+requested. Authorization revocation never becomes a fallback response. A
+speech callback TimeoutError/RuntimeError may yield the existing explicit
+transcription-unavailable text only after fresh host and provider checks; the
+original audio remains an input. PermissionError, rejected host grants, closed
+transports and invalid attachment identities remain hard failures.
+
+### Closed CLI diagnostic lines
+
+Each diagnostic is at most 1024 UTF-8 bytes, including the literal ASCII prefix
+`OA_CHANNEL_DIAGNOSTIC_V1 ` and a final newline. The following JSON object has
+exactly these required keys (unknown, duplicate and null fields are invalid):
+
+```json
+{"schema_version":1,"provider":"slack","stage":"history","code":"completed","event_sha256":"<64 lowercase hexadecimal digits>","counters":{"files":38,"bytes":52968872,"transcriptions":4}}
+```
+
+Providers: slack, discord, telegram, whatsapp. Stages: admission, history,
+transcription, submission, delivery, terminal. Codes: started, completed,
+failed, authorization_denied, unavailable, cancelled. Counters contain exactly
+`files` (integer 0–64), `bytes` (integer 0–67108864), `transcriptions` (integer 0–64);
+booleans are not integers. The event hash is SHA-256 of the UTF-8 bytes
+`oa-channel-diagnostic/v1\n` followed by compact ensure_ascii=False JSON of
+`list(context.deduplication_key)`; JSON separators are comma and colon.
+
+These observations are never grants or delivery receipts. They contain no
+provider/host identifier, account, path, filename, URL, exception text, user
+content or credential. Hosts must validate this closed schema, bind provider
+to the owned process, enforce line/read/rate limits and discard all other
+stderr. Never pass arbitrary stderr through to logs or users. Diagnostic
+observer failure does not change the operation's authorization.

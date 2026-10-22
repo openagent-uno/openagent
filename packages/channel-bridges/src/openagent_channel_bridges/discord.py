@@ -19,7 +19,8 @@ from pathlib import Path
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.history import bound_history, validate_context_messages
-from openagent_channel_bridges.history_media import prepare_history_media
+from openagent_channel_bridges.history_media import prepare_history_media, HistoryUnavailable
+from openagent_channel_bridges.diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
 from openagent_channel_bridges.media import is_audio_file
 from openagent_channel_bridges.commands import BOT_COMMANDS, bridge_welcome_text
@@ -555,10 +556,12 @@ class DiscordBridge(BaseBridge):
         except PermissionError:
             raise
         except Exception:
-            # Missing optional history permission must not request more scopes
-            # or fall back to a broader channel. The current message still works.
+            # Requested context must not silently become an invented empty
+            # history. No scope expansion or broader-channel fallback exists.
             logger.warning("Discord channel context unavailable")
-            records = []
+            await self.authorize_context(context)
+            emit_diagnostic(context, "history", "unavailable")
+            raise HistoryUnavailable("Requested channel history is unavailable") from None
         records.sort(key=lambda item: int(item.event_id))
         await self._prepare_delivery_context(context)
         selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=context.event_id)
@@ -749,11 +752,16 @@ class DiscordBridge(BaseBridge):
                 shutil.rmtree(tmp, ignore_errors=True)
                 raise PermissionError("Discord event is already active")
             self._event_clients[key] = client
+            acknowledged = False
             try:
                 # Pin this turn's audience before files, speech or history.
                 # Later reads cannot bootstrap a newly joined recipient into
                 # an already running input under an incomplete context.
                 bridge_context = await self._prepare_delivery_context(bridge_context)
+                emit_diagnostic(bridge_context, "admission", "completed")
+                if not content and not message.attachments:
+                    return
+                acknowledged = await self.acknowledge_turn(message.channel, context=bridge_context)
                 for att in message.attachments:
                     filename = safe_attachment_filename(att.filename)
                     if is_blocked_attachment(filename):
@@ -836,6 +844,7 @@ class DiscordBridge(BaseBridge):
                     self._session_id(uid, native_channel_id, gid, is_dm=is_dm),
                     content,
                     context=bridge_context,
+                    acknowledged=acknowledged,
                     history=await self._history(message, bridge_context, media_directory=tmp,
                                                 current_attachments=attachments),
                     voice_detected=voice_detected,
@@ -846,6 +855,19 @@ class DiscordBridge(BaseBridge):
                         "display": display,
                     },
                 )
+            except asyncio.CancelledError:
+                emit_diagnostic(bridge_context, "terminal", "cancelled")
+                raise
+            except Exception as exc:
+                emit_diagnostic(bridge_context, "terminal", "authorization_denied" if isinstance(exc, PermissionError) else "failed")
+                if isinstance(exc, PermissionError):
+                    raise
+                if not isinstance(exc, PermissionError):
+                    failure = "I couldn’t read the requested channel history. No agent task was started." if isinstance(exc, HistoryUnavailable) else "I couldn’t complete this channel request. Please check the agent session before trying again."
+                    try:
+                        await self.send_text_chunk(message.channel, failure)
+                    except Exception:
+                        pass
             finally:
                 self._event_clients.pop(key, None)
                 self._audience_denied_events.discard(key)
@@ -960,7 +982,7 @@ class DiscordBridge(BaseBridge):
                     if header_size < 0 or limit and header_size > limit:
                         raise ValueError("Discord media exceeds the byte limit")
                     copied = await write_authorized_download(
-                        response.content, path, lambda: self._prepare_delivery_context(current), limit=limit)
+                        response.content, path, self._transfer_authorizer(self._resolve_context()), limit=limit)
                     owned = True
                     if header_size and copied != header_size or declared and copied != declared:
                         raise ValueError("Incomplete Discord media download")

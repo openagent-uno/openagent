@@ -7,12 +7,15 @@ import functools
 import logging
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Callable, Awaitable
 
 from openagent_core.media import Attachment, parse_response_markers, split_preserving_code_blocks
 from .contracts import (BridgeAttachment, BridgeCapabilities, BridgeCommand, BridgeContext,
     BridgeEvent, BridgeHistoryMessage, BridgeMessage, BridgePart, BridgeReply, BridgeTransport)
+
+from .diagnostics import emit_diagnostic
 
 logger = logging.getLogger(__name__)
 BRIDGE_RETRY_SECONDS = 30
@@ -326,6 +329,46 @@ class BaseBridge:
         _active_context.set(delivery)
         return delivery
 
+    def _transfer_authorizer(self, context: BridgeContext):
+        """Request-local provider proof, fresh host authorization per chunk.
+
+        Provider membership is refreshed at file boundaries and at most ten
+        seconds into a slow transfer. This is never a cached host grant: every
+        invocation rechecks actor, binding, epoch and all mapped recipients.
+        The provider proof cannot outlive this transfer closure.
+        """
+        current = self._resolve_context(context)
+        generation = self._generation
+        refreshed_at = time.monotonic()
+        async def authorize():
+            nonlocal current, refreshed_at
+            if time.monotonic() - refreshed_at >= 10:
+                current = await self._prepare_delivery_context(current)
+                refreshed_at = time.monotonic()
+            await self._authorize_generation(current, generation)
+            callback = getattr(self.transport, "authorize_delivery", None)
+            if current.conversation_kind != "direct" and (not current.audience_complete or not callable(callback)):
+                raise PermissionError("transfer requires a complete authorized audience")
+            if callable(callback) and await callback(current) is not True:
+                raise PermissionError("transfer audience is no longer authorized")
+            await self._authorize_generation(current, generation)
+        return authorize
+
+    async def acknowledge_turn(self, target, *, context: BridgeContext) -> bool:
+        """Acknowledge only after the normal fresh outbound authorization."""
+        if self._delivery_mode != "quiet":
+            return False
+        current = self._resolve_context(context)
+        token = _active_context.set(current)
+        try:
+            await self.authorize_context(current)
+            # Acknowledgements are one validated, bounded line. Calling the
+            # guarded primitive keeps authorization failures observable.
+            await self.send_text_chunk(target, self._acknowledgement_text)
+            return True
+        finally:
+            _active_context.reset(token)
+
     async def _authorize_outbound(self) -> None:
         await self._prepare_delivery_context(self._resolve_context())
 
@@ -518,13 +561,16 @@ class BaseBridge:
         return legacy
 
     async def dispatch_turn(self, target, session_id: str | None, text: str, *, context: BridgeContext | None = None,
-                            history: tuple[BridgeHistoryMessage, ...] = (), voice_detected=False, attachments=None, author=None) -> None:
+                            history: tuple[BridgeHistoryMessage, ...] = (), voice_detected=False, attachments=None, author=None,
+                            acknowledged: bool = False) -> None:
+        if type(acknowledged) is not bool:
+            raise ValueError("acknowledged must be a boolean")
         current = self._resolve_context(context)
         token = _active_context.set(current)
         history_token = _active_history.set(tuple(history))
         try:
             await self.authorize_context(current)
-            await self._dispatch_turn(target, session_id, text, voice_detected=voice_detected, attachments=attachments, author=author)
+            await self._dispatch_turn(target, session_id, text, voice_detected=voice_detected, attachments=attachments, author=author, acknowledged=acknowledged)
         finally:
             _active_history.reset(history_token)
             _active_context.reset(token)
@@ -547,8 +593,16 @@ class BaseBridge:
               or attachment.size_bytes is not None and attachment.size_bytes != path.stat().st_size):
             raise ValueError("Speech attachment differs from the staged audio")
         await self._authorize_generation(current, generation)
-        text = await self.transport.transcribe(current, attachment)
+        emit_diagnostic(current, "transcription", "started")
+        try:
+            text = await self.transport.transcribe(current, attachment)
+        except (TimeoutError, RuntimeError):
+            await self._authorize_generation(current, generation)
+            await self._prepare_delivery_context(current)
+            emit_diagnostic(current, "transcription", "unavailable")
+            return VOICE_FALLBACK
         await self._authorize_generation(current, generation)
+        emit_diagnostic(current, "transcription", "completed" if text else "unavailable")
         return text or VOICE_FALLBACK
 
     async def transcribe_via_gateway(self, file_path: str, *, context: BridgeContext | None = None) -> str | None:
@@ -819,6 +873,7 @@ class BaseBridge:
         voice_detected: bool = False,
         attachments: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
         author: dict[str, Any] | None = None,
+        acknowledged: bool = False,
     ) -> None:
         """Shared orchestration: post status → send_message → render reply.
 
@@ -829,8 +884,8 @@ class BaseBridge:
         the platform primitives above; the orchestration "just works".
         """
         status_handle = None
-        if self._delivery_mode == "quiet":
-            await self.send_response_text(target, self._acknowledgement_text)
+        if self._delivery_mode == "quiet" and not acknowledged:
+            await self.acknowledge_turn(target, context=self._resolve_context())
         elif self._live:
             try:
                 status_handle = await self.post_status(target, "Thinking...")

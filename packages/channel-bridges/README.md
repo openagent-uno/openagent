@@ -6,7 +6,7 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b8`. Source qualification covers 237 tests
+This source targets component `0.1.0b9`. Source qualification covers 247 tests
 and 84 subcases; closed-wheel/public artifact qualification is recorded
 separately and records its normally installed Core version. These counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
@@ -262,3 +262,13 @@ carry no authority. Normal unknown and duplicate responses still fail closed.
 only together with `history_media`. Current-only inputs and output uploads
 remain capped at 16; historical input remains limited to 64 MiB combined and
 32 MiB per file. This is a bounded selected window, not an all-history tool.
+
+
+Beta9 acknowledges an admitted quiet turn before historical downloads and
+speech. Provider audience proofs are refreshed at file, ingestion and delivery
+boundaries; each byte chunk still checks the host's current actor, binding and
+recipient authorization. A request-local proof is refreshed during slow
+transfers after ten seconds; host grants are never cached. Requested history
+failure becomes an explicit authorized error, not an invented empty context.
+The CLI emits only the closed content-free diagnostic schema documented in
+`docs/site/guide/channel-history-media.md`; consumers must discard other stderr.

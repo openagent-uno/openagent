@@ -297,12 +297,14 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client.calls), 1)
         self.assertEqual((client.posts, transport.requests), ([], []))
 
-    async def test_slack_incomplete_thread_omits_old_prefix_with_finite_calls(self):
+    async def test_slack_incomplete_thread_refuses_empty_run_with_finite_calls(self):
         bridge, transport = self.slack()
         client = SlackClient([[{"ts": "10.0", "user": "Uold", "text": "old prefix"}]], incomplete=True)
         await bridge.handle_event(slack_event(thread="10.0"), client, account_id="Tfixture", event_id="Ev-bounded")
         self.assertEqual(len(client.calls), 10)
-        self.assertEqual(transport.requests[0].history, ())
+        self.assertEqual(transport.requests, [])
+        self.assertEqual(len(client.posts), 1)
+        self.assertIn("No agent task was started", client.posts[0]["text"])
         self.assertTrue(all(kind == "replies" for kind, _ in client.calls))
 
     async def test_slack_zero_context_makes_no_history_calls(self):
