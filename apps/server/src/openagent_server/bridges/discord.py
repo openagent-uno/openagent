@@ -12,11 +12,13 @@ class DiscordBridge(_provider.DiscordBridge, StandaloneBaseBridge):
     def __init__(self, token: str, allowed_users=None, allowed_guilds=None,
                  listen_channels=None, dm_only=False,
                  gateway_url="ws://localhost:8765/ws", gateway_token=None,
-                 personality=None, live=True, *, transport=None,
-                 binding_id="discord", context_messages=20, members_intent=False):
+                 personality=None, live=None, *, transport=None,
+                 binding_id="discord", context_messages=20, members_intent=False, delivery_mode=None,
+                 acknowledgement_text=None):
         transport = transport if transport is not None else make_gateway_transport(
             gateway_url, gateway_token, name="discord", binding_id=binding_id)
         super().__init__(token, allowed_users, allowed_guilds, listen_channels, dm_only,
             personality=personality, live=live, transport=transport,
             binding_id=binding_id, context_messages=context_messages,
-            members_intent=members_intent)
+            members_intent=members_intent, delivery_mode=delivery_mode,
+            acknowledgement_text=acknowledgement_text)

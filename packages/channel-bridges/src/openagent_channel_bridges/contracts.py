@@ -160,16 +160,37 @@ class BridgePart:
 
 
 @dataclass(frozen=True, slots=True)
+class BridgeAttachmentNotice:
+    """Safe metadata for history media that was not made available to the host."""
+    kind: str
+    filename: str
+    mime_type: str = "application/octet-stream"
+    size_bytes: int = 0
+    provider_attachment_id: str | None = None
+    reason: Literal["unsupported", "limit", "unavailable", "blocked"] = "unavailable"
+
+    def __post_init__(self) -> None:
+        BridgeAttachment(self.kind, self.filename, self.mime_type, self.size_bytes,
+                         provider_attachment_id=self.provider_attachment_id)
+        if self.reason not in ("unsupported", "limit", "unavailable", "blocked"):
+            raise ValueError("unknown history media omission reason")
+
+
+@dataclass(frozen=True, slots=True)
 class BridgeHistoryMessage:
     event_id: str
     actor_id: str
     parts: tuple[BridgePart, ...]
     timestamp: str | None = None
+    omitted_attachments: tuple[BridgeAttachmentNotice, ...] = ()
 
     def __post_init__(self) -> None:
         _identifier(self.event_id, "event_id")
         _identifier(self.actor_id, "actor_id")
         object.__setattr__(self, "parts", tuple(self.parts))
+        object.__setattr__(self, "omitted_attachments", tuple(self.omitted_attachments))
+        if len(self.omitted_attachments) > 16 or any(not isinstance(item, BridgeAttachmentNotice) for item in self.omitted_attachments):
+            raise ValueError("invalid history media omissions")
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +210,8 @@ class BridgeMessage:
         object.__setattr__(self, "history", tuple(self.history))
         if len(self.history) > MAX_CONTEXT_MESSAGES:
             raise ValueError("channel history exceeds 100 messages")
+        if len(self.parts) + sum(len(item.parts) + len(item.omitted_attachments) for item in self.history) > 256:
+            raise ValueError("channel input exceeds 256 parts")
         # Include attribution and escaping overhead, not only text characters.
         from .history import history_size_bytes
         if history_size_bytes(self.history) > MAX_CONTEXT_BYTES:
@@ -209,9 +232,12 @@ class BridgeCapabilities:
     output_media: tuple[str, ...] = ()
     progress_kinds: tuple[str, ...] = ()
     api_version: int = API_VERSION
+    history_media: bool = False
 
     def __post_init__(self) -> None:
         _version(self.api_version)
+        if type(self.history_media) is not bool:
+            raise ValueError("history_media must be a boolean")
         for name in ("commands", "input_media", "output_media", "progress_kinds"):
             object.__setattr__(self, name, tuple(getattr(self, name)))
 

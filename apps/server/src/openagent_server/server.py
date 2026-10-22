@@ -1458,12 +1458,17 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_serv
         # inside BaseBridge — here we just plumb the raw string through.
         personality = cfg.get("personality")
 
-        # Live-message mode: post each tool call + narration span as its
-        # own chat message while the turn runs (Hermes-style), alongside
-        # the "is writing" indicator. On by default; opt out per channel
-        # with ``channels.<name>.live: false`` or globally with the
-        # ``OPENAGENT_CHANNEL_LIVE`` env var.
+        # Preserve explicit legacy live choices. Slack/Discord now default to
+        # quiet acknowledgement/final delivery; live narration is opt-in.
         live = bool(cfg.get("live", _channel_live_default()))
+        delivery_mode = cfg.get("delivery_mode") if name in {"slack", "discord"} else None
+        if name in {"slack", "discord"}:
+            if delivery_mode is not None:
+                if delivery_mode not in {"quiet", "live"} or "live" in cfg:
+                    raise ValueError("Choose delivery_mode quiet/live or the legacy live option")
+                live = None
+            elif "live" not in cfg and "OPENAGENT_CHANNEL_LIVE" not in os.environ:
+                live, delivery_mode = None, "quiet"
         transport = None
         if name in {"slack", "discord"} and cfg.get("identity") is not None:
             if runtime_service is None:
@@ -1515,6 +1520,8 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_serv
                 gateway_token=None,
                 personality=personality,
                 live=live,
+                delivery_mode=delivery_mode,
+                acknowledgement_text=cfg.get("acknowledgement_text"),
                 transport=transport,
             ))
 
@@ -1552,6 +1559,8 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_serv
                 gateway_token=None,
                 personality=personality,
                 live=live,
+                delivery_mode=delivery_mode,
+                acknowledgement_text=cfg.get("acknowledgement_text"),
                 transport=transport,
             ))
 

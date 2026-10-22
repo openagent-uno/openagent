@@ -109,12 +109,14 @@ mcps:
 # kawaii, pirate, noir, philosopher) OR a free-form string treated as
 # the literal persona directive.
 #
-# ``live`` (default true) makes the bridge narrate the turn in-chat:
-# each tool call and each span of the answer is posted as its own
+# Explicit ``live: true`` makes the bridge narrate the turn in-chat:
+# each tool call and answer span is posted as its own
 # message while the "is writing" indicator stays lit — the Hermes-style
 # feed. Set ``live: false`` per channel (or ``OPENAGENT_CHANNEL_LIVE=0``
 # globally) to fall back to a single final reply per turn. Voice-note
 # turns always use the single-reply path regardless of this setting.
+# Slack/Discord now default to quiet acknowledgement + final reply; their
+# optional delivery_mode is mutually exclusive with the legacy live flag.
 channels:
   telegram:
     token: "${TELEGRAM_BOT_TOKEN}"     # or hard-code; env wins if both set
@@ -129,6 +131,7 @@ channels:
     listen_channels: []                # shared channels; all members may talk
     dm_only: false
     personality: technical
+    delivery_mode: quiet
 
   whatsapp:
     green_api_id: "${GREEN_API_ID}"
@@ -142,6 +145,7 @@ channels:
     allowed_users: ["U0123456789"]
     listen_channels: ["C0123456789"]
     personality: technical
+    delivery_mode: quiet
 
   # The one INBOUND channel: a dedicated HTTP listener on its own port
   # serving only /hooks/*. An external service (or a peer) calls it to fire

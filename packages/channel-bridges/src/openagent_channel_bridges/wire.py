@@ -295,7 +295,8 @@ def to_wire(value, store: ArtifactStore, request_id):
     if isinstance(value, BridgeAttachment):
         return store.register(request_id, value)
     if is_dataclass(value):
-        return {field.name: to_wire(getattr(value, field.name), store, request_id) for field in fields(value)}
+        return {field.name: to_wire(getattr(value, field.name), store, request_id) for field in fields(value)
+                if field.name != "omitted_attachments" or getattr(value, field.name)}
     if isinstance(value, (tuple, list)):
         return [to_wire(item, store, request_id) for item in value]
     if value is None or type(value) in (str, int, bool, float):

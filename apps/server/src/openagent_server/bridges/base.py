@@ -50,10 +50,11 @@ _GATEWAY_FIELDS = frozenset(("gateway_url", "gateway_token", "_ws", "_ws_session
 
 
 class BaseBridge(SharedBaseBridge):
-    def __init__(self, gateway_url="ws://localhost:8765/ws", gateway_token=None, personality=None, live=True,
-                 *, transport=None, binding_id=None):
+    def __init__(self, gateway_url="ws://localhost:8765/ws", gateway_token=None, personality=None, live=None,
+                 *, transport=None, binding_id=None, delivery_mode=None, acknowledgement_text=None):
         transport = transport if transport is not None else make_gateway_transport(gateway_url, gateway_token, name=self.name)
-        super().__init__(transport=transport, binding_id=binding_id, personality=personality, live=live)
+        super().__init__(transport=transport, binding_id=binding_id, personality=personality,
+                         live=live, delivery_mode=delivery_mode, acknowledgement_text=acknowledgement_text)
 
     def __getattr__(self, name):
         transport = self.__dict__.get("transport")

@@ -19,6 +19,7 @@ from pathlib import Path
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.history import bound_history, validate_context_messages
+from openagent_channel_bridges.history_media import prepare_history_media
 from openagent_core.media import is_blocked_attachment
 from openagent_channel_bridges.media import is_audio_file
 from openagent_channel_bridges.commands import BOT_COMMANDS, bridge_welcome_text
@@ -155,14 +156,17 @@ class DiscordBridge(BaseBridge):
         listen_channels: list[str] | None = None,
         dm_only: bool = False,
         personality: str | None = None,
-        live: bool = True,
+        live: bool | None = None,
         *,
         transport,
         binding_id: str,
         context_messages: int = 20,
         members_intent: bool = False,
+        delivery_mode: str | None = None,
+        acknowledgement_text: str | None = None,
     ):
-        super().__init__(transport=transport, binding_id=binding_id, personality=personality, live=live)
+        super().__init__(transport=transport, binding_id=binding_id, personality=personality,
+                         live=live, delivery_mode=delivery_mode, acknowledgement_text=acknowledgement_text)
         if not isinstance(binding_id, str) or not binding_id:
             raise ValueError("A host-owned binding_id is required")
         self.binding_id = binding_id
@@ -498,7 +502,8 @@ class DiscordBridge(BaseBridge):
             logger.warning("Discord audience unavailable: %s", type(exc).__name__)
             return deny_audience()
 
-    async def _history(self, message, context: BridgeContext) -> tuple[BridgeHistoryMessage, ...]:
+    async def _history(self, message, context: BridgeContext, *, media_directory=None,
+                       current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
             return ()
         guild = getattr(message, "guild", None)
@@ -510,6 +515,7 @@ class DiscordBridge(BaseBridge):
         if str(message.channel.id) != destination_id:
             raise PermissionError("Discord history target differs from its context")
         records = []
+        files = {}
         # A Thread is itself the exact channel object. Never follow references
         # into another channel or fetch from a guild-wide search endpoint.
         try:
@@ -530,10 +536,22 @@ class DiscordBridge(BaseBridge):
                     continue
                 text = getattr(item, "content", None)
                 actor = str(getattr(getattr(item, "author", None), "id", ""))
-                if isinstance(text, str) and text and actor:
+                if actor:
                     timestamp = getattr(item, "created_at", None)
-                    records.append(BridgeHistoryMessage(str(item.id), actor, (BridgePart(text=text),),
-                        timestamp=timestamp.isoformat() if timestamp else None))
+                    parts = [BridgePart(text=text)] if isinstance(text, str) and text else []
+                    for value in tuple(getattr(item, "attachments", ()) or ())[:16]:
+                        if getattr(value, "id", None) is None:
+                            continue
+                        name = safe_attachment_filename(value.filename)
+                        mime = str(getattr(value, "content_type", None) or "application/octet-stream")
+                        kind = "voice" if is_audio_file(name, mime) else "image" if mime.startswith("image/") else "video" if mime.startswith("video/") else "file"
+                        attachment = BridgeAttachment(kind, name, mime, max(0, int(getattr(value, "size", 0) or 0)),
+                            provider_attachment_id=str(value.id))
+                        files[(str(item.id), attachment.provider_attachment_id)] = value
+                        parts.append(BridgePart(attachment=attachment))
+                    if parts:
+                        records.append(BridgeHistoryMessage(str(item.id), actor, tuple(parts),
+                            timestamp=timestamp.isoformat() if timestamp else None))
         except PermissionError:
             raise
         except Exception:
@@ -543,7 +561,18 @@ class DiscordBridge(BaseBridge):
             records = []
         records.sort(key=lambda item: int(item.event_id))
         await self._prepare_delivery_context(context)
-        return bound_history(records, context_messages=self.context_messages, exclude_event_id=context.event_id)
+        selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=context.event_id)
+        async def load(record, attachment, remaining_bytes):
+            if media_directory is None:
+                raise ValueError("Historical media staging unavailable")
+            directory = tempfile.mkdtemp(prefix="history-", dir=media_directory)
+            path = Path(directory) / safe_attachment_staging_name(attachment.provider_attachment_id, attachment.filename)
+            await self._download_attachment(files[(record.event_id, attachment.provider_attachment_id)], path,
+                context=context, channel_id=destination_id, max_bytes=remaining_bytes)
+            return replace(attachment, local_path=str(path), size_bytes=path.stat().st_size)
+        selected = await prepare_history_media(self, selected, context, load,
+                                               current_attachments=current_attachments)
+        return bound_history(selected, context_messages=self.context_messages, exclude_event_id=context.event_id)
 
     @staticmethod
     def _session_id(
@@ -807,7 +836,8 @@ class DiscordBridge(BaseBridge):
                     self._session_id(uid, native_channel_id, gid, is_dm=is_dm),
                     content,
                     context=bridge_context,
-                    history=await self._history(message, bridge_context),
+                    history=await self._history(message, bridge_context, media_directory=tmp,
+                                                current_attachments=attachments),
                     voice_detected=voice_detected,
                     attachments=attachments,
                     author={
@@ -897,7 +927,7 @@ class DiscordBridge(BaseBridge):
         import aiohttp
         return aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=_DISCORD_MEDIA_DOWNLOAD_TIMEOUT))
 
-    async def _download_attachment(self, attachment, path, *, context, channel_id):
+    async def _download_attachment(self, attachment, path, *, context, channel_id, max_bytes=None):
         """Stream only the SDK attachment's fixed Discord CDN target."""
         from urllib.parse import urlsplit
         current = self._resolve_context(context)
@@ -911,6 +941,10 @@ class DiscordBridge(BaseBridge):
                 or channel_id != (current.thread_id or current.conversation_id)):
             raise PermissionError("Discord media source differs from its SDK context")
         limit = attachment_limit_bytes(direction="input")
+        if max_bytes is not None:
+            if type(max_bytes) is not int or max_bytes <= 0:
+                raise ValueError("Historical media byte budget exhausted")
+            limit = min(limit, max_bytes) if limit else max_bytes
         declared = int(getattr(attachment, "size", 0) or 0)
         if declared < 0 or limit and declared > limit:
             raise ValueError("Discord media exceeds the byte limit")

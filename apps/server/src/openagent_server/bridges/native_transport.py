@@ -20,6 +20,7 @@ from openagent_channel_bridges.contracts import (
 )
 from openagent_channel_bridges.history import render_history
 from openagent_channel_bridges.media import authorized_file_chunks, media_file_snapshot
+from .terminal import terminal_answer
 
 
 class _Artifacts:
@@ -142,7 +143,7 @@ class NativeChannelTransport:
         self.enabled = True
         return BridgeCapabilities(input_media=("file", "image", "audio", "voice", "video"),
                                   output_media=("file", "image", "audio", "voice", "video"),
-                                  progress_kinds=("status", "text"))
+                                  progress_kinds=("status", "text"), history_media=True)
 
     async def stop(self):
         self.enabled = False
@@ -181,10 +182,12 @@ class NativeChannelTransport:
         artifacts = ArtifactRepository(self.service.agent.memory_db, _Artifacts(self, request.context),
                                        max_input_bytes=32 << 20, max_output_bytes=32 << 20)
         attachments = []
-        media_parts = [part for part in request.parts if part.attachment is not None]
-        if len(media_parts) > 16 or sum(part.attachment.size_bytes for part in media_parts) > 128 << 20:
+        input_parts = request.parts + tuple(part for record in request.history for part in record.parts
+                                            if part.attachment is not None)
+        media_parts = [part for part in input_parts if part.attachment is not None]
+        if len(media_parts) > 16 or sum(part.attachment.size_bytes for part in media_parts) > 64 << 20:
             raise ValueError("Channel input media limit reached")
-        for part in (() if accepted is not None else request.parts):
+        for part in (() if accepted is not None else input_parts):
             attachment = part.attachment
             if attachment is None:
                 continue
@@ -231,11 +234,13 @@ class NativeChannelTransport:
             return BridgeReply(status="failed", session_ref=context.session_id, run_ref=run_id)
         if not await self._fresh(request.context, canonical):
             raise PermissionError("Channel result audience changed")
-        source_parts = (final or {}).get("parts")
+        answer = terminal_answer(final or {},
+            require_attested=getattr(self.bridge, "_delivery_mode", "quiet") == "quiet")
+        source_parts = answer.get("parts")
         if source_parts is None:
-            source_parts = [{"kind": "text", "text": (final or {}).get("text", record.output) or ""}]
+            source_parts = [{"kind": "text", "text": answer.get("text", "") or ""}]
             source_parts += [{"kind": "attachment", "attachment": value}
-                             for value in (final or {}).get("attachments") or ()]
+                             for value in answer.get("attachments") or ()]
         parts = []
         for part in source_parts:
             if part.get("kind") == "text":

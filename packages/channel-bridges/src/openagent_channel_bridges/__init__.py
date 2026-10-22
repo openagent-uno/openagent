@@ -4,7 +4,7 @@ Provider SDK imports remain lazy; contracts can be used without an SDK or Core.
 """
 from .contracts import (
     API_VERSION, DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES,
-    BridgeAttachment, BridgeCapabilities, BridgeCommand, BridgeCommandDefinition,
+    BridgeAttachment, BridgeAttachmentNotice, BridgeCapabilities, BridgeCommand, BridgeCommandDefinition,
     BridgeCommandResult, BridgeContext, BridgeConversation, BridgeEvent, BridgeHistoryMessage,
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )

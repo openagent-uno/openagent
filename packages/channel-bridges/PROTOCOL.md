@@ -1,5 +1,22 @@
 # channel-bridge-ipc/v1
 
+Unreleased additive source contract: a host may return `history_media: true`
+in `start` capabilities. Historical attachment parts then use exactly the
+current-input attachment DTO and request-local `read_artifact` handles.
+`history[].omitted_attachments` optionally lists safe metadata with reason
+`unsupported`, `limit`, `unavailable` or `blocked`; a notice grants no reader.
+Absent `history_media` means false. Current plus historical files remain
+bounded to 16 / 64 MiB, historical files to 32 MiB each, all parts to 256 and
+attributed history metadata to 64 KiB. See the
+[source contract](../../docs/site/guide/channel-history-media.md).
+
+Slack/Discord configuration also accepts `delivery_mode: quiet|live`, mutually
+exclusive with the legacy `live` flag. Quiet sends initial acknowledgement and
+final reply only; live progress remains explicit opt-in. This draft does not
+relabel any published beta6 asset or establish provider acceptance.
+Optional `acknowledgement_text` is host-controlled, single-line and limited to
+512 UTF-8 bytes; it does not enable automatic locale/profile discovery.
+
 One child process owns one provider binding. All frames are UTF-8 NDJSON with
 `protocol: "channel-bridge-ipc/v1"`. Lines are limited to 2 MiB. Request IDs are
 bounded printable ASCII strings. Unknown fields, duplicate JSON keys, NaN,

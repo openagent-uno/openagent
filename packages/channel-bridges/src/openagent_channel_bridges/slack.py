@@ -43,6 +43,7 @@ from urllib.parse import urlparse
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.history import bound_history, validate_context_messages
+from openagent_channel_bridges.history_media import prepare_history_media
 from openagent_core.media import is_blocked_attachment
 from openagent_channel_bridges.media import is_audio_file
 from openagent_channel_bridges.base import elog
@@ -125,13 +126,16 @@ class SlackBridge(BaseBridge):
         allowed_users: list[str] | None = None,
         listen_channels: list[str] | None = None,
         personality: str | None = None,
-        live: bool = True,
+        live: bool | None = None,
         *,
         transport,
         binding_id: str,
         context_messages: int = 20,
+        delivery_mode: str | None = None,
+        acknowledgement_text: str | None = None,
     ):
-        super().__init__(transport=transport, binding_id=binding_id, personality=personality, live=live)
+        super().__init__(transport=transport, binding_id=binding_id, personality=personality,
+                         live=live, delivery_mode=delivery_mode, acknowledgement_text=acknowledgement_text)
         if not isinstance(binding_id, str) or not binding_id:
             raise ValueError("A host-owned binding_id is required")
         self.binding_id = binding_id
@@ -265,7 +269,8 @@ class SlackBridge(BaseBridge):
             logger.warning("Slack audience unavailable: %s", type(exc).__name__)
             return deny_audience()
 
-    async def _history(self, client, context: BridgeContext, *, is_dm: bool, trigger_ts: str) -> tuple[BridgeHistoryMessage, ...]:
+    async def _history(self, client, context: BridgeContext, *, is_dm: bool, trigger_ts: str,
+                       media_directory: str | None = None, current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
             return ()
         if not self._is_authorized(context.actor_id) or not self._channel_listened(context.conversation_id, is_dm):
@@ -277,6 +282,7 @@ class SlackBridge(BaseBridge):
         except InvalidOperation:
             raise ValueError("Slack message timestamp is invalid") from None
         records = []
+        files = {}
         cursor = None
         # Slack replies are oldest-first. Read at most 10 bounded pages; if the
         # end is not reached, omit context rather than mislabel an old prefix
@@ -313,8 +319,19 @@ class SlackBridge(BaseBridge):
                 if not context.thread_id and thread and thread != event:
                     continue
                 text = message.get("text")
-                if isinstance(text, str) and text and len(text.encode("utf-8")) <= 65536:
-                    records.append(BridgeHistoryMessage(event, actor, (BridgePart(text=text),), timestamp=event))
+                parts = [BridgePart(text=text)] if isinstance(text, str) and text and len(text.encode("utf-8")) <= 65536 else []
+                for value in (message.get("files") or ())[:16]:
+                    if not isinstance(value, dict) or not value.get("id"):
+                        continue
+                    name = safe_attachment_filename(value.get("name") or value.get("title") or "attachment")
+                    mime = str(value.get("mimetype") or "application/octet-stream")
+                    kind = "voice" if is_audio_file(name, mime) else "image" if mime.startswith("image/") else "video" if mime.startswith("video/") else "file"
+                    attachment = BridgeAttachment(kind, name, mime, max(0, int(value.get("size") or 0)),
+                        provider_attachment_id=str(value["id"]))
+                    files[(event, attachment.provider_attachment_id)] = value
+                    parts.append(BridgePart(attachment=attachment))
+                if parts:
+                    records.append(BridgeHistoryMessage(event, actor, tuple(parts), timestamp=event))
             cursor = str((response.get("response_metadata") or {}).get("next_cursor") or "")
             if not context.thread_id or not cursor and not response.get("has_more"):
                 break
@@ -323,7 +340,22 @@ class SlackBridge(BaseBridge):
                 return ()
         records.sort(key=lambda item: Decimal(item.event_id))
         await self.authorize_context(context)
-        return bound_history(records, context_messages=self.context_messages, exclude_event_id=trigger_ts)
+        selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=trigger_ts)
+        async def load(record, attachment, remaining_bytes):
+            if media_directory is None or is_blocked_attachment(attachment.filename):
+                raise ValueError("Historical media staging unavailable")
+            value = files[(record.event_id, attachment.provider_attachment_id)]
+            url = str(value.get("url_private_download") or value.get("url_private") or "")
+            directory = tempfile.mkdtemp(prefix="history-", dir=media_directory)
+            outcome = await self._download_file(url, directory, attachment.filename,
+                declared_size=attachment.size_bytes, context=context, max_bytes=remaining_bytes)
+            path = outcome if isinstance(outcome, str) else outcome.path
+            if not path:
+                raise ValueError("Historical Slack media unavailable")
+            return replace(attachment, local_path=path, size_bytes=Path(path).stat().st_size)
+        selected = await prepare_history_media(self, selected, context, load,
+                                               current_attachments=current_attachments)
+        return bound_history(selected, context_messages=self.context_messages, exclude_event_id=trigger_ts)
 
     def _channel_listened(self, channel_id: str, is_dm: bool) -> bool:
         # DMs are always listened to (subject to allowed_users), public
@@ -516,7 +548,8 @@ class SlackBridge(BaseBridge):
                 user=user_id,
                 thread_ts=reply_thread,
             )
-            history = await self._history(client, bridge_context, is_dm=is_dm, trigger_ts=str(event.get("ts") or ""))
+            history = await self._history(client, bridge_context, is_dm=is_dm, trigger_ts=str(event.get("ts") or ""),
+                                          media_directory=tmp, current_attachments=attachments)
             await self.dispatch_turn(
                 target,
                 session_id,
@@ -848,6 +881,7 @@ class SlackBridge(BaseBridge):
         *,
         declared_size: int = 0,
         context: BridgeContext | None = None,
+        max_bytes: int | None = None,
     ) -> _SlackDownloadOutcome:
         """Fetch a private Slack file using bot auth and a strict byte cap."""
 
@@ -865,6 +899,10 @@ class SlackBridge(BaseBridge):
             )
             return _SlackDownloadOutcome(path=None, error="download_failed")
         limit = attachment_limit_bytes(direction="input")
+        if max_bytes is not None:
+            if type(max_bytes) is not int or max_bytes <= 0:
+                return _SlackDownloadOutcome(path=None, error="too_large")
+            limit = min(limit, max_bytes) if limit else max_bytes
         if declared_size < 0:
             return _SlackDownloadOutcome(path=None, error="download_failed")
         if limit and declared_size > limit:

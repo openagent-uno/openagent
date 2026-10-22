@@ -32,8 +32,8 @@ from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
 MAX_PENDING = 64
 PROVIDERS = ("slack", "discord", "telegram", "whatsapp")
 _CONFIG = {
-    "slack": ({"bot_token"}, {"bot_token", "app_token", "allowed_users", "listen_channels", "context_messages", "personality", "live"}),
-    "discord": ({"token"}, {"token", "allowed_users", "allowed_guilds", "listen_channels", "dm_only", "members_intent", "context_messages", "personality", "live"}),
+    "slack": ({"bot_token"}, {"bot_token", "app_token", "allowed_users", "listen_channels", "context_messages", "personality", "live", "delivery_mode", "acknowledgement_text"}),
+    "discord": ({"token"}, {"token", "allowed_users", "allowed_guilds", "listen_channels", "dm_only", "members_intent", "context_messages", "personality", "live", "delivery_mode", "acknowledgement_text"}),
     "telegram": ({"token"}, {"token", "allowed_users", "allowed_chats", "streaming", "personality", "live"}),
     "whatsapp": ({"instance_id", "api_token"}, {"instance_id", "api_token", "allowed_users", "personality", "live"}),
 }
@@ -242,6 +242,8 @@ def configure(frame, transport):
     else:
         required, allowed = _CONFIG[provider]
     config = object_fields(frame["config"], allowed, required)
+    if "delivery_mode" in config and (config["delivery_mode"] not in ("quiet", "live") or "live" in config):
+        raise WireError("invalid_configuration")
     for name, value in config.items():
         if name in ("live", "streaming", "dm_only", "members_intent"):
             if type(value) is not bool:

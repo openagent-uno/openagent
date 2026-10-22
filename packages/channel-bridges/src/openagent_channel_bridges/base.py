@@ -209,13 +209,26 @@ class BaseBridge:
     _live = True
 
     def __init__(self, *, transport: BridgeTransport, binding_id: str | None = None,
-                 personality: str | None = None, live: bool = True):
+                 personality: str | None = None, live: bool | None = None,
+                 delivery_mode: str | None = None, acknowledgement_text: str | None = None):
         if transport is None:
             raise ValueError("an explicit bridge transport is required")
         self.transport = transport
         self.binding_id = binding_id
         self._personality_directive = resolve_personality_directive(personality)
-        self._live = bool(live)
+        if delivery_mode not in (None, "quiet", "live"):
+            raise ValueError("delivery_mode must be quiet or live")
+        if delivery_mode is not None and live is not None:
+            raise ValueError("choose delivery_mode or the legacy live option")
+        # Explicit legacy live=False keeps final-only delivery. The default
+        # quiet profile acknowledges once and never publishes intermediate IO.
+        self._delivery_mode = delivery_mode or ("quiet" if live is None else "live" if live else "final")
+        self._live = self._delivery_mode == "live"
+        if acknowledgement_text is not None and (not isinstance(acknowledgement_text, str)
+                or not acknowledgement_text.strip() or len(acknowledgement_text.encode("utf-8")) > 512
+                or any(ord(char) < 32 or ord(char) == 127 for char in acknowledgement_text)):
+            raise ValueError("acknowledgement_text must be a nonempty single line of at most 512 UTF-8 bytes")
+        self._acknowledgement_text = acknowledgement_text or "Received. I’ll reply when finished."
         self._should_stop = False
         self._generation = 0
         self._gateway_lost = getattr(transport, "loss_event", None) or asyncio.Event()
@@ -815,11 +828,14 @@ class BaseBridge:
         Discord, and WhatsApp. A subclass usually only needs to fill in
         the platform primitives above; the orchestration "just works".
         """
-        try:
-            status_handle = await self.post_status(target, "Thinking...")
-        except Exception as e:  # noqa: BLE001
-            logger.debug("%s: post_status failed (%s)", self.name, type(e).__name__)
-            status_handle = None
+        status_handle = None
+        if self._delivery_mode == "quiet":
+            await self.send_response_text(target, self._acknowledgement_text)
+        elif self._live:
+            try:
+                status_handle = await self.post_status(target, "Thinking...")
+            except Exception as e:  # noqa: BLE001
+                logger.debug("%s: post_status failed (%s)", self.name, type(e).__name__)
 
         # Live-message mode posts tool calls + narration as separate
         # chat messages as the turn unfolds. Disabled for voice turns:
@@ -907,7 +923,7 @@ class BaseBridge:
         compaction_handle: dict = {"h": None}
 
         async def on_compaction(data: dict) -> None:
-            if voice_detected:
+            if voice_detected or not self._live:
                 return
             phase = str(data.get("phase") or "done")
             if phase == "running":

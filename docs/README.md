@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Unreleased channel quiet delivery and historical media contract](site/guide/channel-history-media.md)
+
 - [Beta55 public wheel and installer qualification](qualification/product-beta55-2026-10-22.json)
 - [Channel bridges beta6 public artifact qualification](qualification/channel-bridges-0.1.0b6-2026-10-22.json)
 - [Beta55 main-chat replies and explicit threads](releases/v1.1.0-beta.55.md)

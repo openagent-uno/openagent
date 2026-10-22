@@ -19,6 +19,8 @@ from openagent_channel_bridges.contracts import (BridgeAttachment, BridgeCapabil
     BridgeCommandResult, BridgeEvent, BridgePart, BridgeReply, BridgePickerOption)
 from openagent_channel_bridges.commands import COMMAND_SPECS
 from openagent_channel_bridges.history import render_history
+from openagent_channel_bridges.media import read_authorized_response
+from .terminal import terminal_answer
 logger = logging.getLogger(__name__)
 BRIDGE_WS_HEARTBEAT_SECONDS = 30
 BRIDGE_GATEWAY_LOSS_GRACE_SECONDS = float(os.environ.get("OPENAGENT_BRIDGE_GATEWAY_LOSS_GRACE_SECONDS", "55"))
@@ -105,6 +107,11 @@ class GatewayBridgeTransport:
                     "display": request.context.actor_id})
         _legacy_reply_target.set(response.get("target"))
         parts = []
+        if response.get("type") not in {"duplicate", "error"} and getattr(getattr(self, "_bridge", None), "_delivery_mode", "quiet") == "quiet":
+            answer = terminal_answer(response)
+            parts = await self._materialize_final_reply(request.context, answer)
+            return BridgeReply(parts=tuple(parts), model=response.get("model"),
+                               session_ref=self._session_for_context(request.context))
         if response.get("text"):
             parts.append(BridgePart(text=response["text"]))
         for raw in response.get("attachments") or ():
@@ -117,6 +124,84 @@ class GatewayBridgeTransport:
                 local_path=path, mime_type=field("mime_type") or "application/octet-stream")))
         status = "coalesced" if response.get("type") == "duplicate" else "failed" if response.get("type") == "error" else "completed"
         return BridgeReply(parts=tuple(parts), status=status, model=response.get("model"), session_ref=self._session_for_context(request.context))
+
+    async def _materialize_final_reply(self, context, answer):
+        """Read canonical final media through the normal authenticated gateway."""
+        from dataclasses import replace
+        from urllib.parse import quote
+        import re
+        import aiohttp
+        raw = answer.get("parts")
+        if raw is None:
+            raw = ([{"kind": "text", "text": answer["text"]}] if answer.get("text") else [])
+            raw += [{"kind": "attachment", "attachment": value} for value in answer.get("attachments") or ()]
+        parts, created, total = [], [], 0
+        async def authorize():
+            bridge = getattr(self, "_bridge", None)
+            if bridge is None or self._should_stop:
+                raise PermissionError("Channel media binding unavailable")
+            await bridge._prepare_delivery_context(context)
+        try:
+            for part in raw:
+                if part.get("kind") == "text":
+                    if not isinstance(part.get("text"), str):
+                        raise ValueError("Invalid final answer part")
+                    parts.append(BridgePart(text=part["text"]))
+                    continue
+                if part.get("kind") != "attachment" or not isinstance(part.get("attachment"), dict):
+                    raise ValueError("Invalid final answer part")
+                value = part["attachment"]
+                identifier, digest, size = value.get("artifact_id"), value.get("sha256"), value.get("size_bytes")
+                if (not isinstance(identifier, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", identifier)
+                        or not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest)
+                        or type(size) is not int or not 0 <= size <= 32 << 20
+                        or total + size > 64 << 20 or len(created) >= 16):
+                    raise ValueError("Invalid or oversized final answer artifact")
+                attachment = BridgeAttachment(value.get("kind") or value.get("type") or "file",
+                    value.get("filename") or identifier, value.get("mime_type") or "application/octet-stream", size)
+                await authorize()
+                session = await self._audio_session()
+                if session is None:
+                    raise RuntimeError("Gateway media reader unavailable")
+                # Ignore any supplied URL: use the existing same-host route,
+                # current gateway credentials and normal artifact ACL checks.
+                url = self._http_base() + "/api/artifacts/" + quote(identifier, safe="") + "/content"
+                async with session.get(url, headers=self._auth_headers(),
+                        timeout=aiohttp.ClientTimeout(total=120), allow_redirects=False) as response:
+                    if response.status != 200:
+                        raise RuntimeError("Final answer artifact unavailable")
+                    content = await read_authorized_response(response.content, authorize, limit=size)
+                if len(content) != size or hashlib.sha256(content).hexdigest() != digest:
+                    raise ValueError("Final answer artifact integrity changed")
+                await authorize()
+                for old in tuple(self._delivery_files):
+                    if not old.exists():
+                        self._delivery_files.pop(old)
+                if len(self._delivery_files) >= 64:
+                    raise ValueError("Channel delivery media limit reached")
+                with tempfile.NamedTemporaryFile(prefix="oa-channel-final-", delete=False) as file:
+                    file.write(content)
+                    info = os.fstat(file.fileno())
+                path = Path(file.name)
+                self._delivery_files[path] = (info.st_dev, info.st_ino)
+                created.append(path)
+                total += size
+                parts.append(BridgePart(attachment=replace(attachment, local_path=str(path), owned=True)))
+            await authorize()
+            return parts
+        except BaseException:
+            for path in created:
+                self._remove_delivery_file(path)
+            raise
+
+    def _remove_delivery_file(self, path):
+        expected = self._delivery_files.pop(path, None)
+        try:
+            info = path.lstat()
+            if expected == (info.st_dev, info.st_ino) and not path.is_symlink():
+                path.unlink()
+        except FileNotFoundError:
+            pass
 
     async def command(self, request):
         if not await self.authorize_context(request.context):
@@ -197,11 +282,14 @@ class GatewayBridgeTransport:
         # the agent-owned connection lets this run concurrently without
         # blocking writes.
         self._learning_conn = None  # type: ignore[var-annotated]
+        self._delivery_files = {}
 
 
     async def stop(self) -> None:
         elog("bridge.stop", name=self.name)
         self._should_stop = True
+        for path in tuple(self._delivery_files):
+            self._remove_delivery_file(path)
         self._cancel_gateway_loss_cleanup()
         if self._listener_task and not self._listener_task.done():
             self._listener_task.cancel()

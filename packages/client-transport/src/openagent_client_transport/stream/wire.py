@@ -122,6 +122,23 @@ def event_to_wire(
                     part.get("attachment"), dict,
                 ):
                     part["attachment"] = public_attachment_ref(part["attachment"])
+        final_answer = getattr(evt, "final_answer", None)
+        extra = {}
+        if final_answer is not None:
+            from openagent_client_transport.helpers import public_attachment_ref
+            # Final-answer media is always a canonical public reference, even
+            # when a trusted legacy client requested local paths elsewhere.
+            final = dict(final_answer)
+            if "attachments" in final:
+                final["attachments"] = [public_attachment_ref(item) for item in final.get("attachments") or ()]
+            if "parts" in final:
+                final["parts"] = [dict(item) for item in final.get("parts") or ()]
+            for part in final.get("parts") or ():
+                if part.get("kind") == "attachment" and isinstance(part.get("attachment"), dict):
+                    part["attachment"] = public_attachment_ref(part["attachment"])
+            extra["final_answer"] = final
+        elif hasattr(evt, "final_answer"):
+            extra["final_answer"] = None
         return {
             **base,
             "type": P.RESPONSE,
@@ -129,6 +146,7 @@ def event_to_wire(
             "attachments": attachments or None,
             "parts": parts or None,
             "model": evt.model,
+            **extra,
         }
     if isinstance(evt, OutAudioStart):
         return {
@@ -400,6 +418,7 @@ def wire_to_event(frame: dict[str, Any]) -> Event | None:
             attachments=tuple(frame.get("attachments") or ()),
             parts=tuple(frame.get("parts") or ()),
             model=frame.get("model"),
+            **({"final_answer": frame["final_answer"]} if "final_answer" in frame else {}),
         )
     if t == P.AUDIO_START:
         return OutAudioStart(
