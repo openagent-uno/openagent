@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "50d9918df7b677f3cab7a159fe0303b56aee45e4",
+  "version": "0.1.0b9",
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.9",
+  "manifestSHA256": "82944f65ae3a07f90a0fc66a97f772696527a74cb4c2d9c3d43f883b7b0d8464",
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b9-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b9",
+    "sha256": "1907b3948c03a9c1eda804bb299fd0dad3e9967ca73d3db84efcce0e9fdfc4f8",
+    "bytes": 117483,
+    "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/openagent_channel_bridges-0.1.0b9-py3-none-any.whl"
+  },
+  "assets": [
+    {
+      "file": "conversation-v1-vectors.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/conversation-v1-vectors.json",
+      "sha256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+      "bytes": 17078,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "manifest.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/manifest.json",
+      "sha256": "82944f65ae3a07f90a0fc66a97f772696527a74cb4c2d9c3d43f883b7b0d8464",
+      "bytes": 5365,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "openagent_channel_bridges-0.1.0b9-py3-none-any.whl",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/openagent_channel_bridges-0.1.0b9-py3-none-any.whl",
+      "sha256": "1907b3948c03a9c1eda804bb299fd0dad3e9967ca73d3db84efcce0e9fdfc4f8",
+      "bytes": 117483,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "protocol.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/protocol.json",
+      "sha256": "f7f6663fb4b61793abc25f05984c77ef9dacc2296fe9bd777cc94997fdfa00f0",
+      "bytes": 627,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "qualification.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/qualification.json",
+      "sha256": "357e1cd58852d04fb5992c4acb6025b2d57381792b2c07aa71558176dbe2d53d",
+      "bytes": 1809,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.9/SHA256SUMS",
+      "sha256": "8bfd86cc1ec59413c35ad2a780ef810c936a770da22ad056eaac05382ce3bf42",
+      "bytes": 457,
+      "anonymousFullReadback": true
+    }
+  ],
+  "normalInstalledQualification": {
+    "passed": true,
+    "tests": 247,
+    "subtests": 84,
+    "skipped": 0,
+    "core": "1.1.0b28",
+    "wheelSource": "normal anonymous public HTTPS URL with SHA256",
+    "sourceOverlay": false
+  },
+  "minimalCoreVersions": [
+    "1.1.0b24",
+    "1.1.0b28"
+  ],
+  "installedWheelPayloadByteEquality": true,
+  "consoleStartRPCAndEOF": true,
+  "providerSDKFixturesOnly": true,
+  "liveSlackAcceptance": "separate host/provider qualification",
+  "liveDiscordAcceptance": "explicitly excluded; not inferred from Slack",
+  "paidCI": false
+}

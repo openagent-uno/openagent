@@ -61,8 +61,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.8", "manifest.json", "fb5e5a6a24ff7c242dce36ae190465e62e3420003b54b3f5e5b2df40c81ee9fc"),
-    ("openagent-uno/openagent", "v1.1.0-beta.56", "manifest.json", "4cfad979e321734fd23fdf3e322f10f81c13ae420f715d0fe57b37f01b1d840d"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.9", "manifest.json", "82944f65ae3a07f90a0fc66a97f772696527a74cb4c2d9c3d43f883b7b0d8464"),
+    ("openagent-uno/openagent", "v1.1.0-beta.57", "manifest.json", "43be4a2d918fb3597ae7faf1e4dc8a36c2d5231c77aa8f2d2be2e5052651a797"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.28", "manifest.json", "33b893c60fa7f40ec4a1e93b816e79500262947836a8255014745d7b3729a91c"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
@@ -146,7 +146,7 @@ if [ "$PRODUCT" = "server" ]; then
     # The Discord, Slack and WhatsApp bridges import their SDKs only when a
     # configured channel starts, so a bare Framework wheel cannot run them.
     # Telegram is already a base dependency of the Framework wheel.
-    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b56"
+    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b57"
     COMMAND="openagent"
 else
     DIST="openagent-cli==1.1.0b56"
@@ -179,7 +179,7 @@ if [ "$PRODUCT" = "server" ]; then
     # engine extras explicitly, matching the verified normal installed closure.
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
-        "openagent-core[engine,providers,modules]==1.1.0b24"
+        "openagent-core[engine,providers,modules]==1.1.0b28"
 else
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"

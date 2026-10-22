@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Beta57 official public wheel qualification](qualification/product-beta57-2026-10-23.json)
+- [Channel bridges beta9 official public wheel qualification](qualification/channel-bridges-0.1.0b9-2026-10-23.json)
+
 - [Beta57 admitted channel media preflight](releases/v1.1.0-beta.57.md)
 - [Channel bridges beta9 acknowledgement and streaming authorization](releases/channel-bridges-0.1.0-beta.9.md)
 
