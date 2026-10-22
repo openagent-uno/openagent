@@ -6,9 +6,9 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b6`. Source qualification covers 215 tests
-and 84 subcases on normally installed public Core beta 26. Closed-wheel/public
-artifact qualification is recorded separately; these counts do not establish
+This source targets component `0.1.0b7`. Source qualification covers 226 tests
+and 84 subcases; closed-wheel/public artifact qualification is recorded
+separately and records its normally installed Core version. These counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
 is explicitly outside this delivery's scope, not inherited from Slack tests.
 
@@ -19,6 +19,15 @@ with 206 normally installed tests and 84 subcases on Core beta26. Its
 records anonymous full asset readback, fresh normal URL installation and
 Core beta24/beta26 install/import/console checks. Those receipts remain
 immutable and do not establish live provider acceptance.
+
+Beta7 adds request-scoped historical file/image/video/audio readers when the
+host advertises `history_media`, with explicit omissions and unchanged fresh
+audience/actor checks. Slack/Discord default to one quiet acknowledgement plus
+the final host reply; `delivery_mode: live` remains an explicit opt-in. An
+optional `acknowledgement_text` is host supplied, not locale inference. Hosts
+must provide an authoritative final result instead of aggregated narration.
+The standalone Core final-answer consumer is a separate release boundary.
+See [the complete contract and bounds](../../docs/site/guide/channel-history-media.md).
 
 Beta6 replies in the main chat for top-level Slack messages. Replies within an
 existing thread stay in that exact thread, including files. Text and media
