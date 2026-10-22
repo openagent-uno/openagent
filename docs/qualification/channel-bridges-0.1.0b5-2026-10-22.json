@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "status": "public-component-qualified-live-slack-pending-discord-excluded",
+  "sourceCommit": "63e35f0f3e7ee9a32165a9ac9156e7132841c2a6",
+  "manifestSHA256": "4637d17b8a54164ce9258371b033f424d26d9a4fa7ea656912e5b4d1192ad221",
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b5-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b5",
+    "sha256": "855719b279f7eff706a3142bd95937089c5a04a2b58c29dbfe2a86c799cb5b1d",
+    "bytes": 109832,
+    "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/openagent_channel_bridges-0.1.0b5-py3-none-any.whl"
+  },
+  "normalInstalledQualification": {
+    "passed": true,
+    "tests": 213,
+    "subtests": 84,
+    "skipped": 0,
+    "core": "1.1.0b26",
+    "wheelSource": "normal anonymous public HTTPS URL with SHA256",
+    "sourceOverlay": false,
+    "logSHA256": "1a46b2338e54b02157beef6dda9bc45fbe57b04e70d71a9c60a555542655b1c6"
+  },
+  "fullAnonymousPublicReadback": true,
+  "publicURLNormalInstall": true,
+  "qualificationSHA256": "0ff8322046e51c7733a773c35b070816267bf85a4d449b5dc79a4e32c448d59b",
+  "requiresDist": [
+    "aiohttp<4,>=3.9",
+    "openagent-core<2,>=1.1.0b24",
+    "discord-py<3,>=2.3; extra == 'discord'",
+    "slack-bolt<2,>=1.18; extra == 'slack'",
+    "python-telegram-bot<23,>=21; extra == 'telegram'",
+    "openagent-core[engine]<2,>=1.1.0b24; extra == 'test'",
+    "openagent-storage-sqlite<2,>=1.1.0b24; extra == 'test'",
+    "pytest-asyncio>=0.23; extra == 'test'",
+    "pytest>=8; extra == 'test'",
+    "whatsapp-api-client-python<1,>=0.0.46; extra == 'whatsapp'"
+  ],
+  "publicInstalledPipCheck": true,
+  "installedWheelPayloadByteEquality": true,
+  "actualConsoleStartRPCAndEOF": true,
+  "publicAssets": [
+    {
+      "file": "conversation-v1-vectors.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/conversation-v1-vectors.json",
+      "sha256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+      "bytes": 17078,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "manifest.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/manifest.json",
+      "sha256": "4637d17b8a54164ce9258371b033f424d26d9a4fa7ea656912e5b4d1192ad221",
+      "bytes": 4939,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "openagent_channel_bridges-0.1.0b5-py3-none-any.whl",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/openagent_channel_bridges-0.1.0b5-py3-none-any.whl",
+      "sha256": "855719b279f7eff706a3142bd95937089c5a04a2b58c29dbfe2a86c799cb5b1d",
+      "bytes": 109832,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "protocol.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/protocol.json",
+      "sha256": "923f49984cc75e7861126fc9af36efa38fc04317cf90aa8e9a15e4cd749caa1d",
+      "bytes": 627,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "qualification.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/qualification.json",
+      "sha256": "0ff8322046e51c7733a773c35b070816267bf85a4d449b5dc79a4e32c448d59b",
+      "bytes": 1809,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.5/SHA256SUMS",
+      "sha256": "b85275afbe0e3c56778e3d47a5a66273ace106b5bbc31b6bc630251db179415f",
+      "bytes": 457,
+      "anonymousFullReadback": true
+    }
+  ],
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.5",
+  "conversationVectorsSHA256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+  "realSlackE2E": "pending coordinated acceptance",
+  "realDiscordE2E": "explicitly excluded by human; not qualified",
+  "paidCI": false,
+  "scope": "Independent component installed qualification; live provider and embedded host acceptance are separate.",
+  "lookaheadMemoryBound": {
+    "chunkBytes": 65536,
+    "maximumReferencedChunks": 3,
+    "maximumBytes": 196608,
+    "note": "The two current lookahead chunks plus the initial chunk reference remain bounded independently of file size. Earlier source wording counted only the two current chunks."
+  }
+}

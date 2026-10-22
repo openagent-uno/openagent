@@ -1,22 +1,35 @@
 # Embedding official channels
 
 Component release:
-[`0.1.0b4`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4).
-The normally installed public beta 4 wheel passes **206 tests and 84 subcases
-on Core beta 26**, with zero skips. All six public assets were downloaded
+[`0.1.0b5`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.5).
+The normally installed public beta5 wheel passes **213 tests and 84 subcases
+on Core beta26**, with zero skips. All six public assets were downloaded
 anonymously over HTTPS and checked in full. Fresh public-URL installation,
 installed payload bytes, dependency consistency and actual console/start-RPC/EOF
-checks passed. Minimal normal installs also passed on Core beta 24 and beta 26
-without the standalone framework or the engine extra. The
-[beta 4 qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b4-2026-10-22.json)
-binds source `944b2143ea8e6f70423ff353bcbfce1d57233f58`, the 109,413-byte wheel
-and its SHA-256. These results qualify the component; real provider acceptance
-and standalone product releases have separate receipts.
+checks passed. Minimal normal installs passed on Core beta24 and beta26 without
+the standalone framework or engine extra. The
+[beta5 qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b5-2026-10-22.json)
+binds source `63e35f0f3e7ee9a32165a9ac9156e7132841c2a6` and the 109,832-byte wheel.
+These results qualify the component; provider and standalone product acceptance
+have separate receipts.
 
-Earlier [beta 3](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
-and [beta 2](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
-receipts remain historical and immutable. Beta 2 introduced audience attestation;
-beta 3 added the optional text-only `HostedSlackBridge` and hosted Slack IPC.
+Beta5 repairs Slack upload completion after a successful HTTP byte transfer.
+The source reaches EOF and validates it before yielding the final bytes, while
+byte counts, file identity, fresh authorization and cleanup remain required.
+Real loopback HTTP tests include empty/multi-chunk files, early incomplete
+responses, HTTP failure, late revocation and mutation. The conservative buffer
+bound is 192 KiB: two current 64 KiB chunks plus the retained initial chunk.
+The immutable package's earlier two-chunk wording counted only current
+lookahead chunks; it did not count that initial reference. Memory does not grow
+with file size. The source/provider-isolated diagnostic is recorded
+[separately](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-slack-upload-source-2026-10-22.json).
+
+Earlier [beta4](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b4-2026-10-22.json),
+[beta3](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
+and [beta2](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
+receipts remain historical and immutable. Beta4 introduced shared conversation
+keys, beta3 the optional text-only hosted Slack path, and beta2 audience
+attestation.
 
 Channels are conversational entrances to the host's existing agent. They are
 independent from MCP connectors that expose Slack, Discord or another service
