@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Beta56 official public wheel qualification](qualification/product-beta56-2026-10-22.json)
+- [Channel bridges beta8 official public wheel qualification](qualification/channel-bridges-0.1.0b8-2026-10-22.json)
+
 - [Channel bridges beta8 cancellation and bounded history media](releases/channel-bridges-0.1.0-beta.8.md)
 
 - [Channel bridges beta7 public wheel qualification](qualification/channel-bridges-0.1.0b7-2026-10-22.json)
