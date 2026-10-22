@@ -67,7 +67,8 @@ async def assemble(tmp_path, *, settings=None):
                     replace(context, ingress_id=None), b"name,value\nBoreal,200\n", filename="report.csv",
                     mime_type="text/csv", session_id=context.session_id)]
             await runtime.services.store.append_event(request.run_id, "run.stream",
-                {"kind": "done", "text": "same agent and catalog", "attachments": refs})
+                {"kind": "done", "text": "legacy narration and same agent and catalog", "attachments": refs,
+                 "final_answer": {"text": "same agent and catalog", "attachments": refs}})
             return "same agent and catalog"
     store = SqliteRuntimeStore(db.db_path)
     service.runtime = Runtime(RuntimeSettings("agent", tmp_path),
