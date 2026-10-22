@@ -1,5 +1,6 @@
 # Product documentation
 
+- [Main-chat replies and explicit thread preservation](releases/channel-bridges-0.1.0-beta.6.md)
 - [Architecture and migration status](architecture-v1.md)
 - [Standalone modular profile](modules-v1.1.md)
 - [App capability registration](app-capabilities-v1.md)

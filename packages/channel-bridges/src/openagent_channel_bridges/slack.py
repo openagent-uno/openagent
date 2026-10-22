@@ -404,7 +404,7 @@ class SlackBridge(BaseBridge):
         session_id = self._session_id(
             str(user_id), str(channel_id), channel_type=channel_type,
         )
-        reply_thread = event.get("thread_ts") or (event.get("ts") if not is_dm else None)
+        reply_thread = event.get("thread_ts") or None
         key = self._event_key(bridge_context)
         if key in self._event_clients:
             shutil.rmtree(tmp, ignore_errors=True)
@@ -739,6 +739,9 @@ class SlackBridge(BaseBridge):
         # Slack mrkdwn is close enough to plain markdown that the
         # telegram HTML renderer would over-quote things. Send raw text
         # — Slack auto-linkifies URLs and respects \n for paragraphs.
+        current = self._resolve_context()
+        if str(target.channel) != current.conversation_id or target.thread_ts != current.thread_id:
+            raise PermissionError("Slack text destination differs from context")
         try:
             kwargs = {"channel": target.channel, "text": chunk}
             if target.thread_ts:
@@ -757,7 +760,7 @@ class SlackBridge(BaseBridge):
         current = self._resolve_context()
         if str(target.channel) != current.conversation_id:
             raise PermissionError("Slack media target differs from context")
-        if current.thread_id is not None and target.thread_ts != current.thread_id:
+        if target.thread_ts != current.thread_id:
             raise PermissionError("Slack media thread differs from context")
         path = Path(att.path)
         limit = attachment_limit_bytes(direction="output")

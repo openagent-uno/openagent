@@ -75,7 +75,7 @@ class HostedSlackClient:
         body = {"delivery_id": self.delivery["id"], "method": method, "arguments": arguments}
         if write:
             event = self.delivery["payload"]["event"]
-            expected_thread = event.get("thread_ts") or event["ts"]
+            expected_thread = event.get("thread_ts") or None
             if arguments.get("thread_ts") != expected_thread:
                 self.denied = True
                 raise PermissionError("Hosted Slack thread differs from its delivery")

@@ -371,12 +371,12 @@ class ProviderMediaIOTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(session.calls), 1)
             self.assertTrue(path.exists())
 
-    async def test_slack_root_channel_reply_threads_but_threaded_dm_stays_private(self):
+    async def test_slack_root_channel_reply_stays_main_and_threaded_dm_stays_private(self):
         bridge = self.slack()
         client = _SlackClient()
         await bridge.handle_event({"type": "app_mention", "user": "U1", "channel": "C1", "text": "<@BOT> question",
                                    "ts": "10.1"}, client, account_id="T1", event_id="E1")
-        self.assertEqual(bridge.last_target.thread_ts, "10.1")
+        self.assertIsNone(bridge.last_target.thread_ts)
         self.assertEqual(bridge.transport.requests[-1][0].context.conversation_kind, "channel")
         self.assertIsNone(bridge.transport.requests[-1][0].context.thread_id)
         await bridge.handle_event({"type": "message", "user": "U1", "channel": "D1", "channel_type": "im",
@@ -386,6 +386,52 @@ class ProviderMediaIOTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(request.context.conversation_kind, "direct")
         self.assertEqual(request.context.thread_id, "11.1")
         self.assertEqual(bridge.last_target.thread_ts, "11.1")
+
+    async def test_slack_text_and_file_reply_use_only_the_existing_thread(self):
+        for thread in (None, "10.0"):
+            bridge = self.slack()
+            client = _SlackClient()
+            event = {"type": "app_mention", "user": "U1", "channel": "C1",
+                     "text": "<@BOT> question", "ts": "10.1"}
+            if thread:
+                event["thread_ts"] = thread
+            await bridge.handle_event(event, client, account_id="T1", event_id="E1")
+            target = bridge.last_target
+            request = bridge.transport.requests[-1][0]
+            self.assertEqual(request.context.thread_id, thread)
+            self.assertEqual(request.context.conversation_kind, "thread" if thread else "channel")
+            await bridge.send_text_chunk(target, "answer")
+            expected = {"channel": "C1", "text": "answer"}
+            if thread:
+                expected["thread_ts"] = thread
+            self.assertEqual(client.posts, [expected])
+            bridge._audio_session = AsyncMock(return_value=_Session(_Response(chunks=[b"OK"])))
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "report.txt"
+                path.write_bytes(b"report")
+                await bridge.send_attachment(target, SimpleNamespace(path=str(path)))
+            completion = client.completions[0]
+            self.assertEqual(completion["channel_id"], "C1")
+            self.assertEqual(completion.get("thread_ts"), thread)
+            self.assertEqual("thread_ts" in completion, thread is not None)
+
+    async def test_slack_text_and_file_cannot_change_channel_or_thread(self):
+        for thread, target_thread, channel in ((None, "10.1", "C1"),
+                ("10.0", None, "C1"), ("10.0", "other", "C1"), (None, None, "C2")):
+            bridge = self.slack()
+            client = _SlackClient()
+            await bridge.authorize_context(self.context(thread=thread, kind="thread" if thread else "channel"))
+            target = _SlackTarget(client, channel, "U1", target_thread)
+            with self.assertRaises(PermissionError):
+                await bridge.send_text_chunk(target, "answer")
+            with tempfile.TemporaryDirectory() as tmp:
+                path = Path(tmp) / "report.txt"
+                path.write_bytes(b"report")
+                with self.assertRaises(PermissionError):
+                    await bridge.send_attachment(target, SimpleNamespace(path=str(path)))
+            self.assertEqual(client.posts, [])
+            self.assertEqual(client.slots, [])
+            self.assertEqual(client.completions, [])
 
     async def test_slack_audio_keeps_canonical_file_and_uses_host_speech_or_explicit_fallback(self):
         cases = (("voice.mp3", "audio/mpeg", False),

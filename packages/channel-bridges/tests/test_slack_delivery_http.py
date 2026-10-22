@@ -137,7 +137,7 @@ async def test_full_slack_ipc_delivery_waits_for_bytes_not_generator_eof(mode, m
         assert state["slots"] == [{"filename": "report.txt", "length": len(data)}]
         if mode in {"complete", "empty", "multi-chunk"}:
             assert state["completed"] == [{"files": [{"id": "F1", "title": "report.txt"}],
-                "channel_id": "C1", "thread_ts": "10.1"}]
+                "channel_id": "C1"}]
         else:
             assert state["completed"] == []
         assert all(not Path(path).exists() for path in transport.artifacts._retained)

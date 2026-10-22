@@ -6,7 +6,7 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b5`. Source qualification covers 213 tests
+This source targets component `0.1.0b6`. Source qualification covers 215 tests
 and 84 subcases on normally installed public Core beta 26. Closed-wheel/public
 artifact qualification is recorded separately; these counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
@@ -19,6 +19,11 @@ with 206 normally installed tests and 84 subcases on Core beta26. Its
 records anonymous full asset readback, fresh normal URL installation and
 Core beta24/beta26 install/import/console checks. Those receipts remain
 immutable and do not establish live provider acceptance.
+
+Beta6 replies in the main chat for top-level Slack messages. Replies within an
+existing thread stay in that exact thread, including files. Text and media
+cannot switch the authorized channel or thread. Discord retains its explicit
+channel/thread destination. This does not create a new thread-selection tool.
 
 Beta5 repairs Slack file delivery when a real HTTP receiver acknowledges the
 Content-Length bytes before the request generator resumes. A bounded two-chunk
