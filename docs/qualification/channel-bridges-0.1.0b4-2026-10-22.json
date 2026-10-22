@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "status": "public-component-qualified-live-slack-pending-discord-excluded",
+  "sourceCommit": "944b2143ea8e6f70423ff353bcbfce1d57233f58",
+  "manifestSHA256": "c4928e15073852adfa0d6f7d5ce224b69eeb5180466443c1ab5b8723565b8e6f",
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b4-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b4",
+    "sha256": "41a027b07a00ba95ee5b55bef4f45fc015e315e902082ae3fdf383736b24b1f2",
+    "bytes": 109413,
+    "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/openagent_channel_bridges-0.1.0b4-py3-none-any.whl"
+  },
+  "normalInstalledQualification": {
+    "passed": true,
+    "tests": 206,
+    "subtests": 84,
+    "skipped": 0,
+    "core": "1.1.0b26",
+    "wheelSource": "normal anonymous public HTTPS URL with SHA256",
+    "sourceOverlay": false,
+    "logSHA256": "998e8fc97969c3b6ee421d9973e34718c88baaa0f13e4255b2e3c4b5d9199705"
+  },
+  "fullAnonymousPublicReadback": true,
+  "publicURLNormalInstall": true,
+  "qualificationSHA256": "46e7a4e54caf7032e3bfc3286f009f17f6eb15a8cd24725c9c424b347b544b22",
+  "requiresDist": [
+    "aiohttp<4,>=3.9",
+    "openagent-core<2,>=1.1.0b24",
+    "discord-py<3,>=2.3; extra == 'discord'",
+    "slack-bolt<2,>=1.18; extra == 'slack'",
+    "python-telegram-bot<23,>=21; extra == 'telegram'",
+    "openagent-core[engine]<2,>=1.1.0b24; extra == 'test'",
+    "openagent-storage-sqlite<2,>=1.1.0b24; extra == 'test'",
+    "pytest-asyncio>=0.23; extra == 'test'",
+    "pytest>=8; extra == 'test'",
+    "whatsapp-api-client-python<1,>=0.0.46; extra == 'whatsapp'"
+  ],
+  "publicInstalledPipCheck": true,
+  "installedWheelPayloadByteEquality": true,
+  "actualConsoleStartRPCAndEOF": true,
+  "publicAssets": [
+    {
+      "file": "conversation-v1-vectors.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/conversation-v1-vectors.json",
+      "sha256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+      "bytes": 17078,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "manifest.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/manifest.json",
+      "sha256": "c4928e15073852adfa0d6f7d5ce224b69eeb5180466443c1ab5b8723565b8e6f",
+      "bytes": 4805,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "openagent_channel_bridges-0.1.0b4-py3-none-any.whl",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/openagent_channel_bridges-0.1.0b4-py3-none-any.whl",
+      "sha256": "41a027b07a00ba95ee5b55bef4f45fc015e315e902082ae3fdf383736b24b1f2",
+      "bytes": 109413,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "protocol.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/protocol.json",
+      "sha256": "d667eb8f6ef0d6a5c1449a6bd735da941e8f23b563f2d4042447f70810438d6e",
+      "bytes": 627,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "qualification.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/qualification.json",
+      "sha256": "46e7a4e54caf7032e3bfc3286f009f17f6eb15a8cd24725c9c424b347b544b22",
+      "bytes": 1809,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.4/SHA256SUMS",
+      "sha256": "eb72415a30c6fca8e044a7c73a51a9ddc30cb160043c1c62e234b14f76e8672c",
+      "bytes": 457,
+      "anonymousFullReadback": true
+    }
+  ],
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4",
+  "conversationVectorsSHA256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+  "realSlackE2E": "pending coordinated acceptance",
+  "realDiscordE2E": "explicitly excluded by human; not qualified",
+  "paidCI": false,
+  "scope": "Independent channel component; real provider acceptance and standalone product publication are separate.",
+  "minimalInstallSmoke": {
+    "coreVersions": [
+      "1.1.0b24",
+      "1.1.0b26"
+    ],
+    "normalInstall": true,
+    "standaloneDependencyRequired": false,
+    "consoleDescribeStartRPCAndEOF": true
+  }
+}

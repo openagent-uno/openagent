@@ -1,21 +1,22 @@
 # Embedding official channels
 
 Component release:
-[`0.1.0b3`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.3).
-The normally installed beta 3 wheel passes **154 tests and 30 subcases on Core
-beta 26**, with a Core beta 24 normal install/import smoke and actual
-console/start-RPC/EOF checks. Anonymous artifact bytes, normal public-URL
-installation and the installed runner were verified. The
-[beta 3 qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
-records source `3e54bda69cbcaa8fffe816f72134e2d56178e1e2`, the 100,542-byte wheel
-and its SHA-256. Beta 3 adds optional `HostedSlackBridge` and hosted Slack IPC.
-These results qualify the component; they do not establish a live bot grant or
-a new standalone App/server/CLI release.
+[`0.1.0b4`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4).
+The normally installed public beta 4 wheel passes **206 tests and 84 subcases
+on Core beta 26**, with zero skips. All six public assets were downloaded
+anonymously over HTTPS and checked in full. Fresh public-URL installation,
+installed payload bytes, dependency consistency and actual console/start-RPC/EOF
+checks passed. Minimal normal installs also passed on Core beta 24 and beta 26
+without the standalone framework or the engine extra. The
+[beta 4 qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b4-2026-10-22.json)
+binds source `944b2143ea8e6f70423ff353bcbfce1d57233f58`, the 109,413-byte wheel
+and its SHA-256. These results qualify the component; real provider acceptance
+and standalone product releases have separate receipts.
 
-The earlier [beta 2 receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
-records 133 installed tests, 30 subcases and 62 standalone source regressions.
-Those remain historical beta 2 evidence, not a claim that all 62 were rerun for
-beta 3. Beta 1 remains immutable; beta 2 introduced audience attestation.
+Earlier [beta 3](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b3-2026-10-21.json)
+and [beta 2](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/channel-bridges-0.1.0b2-2026-10-21.json)
+receipts remain historical and immutable. Beta 2 introduced audience attestation;
+beta 3 added the optional text-only `HostedSlackBridge` and hosted Slack IPC.
 
 Channels are conversational entrances to the host's existing agent. They are
 independent from MCP connectors that expose Slack, Discord or another service
@@ -25,14 +26,14 @@ agent or copy its knowledge into a provider-specific database.
 
 ## Package and contract
 
-The next beta 4 source adds stable channel/thread descriptors and keeps actor
-authority separate from shared history. This is source work pending its own
-public artifact qualification; beta 3 results above remain historical. See the
+Beta 4 adds stable channel/thread descriptors and keeps actor authority separate
+from shared history. See the
 [protocol](https://github.com/openagent-uno/openagent/blob/main/packages/channel-bridges/PROTOCOL.md)
-for exact framing, audience epochs and golden vectors. Discord provider fixtures
-cover threads and media; real Discord end-to-end acceptance has not been run and
-is explicitly outside this delivery's acceptance scope. Slack live acceptance
-is tracked separately and must not be inferred from fixture or IPC results.
+for exact framing, audience epochs and golden vectors. Provider fixtures cover
+shared threads, complete audiences, media and voice callbacks, including denial
+when the audience changes during a run. Real Discord end-to-end acceptance was
+explicitly excluded and is not qualified. Slack live acceptance is tracked
+separately and must not be inferred from fixture, IPC or installed-wheel results.
 
 `openagent-channel-bridges` is independently versioned in this repository under
 `packages/channel-bridges`. It contains the shared delivery orchestration and
