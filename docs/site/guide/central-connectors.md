@@ -93,4 +93,15 @@ Service-side vault support currently covers Linux and macOS. Windows and other v
 
 Central execution means selected provider content transits the service before reaching the authorized host. That path must be disclosed in the receiving application's data-access flow. Credential custody is encrypted on the service; it does not move the host's memory, session history or local privacy responsibilities to that service. Provider content is not retained as an invocation replay cache.
 
+The [privacy notice](/privacy) explicitly distinguishes this service-held vault
+and API processing from the legacy broker that delivers credentials to a local
+executor. A restricted qualification lane must bind the exact signing
+installation and authenticated recipient; it does not enable Gmail for the
+public catalog or another installation. Such admission is permission to conduct
+the approved qualification, not a completed Google consent or a successful
+provider lifecycle. Existing local credentials are never an automatic source
+for a central connection. The [Google dossier](https://github.com/openagent-uno/openagent/blob/main/docs/verification/google-production-verification-2026-10-19.md)
+records the remaining distinction between historical local-execution evidence
+and any later central qualification.
+
 Hosts integrate the public shared client rather than duplicate provider OAuth, scopes, endpoint or retry implementations. The reusable Go API, exact request types and setup details are documented in the [central package README](https://github.com/openagent-uno/openagent-tools/blob/main/packages/connectors/central/README.md). An existing local-only product does not become central-capable merely by rendering the new catalog. Host integration, service deployment, provider enrollment, user consent and end-to-end qualification are separate evidence boundaries.

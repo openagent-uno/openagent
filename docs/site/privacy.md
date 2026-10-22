@@ -1,6 +1,6 @@
 # OpenAgent privacy
 
-Updated: 19 October 2026.
+Updated: 22 October 2026.
 
 OpenAgent is a modular AI agent runtime and a standalone client/server product. Its official connectors let an authorized agent work with services such as Gmail, Google Drive, Google Analytics, Shopify and ClickUp. The same connector library can be embedded in independent host products.
 
@@ -16,21 +16,27 @@ Common OAuth enrollment is available as a limited beta for the profiles and oper
 
 The connector you select requests permission to perform its listed functions. Depending on your authorized scopes and local tool permissions, Gmail can access messages, threads, attachments and drafts or send messages; Drive can access file metadata and content or perform permitted file operations; Analytics reads reports and account/property metadata. Shopify and other connectors access the resources described in the [connector catalog](/guide/connectors). Token-based connectors use credentials supplied to the receiving server.
 
-This information is used to carry out the agent tasks and automations you authorize. The receiving server performs normal API calls directly to the provider. Connecting a service does not itself authorize every agent or every write operation; the product's local access controls still apply.
+This information is used to carry out the agent tasks and automations you authorize. Depending on the explicit connection profile, API calls run on your receiving server or on the shared connector service described below. Connecting a service does not itself authorize every agent or every write operation; the product's access controls still apply.
 
 ## Where information is processed
 
-The shared authentication service handles your consent transaction, authorization-code exchange and renewals that require the app secret. It processes access and refresh tokens during those operations without maintaining a permanent token archive. Provider tokens and authorization codes must not be included in application logs. Normal email, document, store and task API content does not pass through that service.
+OpenAgent supports two distinct connector profiles. The setup disclosure and receiving product identify the selected profile; an existing connection does not silently change profile.
 
-The receiving product stores credentials locally and processes API results on its server. In the standalone product, credentials are encrypted at rest and associated with the local owner, tenant and receiving installation. Agent sessions, memory, files, audit records and tool results may be retained according to the product's enabled features and storage configuration.
+**Local execution with the legacy shared OAuth broker:** the authentication service handles consent, authorization-code exchange and renewals requiring the app secret. In this profile the broker processes tokens during these operations without maintaining a permanent token archive. The receiving product stores its credentials and makes ordinary provider API requests from its own server; their email, document, store and task response content does not transit the broker. In the standalone product, credentials are encrypted at rest and bound to the local owner, tenant and receiving installation.
+
+**Central execution (`openagent-connectors-central/v1`):** the shared service keeps access and refresh tokens in its encrypted credential vault and performs the selected provider API operations. The receiving product receives an opaque connection handle and authorized results, rather than reusable provider tokens. Requested searches, message or resource identifiers, draft or send payloads and selected response content—including Gmail messages, threads and attachments when Gmail is admitted—therefore pass through the shared service. The connection is bound to the authenticated receiving installation and its recipient scope; the host is responsible for its current user, workspace, agent and operation permissions. Provider content is not retained as a durable invocation replay cache, although the receiving product may retain returned results. Service operation and infrastructure can produce request metadata as described below.
+
+The central public catalog separately declares which connectors are available. As of this update, Gmail is not generally enabled in that catalog. A restricted operator-reviewed Gmail qualification lane is not public approval or evidence that all receiving products are qualified. A new central consent must explicitly disclose this credential custody and processing path; existing local tokens are not silently imported or relabelled as centrally authorized.
+
+Provider tokens, authorization codes and raw provider response bodies must not be included in application logs. Agent sessions, memory, files, audit records and tool results may be retained by the receiving product according to its enabled features and storage configuration. Neither profile moves those local stores into the shared connector service.
 
 When an agent uses connected content in a model request or an authorized tool action, that content can be sent to the model provider or destination configured for that task. A self-hosted server does not automatically make an external model local. Review your model configuration, enabled memory features, authorized tools and the receiving product's privacy information before providing sensitive content.
 
-## Shared authentication metadata
+## Shared service credentials and metadata
 
-The central service retains installation public identities, consent and authorization metadata, and authorized Shopify recipient associations. For Shopify it also retains credential versions and fingerprints used to coordinate rotation, plus a durable queue of minimized, encrypted privacy and uninstall notifications. Fingerprints are used to identify a credential generation, not to recover the token.
+The shared service retains installation public identities, consent and authorization metadata, and authorized Shopify recipient associations. Central execution additionally retains encrypted provider credentials, connection/recipient bindings, admitted operations, credential grant revisions and minimized invocation outcome metadata. The vault is service-operated storage, distinct from the receiving product's databases. For the legacy Shopify profile the service also retains credential versions and fingerprints used to coordinate rotation, plus a durable queue of minimized, encrypted privacy and uninstall notifications. Fingerprints identify a credential generation; they cannot recover the token.
 
-Encrypted credential-delivery messages are addressed to a particular authorized installation and expire within ten minutes. Tokens remain with receiving servers; a server that misses a delivery can request a current copy from an authorized peer or require new consent if no current copy is recoverable. Privacy notifications are acknowledged and deduplicated so an offline recipient can process them later.
+In the legacy credential-delivery profile, encrypted messages are addressed to one authorized installation and expire within ten minutes. Tokens remain with receiving servers; a server that misses a delivery can request a current copy from an authorized peer or require new consent if no current copy is recoverable. That delivery mechanism does not describe the central vault profile. Privacy notifications are acknowledged and deduplicated so an offline recipient can process them later.
 
 Installation, authorization and delivery records are retained for operation, recovery, revocation and handling privacy requests. This release does not provide a universal fixed deletion period for that metadata or for independently operated product databases. Contact the service or the receiving product's operator to request removal of records they control. Disconnecting a connector is not a deletion request for existing agent history, files, backups or provider data.
 
@@ -42,7 +48,7 @@ The [Google API Services User Data Policy](https://developers.google.com/terms/a
 
 ## Revocation, deletion and privacy requests
 
-Use **Disconnect from this server** to remove a product's local connection. Revoking or removing the app in the provider's settings can affect all products connected through that app. Neither action automatically deletes previously stored agent content or content you created at the provider.
+Use **Disconnect from this server** to remove a product's connection. For central execution, disconnect disables that exact central handle and removes its usable token material from the active vault state; it does not claim erasure of every historical backup or provider-wide revocation. A legacy local connection follows its receiving product's local credential-removal flow. Revoking or removing the app in the provider's settings can affect all products connected through that app. None of these actions automatically deletes previously stored agent content, provider objects or the receiving product's backups.
 
 For access, correction, export or deletion of data held by your receiving product, contact its operator. For OpenAgent's shared service, contact [geroale2000@gmail.com](mailto:geroale2000@gmail.com), identifying the provider and receiving installation where possible; do not send tokens, passwords or other secrets. Requests may require verification of your authority over the relevant installation or account. Self-hosted administrators also control their local storage and backup retention.
 

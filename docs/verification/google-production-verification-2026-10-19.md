@@ -4,6 +4,40 @@ Prepared 19 October 2026. **Submission preparation, not a Google approval or a
 compliance attestation.** No verification application, new grant, scope change,
 assessment purchase or deployment is performed by this document.
 
+## 22 October update: central execution is a separate processing path
+
+The submitted form text and demonstration recorded below describe the legacy
+receiving-server credential/execution profile. They remain a historical record
+of what was actually submitted; they are not evidence of central credential
+custody, central Gmail API execution or approval of that additional path.
+
+The current [privacy source](../site/privacy.md) distinguishes the two profiles.
+For `openagent-connectors-central/v1`, access/refresh tokens are retained in the
+shared service's encrypted vault. Selected request payloads and provider results
+transit that service, and authorized results then reach the explicitly bound
+receiving installation/recipient. The receiving product retains responsibility
+for its user/agent ACLs, local history, files, model transfers and retention.
+Disconnect removes the active central connection's usable credential material;
+it does not attest backup erasure or provider-wide revocation.
+
+Gmail remains unavailable in the public central catalog. The proposed private
+qualification uses the existing official app, one explicitly admitted signing
+installation and recipient, and a fresh consent from an already authorized QA
+Gmail account. It requests only `gmail.modify` and `gmail.send`; these remain
+provider permissions, distinct from the per-operation host/service admission.
+All seven advertised operations, credential renewal, an owned vault/service
+reopen, recipient isolation and disconnect must be exercised before claiming
+that bounded lifecycle. Automated fixtures and the legacy demonstration cannot
+replace it. No new consent, mail send, public activation or reviewer submission
+is performed by this documentation update.
+
+Before requesting that fresh consent, publish and verify the updated notice and
+show the actual central custody/recipient disclosure. Reconcile the existing
+Google review/dossier with this changed path through the normal operator flow;
+do not present the historical form's local-custody statements as current central
+behavior. Applicable Google review and assessment states must be recorded from
+the actual console; this update establishes neither approval nor completion.
+
 ## Recorded state and evidence
 
 The operator observed **External / In produzione** after the explicitly approved
