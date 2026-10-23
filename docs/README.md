@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta61 official public wheel qualification](qualification/product-beta61-2026-10-23.json)
+
 - [Beta61 canonical history and native channel processing](releases/v1.1.0-beta.61.md)
 
 - [Channel bridges beta13 official public qualification](qualification/channel-bridges-0.1.0b13-2026-10-23.json)

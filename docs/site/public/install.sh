@@ -61,9 +61,9 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.12", "manifest.json", "f319820a962d58688a0068bd217cf1199ed21f2f53e5a024fd43a742b75fd502"),
-    ("openagent-uno/openagent", "v1.1.0-beta.60", "manifest.json", "769b795e59bf5b39399a0b5dc95e8523ab60bf808bee032d3c76cbe0956c647d"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.28", "manifest.json", "33b893c60fa7f40ec4a1e93b816e79500262947836a8255014745d7b3729a91c"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.13", "manifest.json", "fb07af701f50aaf239aba4514c230b1be1f8f7e53fa940528aa18909c4e4a3b5"),
+    ("openagent-uno/openagent", "v1.1.0-beta.61", "manifest.json", "d68f50242660489819c858725c320ad40e99f6ea3893162fc96881b95644dd17"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.30", "manifest.json", "21aaf0bcc6810e30a70c6ac6da6d4e4635c7b053e3729e5f923e491a0bf29579"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
@@ -146,10 +146,10 @@ if [ "$PRODUCT" = "server" ]; then
     # The Discord, Slack and WhatsApp bridges import their SDKs only when a
     # configured channel starts, so a bare Framework wheel cannot run them.
     # Telegram is already a base dependency of the Framework wheel.
-    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b60"
+    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b61"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b56"
+    DIST="openagent-cli==1.1.0b61"
     COMMAND="openagent-cli"
 fi
 
@@ -179,7 +179,7 @@ if [ "$PRODUCT" = "server" ]; then
     # engine extras explicitly, matching the verified normal installed closure.
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
-        "openagent-core[engine,providers,modules]==1.1.0b28"
+        "openagent-core[engine,providers,modules]==1.1.0b30"
 else
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
