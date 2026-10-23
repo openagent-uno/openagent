@@ -61,8 +61,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.9", "manifest.json", "82944f65ae3a07f90a0fc66a97f772696527a74cb4c2d9c3d43f883b7b0d8464"),
-    ("openagent-uno/openagent", "v1.1.0-beta.57", "manifest.json", "43be4a2d918fb3597ae7faf1e4dc8a36c2d5231c77aa8f2d2be2e5052651a797"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.10", "manifest.json", "6909dee9b650728d92d22c928637071a016be18e5e7ca6e2e28a5ff8123108e5"),
+    ("openagent-uno/openagent", "v1.1.0-beta.58", "manifest.json", "fb1f463db2ef9fcaafd145dffa9a4989c796e3053268d60cb99a8836da263336"),
     ("openagent-uno/openagent-core", "v1.1.0-beta.28", "manifest.json", "33b893c60fa7f40ec4a1e93b816e79500262947836a8255014745d7b3729a91c"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
@@ -146,7 +146,7 @@ if [ "$PRODUCT" = "server" ]; then
     # The Discord, Slack and WhatsApp bridges import their SDKs only when a
     # configured channel starts, so a bare Framework wheel cannot run them.
     # Telegram is already a base dependency of the Framework wheel.
-    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b57"
+    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b58"
     COMMAND="openagent"
 else
     DIST="openagent-cli==1.1.0b56"

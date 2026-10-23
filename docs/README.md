@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Beta58 official public wheel qualification](qualification/product-beta58-2026-10-23.json)
+- [Channel bridges beta10 official public wheel qualification](qualification/channel-bridges-0.1.0b10-2026-10-23.json)
+
 - [Channel bridges beta10 fresh speech authorization](releases/channel-bridges-0.1.0-beta.10.md)
 - [Beta58 current channel speech authorization](releases/v1.1.0-beta.58.md)
 
