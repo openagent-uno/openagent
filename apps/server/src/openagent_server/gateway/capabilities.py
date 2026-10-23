@@ -1452,6 +1452,30 @@ class CapabilityRegistry:
                 return shell_id
         return None
 
+    def observe_published_result(self, origin, server_name, tool_name, arguments,
+                                 result, *, context, source_id) -> bool:
+        """Called by Core only after ordinary result-publication authorization."""
+        if (self.background_jobs is None or server_name != "shell" or tool_name != "shell_output"
+                or not isinstance(result, dict) or result.get("isError", False) is not False
+                or not isinstance(arguments, dict) or context.deferred):
+            return False
+        candidates = [item for item in (result, result.get("structuredContent"), result.get("structured_content"))
+                      if isinstance(item, dict) and "still_running" in item]
+        if len(candidates) != 1 or candidates[0].get("still_running") is not False:
+            return False
+        conn, _ = self._require_server(origin, server_name)
+        shell_id = arguments.get("shell_id")
+        binding = conn.client_shells.get(shell_id) if isinstance(shell_id, str) else None
+        if (binding is None or binding.session_id != context.session_id
+                or binding.context_key != context.coalescing_key or binding.source_id != source_id
+                or binding.client_host != (conn.device_id, conn.client_instance_id, conn.generation)
+                or not any(lease.source_id == source_id for lease in context.capabilities)):
+            return False
+        observed = self.background_jobs.observe_terminal(binding.internal_shell_id,
+            binding.session_id, binding.context_key)
+        binding.completed = True
+        return observed
+
     def _track_background_shell(
         self,
         conn: CapabilityConnection,

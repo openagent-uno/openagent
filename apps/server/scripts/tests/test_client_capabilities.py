@@ -1944,6 +1944,54 @@ def _background_execution(session, instance, generation):
         capabilities=(CapabilityLease(f"device/{instance}/{generation}/shell", instance, str(generation)),))
 
 
+@test("client_capabilities", "explicit terminal output acknowledges only its exact authorized shell")
+async def t_client_shell_observed_terminal_result(ctx: TestContext) -> None:
+    from openagent_server.gateway.capabilities import CapabilityRegistry
+    from openagent_core.jobs import BackgroundJobs
+    from openagent_core.contracts import PrincipalRef
+    from dataclasses import replace
+    hub = BackgroundJobs()
+    registry = CapabilityRegistry(background_jobs=hub)
+    execution = _background_execution("chat:interactive", "desktop", 4)
+    sent = []
+    async def send(_ws, payload): sent.append(payload); return True
+    conn = await registry.register(device_id="dev", account_id="network-1", client_instance_id="desktop",
+        generation=4, device_label="Desktop", ws=_Ws(), send_json=send, servers=_shell_catalog())
+    origin = registry.origin_for("dev", "desktop")
+    source = execution.capabilities[0].source_id
+    call = asyncio.create_task(registry.call_tool(origin, "shell", "shell_exec",
+        {"run_in_background": True}, session_id=execution.session_id,
+        execution_context=execution, source_id=source, timeout_s=2))
+    await asyncio.sleep(0)
+    registry.resolve_result(conn, {"call_id": sent[-1]["call_id"], "generation": 4,
+        "result": {"isError": False, "structuredContent": {"shell_id": "host-job"}}})
+    await call
+    terminal = {"isError": False, "structuredContent": {"still_running": False, "exit_code": 0}}
+    other = PrincipalRef("standalone", "network-1", "bob")
+    for result in ({"isError": True, "structuredContent": {"still_running": False}},
+                   {"structuredContent": {"still_running": 0}},
+                   {"structuredContent": {"still_running": True}}, {}):
+        assert not registry.observe_published_result(origin, "shell", "shell_output", {"shell_id": "host-job"},
+            result, context=execution, source_id=source)
+    for current, current_source, args in ((replace(execution, session_id="other"), source, {"shell_id": "host-job"}),
+            (replace(execution, author=other, initiator=other, authority=other, audience=(other,)), source, {"shell_id": "host-job"}),
+            (execution, "other-source", {"shell_id": "host-job"}), (execution, source, {"shell_id": "unknown"})):
+        assert not registry.observe_published_result(origin, "shell", "shell_output", args,
+            terminal, context=current, source_id=current_source)
+    assert hub.has_running(execution.session_id, context_key=execution.coalescing_key)
+    assert registry.observe_published_result(origin, "shell", "shell_output", {"shell_id": "host-job"},
+        terminal, context=execution, source_id=source)
+    assert not hub.has_running(execution.session_id, context_key=execution.coalescing_key)
+    assert hub.drain(execution.session_id, context_key=execution.coalescing_key) == []
+    # A racing later transport notification is acknowledged as a duplicate,
+    # without reopening an autoloop after the model read the terminal result.
+    ack = registry.receive_tool_event(conn, {"generation": 4, "event": {"type": "shell_completed",
+        "server": "shell", "shell_id": "host-job", "status": "exited", "exit_code": 0}})
+    assert ack["duplicate"] is True
+    assert hub.drain(execution.session_id, context_key=execution.coalescing_key) == []
+    await registry.close_all()
+
+
 @test(
     "client_capabilities",
     "client shell events wake only the exact interactive origin",

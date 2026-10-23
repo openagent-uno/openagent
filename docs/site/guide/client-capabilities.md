@@ -115,3 +115,21 @@ live streams rather than only on the next reconnect.
 
 Older clients remain compatible: they simply never open the capability channel,
 so their turns receive the server catalog only.
+
+
+## Observed background results (source contract)
+
+The next product source uses Core29's optional trusted post-publication
+executor hook. An explicit successful `shell_output` result with
+`still_running: false` acknowledges only the registered job on the exact
+client instance/generation, source, session and current execution context.
+This happens after ordinary result authorization and publication; denied or
+revoked results cannot consume a completion notification. A delayed duplicate
+client-shell event remains acknowledged without reopening the model loop.
+The original tool result and transcript are retained.
+
+Unobserved background completions still continue normally. Their internal
+reminder is not a new human message and does not prove previous assistant
+output was delivered; the final answer must cover the original task on its
+own. This source contract does not claim that immutable product60 or a native
+client has adopted Core29.
