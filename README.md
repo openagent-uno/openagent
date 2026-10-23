@@ -11,9 +11,9 @@ The public guide and verified downloads are at
 [openagent.uno](https://openagent.uno/); new coordinated product releases are
 published only from this repository.
 
-The beta59 Python source consumes independently released Core beta28 and channel
-bridges beta11, including authoritative final replies, current speech audience
-proofs and complete bounded Slack audio renditions. Its wheel qualification is recorded separately from native apps,
+The beta60 Python source consumes independently released Core beta28 and channel
+bridges beta12, including authoritative final replies, current speech audience
+proofs and complete negotiated bounded channel history. Its wheel qualification is recorded separately from native apps,
 frozen servers and live provider acceptance. Existing updater endpoints stay
 in place until every supported platform completes its signed transition chain.
 

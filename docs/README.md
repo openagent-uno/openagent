@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta60 official public wheel qualification](qualification/product-beta60-2026-10-23.json)
+
 - [Beta60 complete negotiated channel history](releases/v1.1.0-beta.60.md)
 - [Channel bridges beta12 public wheel qualification](qualification/channel-bridges-0.1.0b12-2026-10-23.json)
 
