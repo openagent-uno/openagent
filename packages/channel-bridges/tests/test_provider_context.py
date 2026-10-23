@@ -934,6 +934,6 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
                               members_intent=value)
 
     def test_context_limits_reject_bool_out_of_range_and_non_integer(self):
-        for value in (-1, 101, True, 1.0, "20"):
+        for value in (-1, 201, True, 1.0, "20"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.slack(count=value)

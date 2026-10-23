@@ -593,15 +593,20 @@ class BaseBridge:
               or attachment.size_bytes is not None and attachment.size_bytes != path.stat().st_size):
             raise ValueError("Speech attachment differs from the staged audio")
         await self._authorize_generation(current, generation)
+        # Speech callbacks carry the proof as an explicit DTO. Refresh it here,
+        # rather than relying on a caller's ContextVar or an earlier file's
+        # proof, which may have aged while another transcription was running.
+        current = await self._prepare_delivery_context(current)
         emit_diagnostic(current, "transcription", "started")
         try:
             text = await self.transport.transcribe(current, attachment)
         except (TimeoutError, RuntimeError):
             await self._authorize_generation(current, generation)
-            await self._prepare_delivery_context(current)
+            current = await self._prepare_delivery_context(current)
             emit_diagnostic(current, "transcription", "unavailable")
             return VOICE_FALLBACK
         await self._authorize_generation(current, generation)
+        current = await self._prepare_delivery_context(current)
         emit_diagnostic(current, "transcription", "completed" if text else "unavailable")
         return text or VOICE_FALLBACK
 
@@ -626,7 +631,10 @@ class BaseBridge:
         await self._authorize_generation(current, generation)
         if not {"voice", "audio"}.intersection(self._capabilities.output_media):
             return None
+        current = await self._prepare_delivery_context(current)
         attachment = await self.transport.synthesize(current, text)
+        await self._authorize_generation(current, generation)
+        current = await self._prepare_delivery_context(current)
         if attachment is not None:
             if not isinstance(attachment, BridgeAttachment) or attachment.kind not in ("voice", "audio"):
                 raise TypeError("transport must return a voice attachment")

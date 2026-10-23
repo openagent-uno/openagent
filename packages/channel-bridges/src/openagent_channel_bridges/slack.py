@@ -288,7 +288,9 @@ class SlackBridge(BaseBridge):
         # Slack replies are oldest-first. Read at most 10 bounded pages; if the
         # end is not reached, omit context rather than mislabel an old prefix
         # as the latest messages. No search/channel fallback is permitted.
-        for page in range(10 if context.thread_id else 1):
+        page_limit = 10 if context.thread_id else (self.context_messages + 99) // 100
+        cursors = set()
+        for page in range(page_limit):
             await self.authorize_context(context)
             kwargs = {"channel": context.conversation_id, "latest": trigger_ts,
                       "inclusive": False, "limit": 100 if context.thread_id else min(100, self.context_messages + 1)}
@@ -335,12 +337,21 @@ class SlackBridge(BaseBridge):
                 if parts:
                     records.append(BridgeHistoryMessage(event, actor, tuple(parts), timestamp=event))
             cursor = str((response.get("response_metadata") or {}).get("next_cursor") or "")
-            if not context.thread_id or not cursor and not response.get("has_more"):
+            if not cursor and not response.get("has_more"):
                 break
-            if not cursor or page == 9:
+            # Main-channel history is newest-first: two bounded pages already
+            # form the requested latest window. Threads are oldest-first and
+            # must reach their end before selecting the latest window.
+            if not cursor or len(cursor) > 256 or cursor in cursors:
                 logger.warning("Slack thread context omitted: bounded history scan incomplete")
                 emit_diagnostic(context, "history", "unavailable")
-                raise HistoryUnavailable("Requested thread history is incomplete")
+                raise HistoryUnavailable("Requested channel history is incomplete")
+            cursors.add(cursor)
+            if not context.thread_id and page + 1 == page_limit:
+                break
+            if page + 1 == page_limit:
+                emit_diagnostic(context, "history", "unavailable")
+                raise HistoryUnavailable("Requested channel history is incomplete")
         records.sort(key=lambda item: Decimal(item.event_id))
         await self.authorize_context(context)
         selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=trigger_ts)

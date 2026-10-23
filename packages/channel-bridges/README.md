@@ -6,7 +6,7 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b9`. Source qualification covers 247 tests
+This source targets component `0.1.0b10`. Source qualification covers 262 tests
 and 84 subcases; closed-wheel/public artifact qualification is recorded
 separately and records its normally installed Core version. These counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
@@ -98,7 +98,7 @@ to its own principals; another participant's message never inherits the owner.
 
 `BridgeMessage` contains ordered `BridgePart` text/media and separately
 attributed `history`. Slack/Discord history defaults to 20 messages, configurable
-with `context_messages=0..100`, and has a hard 65,536-byte JSON budget including
+with `context_messages=0..200`, and has a hard 65,536-byte JSON budget including
 attribution. Only the same authorized channel/thread is read. Trigger duplicates
 are excluded, records are chronological, and oversized records are omitted.
 Slack thread history inspects at most ten pages; if the latest window cannot be

@@ -520,7 +520,7 @@ class DiscordBridge(BaseBridge):
         # A Thread is itself the exact channel object. Never follow references
         # into another channel or fetch from a guild-wide search endpoint.
         try:
-            iterator = message.channel.history(limit=min(100, self.context_messages + 1), before=message, oldest_first=False).__aiter__()
+            iterator = message.channel.history(limit=self.context_messages + 1, before=message, oldest_first=False).__aiter__()
             while True:
                 await self.authorize_context(context)
                 try:

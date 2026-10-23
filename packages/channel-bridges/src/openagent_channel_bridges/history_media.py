@@ -51,11 +51,11 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                   or size + attachment.size_bytes > MAX_HISTORY_INPUT_BYTES):
                 reason = "limit"
             else:
-                await bridge._prepare_delivery_context(context)
+                context = await bridge._prepare_delivery_context(context)
                 try:
                     loaded = await load(record, attachment,
                                         min(MAX_HISTORY_FILE_BYTES, MAX_HISTORY_INPUT_BYTES - size))
-                    await bridge._prepare_delivery_context(context)
+                    context = await bridge._prepare_delivery_context(context)
                     if not isinstance(loaded, BridgeAttachment) or not loaded.local_path:
                         raise ValueError("Historical media reader unavailable")
                     snapshot = media_file_snapshot(loaded.local_path, limit=MAX_HISTORY_FILE_BYTES)
@@ -75,7 +75,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                 if reason is None and loaded.kind in ("voice", "audio"):
                     transcript = await bridge.transcribe_with_fallback(
                         loaded.local_path, context=context, attachment=loaded)
-                    await bridge._prepare_delivery_context(context)
+                    context = await bridge._prepare_delivery_context(context)
                     transcriptions += 1
                     if part_count < 256:
                         parts.append(BridgePart(text="Audio transcript (quoted historical message):\n" + transcript))

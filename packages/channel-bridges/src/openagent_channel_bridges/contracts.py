@@ -11,7 +11,7 @@ from typing import Awaitable, Callable, Literal, Protocol, runtime_checkable
 
 API_VERSION = 1
 DEFAULT_CONTEXT_MESSAGES = 20
-MAX_CONTEXT_MESSAGES = 100
+MAX_CONTEXT_MESSAGES = 200
 MAX_CONTEXT_BYTES = 65_536
 
 
@@ -209,7 +209,7 @@ class BridgeMessage:
         object.__setattr__(self, "parts", tuple(self.parts))
         object.__setattr__(self, "history", tuple(self.history))
         if len(self.history) > MAX_CONTEXT_MESSAGES:
-            raise ValueError("channel history exceeds 100 messages")
+            raise ValueError("channel history exceeds 200 messages")
         if len(self.parts) + sum(len(item.parts) + len(item.omitted_attachments) for item in self.history) > 256:
             raise ValueError("channel input exceeds 256 parts")
         # Include attribution and escaping overhead, not only text characters.

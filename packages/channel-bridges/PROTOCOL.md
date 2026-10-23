@@ -191,3 +191,11 @@ currently leaves the conversation kind unknown and audience incomplete; typed
 runtime dispatch and result delivery remain denied until an authenticated
 recipient proof is implemented. These limits also apply to the typed standalone
 adapter; the historical untyped compatibility API does not attest audiences.
+
+## Bounded history count
+
+`context_messages` accepts integers from 0 through 200, default 20. This does
+not increase the 65,536-byte quoted-history limit, 256 total message parts or
+any advertised media budget. Slack main-channel reads use at most two pages
+of 100 before the exact trigger; thread reads retain their ten-page bound.
+Required missing or repeated cursors are failures, not empty history.

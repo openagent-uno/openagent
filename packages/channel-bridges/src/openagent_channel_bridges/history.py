@@ -13,7 +13,7 @@ from .contracts import (
 
 def validate_context_messages(value: int) -> int:
     if type(value) is not int or not 0 <= value <= MAX_CONTEXT_MESSAGES:
-        raise ValueError("context_messages must be an integer between 0 and 100")
+        raise ValueError("context_messages must be an integer between 0 and 200")
     return value
 
 

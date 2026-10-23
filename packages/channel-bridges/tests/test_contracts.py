@@ -30,7 +30,7 @@ def test_context_retains_binding_account_actor_thread_and_is_frozen():
         replace(original, api_version=2)
 
 
-@pytest.mark.parametrize("bad", [-1, 101, True, 1.5, "20", None])
+@pytest.mark.parametrize("bad", [-1, 201, True, 1.5, "20", None])
 def test_history_count_rejects_ambiguous_or_out_of_bounds_configuration(bad):
     with pytest.raises(ValueError):
         validate_context_messages(bad)

@@ -180,6 +180,153 @@ async def test_slack_historical_media_only_message_roundtrips_and_cleans_request
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("change", ["unchanged", "revoked", "audience-change"])
+async def test_historical_speech_refreshes_proof_after_43_second_transcription(monkeypatch, change):
+    # A host may require an SDK audience proof no older than 30 seconds.
+    # Match a first 43-second STT followed by a second file at t+52 seconds,
+    # without waiting or relaxing the host's ordinary freshness policy.
+    clock = [10000.0]
+    monkeypatch.setattr(time, "time", lambda: clock[0])
+    files = [{"id": f"voice-{i}", "name": f"voice-{i}.ogg", "mimetype": "audio/ogg",
+              "size": 7, "url_private_download": f"https://files.slack.com/voice-{i}"}
+             for i in range(2)]
+    client = SlackClient(files)
+
+    class FreshSpeechHost(Host):
+        async def transcribe(self, context, attachment):
+            if not self.allowed or clock[0] - context.audience_verified_at > 30:
+                raise PermissionError("speech requires a current authorized audience proof")
+            self.speech.append((context.actor_id, attachment.provider_attachment_id))
+            clock[0] += 43 if len(self.speech) == 1 else 1
+            if len(self.speech) == 1:
+                if change == "revoked":
+                    self.allowed = False
+                elif change == "audience-change":
+                    client.members.append("new-recipient")
+            return "A synthetic historical voice note."
+
+    host = FreshSpeechHost(); downloads = []
+    bridge = slack(host, client, downloads)
+    original_download = bridge._download_file
+    async def download(*args, **kwargs):
+        if downloads:
+            clock[0] += 9
+        return await original_download(*args, **kwargs)
+    bridge._download_file = download
+    await bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> inspect both historical voice notes", "ts": "50.0"}, client,
+        account_id="T", event_id="50.0")
+    if change == "unchanged":
+        assert len(host.speech) == 2 and len(host.requests) == 1
+        assert len(host.inputs) == 2 and len(client.posts) == 2
+        assert all(not Path(value.local_path).exists() for value in host.inputs)
+    else:
+        assert len(host.speech) == 1 and host.requests == []
+        assert len(client.posts) == 1  # authorized initial ack only
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["transcribe", "synthesize"])
+@pytest.mark.parametrize("change", ["unchanged", "revoked", "audience-change"])
+async def test_speech_callbacks_receive_fresh_proof_and_revalidate_after_long_call(tmp_path, monkeypatch, operation, change):
+    clock = [10000.0]
+    monkeypatch.setattr(time, "time", lambda: clock[0])
+    path = tmp_path / "voice.ogg"; path.write_bytes(b"original audio")
+    media = BridgeAttachment("voice", path.name, "audio/ogg", path.stat().st_size, local_path=str(path))
+
+    class FreshSpeechHost(Host):
+        async def start(self):
+            return BridgeCapabilities(input_media=("voice",), output_media=("voice",))
+
+        async def record_speech(self, context):
+            assert clock[0] - context.audience_verified_at <= 30
+            self.speech.append(context)
+            clock[0] += 43
+            if change == "revoked":
+                self.allowed = False
+
+        async def transcribe(self, context, attachment):
+            await self.record_speech(context)
+            return "Transcript."
+
+        async def synthesize(self, context, text):
+            await self.record_speech(context)
+            return media
+
+    class FreshProvider(Capture):
+        async def _delivery_context(self, context):
+            members = ("alice", "bob", "new-recipient") if change == "audience-change" and host.speech else ("alice", "bob")
+            return replace(context, audience_ids=members, audience_verified_at=clock[0])
+
+    host = FreshSpeechHost()
+    bridge = FreshProvider(host)
+    original = context()
+    clock[0] += 52
+    async def invoke():
+        if operation == "transcribe":
+            return await bridge.transcribe_with_fallback(str(path), context=original, attachment=media)
+        return await bridge._synthesize("Say this.", context=original)
+    if change == "unchanged":
+        assert await invoke() == ("Transcript." if operation == "transcribe" else media)
+    else:
+        with pytest.raises(PermissionError): await invoke()
+    assert len(host.speech) == 1
+    assert path.read_bytes() == b"original audio"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mode", ["normal", "missing-cursor", "repeated-cursor", "revoked", "other-channel", "trigger-duplicate"])
+async def test_slack_latest_200_uses_two_scoped_pages_and_preserves_oldest_media(mode):
+    host = Host(history_max_files=64)
+    pages = [[{"ts": str(i) + ".0", "user": "bob", "channel": "C", "text": "report"}
+              for i in range(high, low, -1)] for high, low in ((200, 100), (100, 0))]
+    pages[1][-1]["files"] = [media_files()[-1]]
+    if mode == "other-channel":
+        pages[1][-1]["channel"] = "OTHER"
+    if mode == "trigger-duplicate":
+        pages[0][0]["ts"] = "500.0"
+        pages[1][0]["ts"] = "199.0"
+
+    class Pages(SlackClient):
+        def __init__(self):
+            super().__init__([])
+            self.calls = []
+
+        async def conversations_history(self, **kwargs):
+            self.calls.append(kwargs)
+            assert kwargs["channel"] == "C" and kwargs["latest"] == "500.0"
+            assert kwargs["inclusive"] is False and kwargs["limit"] == 100
+            index = len(self.calls) - 1
+            assert index < 2
+            if index:
+                assert kwargs["cursor"] == "page-two"
+            if mode == "revoked": host.allowed = False
+            cursor = "" if mode == "missing-cursor" else "page-two" if index == 0 or mode == "repeated-cursor" else ""
+            return {"messages": pages[index], "has_more": bool(cursor) or mode == "missing-cursor",
+                    "response_metadata": {"next_cursor": cursor}}
+
+    client = Pages(); downloads = []
+    bridge = slack(host, client, downloads)
+    bridge.context_messages = 200
+    await bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> inspect the bounded report window", "ts": "500.0"}, client,
+        account_id="T", event_id="500.0")
+    if mode in ("missing-cursor", "repeated-cursor", "revoked"):
+        assert host.requests == [] and downloads == []
+        assert len(client.posts) == (1 if mode == "revoked" else 2)
+        return
+    assert len(client.calls) == 2 and len(host.requests) == 1
+    records = host.requests[0].history
+    assert len(records) == {"normal": 200, "other-channel": 199, "trigger-duplicate": 198}[mode]
+    assert len({record.event_id for record in records}) == len(records)
+    assert all(record.event_id != "500.0" for record in records)
+    assert len(downloads) == (0 if mode == "other-channel" else 1)
+    if mode != "other-channel":
+        assert records[0].event_id == "1.0" and len(host.inputs) == 1
+    assert history_size_bytes(records) <= 65536
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["old-host", "file-count", "byte-budget", "audience-change"])
 async def test_history_does_not_fetch_unsupported_over_budget_or_changed_audience(tmp_path, mode):
     host = Host(history_media=mode != "old-host"); client = SlackClient(media_files()); downloads = []

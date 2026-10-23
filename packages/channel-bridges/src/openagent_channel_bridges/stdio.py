@@ -24,7 +24,7 @@ import threading
 from dataclasses import dataclass, field
 
 from . import __version__
-from .contracts import BridgeContext, BridgeMessage
+from .contracts import BridgeContext, BridgeMessage, MAX_CONTEXT_MESSAGES
 from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
     WireError, decode_line, encode_line, identifier, object_fields,
     progress, result_dto, to_wire)
@@ -266,7 +266,7 @@ def configure(frame, transport):
             if type(value) is not bool:
                 raise WireError("invalid_configuration")
         elif name == "context_messages":
-            if type(value) is not int or not 0 <= value <= 100:
+            if type(value) is not int or not 0 <= value <= MAX_CONTEXT_MESSAGES:
                 raise WireError("invalid_configuration")
         elif name.startswith("allowed_") or name == "listen_channels":
             if not isinstance(value, list) or len(value) > 1000 or any(type(v) not in (str, int) for v in value):

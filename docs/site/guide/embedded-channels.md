@@ -149,7 +149,7 @@ voice-unavailable response asks the sender to type the message.
 ## Mentions, history and response routing
 
 Slack and Discord use `context_messages=20` by default. The accepted range is
-0–100; zero disables history reads. A second hard limit bounds the attributed
+0–200; zero disables history reads. A second hard limit bounds the attributed
 JSON history to 65,536 UTF-8 bytes. Only bounded provider reads from the same
 authorized channel or thread are used. Slack thread replies require forward
 pagination: at most ten pages of 100 records are inspected. If that cannot

@@ -54,7 +54,7 @@ file and 256 total parts. The request-local registry expires on cancellation
 and closes its pinned descriptors; its aggregate retained-byte bound remains
 128 MiB. Raising the count does not raise any byte limit.
 Only the selected newest context window is downloaded; the context is still
-limited to 0–100 records and 64 KiB of attributed IPC metadata. Staging stays
+limited to 0–200 records and 64 KiB of attributed IPC metadata. Staging stays
 inside the one provider request until host ingestion completes and is then
 cleaned. Different events receive separate staging directories, including when
 their original filenames match.
@@ -117,3 +117,13 @@ content or credential. Hosts must validate this closed schema, bind provider
 to the owned process, enforce line/read/rate limits and discard all other
 stderr. Never pass arbitrary stderr through to logs or users. Diagnostic
 observer failure does not change the operation's authorization.
+
+## Slow speech callbacks
+
+The bridge passes a newly provider-verified audience context to every speech
+callback and rechecks that same conversation epoch after it returns. Each
+historical file retains the latest returned context; an earlier transcription
+does not extend the life of its intake proof. The host still chooses its own
+freshness window and rechecks ordinary actor and recipient authorization.
+Revocation or a changed audience stops the turn rather than exposing a stale
+transcript or continuing with a broader audience.
