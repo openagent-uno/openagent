@@ -120,7 +120,7 @@ async def t_ws_full_roundtrip(_ctx: TestContext) -> None:
     try:
         # Patch the WS URL template so the synth connects to our test
         # server instead of the real ElevenLabs endpoint.
-        from openagent_server.channels import tts_streaming
+        from openagent_core.voice import tts_streaming
         original_url = tts_streaming._ELEVENLABS_WS
         tts_streaming._ELEVENLABS_WS = f"ws://127.0.0.1:{port}/{{voice}}"
         try:
@@ -160,7 +160,7 @@ async def t_ws_connection_refused(_ctx: TestContext) -> None:
     """The voice pipeline relies on raised exceptions to fall back to
     the per-sentence REST path. A silent return on connection failure
     would leave the user with no audio AND no diagnostic."""
-    from openagent_server.channels import tts_streaming
+    from openagent_core.voice import tts_streaming
 
     # Point at a port nothing is listening on. ``free_port`` returns
     # an unbound port, which will refuse connection cleanly.

@@ -82,7 +82,7 @@ async def t_voice_url_path(_ctx: TestContext) -> None:
 
 @test("tts_local", "resolve_tts_provider returns local Piper config when piper is available")
 async def t_resolve_tts_uses_piper(_ctx: TestContext) -> None:
-    from openagent_server.channels import tts as tts_mod
+    from openagent_core.voice import tts as tts_mod
     from openagent_core.voice import tts_local
 
     # No DB row + piper available → synthetic local config wins.
@@ -96,7 +96,7 @@ async def t_resolve_tts_uses_piper(_ctx: TestContext) -> None:
 
 @test("tts_local", "resolve_tts_provider returns None when no row AND no piper")
 async def t_resolve_tts_none_when_no_backends(_ctx: TestContext) -> None:
-    from openagent_server.channels import tts as tts_mod
+    from openagent_core.voice import tts as tts_mod
     from openagent_core.voice import tts_local
 
     with patch.object(tts_local, "is_available", return_value=False):
