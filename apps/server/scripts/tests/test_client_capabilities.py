@@ -1258,7 +1258,7 @@ async def t_runtime_mcp_envelope(ctx: TestContext) -> None:
     "deep MCP JSON is lossless and over-limit envelopes fail explicitly",
 )
 async def t_runtime_mcp_deep_envelope_limits(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.tool_search.adapters as adapters
+    import openagent_core.mcp.servers.tool_search.adapters as adapters
 
     nested: object = "leaf"
     for index in range(20, 0, -1):
@@ -1815,7 +1815,7 @@ async def t_chat_attach_epoch_recheck(ctx: TestContext) -> None:
     from openagent_core.core.on_behalf_context import OnBehalfIdentity
     from openagent_server.gateway.server import Gateway, _StreamHolder
     from openagent_core.stream.events import TextFinal
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     class AuthState:
         epoch = 0
@@ -2338,7 +2338,7 @@ async def t_workflow_origin_boundaries(ctx: TestContext) -> None:
 
 @test("client_capabilities", "delegation inherits origin; automation explicitly clears it")
 async def t_automation_origin_clearing(ctx: TestContext) -> None:
-    import openagent_server.core.scheduler as scheduler_module
+    import openagent_core.core.scheduler as scheduler_module
     from openagent_core.core.child_session import run_child_session
     from openagent_core.core.execution_origin import (
         TurnExecutionOrigin,
@@ -2470,8 +2470,8 @@ async def t_stream_turn_origin(ctx: TestContext) -> None:
     "stream turn freezes principal and rendering policy through persistence",
 )
 async def t_stream_turn_security_context(ctx: TestContext) -> None:
-    import openagent_server.memory.artifacts as artifact_module
-    import openagent_server.stream.content_parts as content_parts_module
+    import openagent_core.memory.artifacts as artifact_module
+    import openagent_core.stream.content_parts as content_parts_module
     from openagent_core.core.execution_origin import TrustedTurnContext
     from openagent_core.core.on_behalf_context import (
         OnBehalfIdentity,
@@ -2555,7 +2555,7 @@ async def t_wire_and_prompt_tail(ctx: TestContext) -> None:
     from openagent_server.gateway import protocol as P
     from openagent_server.gateway.capabilities import CAPABILITY_PROTOCOL
     from openagent_core.stream.events import SessionOpen
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
     from openagent_core.models.providers.anthropic.claude import _split_session_id_tag
 
     evt = SessionOpen(session_id="s", client_instance_id="desktop")

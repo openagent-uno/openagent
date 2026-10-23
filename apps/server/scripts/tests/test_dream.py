@@ -66,7 +66,7 @@ async def t_dream_uses_logs_mcp(ctx: TestContext) -> None:
 @test("dream", "manager-review built-in is fully removed")
 async def t_no_manager_review(ctx: TestContext) -> None:
     import openagent_server.server as server
-    import openagent_server.core.builtin_tasks as bt
+    import openagent_core.core.builtin_tasks as bt
 
     assert not hasattr(server, "MANAGER_REVIEW_PROMPT")
     assert not hasattr(server.AgentServer, "_sync_manager_review")

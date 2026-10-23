@@ -197,7 +197,7 @@ async def t_scanner_refuses_malicious(_ctx: TestContext) -> None:
 
 @test("skill_hub", "disabled by default: hub tools not exposed; toolkit byte-identical")
 async def t_disabled_by_default(_ctx: TestContext) -> None:
-    import openagent_server.core.config as cfg
+    import openagent_core.core.config as cfg
     from openagent_core.core.config import skills_settings
     from openagent_core.mcp.builtins import config_gated_mcp_entries
     from openagent_core.mcp.servers.skills import adapters

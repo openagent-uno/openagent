@@ -8,12 +8,14 @@ table; this file pins that the server actually loads it from the yaml and
 puts it in front of the shared gateway app.
 """
 import asyncio
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
 import aiohttp
 
+from openagent_core.core.logging import events_path
 from openagent_core.core.paths import set_agent_dir
 from openagent_identity.client.session import GatewayStream, LoopbackProxy
 from openagent_identity.coordinator.store import CoordinatorStore
@@ -109,6 +111,20 @@ class AgentProtocolPeerPolicyTests(unittest.IsolatedAsyncioTestCase):
         status, text = await self._request("GET", stranger_base + "/api/agent-info")
         self.assertEqual(status, 403, text)
         self.assertIn("not in network.peers.allowlist", text)
+
+        # The refusal is audited in the agent's events.jsonl, which is how an
+        # operator builds the allowlist. It only lands there when the inbound
+        # Iroh connection runs in the agent's context (iroh_node binds it).
+        stranger_id = await stranger.node_id()
+        colleague_id = await colleague.node_id()
+        events = [json.loads(line) for line in events_path().read_text().splitlines() if line.strip()]
+        denied = [e for e in events if e.get("event") == "peer.denied"]
+        self.assertTrue(
+            any(e.get("node_id") == stranger_id and e.get("reason") == "not_in_allowlist" for e in denied),
+            denied,
+        )
+        contacts = {e.get("node_id") for e in events if e.get("event") == "agent.contact"}
+        self.assertLessEqual({stranger_id, colleague_id}, contacts)
 
         # Even an admitted colleague cannot make this host spawn a process:
         # registering an MCP is reserved to the installation owner.

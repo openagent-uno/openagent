@@ -33,6 +33,7 @@ import inspect
 import re
 from pathlib import Path
 
+from ._source import host_shell_tool_names, vault_tool_names
 from ._framework import TestContext, test
 
 # ── Ground truth ────────────────────────────────────────────────────
@@ -151,14 +152,20 @@ def _registered_keys_by_server() -> tuple[dict[str, set[str]], list[str]]:
             pfx = _safe_prefix(name) + "_"
             by_server[name] = {pfx + t.name for t in registry}
 
-    # 3. Vendored Node vault server — parse its ListTools handler.
-    for name, rel in _NODE_TOOL_SOURCES.items():
-        src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS[name]["dir"] / rel
-        if not openagent_core.exists():
-            notes.append(f"{name}: source missing at {src}")
+    # 3. Vendored Node vault server — its ListTools handler, read from the
+    #    TypeScript source in a checkout or from the bundle an install ships.
+    for name in _NODE_TOOL_SOURCES:
+        try:
+            names, _where = vault_tool_names()
+        except FileNotFoundError as exc:
+            notes.append(f"{name}: {exc}")
             continue
         pfx = _safe_prefix(name) + "_"
-        by_server[name] = {pfx + t for t in _TS_TOOL_NAME.findall(openagent_core.read_text())}
+        by_server[name] = {pfx + t for t in names}
+
+    # 4. The server host's shell (openagent-tools' openagent_shell). Host
+    #    tools keep their bare names, as in-process toolkits do.
+    by_server["shell"] = host_shell_tool_names()
 
     return by_server, notes
 
@@ -206,7 +213,7 @@ _NON_TOOL_TOKENS: frozenset[str] = frozenset({
     # -- tool PARAMETERS / result fields --
     "model_id", "runtime_id", "top_k", "session_binding_path", "task",
     "query", "path", "tool", "marker", "shell_id", "open_suggestions",
-    "child_session_id", "id",
+    "child_session_id", "id", "has_more",
     # ``search_past_conversations`` params, and the ``index`` field of its
     # reply — the prompt names that field because an empty result must be
     # read as "those words are absent", never as "we never discussed it".

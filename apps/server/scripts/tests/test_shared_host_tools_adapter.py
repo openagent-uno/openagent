@@ -339,7 +339,7 @@ def test_frozen_macos_computer_control_prefers_nested_signed_helper_app(
     tmp_path: Path,
     monkeypatch,
 ):
-    import openagent_server.mcp.builtins as builtins
+    import openagent_core.mcp.builtins as builtins
 
     executable = tmp_path / "openagent.app" / "Contents" / "MacOS" / "openagent"
     helper = (

@@ -16,6 +16,7 @@ from __future__ import annotations
 import uuid
 from types import SimpleNamespace
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -111,7 +112,7 @@ async def t_turn_end_carries_a_reason(ctx: TestContext) -> None:
     from openagent_core.stream.events import (
         TURN_END_CANCELLED, TURN_END_COMPLETED, TURN_END_ERROR, TurnComplete,
     )
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     frame = event_to_wire(TurnComplete(
         session_id="s", seq=1, ts_ms=1, reason=TURN_END_ERROR, error="boom",
@@ -274,8 +275,8 @@ async def t_config_redaction(ctx: TestContext) -> None:
     import re
     import pathlib
 
-    src = pathlib.Path(__file__).resolve().parents[2] / "src" / "cli.py"
-    text = openagent_core.read_text()
+    src = module_path("openagent_server.cli")
+    text = src.read_text()
     assert "could_be_secret" in text, "la regola per forma non c'e' piu'"
     assert 'value.isdigit()' in text, "un valore numerico deve restare visibile"
     # E il segreto vero non deve mai finire stampato per intero.

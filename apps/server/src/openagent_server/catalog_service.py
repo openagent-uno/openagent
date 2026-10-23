@@ -219,15 +219,24 @@ class NativeCatalogService:
                 merged.update(values)
                 if not merged.get("command") and not merged.get("url"):
                     raise ValueError("An executable or URL is required")
-                from openagent_core.mcp.install_policy import check_mcp_install_allowed
+                # Only a change of what runs (argv) or where it points (url) is
+                # an install in disguise. Rotating an env key, headers or the
+                # enabled flag re-aims nothing; gating those would make the
+                # policy break ordinary maintenance of sources it already
+                # admitted, which is how a protection gets switched off.
+                if any(
+                    key in values and values[key] != existing.get(key)
+                    for key in ("command", "args", "url")
+                ):
+                    from openagent_core.mcp.install_policy import check_mcp_install_allowed
 
-                check_mcp_install_allowed(
-                    name=name,
-                    surface="standalone.catalog",
-                    command=merged.get("command"),
-                    args=merged.get("args"),
-                    url=merged.get("url"),
-                )
+                    check_mcp_install_allowed(
+                        name=name,
+                        surface="standalone.catalog",
+                        command=merged.get("command"),
+                        args=merged.get("args"),
+                        url=merged.get("url"),
+                    )
                 await self.db.upsert_mcp(
                     name, kind="custom", source="standalone-catalog", **merged
                 )

@@ -85,17 +85,28 @@ def _limits(*, max_depth=None, global_conc=None, per_chain=None):
         cs._GLOBAL_CONCURRENCY = global_conc
     if per_chain is not None:
         cs._PER_CHAIN_CONCURRENCY = per_chain
-    cs._global_sems.clear()
-    cs._chain_sems.clear()
+    # The per-loop semaphore pools live in the instance state (``_state()``)
+    # since 1.1, not in module globals; drop them so the patched sizes apply.
+    def _drop_pools() -> None:
+        cs._state().pop("global_sems", None)
+        cs._state().pop("chain_sems", None)
+
+    _drop_pools()
     try:
         yield cs
     finally:
         cs._MAX_DEPTH, cs._GLOBAL_CONCURRENCY, cs._PER_CHAIN_CONCURRENCY = old
-        cs._global_sems.clear()
-        cs._chain_sems.clear()
+        _drop_pools()
+
+
+# 1.1 refuses a child execution with no owner (no runtime execution context,
+# no parent row to inherit one from). These tests are about depth and
+# concurrency, not ownership, so every spawn names an explicit owner.
+_OWNER = "owner-test"
 
 
 def _spawn(cs, agent, *, parent, origin="delegation", **kw):
+    kw.setdefault("owner_client_id", _OWNER)
     return cs.run_child_session(
         agent=agent, db=None, parent_session_id=parent, origin=origin,
         origin_ref=kw.pop("origin_ref", {}), title="t", prompt="p", **kw,
@@ -251,6 +262,7 @@ async def t_no_ghost_row(ctx: TestContext) -> None:
             await cs.run_child_session(
                 agent=agent, db=_DB(), parent_session_id=sid,
                 origin="delegation", origin_ref={}, title="t", prompt="p",
+                owner_client_id=_OWNER,
             )
             return "ok"
 
@@ -259,6 +271,7 @@ async def t_no_ghost_row(ctx: TestContext) -> None:
             await cs.run_child_session(
                 agent=agent, db=_DB(), parent_session_id="chat-1",
                 origin="delegation", origin_ref={}, title="t", prompt="p",
+                owner_client_id=_OWNER,
             )
             raise AssertionError("not refused")
         except cs.DelegationDepthExceeded:

@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ._source import module_path, vault_tool_names
 from ._framework import TestContext, test
 
 # The vault-gate MCP is an in-process toolkit, so the pool passes no
@@ -57,9 +58,9 @@ def _real_vault_ops() -> set[str]:
 
     # vault — vendored Node server; parse its ListTools handler rather than
     # requiring a built dist/ at test time.
-    src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS["vault"]["dir"] / "src/createServer.ts"
-    assert openagent_core.exists(), f"vault server source missing at {src}"
-    for t in _TS_TOOL_NAME.findall(openagent_core.read_text()):
+    names, where = vault_tool_names()
+    assert names, f"no vault tools parsed from {where}"
+    for t in names:
         ops.add(_memory_op(f"vault_{t}"))
 
     # vault-gate — in-process toolkit; ask the factory what it registered.
@@ -143,7 +144,7 @@ async def t_docstring_names_real_tools(ctx: TestContext) -> None:
     how the next person learns the naming rule; teaching the wrong one is
     how this drift propagates.
     """
-    src = Path("src/channels/tool_labels.py").read_text()
+    src = module_path("openagent_server.channels.tool_labels").read_text()
     assert "shell_shell_exec" not in src, (
         "tool_labels.py names `shell_shell_exec`, which no server registers "
         "(the real key is `shell_exec` — in-process toolkits are unprefixed)."

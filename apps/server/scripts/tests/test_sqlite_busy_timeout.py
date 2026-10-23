@@ -18,6 +18,7 @@ from pathlib import Path
 import sqlite3
 import uuid
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -177,7 +178,7 @@ async def t_runtime_store_single_row_read_releases_reader(ctx: TestContext) -> N
         checkpoint = writer.execute("PRAGMA wal_checkpoint(PASSIVE)").fetchone()
         assert checkpoint[2] == checkpoint[1], checkpoint
 
-        source = Path(__file__).resolve().parents[2] / "src/memory/store/sqlite/sqlite.py"
+        source = module_path("openagent_core.memory.store.sqlite.sqlite")
         assert ".fetchone()" not in source.read_text(), (
             "runtime single-row reads must use first() so CursorResult closes"
         )
@@ -209,15 +210,14 @@ async def t_no_short_timeouts_left(ctx: TestContext) -> None:
     # back into the write paths that share the agent DB.
     import pathlib
 
-    root = pathlib.Path(__file__).resolve().parents[2]
     watched = [
-        "src/mcp/servers/_common.py",
-        "src/mcp/servers/scheduler/server.py",
-        "src/mcp/servers/workflow_manager/server.py",
-        "src/mcp/servers/events_manager/server.py",
+        "openagent_core.mcp.servers._common",
+        "openagent_core.mcp.servers.scheduler.server",
+        "openagent_core.mcp.servers.workflow_manager.server",
+        "openagent_core.mcp.servers.events_manager.server",
     ]
     for rel in watched:
-        text = (root / rel).read_text()
+        text = module_path(rel).read_text()
         assert "aiosqlite.connect(path)" not in text, f"{rel}: connect without a timeout"
         assert "busy_timeout = 10000" not in text, f"{rel}: hard-coded 10s busy_timeout"
         assert "sqlite_busy_timeout" in text, f"{rel}: not using the shared budget"

@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 import click
 
+from ._product_db import product_memory_db
 from ._framework import TestContext, test
 
 
@@ -86,8 +87,7 @@ async def test_local_e2e_view_seed_warms_message_and_tool_search(
             encoding="utf-8",
         )
 
-        db = MemoryDB(str(root / "openagent.db"))
-        await db.connect()
+        db = await product_memory_db(str(root / "openagent.db"))
         try:
             await CoordinatorStore(db).set_network_role(
                 role="coordinator",
@@ -99,8 +99,7 @@ async def test_local_e2e_view_seed_warms_message_and_tool_search(
 
         seeded = await seed(root, "Alice")
 
-        db = MemoryDB(str(root / "openagent.db"))
-        await db.connect()
+        db = await product_memory_db(str(root / "openagent.db"))
         try:
             status = await operational_search_status(db)
             outbox_head = int(
@@ -304,8 +303,7 @@ async def test_local_e2e_serve_ticket_has_address_hints(ctx: TestContext) -> Non
     assert len(matching) == 1
     assert InviteTicket.decode(matching[0]["ticket"]).addresses == (direct_hint,)
 
-    db = MemoryDB(str(root / "openagent.db"))
-    await db.connect()
+    db = await product_memory_db(str(root / "openagent.db"))
     try:
         invitations = await CoordinatorStore(db).list_invitations(include_expired=True)
         assert len(invitations) == 1

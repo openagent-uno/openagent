@@ -52,7 +52,7 @@ class _FakeMember:
 def _render(monkeypatch_target: Any, member: Any, cap: str | None) -> str:
     """Call get_members_system_message_content with a single fake member,
     bypassing get_resolved_members (which needs a real run context)."""
-    import openagent_server.core._runner.utils.callables as callables
+    import openagent_core.core._runner.utils.callables as callables
     orig = callables.get_resolved_members
     callables.get_resolved_members = lambda team, run_context: [member]  # type: ignore
     if cap is None:

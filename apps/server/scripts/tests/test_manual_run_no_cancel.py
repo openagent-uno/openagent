@@ -46,7 +46,7 @@ async def t_handler_uses_wait(ctx: TestContext) -> None:
     import openagent_server.gateway.api.scheduled_tasks as mod
 
     src = Path(mod.__file__).read_text()
-    handler = src[openagent_core.index("async def handle_run(request)"):]
+    handler = src[src.index("async def handle_run(request)"):]
     handler = handler[:handler.index("\nasync def ")]
     assert "wait_for(run_task" not in handler, (
         "handle_run is cancelling the firing again")

@@ -20,7 +20,18 @@ from __future__ import annotations
 
 import asyncio
 
+from ._product_db import product_memory_db
 from ._framework import TestContext, test
+
+
+def _realtime_channel(session, send, **kwargs):
+    """A RealtimeChannel wired with the wire codec the gateway passes it."""
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
+    from openagent_core.stream.channel import RealtimeChannel
+
+    kwargs.setdefault("encoder", event_to_wire)
+    kwargs.setdefault("decoder", wire_to_event)
+    return RealtimeChannel(session, send, **kwargs)
 
 
 # ── wire round-trip ──────────────────────────────────────────────────
@@ -34,7 +45,7 @@ async def t_wire_round_trip(ctx: TestContext) -> None:
         SessionOpen, TextDelta, TextFinal, TurnComplete, VideoFrame,
     )
     from openagent_core.stream.events import OutError
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     cases = [
         OutTextDelta(session_id="s", seq=1, ts_ms=10, text="hi"),
@@ -78,7 +89,7 @@ async def t_wire_round_trip(ctx: TestContext) -> None:
 @test("stream", "legacy MESSAGE frame decodes to TextFinal")
 async def t_legacy_message_decodes(ctx: TestContext) -> None:
     from openagent_core.stream.events import TextFinal
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     evt = wire_to_event({"type": "message", "session_id": "s1", "text": "hey"})
     assert isinstance(evt, TextFinal)
@@ -89,7 +100,7 @@ async def t_legacy_message_decodes(ctx: TestContext) -> None:
 @test("stream", "outbound AttachmentRefs hide local CAS paths except for trusted bridges")
 async def t_outbound_attachment_paths_are_internal(ctx: TestContext) -> None:
     from openagent_core.stream.events import OutTextFinal
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     ref = {
         "type": "file",
@@ -118,7 +129,7 @@ async def t_outbound_attachment_paths_are_internal(ctx: TestContext) -> None:
 
 @test("stream", "unknown wire types decode to None")
 async def t_unknown_wire(ctx: TestContext) -> None:
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     assert wire_to_event({"type": "auth"}) is None
     assert wire_to_event({"type": "lol_what"}) is None
@@ -132,7 +143,7 @@ async def t_session_open_emits_explicit_zero(ctx: TestContext) -> None:
     future "optimization" that drops 0 from the JSON would silently
     flip explicit opt-out sessions back to the default coalesce."""
     from openagent_core.stream.events import SessionOpen
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     explicit_zero = event_to_wire(SessionOpen(
         session_id="s", seq=1, ts_ms=10, coalesce_window_ms=0,
@@ -158,7 +169,7 @@ async def t_session_open_coalesce_default(ctx: TestContext) -> None:
     silently disabled coalescence on every webapp-opened session and
     made spam preempt the in-flight turn."""
     from openagent_core.stream.events import SessionOpen
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     # Missing field
     evt = wire_to_event({"type": "session_open", "session_id": "s1"})
@@ -315,8 +326,7 @@ async def t_ui_marker_stream_parts(ctx: TestContext) -> None:
     # resolve an authorized, revision-pinned inline View for this exact
     # session before emitting a structured part.
     with tempfile.TemporaryDirectory(prefix="oa-ui-stream-") as raw:
-        db = MemoryDB(str(Path(raw) / "agent.db"))
-        await db.connect()
+        db = await product_memory_db(str(Path(raw) / "agent.db"))
         try:
             access = AccessContext(
                 tenant_id="tenant-a",
@@ -667,7 +677,7 @@ async def t_batched_channel(ctx: TestContext) -> None:
 @test("stream", "wire codec drops binary payloads losslessly via base64")
 async def t_wire_binary(ctx: TestContext) -> None:
     from openagent_core.stream.events import OutAudioChunk
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     payload = bytes(range(256))
     evt = OutAudioChunk(session_id="s", seq=1, ts_ms=1, data=payload)
@@ -1285,7 +1295,7 @@ async def t_gateway_turn_output_is_ingress_scoped(ctx: TestContext) -> None:
         return None
 
     await session.start(stt_factory=_null, tts_factory=_null)
-    channel = RealtimeChannel(
+    channel = _realtime_channel(
         session, lambda payload: _safe_send(ws_a, payload),
     )
     channel.bind_transport(
@@ -1351,7 +1361,7 @@ async def t_gateway_turn_output_is_ingress_scoped(ctx: TestContext) -> None:
 @test("stream", "detached zombie turns cannot inherit a replacement device route")
 async def t_zombie_turn_keeps_immutable_ingress(ctx: TestContext) -> None:
     """A provider swallowing cancellation must not publish through B's route."""
-    import openagent_server.stream.session as session_module
+    import openagent_core.stream.session as session_module
     from openagent_core.core.execution_origin import TrustedIngressIdentity
     from openagent_core.stream.channel import RealtimeChannel
     from openagent_core.stream.events import TextFinal, now_ms
@@ -1413,7 +1423,7 @@ async def t_zombie_turn_keeps_immutable_ingress(ctx: TestContext) -> None:
         return None
 
     await session.start(stt_factory=_null, tts_factory=_null)
-    channel = RealtimeChannel(session, send_a)
+    channel = _realtime_channel(session, send_a)
     channel.bind_transport(ingress_a, send_a)
     channel.bind_transport(ingress_b, send_b)
     await channel.start()
@@ -2492,7 +2502,7 @@ async def t_realtime_rebind_recovers_stuck_frames(ctx: TestContext) -> None:
         return True
 
     # Tighten the retry interval so the test isn't slow.
-    channel = RealtimeChannel(sess, dead_send)
+    channel = _realtime_channel(sess, dead_send)
     channel.RETRY_INTERVAL_S = 0.05  # type: ignore[misc]
     channel.UNRECOVERABLE_AFTER_S = 5.0  # type: ignore[misc]
     await channel.start()
@@ -2541,7 +2551,7 @@ async def t_realtime_unrecoverable_callback(ctx: TestContext) -> None:
     async def on_unrecoverable() -> None:
         fired.set()
 
-    channel = RealtimeChannel(
+    channel = _realtime_channel(
         sess, dead_send, on_unrecoverable=on_unrecoverable,
     )
     channel.RETRY_INTERVAL_S = 0.05  # type: ignore[misc]
@@ -2628,15 +2638,15 @@ async def t_gateway_adopt_sessions_to_ws(ctx: TestContext) -> None:
     sess_a = StreamSession(_StubAgent(), client_id="alice", session_id="sa")
     sess_b = StreamSession(_StubAgent(), client_id="alice", session_id="sb")
     sess_c = StreamSession(_StubAgent(), client_id="bob",   session_id="sc")
-    ch_a = RealtimeChannel(
+    ch_a = _realtime_channel(
         sess_a,
         lambda p, _ws=ws_old: gw._safe_ws_send_json(_ws, p),
     )
-    ch_b = RealtimeChannel(
+    ch_b = _realtime_channel(
         sess_b,
         lambda p, _ws=ws_old: gw._safe_ws_send_json(_ws, p),
     )
-    ch_c = RealtimeChannel(
+    ch_c = _realtime_channel(
         sess_c,
         lambda p, _ws=ws_old: gw._safe_ws_send_json(_ws, p),
     )
@@ -3111,7 +3121,7 @@ async def t_gateway_adopt_retires_db_terminal_before_rebind_flush(ctx: TestConte
         stuck_payloads.append(payload)
         return False
 
-    channel = RealtimeChannel(sess, dead_send)
+    channel = _realtime_channel(sess, dead_send)
     gw._stream_sessions[("alice", "s1")] = _StreamHolder(
         session=sess,
         channel=channel,
@@ -3198,7 +3208,7 @@ async def t_realtime_rebind_preserves_order(ctx: TestContext) -> None:
         delivered.append(payload)
         return True
 
-    channel = RealtimeChannel(sess, dead_send)
+    channel = _realtime_channel(sess, dead_send)
     channel.RETRY_INTERVAL_S = 0.05  # type: ignore[misc]
     channel.UNRECOVERABLE_AFTER_S = 5.0  # type: ignore[misc]
     await channel.start()

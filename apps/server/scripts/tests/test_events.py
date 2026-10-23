@@ -587,7 +587,7 @@ async def t_event_cancel_not_failed(ctx: TestContext) -> None:
     """
     import asyncio
 
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     recorded: dict = {}
 
@@ -637,7 +637,7 @@ async def t_event_cancel_not_failed(ctx: TestContext) -> None:
 async def t_event_real_failure_has_message(ctx: TestContext) -> None:
     """The other half: a genuine exception whose ``str()`` is blank must not be
     indistinguishable from the cancellation bug. It gets the type name."""
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     class _Blank(Exception):
         def __str__(self): return ""

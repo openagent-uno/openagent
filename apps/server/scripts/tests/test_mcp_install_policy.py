@@ -53,28 +53,74 @@ def _policy_env(**vars: str | None):
                 os.environ[k] = v
 
 
+class _Owner:
+    async def authorize(self, context, action, resource, *, audience=()):
+        return True
+
+
+def _owner_context():
+    from openagent_core.contracts import ExecutionContext, PrincipalRef
+
+    owner = PrincipalRef("openagent", "network", "owner")
+    return ExecutionContext(owner, owner, owner, "session", "agent", (owner,))
+
+
+class _CatalogTools:
+    """The ``mcp-manager`` tools, run the way 1.1 runs them.
+
+    On 1.1 the manager writes no SQLite itself: every tool resolves the host's
+    ``catalog_management`` service from the current runtime and execution
+    context (``openagent_server.catalog_service.NativeCatalogService`` in the
+    product), and that service is where the install policy is enforced. Each
+    call opens the temp DB, starts the real service, and runs the real tool in
+    an execution scope whose environment is the process environment, as the
+    product's frozen environment is.
+    """
+
+    def __init__(self, tmp):
+        self.tmp = tmp
+
+    async def _run(self, tool, *args, **kwargs):
+        from types import SimpleNamespace
+
+        import openagent_core.mcp.servers.mcp_manager.server as mgr
+        from openagent_core.memory.db import MemoryDB
+        from openagent_core.runtime import execution_scope
+        from openagent_server.catalog_service import NativeCatalogService
+
+        db = MemoryDB(str(self.tmp))
+        await db.connect()
+        try:
+            service = NativeCatalogService(
+                SimpleNamespace(memory_db=db, config={}, capability_pool=None), _Owner(),
+            )
+            await service.start()
+            runtime = SimpleNamespace(
+                service=lambda key, default=None: service if key == "catalog_management" else default,
+                settings=SimpleNamespace(environment=tuple(os.environ.items()), workspace=None),
+            )
+            with execution_scope(runtime, _owner_context(), "run"):
+                return await getattr(mgr, tool)(*args, **kwargs)
+        finally:
+            await db.close()
+
+    async def add_custom_mcp(self, *args, **kwargs):
+        return await self._run("add_custom_mcp", *args, **kwargs)
+
+    async def update_mcp(self, *args, **kwargs):
+        return await self._run("update_mcp", *args, **kwargs)
+
+    async def disable_mcp(self, *args, **kwargs):
+        return await self._run("disable_mcp", *args, **kwargs)
+
+
 @contextmanager
 def _manager_db(ctx: TestContext):
-    """Point the mcp-manager MCP's module-level shared conn at a temp DB.
-
-    Same shape as ``test_mcp_manager_guards`` — that server holds a
-    ``SharedConnection`` singleton, so the path must be swapped and the conn
-    reset around the call.
-    """
-    import openagent_server.mcp.servers.mcp_manager.server as mgr
-
+    """The mcp-manager tools bound to a temp agent DB."""
     tmp = ctx.db_path.with_name(f"installpol-{uuid.uuid4().hex[:8]}.db")
-    prev = os.environ.get("OPENAGENT_DB_PATH")
-    os.environ["OPENAGENT_DB_PATH"] = str(tmp)
-    mgr._shared._conn = None  # type: ignore[attr-defined]
     try:
-        yield mgr, tmp
+        yield _CatalogTools(tmp), tmp
     finally:
-        mgr._shared._conn = None  # type: ignore[attr-defined]
-        if prev is None:
-            os.environ.pop("OPENAGENT_DB_PATH", None)
-        else:
-            os.environ["OPENAGENT_DB_PATH"] = prev
         tmp.unlink(missing_ok=True)
 
 
@@ -222,9 +268,12 @@ async def t_allow_pattern_permits(ctx: TestContext) -> None:
 
 @test("mcp_install_policy", "update_mcp is an install in disguise and is gated")
 async def t_update_is_gated(ctx: TestContext) -> None:
-    """``update_mcp(command=...)`` sets kind='custom' and re-aims the argv — on
-    ANY name, including a builtin the pool already trusts. Gating add_custom_mcp
-    alone would just move the door one function to the left.
+    """``update_mcp(command=...)`` re-aims a source's argv. Gating
+    add_custom_mcp alone would just move the door one function to the left.
+
+    On 1.1 a product-owned source (a builtin the pool already trusts) cannot
+    be re-aimed at all, policy or not; a user source can, and that re-aim goes
+    through the install policy exactly like a new install.
     """
     from openagent_core.mcp.install_policy import BlockedInstallError
     from openagent_core.memory.db import MemoryDB
@@ -242,7 +291,7 @@ async def t_update_is_gated(ctx: TestContext) -> None:
         raised = False
         try:
             await mgr.update_mcp("shell", command=HOSTILE_CMD, args=HOSTILE_ARGS)
-        except BlockedInstallError:
+        except PermissionError:
             raised = True
         assert raised, "update_mcp re-aimed a builtin's argv with the policy on"
 
@@ -251,6 +300,19 @@ async def t_update_is_gated(ctx: TestContext) -> None:
             f"the builtin's command was rewritten anyway: {row['command']!r}"
         )
         assert row["kind"] == "default", "the row was converted to custom anyway"
+
+        db = MemoryDB(str(tmp))
+        await db.connect()
+        await db.upsert_mcp("weather", kind="custom", command=["/bin/weather"],
+                            enabled=True, source="user")
+        await db.close()
+        raised = False
+        try:
+            await mgr.update_mcp("weather", command=HOSTILE_CMD, args=HOSTILE_ARGS)
+        except BlockedInstallError:
+            raised = True
+        assert raised, "update_mcp re-aimed a user source past the install policy"
+        assert (await _row(tmp, "weather"))["command"] == ["/bin/weather"]
 
 
 @test("mcp_install_policy", "update_mcp env/enabled-only patches are NOT gated")
@@ -295,6 +357,7 @@ async def _install_via_marketplace(ctx: TestContext, tmp):
 
     class _Req:
         can_read_body = True
+        match_info: dict = {}
 
         def __init__(self, app, body):
             self.app = app
@@ -309,7 +372,29 @@ async def _install_via_marketplace(ctx: TestContext, tmp):
     # ``_common.gateway_db`` reaches through ``app["gateway"].agent.memory_db``
     # — mirror that shape exactly rather than a dict, so the handler resolves
     # its DB the same way it does in production.
-    app = {"gateway": type("_GW", (), {"agent": type("_A", (), {"memory_db": db})()})()}
+    from types import SimpleNamespace
+
+    from openagent_server.catalog_service import NativeCatalogService
+
+    service = NativeCatalogService(
+        SimpleNamespace(memory_db=db, config={}, capability_pool=None), _Owner(),
+    )
+    await service.start()
+
+    class _RuntimeService:
+        catalog_management = service
+
+        async def context(self, request, session_id):
+            return _owner_context()
+
+    class _Gateway:
+        agent = SimpleNamespace(memory_db=db)
+        runtime_service = _RuntimeService()
+
+        async def broadcast_resource(self, *args, **kwargs):
+            return None
+
+    app = {"gateway": _Gateway()}
 
     server_json = {
         "name": "io.github.evil/backdoor",
@@ -421,12 +506,23 @@ async def t_config_is_wired(ctx: TestContext) -> None:
     sets env by hand and would pass even if ``_build_agent`` never parsed the
     stanza — leaving a documented toggle that does nothing, which is exactly
     how ``safety.approvals`` shipped inert."""
-    from openagent_server.server import _build_agent
+    from types import SimpleNamespace
+
     from openagent_core.mcp.install_policy import install_policy_enabled
+    from openagent_core.runtime import execution_scope
+    from openagent_server.server import _build_agent
+
+    def _enabled_under(env) -> bool:
+        # The gate reads the runtime's frozen environment, which the product
+        # builds from ``agent.product_environment``.
+        runtime = SimpleNamespace(service=lambda *a, **k: None,
+                                  settings=SimpleNamespace(environment=tuple(env.items()), workspace=None))
+        with execution_scope(runtime, _owner_context(), "run"):
+            return install_policy_enabled()
 
     keys = ("OPENAGENT_MCP_INSTALL_POLICY", "OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS")
     with _policy_env(**dict.fromkeys(keys, None)):
-        _build_agent({
+        agent = _build_agent({
             "name": "TestAgent",
             "model": {"provider": "anthropic", "model": "claude-opus-4-8"},
             "mcps": {"install_policy": {
@@ -434,20 +530,22 @@ async def t_config_is_wired(ctx: TestContext) -> None:
                 "allow_patterns": ["^npx -y @modelcontextprotocol/"],
             }},
         })
-        assert os.environ.get("OPENAGENT_MCP_INSTALL_POLICY") == "1"
-        assert os.environ.get("OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS") == (
+        env = agent.product_environment
+        assert env.get("OPENAGENT_MCP_INSTALL_POLICY") == "1"
+        assert env.get("OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS") == (
             "^npx -y @modelcontextprotocol/"
         )
-        assert install_policy_enabled() is True, "yaml parsed but the gate stayed off"
+        assert _enabled_under(env) is True, "yaml parsed but the gate stayed off"
 
     with _policy_env(**dict.fromkeys(keys, None)):
-        _build_agent({
+        agent = _build_agent({
             "name": "TestAgent",
             "model": {"provider": "anthropic", "model": "claude-opus-4-8"},
         })
-        leaked = {k: os.environ[k] for k in keys if k in os.environ}
+        env = agent.product_environment
+        leaked = {k: env[k] for k in keys if k in env}
         assert not leaked, f"absent mcps stanza still exported: {leaked}"
-        assert install_policy_enabled() is False
+        assert _enabled_under(env) is False
 
 
 @test("mcp_install_policy", "the shipped reference config keeps the policy OFF")

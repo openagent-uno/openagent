@@ -27,6 +27,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -69,7 +70,7 @@ async def t_no_event_kwarg_in_hooks(ctx: TestContext) -> None:
     import ast
     import pathlib
 
-    src = pathlib.Path("src/core/hooks.py").read_text()
+    src = module_path("openagent_core.core.hooks").read_text()
     tree = ast.parse(src)
     offenders = []
     for node in ast.walk(tree):

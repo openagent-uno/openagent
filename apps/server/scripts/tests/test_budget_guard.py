@@ -57,7 +57,7 @@ async def _make(ctx: TestContext, providers_config: list[dict]):
 @contextlib.contextmanager
 def _capture_elog():
     """Capture ``budget_guard``'s structured events as (name, kwargs) tuples."""
-    import openagent_server.core.budget_guard as bg
+    import openagent_core.core.budget_guard as bg
 
     events: list[tuple[str, dict]] = []
     orig = bg.elog

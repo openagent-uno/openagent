@@ -26,6 +26,7 @@ intentionally when the FFI changes.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import os
 from typing import Awaitable, Callable
@@ -76,10 +77,13 @@ StreamHandler = Callable[[object], Awaitable[None]]
 class _PythonProtocolHandler(iroh.ProtocolHandler):
     """Adapter turning an ``async (connection)`` callable into iroh's handler."""
 
-    def __init__(self, name: str, handler: StreamHandler) -> None:
+    def __init__(
+        self, name: str, handler: StreamHandler, context: contextvars.Context,
+    ) -> None:
         super().__init__()
         self._name = name
         self._handler = handler
+        self._context = context
         self._tasks: set[asyncio.Task] = set()
         self._stopped = False
 
@@ -94,9 +98,15 @@ class _PythonProtocolHandler(iroh.ProtocolHandler):
             except Exception:
                 pass
             return
+        # iroh's callback runs outside the registering code's contextvars, so
+        # a task created here would inherit an empty context: no agent
+        # directory (``elog`` would drop every auth/peer event instead of
+        # writing events.jsonl) and no runtime. Run each connection in its own
+        # copy of the context the handler was registered from.
         task = asyncio.create_task(
             self._handler(connection),
             name=f"iroh-{self._name}",
+            context=self._context.copy(),
         )
         self._tasks.add(task)
         task.add_done_callback(self._tasks.discard)
@@ -114,17 +124,20 @@ class _PythonProtocolHandler(iroh.ProtocolHandler):
 class _PythonProtocolCreator(iroh.ProtocolCreator):
     """``ProtocolCreator.create(endpoint)`` factory for ``_PythonProtocolHandler``."""
 
-    def __init__(self, name: str, handler: StreamHandler) -> None:
+    def __init__(
+        self, name: str, handler: StreamHandler, context: contextvars.Context,
+    ) -> None:
         super().__init__()
         self._name = name
         self._handler = handler
+        self._context = context
 
     def create(self, endpoint: "iroh.Endpoint") -> iroh.ProtocolHandler:
         # iroh's UniFFI binding calls this synchronously and expects a
         # ProtocolHandler back, not a coroutine — declaring async here
         # silently returned a coroutine that Rust then tried to invoke
         # ``.accept`` on, with predictable results.
-        return _PythonProtocolHandler(self._name, self._handler)
+        return _PythonProtocolHandler(self._name, self._handler, self._context)
 
 
 class IrohNode:
@@ -139,7 +152,7 @@ class IrohNode:
     def __init__(self, identity: Identity, *, derp_url: str | None = None) -> None:
         self.identity = identity
         self.derp_url = derp_url  # currently advisory; iroh-py 0.35's NodeOptions doesn't expose relay overrides
-        self._handlers: dict[bytes, StreamHandler] = {}
+        self._handlers: dict[bytes, tuple[StreamHandler, contextvars.Context]] = {}
         self._node: "iroh.Iroh | None" = None
         self._endpoint: "iroh.Endpoint | None" = None
         self._cached_node_id: str | None = None
@@ -167,8 +180,8 @@ class IrohNode:
         # NodeOptions.protocols is the canonical way to register a
         # custom ALPN — there is no post-construction "add_protocol".
         creators: dict[bytes, iroh.ProtocolCreator] = {
-            alpn: _PythonProtocolCreator(alpn.decode(errors="replace"), handler)
-            for alpn, handler in self._handlers.items()
+            alpn: _PythonProtocolCreator(alpn.decode(errors="replace"), handler, context)
+            for alpn, (handler, context) in self._handlers.items()
         }
         opts = iroh.NodeOptions(
             secret_key=self.identity.secret_bytes,
@@ -246,13 +259,19 @@ class IrohNode:
     # ── Handlers ─────────────────────────────────────────────────────
 
     def register_handler(self, alpn: bytes, handler: StreamHandler) -> None:
-        """Register the inbound handler for *alpn*. Must be called before ``start``."""
+        """Register the inbound handler for *alpn*. Must be called before ``start``.
+
+        The handler runs in a copy of the caller's current context, per
+        connection: whatever the host bound there (the agent directory that
+        routes ``elog`` into events.jsonl, the current runtime) is what an
+        inbound connection sees, although iroh delivers it from its own threads.
+        """
         if self._node is not None:
             raise RuntimeError(
                 "register_handler called after start — re-create IrohNode if you "
                 "need a different ALPN set",
             )
-        self._handlers[alpn] = handler
+        self._handlers[alpn] = (handler, contextvars.copy_context())
 
     # ── Outbound ─────────────────────────────────────────────────────
 

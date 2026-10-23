@@ -2,7 +2,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from openagent_cli.connectors import connect
+# The CLI is its own component (apps/cli); the server environment the root
+# suite runs in does not install it. See pytest.ini for the setup.
+connectors = pytest.importorskip(
+    "openagent_cli.connectors",
+    reason="openagent_cli is not installed: uv pip install --python apps/server/.venv -e apps/cli",
+)
+connect = connectors.connect
 
 
 @pytest.mark.asyncio

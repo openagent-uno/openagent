@@ -149,7 +149,7 @@ class _GatedDispatch:
       "concurrency=K + burst of N>K: at most K in flight, rest stay received, all N drain")
 async def t_bound_holds_and_queue_drains(ctx: TestContext) -> None:
     from openagent_core.core.scheduler import Scheduler
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     K = 2
     N = 7  # a burst well over the cap (the production incident was ~66)
@@ -233,7 +233,7 @@ async def t_bound_holds_and_queue_drains(ctx: TestContext) -> None:
       "a hanging turn holds its slot but does not block the drain; freeing one dispatches exactly one more")
 async def t_hanging_turn_does_not_block_drain(ctx: TestContext) -> None:
     from openagent_core.core.scheduler import Scheduler
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     K = 2
     extra = 3

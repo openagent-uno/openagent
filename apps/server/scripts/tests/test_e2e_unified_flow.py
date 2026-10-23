@@ -605,7 +605,7 @@ async def t_coordinate_mode_wired_and_agno_still_gathers(ctx: TestContext) -> No
     # inspect the source rather than calling it (calling would require a
     # real Model + function executor; the source-level check is what
     # locks the contract).
-    import openagent_server.models.providers.base as providers_base
+    import openagent_core.models.providers.base as providers_base
 
     assert hasattr(providers_base.Model, "arun_function_calls"), (
         "openagent_core.models.providers.base.Model.arun_function_calls disappeared — the "

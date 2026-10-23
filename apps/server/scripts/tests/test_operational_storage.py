@@ -156,7 +156,7 @@ async def t_backup_and_idempotence(_ctx: TestContext) -> None:
 
 @test("operational_storage", "committed DDL + failed bridge resumes without false backup")
 async def t_executescript_crash_recovery(_ctx: TestContext) -> None:
-    import openagent_server.memory.operational.schema as schema
+    import openagent_core.memory.operational.schema as schema
 
     with TemporaryDirectory(prefix="openagent-operational-recovery-") as directory:
         path = Path(directory) / "openagent.db"
@@ -198,7 +198,7 @@ async def t_executescript_crash_recovery(_ctx: TestContext) -> None:
 async def t_tool_context_repair_crash_recovery(_ctx: TestContext) -> None:
     import json
 
-    import openagent_server.memory.operational.schema as schema
+    import openagent_core.memory.operational.schema as schema
     from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-repair-recovery-") as directory:
@@ -379,7 +379,7 @@ async def t_lock_error_classification(_ctx: TestContext) -> None:
 
 @test("operational_storage", "failed backup leaves no temporary or orphan evidence")
 async def t_backup_failure_cleanup(_ctx: TestContext) -> None:
-    import openagent_server.memory.operational.schema as schema
+    import openagent_core.memory.operational.schema as schema
 
     with TemporaryDirectory(prefix="openagent-operational-cleanup-") as directory:
         path = Path(directory) / "openagent.db"
@@ -824,7 +824,7 @@ async def t_same_run_duplicate_tool_call_id(_ctx: TestContext) -> None:
 async def t_backfill_retry_is_durable_and_fair(_ctx: TestContext) -> None:
     import json
 
-    import openagent_server.memory.operational.repository as repository
+    import openagent_core.memory.operational.repository as repository
     from openagent_core.memory.db import MemoryDB
 
     with TemporaryDirectory(prefix="openagent-operational-retry-") as directory:
@@ -947,7 +947,7 @@ async def t_backfill_retry_is_durable_and_fair(_ctx: TestContext) -> None:
 async def t_beta3_tool_context_repair(_ctx: TestContext) -> None:
     import json
 
-    import openagent_server.memory.operational.schema as schema
+    import openagent_core.memory.operational.schema as schema
     from openagent_core.memory.db import MemoryDB
     from openagent_core.memory.operational.repository import (
         project_legacy_session_async,

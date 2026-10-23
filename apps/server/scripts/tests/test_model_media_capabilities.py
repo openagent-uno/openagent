@@ -381,7 +381,7 @@ async def t_typed_runtime_output_carriers(_ctx: TestContext) -> None:
     import os
     import stat
 
-    import openagent_server.models.native_provider as native_provider
+    import openagent_core.models.native_provider as native_provider
     from openagent_core.core._run_state.agent import ToolCallCompletedEvent
     from openagent_core.stream.media import Audio, File, Image, Video
 
@@ -538,7 +538,7 @@ async def t_mcp_payload_limits(_ctx: TestContext) -> None:
         TextResourceContents,
         Tool,
     )
-    import openagent_server.core._runner.utils.mcp as mcp_utils
+    import openagent_core.core._runner.utils.mcp as mcp_utils
 
     class _Session:
         async def send_ping(self):
@@ -612,7 +612,7 @@ async def t_mcp_payload_limits(_ctx: TestContext) -> None:
 
 @test("model_media_capabilities", "Team collect and stream propagate typed output media")
 async def t_team_runtime_output_media_both_paths(_ctx: TestContext) -> None:
-    import openagent_server.models.native_provider as native_provider
+    import openagent_core.models.native_provider as native_provider
     from openagent_core.core._run_state.agent import RunCompletedEvent
     from openagent_core.models.dispatcher import _arun_runtime_collect, _arun_runtime_stream
     from openagent_core.stream.media import Audio, File, Video

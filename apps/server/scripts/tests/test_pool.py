@@ -22,10 +22,8 @@ async def t_pool_specs(ctx: TestContext) -> None:
         db_path=str(ctx.db_path),
     )
     names = [s.name for s in pool.specs]
-    assert "vault" in names
-    assert "filesystem" in names
-    assert "scheduler" in names
-    assert "messaging" in names
+    for expected in ("vault", "filesystem", "scheduler", "workflow-manager", "events-manager"):
+        assert expected in names, f"{expected} missing from the pool defaults: {names}"
     assert "chrome-devtools" not in names
     assert "web-search" not in names
 
@@ -45,8 +43,9 @@ async def t_pool_connect(ctx: TestContext) -> None:
         assert pool.server_count >= 4, f"expected >=4 servers, got {pool.server_count}"
         assert summary.get("vault", 0) > 0, f"vault has no tools: {summary}"
         assert summary.get("scheduler", 0) > 0, f"scheduler has no tools: {summary}"
-        # messaging now always exposes the status tool
-        assert summary.get("messaging", 0) >= 1
+        # ``messaging`` is not asserted: its Node server is not part of the
+        # installed Core wheel (no openagent_core/mcp/servers/messaging), so a
+        # pool built from Core defaults has nothing to start for it.
         ctx.extras["pool"] = pool
         ctx.extras["initial_summary"] = summary
     except Exception:

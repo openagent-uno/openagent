@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -72,11 +73,10 @@ async def t_fallback_is_not_cwd(ctx: TestContext) -> None:
 async def t_servers_share_the_resolver(ctx: TestContext) -> None:
     import pathlib
 
-    root = pathlib.Path(__file__).resolve().parents[2]
     for rel in (
-        "src/mcp/servers/workflow_manager/server.py",
-        "src/mcp/servers/scheduler/server.py",
-        "src/mcp/servers/events_manager/server.py",
+        "openagent_core.mcp.servers.workflow_manager.server",
+        "openagent_core.mcp.servers.scheduler.server",
+        "openagent_core.mcp.servers.events_manager.server",
     ):
-        text = (root / rel).read_text()
+        text = module_path(rel).read_text()
         assert 'or "openagent.db"' not in text, f"{rel}: fallback sulla CWD tornato"

@@ -103,7 +103,7 @@ async def t_updater_prefers_server_asset(ctx: TestContext) -> None:
     }
 
     with (
-        patch.object(src, "__version__", "0.5.16"),
+        patch.object(openagent_server, "__version__", "0.5.16"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(
@@ -330,7 +330,7 @@ async def t_updater_skips_prerelease(ctx: TestContext) -> None:
         ],
     }
     with (
-        patch.object(src, "__version__", "0.5.16"),
+        patch.object(openagent_server, "__version__", "0.5.16"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(
@@ -364,7 +364,7 @@ async def t_updater_stable_feed_isolation(ctx: TestContext) -> None:
 
     feed = [_release("v0.19.23-beta.2", prerelease=True)]
     with (
-        patch.object(src, "__version__", "0.19.22"),
+        patch.object(openagent_server, "__version__", "0.19.22"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen", return_value=_FakeHTTPResponse(json.dumps(feed).encode())),
@@ -383,7 +383,7 @@ async def t_updater_beta_feed_isolation(ctx: TestContext) -> None:
         _release("v0.19.23-beta.2", prerelease=True),
     ]
     with (
-        patch.object(src, "__version__", "0.19.23-beta.1"),
+        patch.object(openagent_server, "__version__", "0.19.23-beta.1"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen", return_value=_FakeHTTPResponse(json.dumps(feed).encode())),
@@ -403,7 +403,7 @@ async def t_updater_beta_promotes_to_stable(ctx: TestContext) -> None:
         _release("v0.19.23", prerelease=False),
     ]
     with (
-        patch.object(src, "__version__", "0.19.23-beta.2"),
+        patch.object(openagent_server, "__version__", "0.19.23-beta.2"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen", return_value=_FakeHTTPResponse(json.dumps(feed).encode())),
@@ -420,7 +420,7 @@ async def t_updater_explicit_beta_channel(ctx: TestContext) -> None:
 
     feed = [_release("v0.19.23-beta.1", prerelease=True)]
     with (
-        patch.object(src, "__version__", "0.19.22"),
+        patch.object(openagent_server, "__version__", "0.19.22"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen", return_value=_FakeHTTPResponse(json.dumps(feed).encode())),
@@ -447,7 +447,7 @@ async def t_updater_logs_bad_tag(ctx: TestContext) -> None:
     upd_logger.addHandler(handler)
     try:
         with (
-            patch.object(src, "__version__", "0.5.16"),
+            patch.object(openagent_server, "__version__", "0.5.16"),
             patch.object(updater, "_ssl_context", return_value=None),
             patch.object(
                 updater, "urlopen",
@@ -581,7 +581,7 @@ async def t_try_elog_safe(ctx: TestContext) -> None:
     def boom(*a, **kw):
         raise RuntimeError("logging not ready")
 
-    import openagent_server.core.logging as logmod
+    import openagent_core.core.logging as logmod
     with patch.object(logmod, "elog", side_effect=boom):
         # Should NOT raise.
         updater._try_elog("update.test", level="warning", foo=1)
@@ -1017,7 +1017,7 @@ async def t_updater_skips_rolled_back(ctx: TestContext) -> None:
         ],
     }
     with (
-        patch.object(src, "__version__", "1.0.0"),
+        patch.object(openagent_server, "__version__", "1.0.0"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen",
@@ -1044,7 +1044,7 @@ async def t_updater_captures_digest(ctx: TestContext) -> None:
         ],
     }
     with (
-        patch.object(src, "__version__", "1.0.0"),
+        patch.object(openagent_server, "__version__", "1.0.0"),
         patch.object(updater, "_asset_suffix", return_value="linux-x64.tar.gz"),
         patch.object(updater, "_ssl_context", return_value=None),
         patch.object(updater, "urlopen",

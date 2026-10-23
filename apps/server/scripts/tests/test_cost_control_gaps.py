@@ -67,7 +67,7 @@ async def _make(ctx: TestContext, providers_config: list[dict]):
 @contextlib.contextmanager
 def _capture_bg():
     """Capture ``budget_guard``'s structured events as (name, kwargs) tuples."""
-    import openagent_server.core.budget_guard as bg
+    import openagent_core.core.budget_guard as bg
 
     events: list[tuple[str, dict]] = []
     orig = bg.elog
@@ -117,7 +117,7 @@ def _primed_pricing():
     import time as _t
 
     from openagent_core.models import discovery
-    import openagent_server.models.catalog as catalog
+    import openagent_core.models.catalog as catalog
 
     fake = [{"id": "deepseek/deepseek-v4-pro",
              "pricing": {"prompt": "0.000000435", "completion": "0.00000087"}}]
@@ -136,7 +136,7 @@ def _primed_pricing():
 def _cold_pricing():
     """Force the OpenRouter pricing cache empty (cold boot)."""
     from openagent_core.models import discovery
-    import openagent_server.models.catalog as catalog
+    import openagent_core.models.catalog as catalog
 
     saved_cache = getattr(discovery, "_OPENROUTER_CACHE", None)
     saved_index = catalog._OPENROUTER_INDEX
@@ -186,7 +186,7 @@ def _members_built_by_ensure_runtime(providers, entry_runtime_id, guard):
     """Drive the REAL ``TeamRouterProvider._ensure_runtime`` with the runtime
     Agent/Team construction stubbed out, and return the list of member
     runtime_ids the team was actually built with (leader excluded)."""
-    import openagent_server.core._runner.team as team_mod
+    import openagent_core.core._runner.team as team_mod
     from openagent_core.models.dispatcher import TeamRouterProvider
 
     provider = TeamRouterProvider(
@@ -403,7 +403,7 @@ async def t_c3_nonrouter_fallback_preserved(ctx: TestContext) -> None:
 
 @test("cost_control_gaps", "C3: no enabled row → router fallback is used AND logged")
 async def t_c3_no_cheap_row_warns(ctx: TestContext) -> None:
-    import openagent_server.core.compaction as compaction
+    import openagent_core.core.compaction as compaction
 
     agent = SimpleNamespace(_providers_config=[], _db=None)  # nothing to resolve
     router = _router([])

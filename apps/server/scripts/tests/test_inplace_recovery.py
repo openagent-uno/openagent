@@ -17,7 +17,7 @@ and a bug inside recovery degrades to that same path (never worse than today).
 """
 from __future__ import annotations
 
-import openagent_server.models.providers.fallback as fb_mod
+import openagent_core.models.providers.fallback as fb_mod
 from openagent_core.core.runtime_errors import ModelProviderError, ModelRateLimitError
 from openagent_core.models.providers.fallback import (
     FallbackConfig,

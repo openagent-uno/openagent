@@ -327,28 +327,34 @@ async def t_no_write_only_safety_env(ctx: TestContext) -> None:
                 lines[row - 1] = lines[row - 1][:col]
         return "\n".join(lines)
 
+    import openagent_core
+
     root = Path(__file__).resolve().parents[2] / "src"
+    # server.py exports into the agent's ``environment`` mapping (the product
+    # environment); the readers live in Core (``openagent_core.core.safety``).
+    reader_roots = (root, Path(openagent_core.__file__).resolve().parent)
     written: dict[str, str] = {}
     read: set[str] = set()
 
-    # A write is `os.environ["NAME"] = ...`.
-    w_re = re.compile(r"os\.environ\[\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']\s*\]\s*=[^=]")
+    # A write is `os.environ["NAME"] = ...` or `environment["NAME"] = ...`.
+    w_re = re.compile(r"(?:os\.environ|environment)\[\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']\s*\]\s*=[^=]")
     # A read is an explicit lookup, or a module constant bound to the name
     # (``_APPROVALS_ENV = "OPENAGENT_SAFETY_APPROVALS"``) — which is how
     # safety.py names the vars it reads. Deliberately NOT matching bare
     # mentions: a docstring naming a var is not a reader.
     r_re = re.compile(
-        r"(?:os\.environ\.get\(|os\.getenv\()\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']"
+        r"(?:\.get\(|os\.getenv\()\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']"
         r"|os\.environ\[\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']\s*\](?!\s*=[^=])"
         r"|^\s*[A-Za-z_]\w*\s*=\s*[\"'](OPENAGENT_SAFETY_[A-Z_]+)[\"']\s*$",
         re.MULTILINE,
     )
     for py in root.rglob("*.py"):
-        code = _code_only(py)
-        for m in w_re.finditer(code):
+        for m in w_re.finditer(_code_only(py)):
             written.setdefault(m.group(1), str(py))
-        for m in r_re.finditer(code):
-            read.add(next(g for g in m.groups() if g))
+    for reader_root in reader_roots:
+        for py in reader_root.rglob("*.py"):
+            for m in r_re.finditer(_code_only(py)):
+                read.add(next(g for g in m.groups() if g))
 
     assert written, "found no OPENAGENT_SAFETY_* writers — the scanner is broken"
     orphans = {name: loc for name, loc in written.items() if name not in read}

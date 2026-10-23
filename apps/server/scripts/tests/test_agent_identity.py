@@ -115,7 +115,7 @@ def _payload(response: Any) -> dict[str, Any]:
 
 @test("agent_identity", "owner update is atomic, preserves YAML, hot-applies, and never broadcasts the persona")
 async def t_atomic_preserve_live_and_redacted(ctx: TestContext) -> None:
-    import openagent_server.core.agent_identity as identity
+    import openagent_product_config.agent_identity as identity
 
     path, original, db, agent, gateway = _fixture(ctx, "atomic")
     service = identity.AgentIdentityService(

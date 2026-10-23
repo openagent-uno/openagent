@@ -634,7 +634,7 @@ async def t_mcp_surface(ctx: TestContext) -> None:
     # _reset_mcp_conn) so the module-global connection can't leak.
     import os
 
-    import openagent_server.mcp.servers.scheduler.server as mcp_server
+    import openagent_core.mcp.servers.scheduler.server as mcp_server
     from openagent_core.memory.schedule import DEFAULT_TZ_ENV
 
     def _call(tool):
