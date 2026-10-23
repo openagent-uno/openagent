@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta62 verified legacy projection and canonical runtime coexistence](releases/v1.1.0-beta.62.md)
+
 - [Beta61 official public wheel qualification](qualification/product-beta61-2026-10-23.json)
 
 - [Beta61 canonical history and native channel processing](releases/v1.1.0-beta.61.md)
