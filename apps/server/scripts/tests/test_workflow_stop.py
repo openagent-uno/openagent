@@ -436,7 +436,7 @@ async def t_rest_and_mcp_share_the_helper(ctx: TestContext) -> None:
     """Two requesters, one hand-off. If either grows its own copy of the SQL,
     the ``status='running'`` guard can drift on one side only — and that guard
     is what stops a settled run being rewritten as cancelled."""
-    import openagent_server.mcp.servers.workflow_manager.server as wf_server
+    import openagent_core.mcp.servers.workflow_manager.server as wf_server
     from openagent_server.gateway.api import workflow_tasks
     from openagent_core.workflow.cancel import flag_workflow_runs_cancelling
 

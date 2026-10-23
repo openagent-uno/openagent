@@ -44,7 +44,7 @@ async def t_builder_forwards_skills_root(ctx: TestContext) -> None:
             visti["skills_root"] = skills_root
             visti["vault_root"] = vault_root
 
-    import openagent_server.memory.semantic_index as si
+    import openagent_core.memory.semantic_index as si
 
     orig_idx, orig_emb = si.SemanticIndex, si.resolve_embedder
     si.SemanticIndex = _FakeIndex
@@ -106,7 +106,7 @@ async def t_server_resolves_and_passes(ctx: TestContext) -> None:
     import pathlib
 
     src = pathlib.Path(__file__).resolve().parents[2] / "src" / "core" / "server.py"
-    text = openagent_core.read_text()
+    text = src.read_text()
     i = text.find("_sem_index_start(")
     assert i > 0, "il builder non viene piu' avviato da qui"
     blocco = text[max(0, i - 900):i + 200]

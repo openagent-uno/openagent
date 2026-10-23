@@ -61,7 +61,7 @@ def _manager_db(ctx: TestContext):
     ``SharedConnection`` singleton, so the path must be swapped and the conn
     reset around the call.
     """
-    import openagent_server.mcp.servers.mcp_manager.server as mgr
+    import openagent_core.mcp.servers.mcp_manager.server as mgr
 
     tmp = ctx.db_path.with_name(f"installpol-{uuid.uuid4().hex[:8]}.db")
     prev = os.environ.get("OPENAGENT_DB_PATH")

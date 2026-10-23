@@ -260,7 +260,7 @@ async def t_distiller_prompt(_ctx: TestContext) -> None:
 
 @test("skill_distiller", "skill-distiller is a built-in mapped to the skills config section")
 async def t_distiller_is_builtin(_ctx: TestContext) -> None:
-    import openagent_server.core.builtin_tasks as bt
+    import openagent_core.core.builtin_tasks as bt
 
     assert bt.SKILL_DISTILLER_TASK_NAME == "skill-distiller"
     assert bt.SKILL_DISTILLER_TASK_NAME in bt.BUILTIN_TASK_NAMES, (

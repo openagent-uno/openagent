@@ -351,7 +351,7 @@ async def t_orphan_sweep(ctx: TestContext) -> None:
 
 @test("run_cancellation", "workflow-manager stop_workflow flags running runs, no-ops when idle")
 async def t_mcp_stop_workflow(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.workflow_manager.server as wf_server
+    import openagent_core.mcp.servers.workflow_manager.server as wf_server
 
     tmp_db = ctx.db_path.with_name(f"cancel-mcpwf-{uuid.uuid4().hex[:8]}.db")
     prev_env = os.environ.get("OPENAGENT_DB_PATH")
@@ -392,7 +392,7 @@ async def t_mcp_stop_workflow(ctx: TestContext) -> None:
 
 @test("run_cancellation", "scheduler stop_scheduled_task flags running firings, no-ops when idle")
 async def t_mcp_stop_scheduled_task(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.scheduler.server as sched_server
+    import openagent_core.mcp.servers.scheduler.server as sched_server
 
     tmp_db = ctx.db_path.with_name(f"cancel-mcptask-{uuid.uuid4().hex[:8]}.db")
     prev_env = os.environ.get("OPENAGENT_DB_PATH")
@@ -544,7 +544,7 @@ async def t_reap_cancelling(ctx: TestContext) -> None:
 
 @test("run_cancellation", "stop_workflow targets a specific run_id and resolves by name")
 async def t_mcp_stop_workflow_targeting(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.workflow_manager.server as wf_server
+    import openagent_core.mcp.servers.workflow_manager.server as wf_server
 
     tmp_db = ctx.db_path.with_name(f"cancel-target-{uuid.uuid4().hex[:8]}.db")
     prev_env = os.environ.get("OPENAGENT_DB_PATH")
@@ -587,7 +587,7 @@ async def t_mcp_stop_workflow_targeting(ctx: TestContext) -> None:
 
 @test("run_cancellation", "stop_workflow wait=True blocks until the run reaches a terminal status")
 async def t_mcp_stop_workflow_wait(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.workflow_manager.server as wf_server
+    import openagent_core.mcp.servers.workflow_manager.server as wf_server
 
     tmp_db = ctx.db_path.with_name(f"cancel-wait-{uuid.uuid4().hex[:8]}.db")
     prev_env = os.environ.get("OPENAGENT_DB_PATH")

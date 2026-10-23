@@ -188,7 +188,7 @@ async def test_catalog_window_fallback(ctx: TestContext) -> None:
 @test("context_report", "ContextReport event round-trips through the wire codec")
 async def test_wire_roundtrip(ctx: TestContext) -> None:
     from openagent_core.stream.events import ContextReport
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     payload = {"used_tokens": 1234, "context_window": 200_000, "sections": [{"key": "free", "tokens": 198766}]}
     evt = ContextReport(session_id="sX", seq=7, ts_ms=999, report=payload)

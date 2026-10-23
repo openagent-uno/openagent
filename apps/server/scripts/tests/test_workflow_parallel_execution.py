@@ -328,7 +328,7 @@ async def t_handle_run_no_shared_task_attr(ctx: TestContext) -> None:
     src = Path(__file__).resolve().parent.parent.parent / (
         "src/gateway/api/workflow_tasks.py"
     )
-    text = openagent_core.read_text()
+    text = src.read_text()
     # Catch assignment specifically — the old broken identifier may
     # legitimately appear in comments explaining the fix.
     bad_assign = re.search(r"scheduler\._run_workflow_task\s*=", text)

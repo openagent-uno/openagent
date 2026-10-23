@@ -142,6 +142,6 @@ async def t_wired_into_serve(ctx: TestContext) -> None:
     # La perdita e' strutturale: chiunque usi il CLI la alimenta. Una pulizia
     # che dipende da chi si ricorda di lanciarla non e' una soluzione.
     assert "bundle_sweep" in src
-    i = openagent_core.find("kill_stale_serve_processes(active_dir)")
+    i = src.find("kill_stale_serve_processes(active_dir)")
     assert i > 0
     assert "bundle_sweep" in src[i:i + 1200], "non e' accanto all'igiene dei processi"

@@ -544,7 +544,7 @@ async def t_session_compacted_wire_roundtrip(_ctx: TestContext) -> None:
     payload. Pure-unit — no DB, no model.
     """
     from openagent_core.stream.events import SessionCompacted
-    from openagent_core.stream.wire import event_to_wire, SESSION_COMPACTED
+    from openagent_client_transport.stream.wire import event_to_wire, SESSION_COMPACTED
 
     evt = SessionCompacted(
         session_id="sid", seq=42, ts_ms=12345,
@@ -733,7 +733,7 @@ async def t_session_compacted_full_roundtrip(_ctx: TestContext) -> None:
     bridge listeners parse the frame back via ``wire_to_event``.
     """
     from openagent_core.stream.events import SessionCompacted
-    from openagent_core.stream.wire import event_to_wire, wire_to_event, SESSION_COMPACTED
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event, SESSION_COMPACTED
 
     evt = SessionCompacted(
         session_id="sid", seq=7, ts_ms=999,
@@ -1530,7 +1530,7 @@ async def t_provider_of(ctx: TestContext) -> None:
 @test("compaction", "summary fallback picks a distinct-provider row and never the failed one")
 async def t_summary_fallback_picker(ctx: TestContext) -> None:
     from openagent_core.core import compaction
-    import openagent_server.models.native_provider as np_mod
+    import openagent_core.models.native_provider as np_mod
 
     providers_config = [
         {"id": 1, "name": "anthropic", "framework": "api-based", "enabled": True,

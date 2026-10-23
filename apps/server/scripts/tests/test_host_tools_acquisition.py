@@ -212,7 +212,7 @@ def test_server_committed_lock_and_python_dependency_are_immutable():
 
 
 def test_server_native_target_matches_every_release_platform():
-    import openagent_server.mcp.builtins as builtins
+    import openagent_core.mcp.builtins as builtins
 
     original_system = builtins.platform.system
     original_machine = builtins.platform.machine
@@ -509,7 +509,7 @@ async def _registered_release_contract(_ctx: TestContext) -> None:
 
 @register_test("host-tools", "all six release targets resolve native sidecars")
 async def _registered_native_targets(_ctx: TestContext) -> None:
-    import openagent_server.mcp.builtins as builtins
+    import openagent_core.mcp.builtins as builtins
 
     original_system = builtins.platform.system
     original_machine = builtins.platform.machine

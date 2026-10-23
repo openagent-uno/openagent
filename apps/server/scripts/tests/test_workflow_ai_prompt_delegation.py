@@ -98,7 +98,7 @@ def _patch_install_capture(monkeypatch_target: str, captured: list[Any]):
     ``install_delegation_context``) to capture the dispatcher arg and
     return a no-op token tuple compatible with ``reset_context``.
     """
-    import openagent_server.mcp.servers.delegation.handlers as handlers
+    import openagent_core.mcp.servers.delegation.handlers as handlers
 
     original_install = handlers.install_context
     original_reset = handlers.reset_context

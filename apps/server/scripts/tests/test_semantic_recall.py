@@ -363,7 +363,7 @@ def _fake_agent(db_path: Path, vault: Path):
 def _prime_recall_cache(db_path: Path, vault: Path) -> Any:
     """Pre-build a fake-embedder index and install it in the hook's cache, so
     ``_with_recall`` uses it without needing a live endpoint."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     from openagent_core.memory.semantic_index import SemanticIndex
 
     idx = SemanticIndex(db_path, vault_root=vault, embedder=ConceptEmbedder())
@@ -374,7 +374,7 @@ def _prime_recall_cache(db_path: Path, vault: Path) -> Any:
 
 @test("semantic_recall", "auto-recall is OFF by default — injects nothing")
 async def t_auto_recall_off_by_default(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "off")
     try:
@@ -397,7 +397,7 @@ async def t_auto_recall_off_by_default(ctx: TestContext) -> None:
 async def t_auto_recall_inert_without_model(ctx: TestContext) -> None:
     """Enabled + no model = still nothing. ``_get_recall_index`` resolves no
     embedder and returns None, so the turn text is byte-identical."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "noembed")
     try:
@@ -414,7 +414,7 @@ async def t_auto_recall_inert_without_model(ctx: TestContext) -> None:
 
 @test("semantic_recall", "a strong match injects a bounded, verify-framed block")
 async def t_auto_recall_strong_match(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "strong")
     try:
@@ -450,7 +450,7 @@ async def t_auto_recall_weak_match(ctx: TestContext) -> None:
     """The vault is full of orphans and contradictions; a weak match must inject
     NOTHING or auto-recall becomes a hallucination engine. The floor is what
     keeps stale notes out."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "weak")
     try:
@@ -482,7 +482,7 @@ async def t_auto_recall_cache_safe(ctx: TestContext) -> None:
     every turn (the regression the ``<session-id>`` split guards). The recall
     block lands on the USER message; the system prompt never sees it, and its
     trailing tag still splits cleanly."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     from openagent_core.models.providers.anthropic.claude import _split_session_id_tag
 
     db, idx_path, vault = _paths(ctx, "cachesafe")
@@ -580,7 +580,7 @@ async def t_numpy_free_search(ctx: TestContext) -> None:
     forces the pure-Python path and asserts it still finds a strong match and
     respects the threshold — recall can never again be disabled by a missing C
     library."""
-    import openagent_server.memory.semantic_index as si
+    import openagent_core.memory.semantic_index as si
     from openagent_core.memory.semantic_index import SemanticIndex
 
     db, idx_path, vault = _paths(ctx, "nonumpy")
@@ -612,7 +612,7 @@ async def t_background_builder(ctx: TestContext) -> None:
     """The on-turn hook is time-boxed and can't build a 2000-note index — it did
     so nowhere in prod, leaving recall empty. The builder does it in the
     background, un-time-boxed. Prove it embeds every note + is a no-op when inert."""
-    import openagent_server.memory.semantic_index as si
+    import openagent_core.memory.semantic_index as si
     from openagent_core.memory import semantic_index_builder as bld
 
     db, idx_path, vault = _paths(ctx, "builder")
@@ -625,7 +625,7 @@ async def t_background_builder(ctx: TestContext) -> None:
         import os as _os
         _os.environ.pop("OPENAGENT_EMBEDDING_MODEL", None)
         # ── build with a real (fake) embedder, forced via monkeypatch ──
-        import openagent_server.memory.semantic_index as si_mod
+        import openagent_core.memory.semantic_index as si_mod
         orig = si_mod.resolve_embedder
         si_mod.resolve_embedder = lambda *a, **k: ConceptEmbedder()
         try:
@@ -711,7 +711,7 @@ def _prime_fts_cache(vault: Path, index_path: Path) -> Any:
     """Build a real FTS ``VaultIndex`` over ``vault`` and install it in the
     hybrid hook's cache, so ``_recall_block`` uses it without touching
     ``data_dir()`` (mirrors ``_prime_recall_cache`` for the semantic side)."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     from openagent_core.memory.vault.index import VaultIndex
 
     fts = VaultIndex(vault, index_path)
@@ -803,7 +803,7 @@ async def t_search_path_prefix_filter(ctx: TestContext) -> None:
 
 @test("semantic_recall", "per-origin scoping: an event turn drops a dev-ops note a chat turn keeps")
 async def t_per_origin_scoping_e2e(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "origin")
     try:
@@ -834,7 +834,7 @@ async def t_per_origin_scoping_e2e(ctx: TestContext) -> None:
 
 @test("semantic_recall", "reserve_prefix surfaces the authoritative playbook alongside precedent")
 async def t_reserve_prefix(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "reserve")
     try:
@@ -877,7 +877,7 @@ async def t_reserve_prefix(ctx: TestContext) -> None:
 @test("semantic_recall", "one query embedding is reused across main and reserved searches")
 async def t_query_vector_reused_across_recall_legs(ctx: TestContext) -> None:
     """A turn must pay for one query embedding, not one per corpus leg."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     from openagent_core.memory.semantic_index import SemanticIndex
 
     db, idx_path, vault = _paths(ctx, "one-query-vector")
@@ -925,7 +925,7 @@ async def t_hybrid_rescues_below_floor(ctx: TestContext) -> None:
     returns NOTHING, and show the note is injected anyway because FTS matched the
     exact term — then that with hybrid OFF it is lost (the pre-hybrid regression
     the eval measured on the refund rule)."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "hybrid-floor")
     fts_path = ctx.db_path.with_name(f"{vault.name}-fts.db")
@@ -965,7 +965,7 @@ async def t_hybrid_rescues_below_floor(ctx: TestContext) -> None:
 
 @test("semantic_recall", "hybrid: a note found by BOTH sides is deduped and tagged as both")
 async def t_hybrid_dedup(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "hybrid-dedup")
     fts_path = ctx.db_path.with_name(f"{vault.name}-fts.db")
@@ -1000,7 +1000,7 @@ async def t_hybrid_degrades_no_embedder(ctx: TestContext) -> None:
     """Embedder unreachable → ``_get_recall_index`` is None → recall must still
     work off FTS alone (§17). The pre-hybrid code bailed here and injected
     nothing."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "hybrid-noembed")
     fts_path = ctx.db_path.with_name(f"{vault.name}-fts.db")
@@ -1029,7 +1029,7 @@ async def t_hybrid_degrades_no_embedder(ctx: TestContext) -> None:
 
 @test("semantic_recall", "hybrid degrades to semantic-only when the FTS index is unavailable")
 async def t_hybrid_degrades_no_fts(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "hybrid-nofts")
     orig = agent_mod._get_vault_fts_index
@@ -1213,8 +1213,8 @@ async def t_skill_search_routing(ctx: TestContext) -> None:
     """Gap 2 routing: with an embedder, skill_search finds a paraphrase hit the
     substring scan MISSES; with no embedder, it is the byte-identical substring
     scan (no 'semantic' matched_in, no score key)."""
-    import openagent_server.mcp.servers.skills.handlers as handlers
-    import openagent_server.memory.semantic_index as si_mod
+    import openagent_core.mcp.servers.skills.handlers as handlers
+    import openagent_core.memory.semantic_index as si_mod
 
     skills = _skills_dir(ctx, "search")
     db = ctx.db_path.with_name(f"sr-search-{uuid.uuid4().hex[:8]}.db")
@@ -1269,7 +1269,7 @@ def _prime_recall_cache_with_skills(db_path: Path, vault: Path, skills: Path) ->
     """Pre-build a fake-embedder index that ALSO carries a skills_root, sync it
     (so skill_vectors are populated), and install it in the hook's cache — the
     skills-leg analogue of ``_prime_recall_cache``."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     from openagent_core.memory.semantic_index import SemanticIndex
 
     idx = SemanticIndex(db_path, vault_root=vault, skills_root=str(skills),
@@ -1285,7 +1285,7 @@ async def t_recall_block_skills_leg(ctx: TestContext) -> None:
     on the turn path. With a fake embedder + a relevant skill, recall injects a
     verify-framed 'load it with skill_view <name>' line; with no embedder, the
     turn text is byte-identical."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "skillleg")
     skills = _skills_dir(ctx, "skillleg")
@@ -1336,7 +1336,7 @@ async def t_recall_block_skills_leg(ctx: TestContext) -> None:
 
 @test("semantic_recall", "query marker: the SPAN is embedded, not the boilerplate around it")
 async def t_query_marker_span_is_embedded(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     db, idx_path, vault = _paths(ctx, "qmarker")
     try:
@@ -1387,7 +1387,7 @@ async def t_query_marker_fallbacks(ctx: TestContext) -> None:
     """Every degradation returns the FULL message, so a deployment that has not
     configured the marker — or a turn whose prompt lost it — behaves exactly as
     it did before the marker existed."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     msg = "before <customer-message>the span</customer-message> after"
     try:
@@ -1422,7 +1422,7 @@ async def t_query_marker_fallbacks(ctx: TestContext) -> None:
 
 @test("semantic_recall", "query marker: multi-line span, and only the FIRST occurrence is taken")
 async def t_query_marker_multiline(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
     try:
         os.environ["OPENAGENT_AUTO_RECALL_QUERY_MARKER"] = "customer-message"
         multi = "x <customer-message>line one\nline two</customer-message> y"

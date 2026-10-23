@@ -262,7 +262,7 @@ async def t_gate_off_costs_nothing(ctx: TestContext) -> None:
         config = {"skills": {"enabled": True}}  # review_enabled assente = off
         memory_db = _JournalDB([_ev(1, "user/message", "x")])
 
-    import openagent_server.core.skill_review as review_mod
+    import openagent_core.core.skill_review as review_mod
     original = review_mod.schedule_review
     review_mod.schedule_review = lambda **kw: calls.append(kw)
     try:

@@ -58,8 +58,8 @@ def _real_vault_ops() -> set[str]:
     # vault — vendored Node server; parse its ListTools handler rather than
     # requiring a built dist/ at test time.
     src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS["vault"]["dir"] / "src/createServer.ts"
-    assert openagent_core.exists(), f"vault server source missing at {src}"
-    for t in _TS_TOOL_NAME.findall(openagent_core.read_text()):
+    assert src.exists(), f"vault server source missing at {src}"
+    for t in _TS_TOOL_NAME.findall(src.read_text()):
         ops.add(_memory_op(f"vault_{t}"))
 
     # vault-gate — in-process toolkit; ask the factory what it registered.

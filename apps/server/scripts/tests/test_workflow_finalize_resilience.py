@@ -66,7 +66,7 @@ class _FakeDB:
 def _patch_sleep_to_noop():
     """Replace asyncio.sleep inside the executor with an awaitable
     no-op so the test isn't gated by real wall-clock backoff."""
-    import openagent_server.workflow.executor as ex
+    import openagent_core.workflow.executor as ex
 
     orig = ex.asyncio.sleep
 
@@ -78,7 +78,7 @@ def _patch_sleep_to_noop():
 
 
 def _restore_sleep(orig):
-    import openagent_server.workflow.executor as ex
+    import openagent_core.workflow.executor as ex
 
     ex.asyncio.sleep = orig  # type: ignore[assignment]
 

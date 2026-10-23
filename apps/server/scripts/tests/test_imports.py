@@ -18,20 +18,20 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 async def t_imports(ctx: TestContext) -> None:
     import openagent_server
     import openagent_server.cli  # noqa: F401
-    import openagent_server.core.agent  # noqa: F401
+    import openagent_core.core.agent  # noqa: F401
     import openagent_server.server  # noqa: F401
     import openagent_server.gateway.server  # noqa: F401
     import openagent_server.gateway.sessions  # noqa: F401
-    import openagent_server.mcp  # noqa: F401
-    import openagent_server.mcp.pool  # noqa: F401
-    import openagent_server.mcp.builtins  # noqa: F401
-    import openagent_server.mcp.servers.scheduler.server  # noqa: F401
-    import openagent_server.models.native_provider  # noqa: F401
-    import openagent_server.models.dispatcher  # noqa: F401
-    import openagent_server.models.runtime  # noqa: F401
-    import openagent_server.models.catalog  # noqa: F401
-    import openagent_server.models.budget  # noqa: F401
-    import openagent_server.memory.db  # noqa: F401
+    import openagent_core.mcp  # noqa: F401
+    import openagent_core.mcp.pool  # noqa: F401
+    import openagent_core.mcp.builtins  # noqa: F401
+    import openagent_core.mcp.servers.scheduler.server  # noqa: F401
+    import openagent_core.models.native_provider  # noqa: F401
+    import openagent_core.models.dispatcher  # noqa: F401
+    import openagent_core.models.runtime  # noqa: F401
+    import openagent_core.models.catalog  # noqa: F401
+    import openagent_core.models.budget  # noqa: F401
+    import openagent_core.memory.db  # noqa: F401
     assert openagent_server.__version__
 
 
@@ -89,7 +89,7 @@ async def t_bundle_numpy(ctx: TestContext) -> None:
     # numpy is now OPTIONAL: semantic_index must import + search with it FORCED
     # OFF, so a bundle that omits numpy still recalls (just slower). This is the
     # guarantee that a fragile numpy bundle can never again silently break recall.
-    import openagent_server.memory.semantic_index as si
+    import openagent_core.memory.semantic_index as si
     saved = si._HAS_NUMPY
     try:
         si._HAS_NUMPY = False
@@ -190,7 +190,7 @@ async def t_frozen_preload_covers_lazy_runtime(ctx: TestContext) -> None:
     surrounding hot paths) lazy-import so the preloader keeps them
     resident in ``sys.modules`` and the runtime never has to crack
     the PYZ archive after startup."""
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     required = {
         "openagent_core.core._runner.agent",
@@ -214,7 +214,7 @@ async def t_frozen_preload_covers_lazy_runtime(ctx: TestContext) -> None:
 
 @test("imports", "frozen runtime preloader warms late imports without aborting startup")
 async def t_frozen_runtime_preload(ctx: TestContext) -> None:
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     imported: list[str] = []
 

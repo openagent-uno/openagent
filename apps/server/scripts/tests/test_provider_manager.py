@@ -13,7 +13,7 @@ from ._framework import TestContext, test
 
 @test("provider_manager", "add_provider writes api_key to DB (v0.12 framework-aware)")
 async def t_add_provider(ctx: TestContext) -> None:
-    import openagent_server.mcp.servers.model_manager.server as mgr
+    import openagent_core.mcp.servers.model_manager.server as mgr
     from openagent_core.memory.db import MemoryDB
 
     tmp_dir = ctx.db_path.parent / f"pmgr-{uuid.uuid4().hex[:8]}"

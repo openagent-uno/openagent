@@ -93,7 +93,7 @@ async def t_stream_delta_payload_shape(_ctx: TestContext) -> None:
     them to ``{type: "delta", text, session_id}``. The shape MUST
     stay stable so older clients keep typing-out tokens correctly."""
     from openagent_core.stream.events import OutTextDelta
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     payload = event_to_wire(OutTextDelta(
         session_id="s1", seq=3, ts_ms=42, text="hello",

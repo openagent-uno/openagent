@@ -36,7 +36,7 @@ def _combined(session_id: str | None = "sess-1", persona: str = "") -> str:
     # assembly (framework + persona + date + tag) without a live pool.
     agent._resolve_vault_path = lambda: "/tmp/vault"
     agent._resolve_db_path = lambda: "/tmp/db"
-    import openagent_server.core.agent as agent_mod
+    import openagent_core.core.agent as agent_mod
 
     orig = agent_mod.build_mcp_catalog_summary
     agent_mod.build_mcp_catalog_summary = lambda _pool: "(catalog)"

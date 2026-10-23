@@ -34,7 +34,7 @@ async def t_wire_round_trip(ctx: TestContext) -> None:
         SessionOpen, TextDelta, TextFinal, TurnComplete, VideoFrame,
     )
     from openagent_core.stream.events import OutError
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     cases = [
         OutTextDelta(session_id="s", seq=1, ts_ms=10, text="hi"),
@@ -78,7 +78,7 @@ async def t_wire_round_trip(ctx: TestContext) -> None:
 @test("stream", "legacy MESSAGE frame decodes to TextFinal")
 async def t_legacy_message_decodes(ctx: TestContext) -> None:
     from openagent_core.stream.events import TextFinal
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     evt = wire_to_event({"type": "message", "session_id": "s1", "text": "hey"})
     assert isinstance(evt, TextFinal)
@@ -89,7 +89,7 @@ async def t_legacy_message_decodes(ctx: TestContext) -> None:
 @test("stream", "outbound AttachmentRefs hide local CAS paths except for trusted bridges")
 async def t_outbound_attachment_paths_are_internal(ctx: TestContext) -> None:
     from openagent_core.stream.events import OutTextFinal
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     ref = {
         "type": "file",
@@ -118,7 +118,7 @@ async def t_outbound_attachment_paths_are_internal(ctx: TestContext) -> None:
 
 @test("stream", "unknown wire types decode to None")
 async def t_unknown_wire(ctx: TestContext) -> None:
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     assert wire_to_event({"type": "auth"}) is None
     assert wire_to_event({"type": "lol_what"}) is None
@@ -132,7 +132,7 @@ async def t_session_open_emits_explicit_zero(ctx: TestContext) -> None:
     future "optimization" that drops 0 from the JSON would silently
     flip explicit opt-out sessions back to the default coalesce."""
     from openagent_core.stream.events import SessionOpen
-    from openagent_core.stream.wire import event_to_wire
+    from openagent_client_transport.stream.wire import event_to_wire
 
     explicit_zero = event_to_wire(SessionOpen(
         session_id="s", seq=1, ts_ms=10, coalesce_window_ms=0,
@@ -158,7 +158,7 @@ async def t_session_open_coalesce_default(ctx: TestContext) -> None:
     silently disabled coalescence on every webapp-opened session and
     made spam preempt the in-flight turn."""
     from openagent_core.stream.events import SessionOpen
-    from openagent_core.stream.wire import wire_to_event
+    from openagent_client_transport.stream.wire import wire_to_event
 
     # Missing field
     evt = wire_to_event({"type": "session_open", "session_id": "s1"})
@@ -667,7 +667,7 @@ async def t_batched_channel(ctx: TestContext) -> None:
 @test("stream", "wire codec drops binary payloads losslessly via base64")
 async def t_wire_binary(ctx: TestContext) -> None:
     from openagent_core.stream.events import OutAudioChunk
-    from openagent_core.stream.wire import event_to_wire, wire_to_event
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 
     payload = bytes(range(256))
     evt = OutAudioChunk(session_id="s", seq=1, ts_ms=1, data=payload)
@@ -1351,7 +1351,7 @@ async def t_gateway_turn_output_is_ingress_scoped(ctx: TestContext) -> None:
 @test("stream", "detached zombie turns cannot inherit a replacement device route")
 async def t_zombie_turn_keeps_immutable_ingress(ctx: TestContext) -> None:
     """A provider swallowing cancellation must not publish through B's route."""
-    import openagent_server.stream.session as session_module
+    import openagent_core.stream.session as session_module
     from openagent_core.core.execution_origin import TrustedIngressIdentity
     from openagent_core.stream.channel import RealtimeChannel
     from openagent_core.stream.events import TextFinal, now_ms

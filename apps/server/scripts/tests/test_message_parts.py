@@ -110,7 +110,7 @@ async def t_message_parts_migration(ctx: TestContext) -> None:
 
 @test("message_parts", "failed ordered-parts DDL rolls back atomically")
 async def t_message_parts_migration_rollback(ctx: TestContext) -> None:
-    import openagent_server.memory.message_parts_migration as migration
+    import openagent_core.memory.message_parts_migration as migration
     from openagent_core.memory.db import MemoryDB
 
     with tempfile.TemporaryDirectory(prefix="oa-message-parts-rollback-") as raw:

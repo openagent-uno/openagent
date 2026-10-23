@@ -68,7 +68,7 @@ async def _drive_dispatch(db, event, *, raise_exc=None, result=None):
     """Run the REAL ``dispatch_event`` for one fresh delivery with a fake
     ``_dispatch_prompt`` that raises ``raise_exc`` or returns ``result``. Returns
     (delivery_id, outcome) where outcome is 'ok' | 'raised' | 'cancelled'."""
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     did = await db.add_event_delivery(
         event_id=event["id"], payload={"ticket": {"id": "x"}}, claimed=True,
@@ -142,7 +142,7 @@ async def t_trips_on_permanent(ctx: TestContext) -> None:
 @test("event_breaker",
       "a tripped breaker parks a new delivery blocked and the drain never dispatches it")
 async def t_tripped_breaker_blocks_drain(ctx: TestContext) -> None:
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
     from openagent_core.core.scheduler import Scheduler
 
     path = _fresh_db_path(ctx)

@@ -243,7 +243,7 @@ async def t_no_provider_required(ctx: TestContext) -> None:
 
     src = inspect.getsource(contradiction)
     # Strip the module docstring: it DISCUSSES models/providers deliberately.
-    body = openagent_core.split('"""', 2)[-1]
+    body = src.split('"""', 2)[-1]
     for forbidden in ("NativeProvider", "generate(", "aiohttp", "openai",
                       "anthropic", "_resolve_model", "complete("):
         assert forbidden not in body, f"generator reaches for a model: {forbidden!r}"

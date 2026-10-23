@@ -62,7 +62,7 @@ async def t_entrypoint_meta(_ctx: TestContext) -> None:
 @test("dry_run", "event turn has a wall-clock cap so it can't zombie")
 async def t_run_wallclock_cap(_ctx: TestContext) -> None:
     import asyncio
-    import openagent_server.core.event_dispatcher as ed
+    import openagent_core.core.event_dispatcher as ed
 
     # A finite, positive cap must exist — otherwise a rate-limited turn blocking
     # on backoff would stay "running" for hours (the jam this guards against).

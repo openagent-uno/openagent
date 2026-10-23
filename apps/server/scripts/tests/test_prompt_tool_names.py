@@ -154,11 +154,11 @@ def _registered_keys_by_server() -> tuple[dict[str, set[str]], list[str]]:
     # 3. Vendored Node vault server — parse its ListTools handler.
     for name, rel in _NODE_TOOL_SOURCES.items():
         src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS[name]["dir"] / rel
-        if not openagent_core.exists():
+        if not src.exists():
             notes.append(f"{name}: source missing at {src}")
             continue
         pfx = _safe_prefix(name) + "_"
-        by_server[name] = {pfx + t for t in _TS_TOOL_NAME.findall(openagent_core.read_text())}
+        by_server[name] = {pfx + t for t in _TS_TOOL_NAME.findall(src.read_text())}
 
     return by_server, notes
 
