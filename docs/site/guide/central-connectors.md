@@ -2,7 +2,7 @@
 
 The OpenAgent Tools SDK 0.1.13 adds an optional shared catalog and central execution profile. A host can discover connector contracts and invoke their operations through one generic client. Provider credentials remain in the service's encrypted vault; provider-specific adapters execute on that service.
 
-The [SDK 0.1.13 release](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.13) and Go module `github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.13` provide this profile. The service at `https://auth.openagent.uno` serves catalog revision 2: 115 descriptors, with CoinGecko available. A normal public-module client completed a real CoinGecko read, metadata-only replay, recipient-isolation and disconnect checks on 21 October 2026. Other central entries remain unavailable; this does not change existing local or legacy OAuth connections.
+The [SDK 0.1.14 release](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.14) and Go module `github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.14` provide this profile. On 23 October 2026, the service at `https://auth.openagent.uno` serves catalog revision 4: 115 descriptors, with CoinGecko available. A normal public-module client completed a real CoinGecko read, metadata-only replay, recipient-isolation and disconnect checks on 21 October 2026. Other central entries remain unavailable; this does not change existing local or legacy OAuth connections.
 
 ## Two explicit execution profiles
 
@@ -64,6 +64,49 @@ Connections pin the admitted operation set, contract hash and grant revision. Ca
 The first successful invocation can return content with `result_available: true`. Repeated invocation requests and status reads return outcome metadata with `result_available: false`; provider content is not durably stored for replay. The host must handle that distinction explicitly. Reusing an invocation ID with changed arguments is rejected. The client does not automatically retry a mutation after an uncertain outcome: inspect its status rather than submitting a fresh action blindly.
 
 Disconnecting this central connection does not claim to revoke every provider-side grant or another installation's access. Global provider revocation and provider-specific limits remain separate operations and contracts.
+
+## Google scope correction in SDK 0.1.14
+
+New Gmail connections request `gmail.readonly` for mailbox reads and
+`gmail.compose` for draft creation and sending. They no longer request
+`gmail.modify` or the redundant `gmail.send`. Read-only operation selection
+requests only readonly. Existing host-held grants retain their original app
+and scopes; the SDK preserves supported legacy operation checks and refresh
+without silently migrating credentials or requesting broader access.
+
+Each Google connector requests its own subset of the app's declared scopes:
+
+| Connector | Scopes |
+| --- | --- |
+| Gmail | `gmail.readonly`, `gmail.compose` |
+| Drive | `drive` |
+| Calendar | `calendar.calendarlist.readonly`, `calendar.events` |
+| Analytics | `analytics.readonly` |
+
+The revised Gmail authorization changes its central contract hash. A handle
+pinned to an earlier contract requires an explicit reconnection; catalog
+refresh must not silently expand a grant. The public central Gmail entry
+remains unavailable while review is pending. An isolated, expiring admission
+for one installation does not admit other installations or prove provider
+approval.
+
+On 23 October, isolated Google qualification exercised all 23 reviewed
+operations: seven Gmail operations through central execution, and five Drive,
+seven Calendar and four Analytics operations through the local runner. Each
+connection also completed an explicit refresh, a subsequent read in a new
+process and scoped disconnect. Source-account checks used only generated QA
+mail/files and one private event without attendees. These checks do not
+establish elapsed-expiry behavior, every shared-calendar case, acceptance by
+Google or completion of a restricted-scope security assessment.
+
+SDK releases and installed product bundles have separate version pins. An
+older product's bundled runner does not acquire this correction automatically.
+For an explicitly configured local review, download the matching platform
+bundle and checksums from the 0.1.14 release, verify them, then select the runner
+using `connectors.runner_path` or `OPENAGENT_CONNECTOR_RUNNER` before starting
+the server. Explicit provider enrollment, local write authorization and Google
+consent still apply. This override does not convert local connections to the
+central profile or enable an unavailable central entry.
 
 ## Optional service configuration
 
