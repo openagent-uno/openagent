@@ -20,6 +20,7 @@ fra una guardia contro lo spreco e una guardia contro il lavoro:
 """
 from __future__ import annotations
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -199,8 +200,7 @@ async def t_async_chain_too(ctx: TestContext) -> None:
 async def t_guard_is_unwired_on_purpose(ctx: TestContext) -> None:
     import pathlib
 
-    src = (pathlib.Path(__file__).resolve().parents[2]
-           / "src" / "models" / "native_provider.py").read_text()
+    src = module_path("openagent_core.models.native_provider").read_text()
 
     # Se qualcuno la ricabla senza il test end-to-end, questo lo ferma.
     assert "tool_hooks=[" not in src, (

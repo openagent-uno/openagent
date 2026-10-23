@@ -43,6 +43,7 @@ import re
 import tokenize
 from pathlib import Path
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 _ROOT = Path(__file__).resolve().parents[2]
@@ -324,7 +325,7 @@ async def t_no_maint_task_lifecycle(ctx: TestContext) -> None:
     harmless at runtime (``getattr`` returns ``None``) and precisely the kind
     of residue that makes the next reader think the loop still exists.
     """
-    code = _code_only(_SRC / "core" / "server.py")
+    code = _code_only(module_path("openagent_server.server"))
     assert "_vault_maint_task" not in code, (
         "the vault-maintenance task handle is still in server.py's lifecycle "
         "code; the loop it belonged to is deleted"

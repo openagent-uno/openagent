@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 # The vault-gate MCP is an in-process toolkit, so the pool passes no
@@ -143,7 +144,7 @@ async def t_docstring_names_real_tools(ctx: TestContext) -> None:
     how the next person learns the naming rule; teaching the wrong one is
     how this drift propagates.
     """
-    src = Path("src/channels/tool_labels.py").read_text()
+    src = module_path("openagent_server.channels.tool_labels").read_text()
     assert "shell_shell_exec" not in src, (
         "tool_labels.py names `shell_shell_exec`, which no server registers "
         "(the real key is `shell_exec` — in-process toolkits are unprefixed)."

@@ -26,6 +26,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -138,7 +139,7 @@ async def t_never_raises(ctx: TestContext) -> None:
 async def t_wired_into_serve(ctx: TestContext) -> None:
     import pathlib
 
-    src = (pathlib.Path(__file__).resolve().parents[2] / "src" / "cli.py").read_text()
+    src = module_path("openagent_server.cli").read_text()
     # La perdita e' strutturale: chiunque usi il CLI la alimenta. Una pulizia
     # che dipende da chi si ricorda di lanciarla non e' una soluzione.
     assert "bundle_sweep" in src

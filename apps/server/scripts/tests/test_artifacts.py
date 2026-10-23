@@ -9,6 +9,7 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -20,8 +21,8 @@ class _DiskDB:
 def _artifact_db(root: Path) -> tuple[_DiskDB, str]:
     db_path = root / "agent.db"
     schema = (
-        Path(__file__).parents[2]
-        / "src/memory/operational/sql/operational_storage_v2.sql"
+        module_path("openagent_core.memory.operational").parent
+        / "sql/operational_storage_v2.sql"
     ).read_text(encoding="utf-8")
     conn = sqlite3.connect(db_path)
     try:

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import inspect
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -105,7 +106,7 @@ async def t_root_enables_leg(ctx: TestContext) -> None:
 async def t_server_resolves_and_passes(ctx: TestContext) -> None:
     import pathlib
 
-    src = pathlib.Path(__file__).resolve().parents[2] / "src" / "core" / "server.py"
+    src = module_path("openagent_server.server")
     text = src.read_text()
     i = text.find("_sem_index_start(")
     assert i > 0, "il builder non viene piu' avviato da qui"

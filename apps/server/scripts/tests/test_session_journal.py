@@ -16,6 +16,7 @@ from __future__ import annotations
 import uuid
 from types import SimpleNamespace
 
+from ._source import module_path
 from ._framework import TestContext, test
 
 
@@ -274,7 +275,7 @@ async def t_config_redaction(ctx: TestContext) -> None:
     import re
     import pathlib
 
-    src = pathlib.Path(__file__).resolve().parents[2] / "src" / "cli.py"
+    src = module_path("openagent_server.cli")
     text = src.read_text()
     assert "could_be_secret" in text, "la regola per forma non c'e' piu'"
     assert 'value.isdigit()' in text, "un valore numerico deve restare visibile"
