@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 import tempfile
 
+from ._product_db import product_memory_db
 from ._framework import TestContext, test
 
 
@@ -83,8 +84,7 @@ async def t_message_parts_migration(ctx: TestContext) -> None:
     )
 
     with tempfile.TemporaryDirectory(prefix="oa-message-parts-schema-") as raw:
-        db = MemoryDB(str(Path(raw) / "agent.db"))
-        await db.connect()
+        db = await product_memory_db(str(Path(raw) / "agent.db"))
         try:
             conn = await db._ensure_connected()
             row = await (
@@ -114,8 +114,7 @@ async def t_message_parts_migration_rollback(ctx: TestContext) -> None:
     from openagent_core.memory.db import MemoryDB
 
     with tempfile.TemporaryDirectory(prefix="oa-message-parts-rollback-") as raw:
-        db = MemoryDB(str(Path(raw) / "agent.db"))
-        await db.connect()
+        db = await product_memory_db(str(Path(raw) / "agent.db"))
         original_sql = migration.migration_sql
         original_checksum_fn = migration.migration_checksum
         try:
@@ -174,8 +173,7 @@ async def t_message_parts_projection_and_hydration(ctx: TestContext) -> None:
 
     with tempfile.TemporaryDirectory(prefix="oa-message-parts-order-") as raw:
         root = Path(raw)
-        db = MemoryDB(str(root / "agent.db"))
-        await db.connect()
+        db = await product_memory_db(str(root / "agent.db"))
         tenant = "tenant-parts"
         access = _access(tenant, "alice")
         session_id = "chat-parts"
@@ -290,8 +288,7 @@ async def t_message_parts_are_immutable(ctx: TestContext) -> None:
 
     with tempfile.TemporaryDirectory(prefix="oa-message-parts-immutable-") as raw:
         root = Path(raw)
-        db = MemoryDB(str(root / "agent.db"))
-        await db.connect()
+        db = await product_memory_db(str(root / "agent.db"))
         tenant = "tenant-immutable"
         access = _access(tenant, "alice")
         session_id = "chat-immutable"

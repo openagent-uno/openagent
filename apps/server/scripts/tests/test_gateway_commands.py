@@ -34,6 +34,16 @@ from typing import Any
 from ._framework import TestContext, test
 
 
+def _realtime_channel(session, send, **kwargs):
+    """A RealtimeChannel wired with the wire codec the gateway passes it."""
+    from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
+    from openagent_core.stream.channel import RealtimeChannel
+
+    kwargs.setdefault("encoder", event_to_wire)
+    kwargs.setdefault("decoder", wire_to_event)
+    return RealtimeChannel(session, send, **kwargs)
+
+
 # ── Fakes for the gateway server's dependencies ────────────────────────
 
 
@@ -421,7 +431,7 @@ async def _attach_live_turn(h: "_Harness", client: str, raw_sid: str):
         sent.append(payload)
         return True
 
-    channel = RealtimeChannel(sess, _send_wire)
+    channel = _realtime_channel(sess, _send_wire)
     await channel.start()
     h.server._stream_sessions[(client, sid)] = _StreamHolder(
         session=sess, channel=channel,

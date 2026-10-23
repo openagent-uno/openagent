@@ -9,6 +9,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from ._product_db import product_memory_db
 from ._framework import TestContext, test
 
 
@@ -79,8 +80,7 @@ def _spec(text: str = "Hello") -> dict:
 async def _db(root: Path):
     from openagent_core.memory.db import MemoryDB
 
-    db = MemoryDB(str(root / "agent.db"))
-    await db.connect()
+    db = await product_memory_db(str(root / "agent.db"))
     return db
 
 
