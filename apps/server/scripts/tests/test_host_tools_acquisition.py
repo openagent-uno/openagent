@@ -256,13 +256,36 @@ def test_windows_arm64_release_dependencies_are_explicit_and_installable():
     assert selected("faster-whisper", "Windows", "ARM64") == []
     assert selected("piper-tts", "Windows", "ARM64") == []
 
-    for system, machine in (("Windows", "AMD64"), ("Linux", "aarch64")):
+    # Everywhere a cryptography >=50 wheel exists, the security floor applies.
+    for system, machine in (
+        ("Windows", "AMD64"), ("Linux", "aarch64"), ("Linux", "x86_64"), ("Darwin", "arm64"),
+    ):
         normal_crypto = selected("cryptography", system, machine)
         assert len(normal_crypto) == 1
-        assert Version("48.0.0") in normal_crypto[0].specifier
+        assert Version("50.0.2") in normal_crypto[0].specifier
         assert Version("49.0.0") not in normal_crypto[0].specifier
+        assert Version("48.0.1") not in normal_crypto[0].specifier
         assert len(selected("faster-whisper", system, machine)) == 1
         assert len(selected("piper-tts", system, machine)) == 1
+
+    # Intel macOS has no >=49 wheel (universal2 ended at 48.0.1): a source
+    # build there produces a binary that dies at startup, so it is pinned.
+    intel_mac_crypto = selected("cryptography", "Darwin", "x86_64")
+    assert len(intel_mac_crypto) == 1
+    assert str(intel_mac_crypto[0].specifier) == "==48.0.1"
+
+    # The identity package is resolved together with the framework, so its
+    # markers must select the same versions or the lock cannot be solved.
+    identity = tomllib.loads(
+        (ROOT.parent.parent / "packages" / "identity" / "pyproject.toml").read_text()
+    )["project"]
+    identity_crypto = [
+        Requirement(value) for value in identity["dependencies"]
+        if Requirement(value).name == "cryptography"
+    ]
+    assert sorted(str(r) for r in identity_crypto) == sorted(
+        str(r) for r in requirements if r.name == "cryptography"
+    )
 
     lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
     root = next(
@@ -277,6 +300,8 @@ def test_windows_arm64_release_dependencies_are_explicit_and_installable():
         if package["name"] == "cryptography"
     }
     assert "46.0.3" in locked_crypto
+    assert "48.0.1" in locked_crypto
+    assert any(Version(version) >= Version("50.0.2") for version in locked_crypto)
 
 
 def test_windows_arm64_iroh_source_and_release_path_are_fail_closed():
