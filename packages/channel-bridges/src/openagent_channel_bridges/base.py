@@ -16,6 +16,7 @@ from .contracts import (BridgeAttachment, BridgeCapabilities, BridgeCommand, Bri
     BridgeEvent, BridgeHistoryMessage, BridgeMessage, BridgePart, BridgeReply, BridgeTransport)
 
 from .diagnostics import emit_diagnostic
+from .typing import ProcessingIndicator, TypingSpec
 
 logger = logging.getLogger(__name__)
 BRIDGE_RETRY_SECONDS = 30
@@ -233,6 +234,7 @@ class BaseBridge:
             raise ValueError("acknowledgement_text must be a nonempty single line of at most 512 UTF-8 bytes")
         self._acknowledgement_text = acknowledgement_text or "Received. I’ll reply when finished."
         self._should_stop = False
+        self._typing_leases = {}
         self._generation = 0
         self._gateway_lost = getattr(transport, "loss_event", None) or asyncio.Event()
         self._transport_started = False
@@ -442,6 +444,9 @@ class BaseBridge:
         if not self._should_stop:
             self._generation += 1
         self._should_stop = True
+        indicators = list(self._typing_leases.values())
+        self._typing_leases.clear()
+        await asyncio.gather(*(item.end(clear=False) for item in indicators), return_exceptions=True)
         current = asyncio.current_task()
         tasks = [task for task in self._pending_transports if task is not current and not task.done()]
         if self._start_task is not None and self._start_task is not current and not self._start_task.done():
@@ -563,6 +568,57 @@ class BaseBridge:
             legacy["attachments"] = [self._platform_attachment(p.attachment) for p in reply.parts if p.attachment is not None]
         return legacy
 
+    def native_typing(self, target, context: BridgeContext) -> TypingSpec | None:
+        """Return only a supported native surface; never create a reply thread."""
+        return None
+
+    async def begin_processing(self, target, context: BridgeContext):
+        spec = self.native_typing(target, context)
+        if spec is None:
+            return None
+        key = context.deduplication_key
+        existing = self._typing_leases.get(key)
+        if existing is not None:
+            if not self._same_delivery_identity(existing.context, context):
+                raise PermissionError("typing event identity changed")
+            existing.users += 1
+            return existing
+        generation = self._generation
+        current = context
+
+        async def authorize():
+            nonlocal current
+            token = _active_context.set(current)
+            try:
+                await self._authorize_generation(current, generation)
+                current = await self._prepare_delivery_context(current)
+            finally:
+                _active_context.reset(token)
+
+        indicator = ProcessingIndicator(spec, authorize)
+        indicator.context = context
+        indicator.key = key
+        indicator.route = (context.account_id, context.conversation_id, context.thread_id)
+        self._typing_leases[key] = indicator
+        try:
+            await indicator.begin()
+        except BaseException:
+            self._typing_leases.pop(key, None)
+            await indicator.end(clear=False)
+            raise
+        return indicator
+
+    async def end_processing(self, indicator):
+        if indicator is None:
+            return
+        indicator.users -= 1
+        if indicator.users > 0:
+            return
+        self._typing_leases.pop(indicator.key, None)
+        # A finishing turn must not clear another active turn's Slack status.
+        clear = lambda: not any(item.route == indicator.route for item in self._typing_leases.values())
+        await indicator.end(clear=clear)
+
     async def dispatch_turn(self, target, session_id: str | None, text: str, *, context: BridgeContext | None = None,
                             history: tuple[BridgeHistoryMessage, ...] = (), voice_detected=False, attachments=None, author=None,
                             acknowledged: bool = False) -> None:
@@ -571,10 +627,13 @@ class BaseBridge:
         current = self._resolve_context(context)
         token = _active_context.set(current)
         history_token = _active_history.set(tuple(history))
+        processing = None
         try:
             await self.authorize_context(current)
+            processing = await self.begin_processing(target, current)
             await self._dispatch_turn(target, session_id, text, voice_detected=voice_detected, attachments=attachments, author=author, acknowledged=acknowledged)
         finally:
+            await self.end_processing(processing)
             _active_history.reset(history_token)
             _active_context.reset(token)
 
@@ -745,9 +804,8 @@ class BaseBridge:
 
         Telegram/Discord override this to light the native typing dot
         (kept alive on a background task for the turn's duration) and
-        return a handle that ``clear_status`` stops. Platforms with no
-        typing primitive (Slack, WhatsApp) return ``None`` and rely on the
-        live step messages instead. We deliberately do NOT post a
+        return a handle that ``clear_status`` stops. Slack/WhatsApp use the separate authorized
+        native_typing lifecycle, including quiet/final-only delivery. We deliberately do NOT post a
         ``Thinking…`` placeholder message — the server's reasoning state
         is a boolean flag, not a chat bubble. ``text`` is a legacy hint and
         is ignored by typing-based bridges."""
@@ -897,7 +955,7 @@ class BaseBridge:
         status_handle = None
         if self._delivery_mode == "quiet" and not acknowledged:
             await self.acknowledge_turn(target, context=self._resolve_context())
-        elif self._live:
+        if self._live and self.native_typing(target, self._resolve_context()) is None:
             try:
                 status_handle = await self.post_status(target, "Thinking...")
             except Exception as e:  # noqa: BLE001

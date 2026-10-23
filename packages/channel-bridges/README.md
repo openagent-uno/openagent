@@ -274,3 +274,12 @@ transfers after ten seconds; host grants are never cached. Requested history
 failure becomes an explicit authorized error, not an invented empty context.
 The CLI emits only the closed content-free diagnostic schema documented in
 `docs/site/guide/channel-history-media.md`; consumers must discard other stderr.
+
+## Native processing indicators
+
+Discord, supported existing Slack assistant threads and supported Green API
+clients use an authorized native indicator independently of quiet/live delivery.
+Slack main-channel/top-level DM replies keep their placement and have no typing
+fallback. No message, reaction, permission or new thread is added for typing.
+See [capabilities and lifecycle limits](../../docs/site/guide/channel-native-typing.md).
+Component fixtures do not establish live delivery in provider accounts.

@@ -9,6 +9,7 @@ import logging
 import shutil
 import socket
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
@@ -192,166 +193,195 @@ class WhatsAppBridge(BaseBridge):
             user_id, str(chat_id), str(body.get("idMessage") or ""))
         await self.authorize_context(bridge_context)
 
-        elog("bridge.message", bridge="whatsapp", user_id=user_id)
-        msg_data = body.get("messageData", {})
-        msg_type = msg_data.get("typeMessage", "")
-        text = ""
-        voice_detected = False
-        temp_dirs: set[Path] = set()
+        processing = None
+        try:
+            # Only presence projects the already admitted personal route.
+            # The original actor, allowlist and execution context stay intact.
+            if chat_id.endswith("@c.us") and user_id == chat_id.removesuffix("@c.us"):
+                presence = replace(bridge_context, conversation_kind="direct")
+                processing = await self.begin_processing(chat_id, presence)
+            elog("bridge.message", bridge="whatsapp", user_id=user_id)
+            msg_data = body.get("messageData", {})
+            msg_type = msg_data.get("typeMessage", "")
+            text = ""
+            voice_detected = False
+            temp_dirs: set[Path] = set()
 
-        attachments: list[dict] = []
+            attachments: list[dict] = []
 
-        if msg_type == "textMessage":
-            text = msg_data.get("textMessageData", {}).get("textMessage", "")
-        elif msg_type == "extendedTextMessage":
-            text = msg_data.get("extendedTextMessageData", {}).get("text", "")
+            if msg_type == "textMessage":
+                text = msg_data.get("textMessageData", {}).get("textMessage", "")
+            elif msg_type == "extendedTextMessage":
+                text = msg_data.get("extendedTextMessageData", {}).get("text", "")
 
-        # Handle slash commands (text-only, no buttons on WhatsApp)
-        if text.startswith("/"):
-            cmd = text.strip()[1:].split()[0].lower()
-            if cmd in (*BRIDGE_COMMANDS, "start"):
-                if cmd == "start":
-                    await self._send_text(chat_id, bridge_welcome_text())
-                else:
-                    # Scope scope-sensitive commands to this user's
-                    # session so one WhatsApp contact's /clear doesn't
-                    # wipe another's conversation on the same bot.
-                    # Forward any inline argument (e.g. /model gpt-4o).
-                    wa_parts = text.strip()[1:].split(None, 1)
-                    wa_arg = wa_parts[1] if len(wa_parts) > 1 else None
-                    if cmd == "compact":
-                        # "Compacting conversation" → "Compacted conversation"
-                        # as two short messages (WhatsApp has no edit API),
-                        # matching the automatic path — the command has no turn
-                        # collector to carry the compaction notice.
-                        await self.run_compact_command(chat_id, f"wa:{route_user_id}", context=bridge_context)
-                        return
-                    result = await self.send_command_full(
-                        cmd, session_id=f"wa:{route_user_id}", arg=wa_arg,
-                        context=bridge_context,
-                    )
-                    # WhatsApp (Green API) has no reliable interactive
-                    # button/list primitive, so ``render_picker`` is not
-                    # overridden — ``deliver_command_result`` degrades to
-                    # the text option list, which now enumerates every
-                    # configured model with its id for easy copy/switch.
-                    await self.deliver_command_result(chat_id, result)
-                return
-        elif msg_type in ("audioMessage", "voiceMessage"):
-            file_data = msg_data.get("fileMessageData", {})
-            url = file_data.get("downloadUrl", "")
-            mime = str(file_data.get("mimeType") or "audio/ogg")
-            # Green API may deliver regular audio (MP3/M4A) through the
-            # same envelope as push-to-talk notes.  Preserve its original
-            # filename so provider routing and the channel's outbound
-            # primitive do not incorrectly treat every payload as OGG.
-            fallback = "voice.ogg" if msg_type == "voiceMessage" else "audio"
-            fname = safe_attachment_filename(
-                file_data.get("fileName") or fallback,
-            )
-            path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
-            if path:
-                temp_dirs.add(Path(path).parent)
-                voice_detected = True
-                text = await self.transcribe_with_fallback(path, context=bridge_context)
-                attachments.append({
-                    "type": "voice",
-                    "kind": "voice",
-                    "path": path,
-                    "filename": fname,
-                    "mime_type": mime,
-                    "size_bytes": Path(path).stat().st_size,
-                    "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
-                })
-        elif msg_type == "imageMessage":
-            file_data = msg_data.get("fileMessageData", {})
-            text = file_data.get("caption", "")
-            url = file_data.get("downloadUrl", "")
-            fname = safe_attachment_filename(file_data.get("fileName", "image.jpg"))
-            path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
-            if path:
-                temp_dirs.add(Path(path).parent)
-                attachments.append({
-                    "type": "image",
-                    "kind": "image",
-                    "path": path,
-                    "filename": fname,
-                    "mime_type": file_data.get("mimeType") or "image/jpeg",
-                    "size_bytes": Path(path).stat().st_size,
-                    "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
-                })
-        elif msg_type == "documentMessage":
-            file_data = msg_data.get("fileMessageData", {})
-            text = file_data.get("caption", "")
-            url = file_data.get("downloadUrl", "")
-            fname = safe_attachment_filename(file_data.get("fileName", "document"))
-            if not is_blocked_attachment(fname):
+            # Handle slash commands (text-only, no buttons on WhatsApp)
+            if text.startswith("/"):
+                cmd = text.strip()[1:].split()[0].lower()
+                if cmd in (*BRIDGE_COMMANDS, "start"):
+                    if cmd == "start":
+                        await self._send_text(chat_id, bridge_welcome_text())
+                    else:
+                        # Scope scope-sensitive commands to this user's
+                        # session so one WhatsApp contact's /clear doesn't
+                        # wipe another's conversation on the same bot.
+                        # Forward any inline argument (e.g. /model gpt-4o).
+                        wa_parts = text.strip()[1:].split(None, 1)
+                        wa_arg = wa_parts[1] if len(wa_parts) > 1 else None
+                        if cmd == "compact":
+                            # "Compacting conversation" → "Compacted conversation"
+                            # as two short messages (WhatsApp has no edit API),
+                            # matching the automatic path — the command has no turn
+                            # collector to carry the compaction notice.
+                            await self.run_compact_command(chat_id, f"wa:{route_user_id}", context=bridge_context)
+                            return
+                        result = await self.send_command_full(
+                            cmd, session_id=f"wa:{route_user_id}", arg=wa_arg,
+                            context=bridge_context,
+                        )
+                        # WhatsApp (Green API) has no reliable interactive
+                        # button/list primitive, so ``render_picker`` is not
+                        # overridden — ``deliver_command_result`` degrades to
+                        # the text option list, which now enumerates every
+                        # configured model with its id for easy copy/switch.
+                        await self.deliver_command_result(chat_id, result)
+                    return
+            elif msg_type in ("audioMessage", "voiceMessage"):
+                file_data = msg_data.get("fileMessageData", {})
+                url = file_data.get("downloadUrl", "")
+                mime = str(file_data.get("mimeType") or "audio/ogg")
+                # Green API may deliver regular audio (MP3/M4A) through the
+                # same envelope as push-to-talk notes.  Preserve its original
+                # filename so provider routing and the channel's outbound
+                # primitive do not incorrectly treat every payload as OGG.
+                fallback = "voice.ogg" if msg_type == "voiceMessage" else "audio"
+                fname = safe_attachment_filename(
+                    file_data.get("fileName") or fallback,
+                )
                 path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
                 if path:
                     temp_dirs.add(Path(path).parent)
-                    mime = file_data.get("mimeType") or None
-                    kind = "image" if str(mime or "").startswith("image/") else "file"
+                    voice_detected = True
+                    text = await self.transcribe_with_fallback(path, context=bridge_context)
                     attachments.append({
-                        "type": kind,
-                        "kind": kind,
+                        "type": "voice",
+                        "kind": "voice",
                         "path": path,
                         "filename": fname,
                         "mime_type": mime,
                         "size_bytes": Path(path).stat().st_size,
                         "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
                     })
-            else:
-                await self._send_text(chat_id, f"⚠️ Blocked: {fname}")
-        elif msg_type == "videoMessage":
-            file_data = msg_data.get("fileMessageData", {})
-            text = file_data.get("caption", "")
-            url = file_data.get("downloadUrl", "")
-            fname = safe_attachment_filename(file_data.get("fileName", "video.mp4"))
-            path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
-            if path:
-                temp_dirs.add(Path(path).parent)
-                attachments.append({
-                    "type": "video",
-                    "kind": "video",
-                    "path": path,
-                    "filename": fname,
-                    "mime_type": file_data.get("mimeType") or "video/mp4",
-                    "size_bytes": Path(path).stat().st_size,
-                    "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
-                })
+            elif msg_type == "imageMessage":
+                file_data = msg_data.get("fileMessageData", {})
+                text = file_data.get("caption", "")
+                url = file_data.get("downloadUrl", "")
+                fname = safe_attachment_filename(file_data.get("fileName", "image.jpg"))
+                path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
+                if path:
+                    temp_dirs.add(Path(path).parent)
+                    attachments.append({
+                        "type": "image",
+                        "kind": "image",
+                        "path": path,
+                        "filename": fname,
+                        "mime_type": file_data.get("mimeType") or "image/jpeg",
+                        "size_bytes": Path(path).stat().st_size,
+                        "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
+                    })
+            elif msg_type == "documentMessage":
+                file_data = msg_data.get("fileMessageData", {})
+                text = file_data.get("caption", "")
+                url = file_data.get("downloadUrl", "")
+                fname = safe_attachment_filename(file_data.get("fileName", "document"))
+                if not is_blocked_attachment(fname):
+                    path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
+                    if path:
+                        temp_dirs.add(Path(path).parent)
+                        mime = file_data.get("mimeType") or None
+                        kind = "image" if str(mime or "").startswith("image/") else "file"
+                        attachments.append({
+                            "type": kind,
+                            "kind": kind,
+                            "path": path,
+                            "filename": fname,
+                            "mime_type": mime,
+                            "size_bytes": Path(path).stat().st_size,
+                            "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
+                        })
+                else:
+                    await self._send_text(chat_id, f"⚠️ Blocked: {fname}")
+            elif msg_type == "videoMessage":
+                file_data = msg_data.get("fileMessageData", {})
+                text = file_data.get("caption", "")
+                url = file_data.get("downloadUrl", "")
+                fname = safe_attachment_filename(file_data.get("fileName", "video.mp4"))
+                path = await self._download_or_notify(chat_id, url, fname, context=bridge_context)
+                if path:
+                    temp_dirs.add(Path(path).parent)
+                    attachments.append({
+                        "type": "video",
+                        "kind": "video",
+                        "path": path,
+                        "filename": fname,
+                        "mime_type": file_data.get("mimeType") or "video/mp4",
+                        "size_bytes": Path(path).stat().st_size,
+                        "provider_attachment_id": str(body["idMessage"]) if body.get("idMessage") is not None else None,
+                    })
 
-        try:
-            if not text and not attachments:
-                return
+            try:
+                if not text and not attachments:
+                    return
 
-            sender_ref = str(
-                sender.get("sender")
-                or sender.get("senderId")
-                or chat_id
-            )
-            author_id = sender_ref.replace("@c.us", "").replace("@g.us", "")
-            await self.dispatch_turn(
-                chat_id, f"wa:{route_user_id}", text, voice_detected=voice_detected,
-                context=bridge_context,
-                attachments=attachments,
-                author={
-                    "kind": "human",
-                    "handle": f"whatsapp:{author_id}",
-                    "display": str(sender.get("senderName") or author_id),
-                },
-            )
+                sender_ref = str(
+                    sender.get("sender")
+                    or sender.get("senderId")
+                    or chat_id
+                )
+                author_id = sender_ref.replace("@c.us", "").replace("@g.us", "")
+                await self.dispatch_turn(
+                    chat_id, f"wa:{route_user_id}", text, voice_detected=voice_detected,
+                    context=bridge_context,
+                    attachments=attachments,
+                    author={
+                        "kind": "human",
+                        "handle": f"whatsapp:{author_id}",
+                        "display": str(sender.get("senderName") or author_id),
+                    },
+                )
+            finally:
+                for tmp_dir in temp_dirs:
+                    shutil.rmtree(tmp_dir, ignore_errors=True)
         finally:
-            for tmp_dir in temp_dirs:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
+            await self.end_processing(processing)
 
     # ── Platform primitives (consumed by BaseBridge.dispatch_turn) ──
     #
-    # The Green API exposes no typing/presence primitive, so there is no
-    # native "is writing" flag to set — and we no longer post a
-    # ``Thinking…`` placeholder. The live step messages (each tool call
-    # + answer span, BaseBridge.dispatch_turn live mode) are the progress
-    # affordance instead. ``post_status``/``update_status``/``clear_status``
-    # are therefore no-ops (the latter two inherit the BaseBridge default).
+    def native_typing(self, chat_id, context):
+        from .typing import TypingSpec, TypingRateLimited
+        if str(chat_id) != context.conversation_id:
+            raise PermissionError("WhatsApp typing target differs from context")
+        if (context.conversation_kind != "direct" or context.account_id != str(self.instance_id)
+                or not str(chat_id).endswith("@c.us")
+                or context.actor_id != str(chat_id).removesuffix("@c.us")):
+            return None
+        services = getattr(self._greenapi, "serviceMethods", None)
+        method = getattr(services, "sendTypingAsync", None)
+        # Old Green API clients without the documented async method remain
+        # unsupported. Do not spawn uncancellable synchronous worker threads.
+        if not callable(method):
+            return None
+
+        async def pulse():
+            if self.allowed_users and context.actor_id not in self.allowed_users:
+                raise PermissionError("WhatsApp typing actor is no longer admitted")
+            result = await method(str(chat_id), typingTime=10000)
+            code = getattr(result, "code", 200)
+            if code == 429:
+                raise TypingRateLimited(30)
+            if code != 200:
+                raise PermissionError("WhatsApp typing unavailable")
+
+        return TypingSpec(pulse, interval=7)
 
     async def post_status(self, chat_id, text: str):
         return None

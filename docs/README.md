@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Channel bridges beta13 native processing indicators](releases/channel-bridges-0.1.0-beta.13.md)
+- [Native channel processing indicator capabilities and limits](site/guide/channel-native-typing.md)
+
 - [Beta60 official public wheel qualification](qualification/product-beta60-2026-10-23.json)
 
 - [Beta60 complete negotiated channel history](releases/v1.1.0-beta.60.md)

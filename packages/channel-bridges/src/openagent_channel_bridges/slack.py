@@ -6,24 +6,9 @@ implement platform-specific event polling, delegate orchestration to
 self-hosted agent because the bot doesn't need a public HTTP endpoint
 — it dials out to Slack's gateway and receives events over WebSocket.
 
-Status indicator: Slack doesn't expose a typing primitive to bots
-(unlike Telegram's chat.sendChatAction / Discord's typing()), so there
-is no "is writing" flag to set and ``post_status`` is a no-op — the live
-step messages (each tool call + answer span) are the progress affordance
-instead. We no longer post a ``Thinking…`` placeholder.
-
-Auth needs TWO tokens:
-  - ``bot_token`` (``xoxb-...``) — HTTP API auth, set as bot OAuth scope
-  - ``app_token`` (``xapp-...``) — socket mode auth, generated from the
-    app's Basic Information page after enabling socket mode
-
-These tokens describe operator-managed Socket Mode. External authenticated
-intake uses ``handle_event`` with no app-level token and the same host transport.
-
-Wire both via ``channels.slack.{bot_token, app_token}`` in
-``openagent.yaml`` (or env vars ``SLACK_BOT_TOKEN`` / ``SLACK_APP_TOKEN``).
-``allowed_users`` accepts Slack user_ids (``U…``) — keep small for a
-personal bot since DMs are the main use case.
+Native status uses assistant.threads.setStatus only for existing assistant
+threads. Main-channel/top-level DM replies keep their original placement and
+have no native status fallback. No placeholder message or reaction is created.
 """
 
 from __future__ import annotations
@@ -460,12 +445,14 @@ class SlackBridge(BaseBridge):
         self._event_clients[key] = client
         target = _SlackTarget(client=client, channel=channel_id, user=user_id, thread_ts=reply_thread)
         acknowledged = False
+        processing = None
         try:
             bridge_context = await self._prepare_delivery_context(bridge_context)
             emit_diagnostic(bridge_context, "admission", "completed")
             if not text and not event.get("files"):
                 return
             acknowledged = await self.acknowledge_turn(target, context=bridge_context)
+            processing = await self.begin_processing(target, bridge_context)
             async def _notify_attachment(message: str) -> None:
                 kwargs = {"channel": channel_id, "text": message}
                 if reply_thread:
@@ -604,6 +591,7 @@ class SlackBridge(BaseBridge):
             logger.error("slack dispatch failed: %s", type(e).__name__)
             elog("bridge.error", name="slack", session_id=session_id, error_type=type(e).__name__)
         finally:
+            await self.end_processing(processing)
             self._event_clients.pop(key, None)
             self._audience_denied_events.discard(key)
             shutil.rmtree(tmp, ignore_errors=True)
@@ -792,17 +780,44 @@ class SlackBridge(BaseBridge):
 
     # ── Platform primitives consumed by BaseBridge.dispatch_turn ──
 
-    async def post_status(self, target, text: str):
-        # Slack exposes no native bot typing indicator, so there is no
-        # "is writing" flag to set and we deliberately do NOT post a
-        # "Thinking…" placeholder message. The live step messages (each
-        # tool call + answer span, BaseBridge.dispatch_turn live mode)
-        # are the progress affordance instead. Returns None — nothing to
-        # update or clear.
-        return None
+    def native_typing(self, target, context):
+        from .typing import TypingSpec, TypingRateLimited
+        if str(target.channel) != context.conversation_id or target.thread_ts != context.thread_id:
+            raise PermissionError("Slack typing target differs from context")
+        # This API addresses an EXISTING assistant thread. Main-channel posts
+        # and top-level DMs are deliberately unsupported; never move replies.
+        method = getattr(target.client, "assistant_threads_setStatus", None)
+        if not target.thread_ts or not callable(method):
+            return None
 
-    # update_status / clear_status inherit the BaseBridge no-op defaults:
-    # there is no placeholder to edit or delete.
+        async def status(value):
+            try:
+                result = await method(channel_id=target.channel, thread_ts=target.thread_ts, status=value)
+            except Exception as error:
+                response = getattr(error, "response", None)
+                if getattr(response, "status_code", None) == 429:
+                    headers = getattr(response, "headers", {}) or {}
+                    try:
+                        delay = float(headers.get("Retry-After", "0"))
+                    except (TypeError, ValueError):
+                        delay = 0
+                    raise TypingRateLimited(delay) from None
+                raise
+            if result is not None and result.get("ok") is False:
+                raise PermissionError("Slack assistant status unavailable")
+
+        async def pulse():
+            await status("is typing…")
+
+        async def clear():
+            await status("")
+
+        return TypingSpec(pulse, interval=45, clear=clear)
+
+    async def post_status(self, target, text: str):
+        # Legacy live-progress hook stays silent. Native assistant-thread
+        # status uses the independent authorized processing lifecycle above.
+        return None
 
     async def send_text_chunk(self, target, chunk: str) -> None:
         # Slack mrkdwn is close enough to plain markdown that the

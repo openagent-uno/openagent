@@ -754,6 +754,7 @@ class DiscordBridge(BaseBridge):
                 raise PermissionError("Discord event is already active")
             self._event_clients[key] = client
             acknowledged = False
+            processing = None
             try:
                 # Pin this turn's audience before files, speech or history.
                 # Later reads cannot bootstrap a newly joined recipient into
@@ -763,6 +764,7 @@ class DiscordBridge(BaseBridge):
                 if not content and not message.attachments:
                     return
                 acknowledged = await self.acknowledge_turn(message.channel, context=bridge_context)
+                processing = await self.begin_processing(message.channel, bridge_context)
                 for att in message.attachments:
                     filename = safe_attachment_filename(att.filename)
                     if is_blocked_attachment(filename):
@@ -870,6 +872,7 @@ class DiscordBridge(BaseBridge):
                     except Exception:
                         pass
             finally:
+                await self.end_processing(processing)
                 self._event_clients.pop(key, None)
                 self._audience_denied_events.discard(key)
                 shutil.rmtree(tmp, ignore_errors=True)
@@ -893,6 +896,13 @@ class DiscordBridge(BaseBridge):
         current = self._resolve_context()
         if str(getattr(channel, "id", "")) != (current.thread_id or current.conversation_id):
             raise PermissionError("Discord output target differs from its context")
+
+    def native_typing(self, channel, context):
+        from .typing import TypingSpec
+        if str(getattr(channel, "id", "")) != (context.thread_id or context.conversation_id):
+            raise PermissionError("Discord typing target differs from context")
+        pulse = getattr(channel, "trigger_typing", None)
+        return TypingSpec(pulse, interval=7) if callable(pulse) else None
 
     async def post_status(self, channel, text: str):
         self._assert_channel_target(channel)
