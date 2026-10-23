@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta61 canonical history and native channel processing](releases/v1.1.0-beta.61.md)
+
 - [Channel bridges beta13 official public qualification](qualification/channel-bridges-0.1.0b13-2026-10-23.json)
 
 - [Channel bridges beta13 native processing indicators](releases/channel-bridges-0.1.0-beta.13.md)
