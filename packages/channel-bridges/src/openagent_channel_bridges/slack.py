@@ -362,7 +362,8 @@ class SlackBridge(BaseBridge):
             url = str(value.get("url_private_download") or value.get("url_private") or "")
             directory = tempfile.mkdtemp(prefix="history-", dir=media_directory)
             outcome = await self._download_file(url, directory, attachment.filename,
-                declared_size=attachment.size_bytes, context=context, max_bytes=remaining_bytes)
+                declared_size=attachment.size_bytes, declared_mime=attachment.mime_type,
+                context=context, max_bytes=remaining_bytes)
             path = outcome if isinstance(outcome, str) else outcome.path
             if not path:
                 raise ValueError("Historical Slack media unavailable")
@@ -498,6 +499,7 @@ class SlackBridge(BaseBridge):
                     tmp,
                     filename,
                     declared_size=int(file_info.get("size") or 0),
+                    declared_mime=file_info.get("mimetype"),
                     context=bridge_context,
                 )
                 # Private method compatibility for bridge subclasses/tests
@@ -915,6 +917,7 @@ class SlackBridge(BaseBridge):
         filename: str,
         *,
         declared_size: int = 0,
+        declared_mime: str | None = None,
         context: BridgeContext | None = None,
         max_bytes: int | None = None,
     ) -> _SlackDownloadOutcome:
@@ -975,8 +978,24 @@ class SlackBridge(BaseBridge):
                 copied = await write_authorized_download(
                     response.content, target, self._transfer_authorizer(self._resolve_context()), limit=limit)
                 owned_download = True
-                if header_size and copied != header_size or declared_size and copied != declared_size:
+                if header_size and copied != header_size:
                     raise ValueError("Incomplete Slack media download")
+                if declared_size and copied != declared_size:
+                    # Slack may serve a smaller MP4-container rendition of an
+                    # attested M4A voice file while files.info retains the
+                    # original size. Its complete HTTP representation is the
+                    # staged artifact; unrelated files remain strictly equal.
+                    response_mime = str(response.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+                    rendition = (declared_mime == "audio/mp4" and filename.lower().endswith(".m4a")
+                        and response_mime in {"audio/mp4", "video/mp4"}
+                        and 0 < copied < declared_size and header_size == copied)
+                    if not rendition:
+                        raise ValueError("Slack media differs from its declared representation")
+                    snapshot = media_file_snapshot(target, limit=limit)
+                    with target.open("rb") as source:
+                        prefix = source.read(12)
+                    if prefix[4:8] != b"ftyp" or media_file_snapshot(target, limit=limit) != snapshot:
+                        raise ValueError("Slack audio rendition is not a stable MP4 container")
             await self._prepare_delivery_context(current)
             return _SlackDownloadOutcome(
                 path=str(target.resolve()), size_bytes=copied,

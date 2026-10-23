@@ -127,3 +127,13 @@ does not extend the life of its intake proof. The host still chooses its own
 freshness window and rechecks ordinary actor and recipient authorization.
 Revocation or a changed audience stops the turn rather than exposing a stale
 transcript or continuing with a broader audience.
+
+## Slack audio representations
+
+For attested `audio/mp4` files named `.m4a`, Slack may serve a smaller MP4
+representation than its original metadata size. A rendition is accepted only
+with MP4 HTTP MIME and container signature and a positive, complete HTTP
+Content-Length. Metadata still constrains the preflight budget; canonical
+size and SHA always describe the actual bounded downloaded bytes. This
+provider-specific rule does not relax generic file completeness, revocation
+or audience-epoch checks. Missing provider files remain explicitly omitted.

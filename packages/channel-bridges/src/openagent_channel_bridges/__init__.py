@@ -9,7 +9,7 @@ from .contracts import (
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )
 
-__version__ = "0.1.0b10"
+__version__ = "0.1.0b11"
 
 
 def __getattr__(name: str):
