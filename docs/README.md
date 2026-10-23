@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Beta59 official public wheel qualification](qualification/product-beta59-2026-10-23.json)
+- [Channel bridges beta11 official public wheel qualification](qualification/channel-bridges-0.1.0b11-2026-10-23.json)
+
 - [Channel bridges beta11 complete Slack audio renditions](releases/channel-bridges-0.1.0-beta.11.md)
 - [Beta59 canonical Slack audio representations](releases/v1.1.0-beta.59.md)
 

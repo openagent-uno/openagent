@@ -1,0 +1,145 @@
+{
+  "status": "official-public-wheels-normal-installed-qualified",
+  "sourceCommit": "f1dbbc7355f1e5351bef5d486b2373ff8497f881",
+  "version": "1.1.0b59",
+  "coreVersion": "1.1.0b28",
+  "bridgeVersion": "0.1.0b11",
+  "bridgeSourceCommit": "f1dbbc7355f1e5351bef5d486b2373ff8497f881",
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.59",
+  "manifestSHA256": "eb54af97a27e144057d19cbe7dc39e5e8d3efde9e40aaa33a154143067fcfae3",
+  "publicAssetCount": 15,
+  "fullPublicAssetsVerified": true,
+  "assets": [
+    {
+      "file": "SHA256SUMS",
+      "sha256": "53c56eae40838734a0c2edac791a78776e44ff5c516c3f8ef823dc929a45d8bf",
+      "bytes": 1455,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/SHA256SUMS",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "install.sh",
+      "sha256": "a956a5020c66645ed732ed360d4fc3ea4271d8546fa40fb5dc05e739832a1174",
+      "bytes": 9357,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/install.sh",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "eb54af97a27e144057d19cbe7dc39e5e8d3efde9e40aaa33a154143067fcfae3",
+      "bytes": 81276,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/manifest.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent-product-1.1.0-beta.59-source.tar.gz",
+      "sha256": "9b3c0a07b206fb507fdf617d9b7fe1074a00295362bf03e600aa8940a08b235b",
+      "bytes": 268469282,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent-product-1.1.0-beta.59-source.tar.gz",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_cli-1.1.0b56-py3-none-any.whl",
+      "sha256": "35d87de77eaa54d98a5b05ac75495ec45aa8749f38de946247586d6342a131bd",
+      "bytes": 72725,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_cli-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_client_transport-1.1.0b56-py3-none-any.whl",
+      "sha256": "93f4c42a90bbc295a682f5286d147ac499f85603102b8941f02178497c7152a1",
+      "bytes": 20472,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_client_transport-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_dashboards-1.1.0b56-py3-none-any.whl",
+      "sha256": "6b0a4e73a784f4ac639c8e3df817c53bae5a94b177c735de369cf5f51a4df4a6",
+      "bytes": 54850,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_dashboards-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_framework-1.1.0b59-py3-none-any.whl",
+      "sha256": "4307998446f9c0b1f5df4fa8d33a4a515e48df0254bc3c479574392247e1eec2",
+      "bytes": 444612,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_framework-1.1.0b59-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "sha256": "b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e",
+      "bytes": 47103,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_identity-1.1.0b56-py3-none-any.whl",
+      "sha256": "9257decf6d09a911707f4332ca183fdb04cb6802251c4e3325e50bcd7e3aba19",
+      "bytes": 100357,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_identity-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_mcp-1.1.0b56-py3-none-any.whl",
+      "sha256": "3ab3cdd50ebf1aab9c30bb2765fd63dfe23a34db3bdf61dbfdc4f961bfa9b537",
+      "bytes": 22011,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_mcp-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "sha256": "dc66eb3ef0142e5778b6f7eca284ea5a2f2c1e19fc70711783e5188730d22e61",
+      "bytes": 18885,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_support_integration-1.1.0b56-py3-none-any.whl",
+      "sha256": "e58591c96f6e1ce84f05ee70747bd267d1d3b847433ba71b243a80bbc4236e08",
+      "bytes": 7393,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/openagent_support_integration-1.1.0b56-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "qualification.json",
+      "sha256": "09698164aa8e9e6b10f296ef5419c6adcef55460133bd36d6ade22be483126de",
+      "bytes": 1913,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/qualification.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "release-notes.md",
+      "sha256": "8906767a15f4f54b006fb0eb9f185d80150e053a03173134f296808b1d29d3ae",
+      "bytes": 1035,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/release-notes.md",
+      "fullHTTPSHashVerified": true
+    }
+  ],
+  "postPublicationProofAsset": {
+    "file": "post-publish-qualification.json",
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.59/post-publish-qualification.json",
+    "sha256": "5b216b7e6ea9adbd660657cdc5adfc6bbbff232178812abeff859fffbe4a0509",
+    "bytes": 7078,
+    "fullHTTPSHashVerified": true
+  },
+  "publicAssetCountIncludingPostProof": 16,
+  "pytestSummary": {
+    "passed": 286,
+    "subtestsPassed": 84,
+    "skipped": 0
+  },
+  "standaloneFixturesPassed": 4,
+  "pipCheckPassed": true,
+  "importPrefixesInstalled": true,
+  "installedRECORDVerified": true,
+  "nativeAppRebuilt": false,
+  "nativeFrozenServerRebuilt": false,
+  "automaticUpdateQualified": false,
+  "qualificationInherited": false,
+  "schemaVersion": 1,
+  "newWheels": 1,
+  "immutablePublicWheels": 8,
+  "realProviderAcceptance": false,
+  "paidCI": false
+}
