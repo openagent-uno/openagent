@@ -27,7 +27,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from ._source import module_path
+from ._source import module_path, vault_tool_names
 from ._framework import TestContext, test
 
 # The vault-gate MCP is an in-process toolkit, so the pool passes no
@@ -58,9 +58,9 @@ def _real_vault_ops() -> set[str]:
 
     # vault — vendored Node server; parse its ListTools handler rather than
     # requiring a built dist/ at test time.
-    src = BUILTIN_MCPS_DIR / BUILTIN_MCP_SPECS["vault"]["dir"] / "src/createServer.ts"
-    assert src.exists(), f"vault server source missing at {src}"
-    for t in _TS_TOOL_NAME.findall(src.read_text()):
+    names, where = vault_tool_names()
+    assert names, f"no vault tools parsed from {where}"
+    for t in names:
         ops.add(_memory_op(f"vault_{t}"))
 
     # vault-gate — in-process toolkit; ask the factory what it registered.
