@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "69ce0c0519801fce110dfe75af2013dcaa3f217b",
+  "manifestSHA256": "fb07af701f50aaf239aba4514c230b1be1f8f7e53fa940528aa18909c4e4a3b5",
+  "wheel": {
+    "file": "openagent_channel_bridges-0.1.0b13-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b13",
+    "sha256": "84cdc96b0a9ef171ed05f06211e18958ea29a058d5cfc2d6a85d4ebe01a63ca7",
+    "bytes": 121127,
+    "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/openagent_channel_bridges-0.1.0b13-py3-none-any.whl"
+  },
+  "fullAnonymousPublicReadback": true,
+  "publicURLNormalInstall": true,
+  "publicInstalledPipCheck": true,
+  "installedWheelPayloadByteEquality": true,
+  "actualConsoleStartRPCAndEOF": true,
+  "normalInstalledQualification": {
+    "passed": true,
+    "tests": 320,
+    "subtests": 86,
+    "skipped": 0,
+    "core": "1.1.0b30",
+    "wheelSource": "normal anonymous public HTTPS URL with SHA256",
+    "sourceOverlay": false
+  },
+  "publicAssets": [
+    {
+      "file": "conversation-v1-vectors.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/conversation-v1-vectors.json",
+      "sha256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+      "bytes": 17078,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "manifest.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/manifest.json",
+      "sha256": "fb07af701f50aaf239aba4514c230b1be1f8f7e53fa940528aa18909c4e4a3b5",
+      "bytes": 5899,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "openagent_channel_bridges-0.1.0b13-py3-none-any.whl",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/openagent_channel_bridges-0.1.0b13-py3-none-any.whl",
+      "sha256": "84cdc96b0a9ef171ed05f06211e18958ea29a058d5cfc2d6a85d4ebe01a63ca7",
+      "bytes": 121127,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "protocol.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/protocol.json",
+      "sha256": "535313bbf7f2b96819003e95e9dd69ea436030c6574f7602730c5c11bcda40de",
+      "bytes": 628,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "qualification.json",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/qualification.json",
+      "sha256": "e3deb5d31c25513824677e1b5921cbc028ac935727267b8c010f2b415f2389aa",
+      "bytes": 1991,
+      "anonymousFullReadback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/SHA256SUMS",
+      "sha256": "b8d1229df5aa43aafd09e5983b848825084fc6fc7c13190bc270995ac0c7c36a",
+      "bytes": 458,
+      "anonymousFullReadback": true
+    }
+  ],
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.13",
+  "publicWheelURL": "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.13/openagent_channel_bridges-0.1.0b13-py3-none-any.whl",
+  "conversationVectorsSHA256": "4abd8414febc7b805160d45c0b8f77c9fc33f4b31b99f273bccf3b454914335f",
+  "paidCI": false,
+  "realSlackE2E": "not run for native processing indicator acceptance",
+  "realDiscordE2E": "not run for native processing indicator acceptance",
+  "realWhatsAppE2E": "not run",
+  "nativeTyping": {
+    "slack": "supported existing assistant threads only; no main-channel/top-level-DM emulation",
+    "discord": "native existing channel/DM/thread indicator",
+    "whatsapp": "admitted personal GreenAPI route only; old async clients/group/mismatched routes unsupported"
+  },
+  "minimumCore24": "normal local install of the identical public wheel passed; no source overlay",
+  "normalCore30": "normal local and fresh public-URL installs passed; no source overlay"
+}

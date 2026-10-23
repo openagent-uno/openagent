@@ -5,9 +5,13 @@ This includes 22 native-indicator/admission fixtures, ten of which compare the
 actual public SDK12 WhatsApp handler with the new source. The public SDK12 wheel
 reproduces the missing native Discord indicator in quiet delivery.
 
-Normal SDK13 installed-wheel qualification, publication and anonymous public
-readback remain pending. No live Slack, Discord or WhatsApp acceptance is claimed.
-Core and standalone product qualification remain separate release artifacts.
+The official SDK13 release is published. All six assets passed anonymous full
+HTTPS readback; a fresh public-URL Core30 install passed320 tests plus86 subtests,
+pip check, payload/RECORD and actual console RPC/EOF checks. Normal minimumCore24
+qualification also passed with the identical wheel and no source overlay.
+See the [artifact-specific qualification](../qualification/channel-bridges-0.1.0b13-2026-10-23.json).
+No live Slack, Discord or WhatsApp acceptance is claimed. Core and standalone
+product qualification remain separate release artifacts.
 
 Native indicators now run independently of quiet/live/final message delivery,
 covering admitted intake, media/speech and execution. Discord uses the existing
