@@ -59,44 +59,65 @@ and share context with explicit permission", which is ``/api/chat`` and
 ``/api/events/{id}/trigger``. It never says a colleague may install software
 on your host. An allowlist alone still hands every allowlisted peer root.
 
-BOTH DEFAULT OFF, AND THAT IS LOAD-BEARING
-------------------------------------------
-``check_peer_request`` returns ``None`` before reading any list unless a
-toggle is explicitly on. These agents run unattended in k8s; an allowlist
-defaulting on would stop agents talking to each other with no warning, on
-someone's nightly cron, at 3am. A protection that fires on real traffic
-turns a silent risk into a live outage — so the off path is a literal no-op
-you can read, not a property you infer from a test.
+CLOSED UNLESS THE OPERATOR SAYS OTHERWISE
+-----------------------------------------
+Both toggles used to default OFF, which made the safe-looking default the
+unsafe one: with no ``network.peers`` stanza every dialler owned the node.
+The policy is now explicit and fixed at startup (``load_peer_policy``):
 
-THE MIGRATION PATH ALREADY RAN
-------------------------------
-The reason this is enable-able on a live mesh without downtime: the
-``agent.contact`` audit line in ``middleware.py`` has been recording every
-dialling node_id since the ALPN shipped — it was added as "Phase-0 security:
-record every first-contact agent node_id so the allowlist can be built /
-audited". So the operator does not have to guess or schedule a window:
+  - no ``network.peers`` at all   → federation is closed: every agent-ALPN
+                                    stream is refused (``peer.denied``,
+                                    reason=not_configured). Nothing that
+                                    never federated changes behaviour.
+  - ``allowlist.node_ids``        → only the listed node_ids may dial; an
+                                    empty list is an explicit "nobody".
+  - ``open: true``                → any node may dial (the old default),
+                                    as a deliberate, logged choice.
 
-    grep '"event":"agent.contact"' ~/.openagent/events.jsonl \\
+Anything in between refuses to START rather than guess: a stanza with no
+allowlist and no ``open`` (the old "scope only" shape), the legacy
+``allowlist.enabled: false`` that used to mean "accept everyone", ``open``
+together with listed peers, or a toggle value that is not a boolean. These
+agents run unattended, so a silent flip in either direction is the outage
+nobody notices; a process that will not start, and says which line to add,
+is the one somebody fixes before 3am.
+
+BUILDING THE ALLOWLIST
+----------------------
+The ``agent.contact`` audit line in ``middleware.py`` has been recording
+every dialling node_id since the ALPN shipped — it was added as "Phase-0
+security: record every first-contact agent node_id so the allowlist can be
+built / audited". So the operator does not have to guess:
+
+    grep '"event":"agent.contact"' <agent dir>/logs/events.jsonl \\
       | jq -r .node_id | sort -u
 
-is the list of peers that actually dial them. Copy it into
-``network.peers.allowlist.node_ids``, then flip ``enabled``. A peer that has
-not dialled within the log's retention will not appear — which is why
-``scope`` (no list to maintain) is the one to turn on first, and why
-enforcement logs ``peer.denied`` rather than failing silently.
+is the list of peers that actually dial them; copy it into
+``network.peers.allowlist.node_ids``. A peer that has not dialled within the
+log's retention will not appear, and is refused with a ``peer.denied`` line
+naming its node_id rather than failing silently.
 """
 from __future__ import annotations
 
-import os
 import re
-from functools import lru_cache
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Literal
 
 from openagent_core.core.logging import elog
 
+_OPEN_ENV = "OPENAGENT_NETWORK_PEER_OPEN"
 _ALLOWLIST_ENABLED_ENV = "OPENAGENT_NETWORK_PEER_ALLOWLIST_ENABLED"
 _ALLOWLIST_ENV = "OPENAGENT_NETWORK_PEER_ALLOWLIST"
 _SCOPE_ENABLED_ENV = "OPENAGENT_NETWORK_PEER_SCOPE_ENABLED"
 _SCOPE_EXTRA_PATHS_ENV = "OPENAGENT_NETWORK_PEER_SCOPE_EXTRA_PATHS"
+_PEER_ENVS = (
+    _OPEN_ENV,
+    _ALLOWLIST_ENABLED_ENV,
+    _ALLOWLIST_ENV,
+    _SCOPE_ENABLED_ENV,
+    _SCOPE_EXTRA_PATHS_ENV,
+)
 
 # The routes federation actually uses over ``openagent/agent/1``. Derived
 # from the code, not from taste — a wrong entry here is a broken mesh the
@@ -126,36 +147,80 @@ _FEDERATION_ROUTES: tuple[tuple[str, str], ...] = (
 )
 
 
-def _flag(env: str) -> bool:
-    """Read a boolean toggle. Default OFF, and anything unrecognised is OFF.
 
-    Same contract as ``openagent_core.core.safety.approvals_enabled`` and inverted from
-    ``compaction._flag_enabled`` for the same reason: a typo in this var must
-    never silently arm a gate that can reject live federation traffic.
-    ``server.py`` only ever writes "1" or "0"; the wider set is for operators
-    exporting the var by hand.
+_ON = frozenset({"1", "true", "yes", "on"})
+_OFF = frozenset({"0", "false", "no", "off"})
+
+_HOW_TO_CONFIGURE = """\
+List the peers that may dial this agent (an empty list admits nobody):
+
+  network:
+    peers:
+      allowlist:
+        node_ids: ["<node id>", ...]
+
+or accept any node that can dial it, deliberately:
+
+  network:
+    peers:
+      open: true
+
+The node ids that already dial this agent are in its event log:
+  grep '"event":"agent.contact"' <agent dir>/logs/events.jsonl | jq -r .node_id | sort -u"""
+
+
+class PeerPolicyError(ValueError):
+    """``network.peers`` is ambiguous or malformed; the gateway must not start."""
+
+
+@dataclass(frozen=True)
+class PeerPolicy:
+    """Who may use the ``openagent/agent/1`` ALPN, and what they may reach.
+
+    Built once at startup by ``load_peer_policy`` and handed to the auth
+    middleware through ``NetworkAuthState.peer_policy``; nothing reads the
+    environment per request, so a policy cannot change under a live gateway.
     """
-    return os.environ.get(env, "").strip().lower() in {"1", "true", "yes", "on"}
+
+    mode: Literal["closed", "allowlist", "open"]
+    allowlist: frozenset[str] = frozenset()
+    scope: bool = False
+    extra_paths: tuple[tuple[str, re.Pattern[str]], ...] = ()
+
+    def summary(self) -> dict[str, object]:
+        """Log-safe description: counts, never node ids."""
+        return {
+            "mode": self.mode,
+            "allowlisted": len(self.allowlist),
+            "scope": self.scope,
+            "extra_paths": len(self.extra_paths),
+        }
 
 
-def peer_allowlist_enabled() -> bool:
-    """Whether ``network.peers.allowlist`` is on. Default OFF."""
-    return _flag(_ALLOWLIST_ENABLED_ENV)
+CLOSED_PEER_POLICY = PeerPolicy(mode="closed")
 
 
-def peer_scope_enabled() -> bool:
-    """Whether ``network.peers.scope`` is on. Default OFF."""
-    return _flag(_SCOPE_ENABLED_ENV)
+def _toggle(env: Mapping[str, str], name: str) -> bool | None:
+    """Parse a boolean toggle: ``None`` when unset, an error when not a boolean.
+
+    A typo used to read as OFF so it could never arm a gate on a live mesh.
+    With the policy validated at startup a typo no longer has to be guessed
+    in either direction: the gateway refuses to start and names the value.
+    """
+    if name not in env:
+        return None
+    value = env[name].strip().lower()
+    if value == "":
+        return None
+    if value in _ON:
+        return True
+    if value in _OFF:
+        return False
+    raise PeerPolicyError(f"{name}={env[name]!r} is not a boolean (use true or false)")
 
 
-@lru_cache(maxsize=8)
 def _parse_allowlist(raw: str) -> frozenset[str]:
     """Parse the comma-separated node_id allowlist.
-
-    Keyed on the raw env string rather than cached module-level: ``server.py``
-    exports these during agent build, after this module may already have been
-    imported, and tests flip them between cases. A module-level cache would
-    freeze policy at import time — the same trap ``safety._compile`` documents.
 
     Node ids are compared case-insensitively: iroh renders them as hex and the
     coordinator itself compares with ``.lower()`` (``coordinator/service.py``
@@ -167,15 +232,12 @@ def _parse_allowlist(raw: str) -> frozenset[str]:
     )
 
 
-@lru_cache(maxsize=8)
 def _parse_extra_paths(raw: str) -> tuple[tuple[str, re.Pattern[str]], ...]:
     """Parse ``scope.extra_paths`` — ``METHOD /path/re`` fragments.
 
-    An unparseable fragment is dropped with an audit line rather than raising:
-    a typo must not take the gateway's auth middleware down on the next
-    inbound stream. Note the failure mode is inverted from a blocklist and
-    worse — a dropped ALLOW fragment fails *closed*, silently narrowing the
-    scope — hence the dedicated audit event.
+    An unparseable fragment is dropped with an audit line rather than failing
+    startup, and that failure mode is the safe one: a dropped ALLOW fragment
+    fails *closed*, narrowing the scope — hence the dedicated audit event.
     """
     out: list[tuple[str, re.Pattern[str]]] = []
     for frag in (seg.strip() for seg in raw.split(",")):
@@ -197,46 +259,88 @@ def _parse_extra_paths(raw: str) -> tuple[tuple[str, re.Pattern[str]], ...]:
     return tuple(out)
 
 
-def _scope_permits(method: str, path: str) -> bool:
+def load_peer_policy(env: Mapping[str, str]) -> PeerPolicy:
+    """Build the startup peer policy from the product environment.
+
+    *env* is the mapping ``server.py`` exports ``network.peers`` into (the
+    agent's ``product_environment``), so operator-exported
+    ``OPENAGENT_NETWORK_PEER_*`` variables are honoured the same way.
+    Raises ``PeerPolicyError`` for every configuration this module refuses to
+    guess about — see the module docstring.
+    """
+    open_mode = _toggle(env, _OPEN_ENV)
+    allowlist_enabled = _toggle(env, _ALLOWLIST_ENABLED_ENV)
+    scope = _toggle(env, _SCOPE_ENABLED_ENV)
+    listed = _parse_allowlist(env[_ALLOWLIST_ENV]) if _ALLOWLIST_ENV in env else None
+    extra_paths = _parse_extra_paths((env.get(_SCOPE_EXTRA_PATHS_ENV) or "").strip())
+
+    if not any(name in env for name in _PEER_ENVS):
+        return CLOSED_PEER_POLICY
+
+    if open_mode:
+        if allowlist_enabled or listed:
+            raise PeerPolicyError(
+                "network.peers.open is true but network.peers.allowlist also "
+                "admits specific peers. Keep one: remove open to accept only "
+                "the listed peers, or remove the allowlist to accept any node."
+            )
+        return PeerPolicy(mode="open", scope=bool(scope), extra_paths=extra_paths)
+
+    if allowlist_enabled is False:
+        raise PeerPolicyError(
+            "network.peers.allowlist.enabled is false, which used to accept "
+            "every node that can dial this agent. That now has to be said "
+            "explicitly, or replaced by a list of peers.\n\n" + _HOW_TO_CONFIGURE
+        )
+    if listed is None and allowlist_enabled is None:
+        raise PeerPolicyError(
+            "network.peers is configured without an allowlist, so it is "
+            "unclear which nodes may use the agent protocol. Without one, "
+            "any node that can dial this agent reaches the gateway API.\n\n"
+            + _HOW_TO_CONFIGURE
+        )
+    return PeerPolicy(
+        mode="allowlist",
+        allowlist=listed or frozenset(),
+        scope=bool(scope),
+        extra_paths=extra_paths,
+    )
+
+
+def _scope_permits(policy: PeerPolicy, method: str, path: str) -> bool:
     for m, pat in _FEDERATION_ROUTES:
         if m == method and re.match(pat, path):
             return True
-    for m, pat in _parse_extra_paths((os.environ.get(_SCOPE_EXTRA_PATHS_ENV) or "").strip()):
+    for m, pat in policy.extra_paths:
         if m == method and pat.match(path):
             return True
     return False
 
 
-def check_peer_request(*, node_id: str, method: str, path: str) -> str | None:
+def check_peer_request(
+    *, policy: PeerPolicy, node_id: str, method: str, path: str,
+) -> str | None:
     """Return a denial reason for an agent-ALPN request, or ``None`` to allow.
-
-    No-op unless a toggle is explicitly on. The disabled path returns before
-    reading any list — that is what makes "config absent ⇒ byte-identical
-    behaviour" something you read off the code rather than infer from a test.
 
     Returns a reason string instead of raising: the caller is aiohttp
     middleware that must turn this into a 403 response, and an exception there
     would surface as a 500 and read like a server bug to the peer.
     """
-    allowlist_on = peer_allowlist_enabled()
-    scope_on = peer_scope_enabled()
-    if not allowlist_on and not scope_on:
-        return None
+    if policy.mode != "open" and node_id.strip().lower() not in policy.allowlist:
+        closed = policy.mode == "closed"
+        elog(
+            "peer.denied",
+            level="warning",
+            reason="not_configured" if closed else "not_in_allowlist",
+            node_id=node_id,
+            method=method,
+            path=path,
+        )
+        if closed:
+            return "agent protocol is closed: network.peers is not configured"
+        return "peer not in network.peers.allowlist"
 
-    if allowlist_on:
-        allowed = _parse_allowlist((os.environ.get(_ALLOWLIST_ENV) or "").strip())
-        if node_id.strip().lower() not in allowed:
-            elog(
-                "peer.denied",
-                level="warning",
-                reason="not_in_allowlist",
-                node_id=node_id,
-                method=method,
-                path=path,
-            )
-            return "peer not in network.peers.allowlist"
-
-    if scope_on and not _scope_permits(method, path):
+    if policy.scope and not _scope_permits(policy, method, path):
         # Logged at warning with the full path: this is the line an operator
         # greps to discover that a legitimate federation feature needs an
         # ``extra_paths`` entry — the same way ``agent.contact`` is how they
