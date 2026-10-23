@@ -182,8 +182,8 @@ _SMOKE_IMPORT_SKIP: frozenset[str] = frozenset({
     # resolve only when that sibling package is installed at runtime; in
     # a clean venv / CI they raise ModuleNotFoundError, which is expected
     # and harmless (the federation MCP simply isn't available there).
-    "openagent_core.mcp.servers.agent_federation.adapters",
-    "openagent_core.mcp.servers.agent_federation.backend",
+    "openagent_server.mcp.servers.agent_federation.adapters",
+    "openagent_server.mcp.servers.agent_federation.backend",
     # ACP adapter — imports the optional ``agent-client-protocol`` SDK
     # (the ``[acp]`` extra) at module top because ``OpenAgentACPAgent``
     # subclasses ``acp.Agent``. Absent the extra (base install / CI) these
@@ -212,15 +212,20 @@ _REGISTRATION_EXCEPTIONS: frozenset[str] = frozenset({
     # module without running a single one of its cases, which is exactly the
     # silent-dead-coverage failure this guard exists to prevent.
     "test_collaboration",
+    # pytest modules (plain ``def test_*`` + fixtures): run with
+    # ``.venv/bin/python -m pytest scripts/tests/test_product_messaging.py
+    # scripts/tests/test_product_server_host_tools.py`` from apps/server.
+    "test_product_messaging",
+    "test_product_server_host_tools",
 })
 
 
-@test("repo_hygiene", "no stale 'from openagent_core.X' imports anywhere in src/ (incl. lazy)")
+@test("repo_hygiene", "no stale openagent_server.X / openagent_core.X imports anywhere in src/ (incl. lazy)")
 async def t_no_stale_src_imports(_ctx: TestContext) -> None:
-    """AST-walk every ``src/`` file and verify every ``from openagent_core.X`` /
-    ``import openagent_server.X`` statement points at a module that actually exists,
-    INCLUDING lazy imports nested inside functions, classes, or
-    try/except blocks.
+    """AST-walk every ``src/`` file and verify every ``openagent_server.X``
+    import points at a module of this package and every ``openagent_core.X``
+    import at a module the installed Core provides, INCLUDING lazy imports
+    nested inside functions, classes, or try/except blocks.
 
     The plain smoke-import test (below) only catches stale module-level
     imports — a stale ``from openagent_core.models.smart_router import SmartRouter``
@@ -228,15 +233,30 @@ async def t_no_stale_src_imports(_ctx: TestContext) -> None:
     is called. This test catches it before deployment.
     """
     import ast
+    import importlib.util
     import pkgutil
     import openagent_server as _src_pkg
 
-    valid_modules: set[str] = {"src"}
+    valid_modules: set[str] = {"openagent_server"}
     for _finder, name, _ispkg in pkgutil.walk_packages(
         path=_src_pkg.__path__,  # type: ignore[attr-defined]
-        prefix="openagent_core.",
+        prefix="openagent_server.",
     ):
         valid_modules.add(name)
+
+    core_found: dict[str, bool] = {}
+
+    def _exists(mod_name: str) -> bool:
+        if mod_name.startswith("openagent_server."):
+            return mod_name in valid_modules
+        if mod_name not in core_found:
+            try:
+                core_found[mod_name] = importlib.util.find_spec(mod_name) is not None
+            except (ImportError, ValueError):
+                core_found[mod_name] = False
+        return core_found[mod_name]
+
+    prefixes = ("openagent_server.", "openagent_core.")
 
     src_root = Path(_src_pkg.__file__).parent  # type: ignore[arg-type]
     failures: list[tuple[str, int, str]] = []
@@ -250,19 +270,19 @@ async def t_no_stale_src_imports(_ctx: TestContext) -> None:
             continue
         for node in ast.walk(tree):
             mods: list[tuple[str, int]] = []
-            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("openagent_core."):
+            if isinstance(node, ast.ImportFrom) and node.level == 0 and node.module and node.module.startswith(prefixes):
                 mods.append((node.module, node.lineno))
             elif isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.name.startswith("openagent_core."):
+                    if alias.name.startswith(prefixes):
                         mods.append((alias.name, node.lineno))
             for mod_name, lineno in mods:
-                if mod_name not in valid_modules:
+                if not _exists(mod_name):
                     rel = py_file.relative_to(src_root.parent)
                     failures.append((str(rel), lineno, mod_name))
 
     assert not failures, (
-        "Stale openagent_core.* imports — targets don't exist as modules. Lazy "
+        "Stale openagent_server.* / openagent_core.* imports — targets don't exist as modules. Lazy "
         "imports inside function bodies aren't caught by the smoke-"
         "import test because the function never runs at import time:\n  "
         + "\n  ".join(f"{file}:{line} → {mod}" for file, line, mod in failures)
@@ -289,10 +309,10 @@ async def t_every_src_module_imports(_ctx: TestContext) -> None:
     src_root = Path(_src_pkg.__file__).parent  # type: ignore[arg-type]
     # ``pkgutil.walk_packages`` follows __init__.py correctly and
     # gives dotted module names directly, no manual translation
-    # from file paths to ``openagent_core.foo.bar`` strings.
+    # from file paths to ``openagent_server.foo.bar`` strings.
     for finder, name, ispkg in pkgutil.walk_packages(
         path=_src_pkg.__path__,  # type: ignore[attr-defined]
-        prefix="openagent_core.",
+        prefix="openagent_server.",
     ):
         if name in _SMOKE_IMPORT_SKIP:
             skipped.append(name)

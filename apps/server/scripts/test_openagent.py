@@ -814,6 +814,9 @@ _TEST_MODULES: tuple[str, ...] = (
     # limit avendo un ripiego configurato e mai innestato. Pure-unit.
     # Una voce di fallback irrisolvibile si salta, non uccide l'agent.
     "test_fallback_resolve_skips",
+    # Bounded historical channel media and canceled-RPC control flow
+    #     (channel bridges). Pure-unit; was on disk but never registered.
+    "test_channel_history_media",
 )
 
 
