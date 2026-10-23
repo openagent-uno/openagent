@@ -1,7 +1,8 @@
 # Channel history media and quiet delivery — component contract
 
 Beta7 introduced this contract; beta8 adds cancellation safety and an explicit
-history count capability. Immutable earlier releases are unchanged. This is not
+history count capability. Beta12 adds an explicit bounded byte capability.
+Immutable earlier releases are unchanged. This is not
 a claim of live Slack/Discord acceptance. No provider account, model, release or
 deployment is exercised by its deterministic fixtures.
 
@@ -54,7 +55,21 @@ file and 256 total parts. The request-local registry expires on cancellation
 and closes its pinned descriptors; its aggregate retained-byte bound remains
 128 MiB. Raising the count does not raise any byte limit.
 Only the selected newest context window is downloaded; the context is still
-limited to 0–200 records and 64 KiB of attributed IPC metadata. Staging stays
+limited to 0–200 records. `BridgeCapabilities.history_max_bytes` defaults to
+65,536 bytes; a host may explicitly advertise an integer from 65,536 through
+262,144. Booleans, nonintegers and out-of-range values are rejected. The budget
+counts UTF-8 attributed IPC JSON including reader metadata and full historical
+speech transcripts, both before and after media preparation. `BridgeMessage`
+has the absolute 256 KiB ceiling; `BaseBridge` and the stdio transport separately
+enforce the actual negotiated cap, so an older host remains at 64 KiB. The
+message/history DTO has no new field. An overflow of the negotiated byte budget
+or of 256 total parts raises `HistoryUnavailable`: after fresh normal outbound
+authorization, the bridge reports unavailable history and starts no agent task.
+It never silently drops an old record or a transcript to make a partial input
+look complete. Count-window selection, duplicate/trigger exclusion and explicit
+attachment omission notices remain unchanged. This opt-in raises no file count,
+media byte, staging, authorization or provider-history pagination bound.
+Staging stays
 inside the one provider request until host ingestion completes and is then
 cleaned. Different events receive separate staging directories, including when
 their original filenames match.

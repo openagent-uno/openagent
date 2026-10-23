@@ -7,8 +7,7 @@ from .media import media_file_snapshot
 from .diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
 
-class HistoryUnavailable(RuntimeError):
-    """Requested provider history was not obtained; never invent empty input."""
+from .history import HistoryUnavailable
 
 
 MAX_HISTORY_FILES = 16
@@ -30,9 +29,10 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
     selected, part_count = [], count + 1  # current human text is a part too
     for record in reversed(history):
         added = len(record.parts) + len(record.omitted_attachments)
-        if part_count + added <= 256:
-            selected.insert(0, record)
-            part_count += added
+        if part_count + added > 256:
+            raise HistoryUnavailable("Requested channel history exceeds the 256-part budget")
+        selected.insert(0, record)
+        part_count += added
     result = []
     transcriptions = 0
     for record in selected:
@@ -77,9 +77,10 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                         loaded.local_path, context=context, attachment=loaded)
                     context = await bridge._prepare_delivery_context(context)
                     transcriptions += 1
-                    if part_count < 256:
-                        parts.append(BridgePart(text="Audio transcript (quoted historical message):\n" + transcript))
-                        part_count += 1
+                    if part_count >= 256:
+                        raise HistoryUnavailable("Requested channel history transcripts exceed the 256-part budget")
+                    parts.append(BridgePart(text="Audio transcript (quoted historical message):\n" + transcript))
+                    part_count += 1
             if reason is not None:
                 omitted.append(BridgeAttachmentNotice(attachment.kind, attachment.filename,
                     attachment.mime_type, attachment.size_bytes, attachment.provider_attachment_id, reason))

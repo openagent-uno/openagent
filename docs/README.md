@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Channel bridges beta12 complete negotiated history](releases/channel-bridges-0.1.0-beta.12.md)
+
 - [Beta59 official public wheel qualification](qualification/product-beta59-2026-10-23.json)
 - [Channel bridges beta11 official public wheel qualification](qualification/channel-bridges-0.1.0b11-2026-10-23.json)
 

@@ -507,6 +507,7 @@ class DiscordBridge(BaseBridge):
                        current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
             return ()
+        await self._ensure_transport_started()
         guild = getattr(message, "guild", None)
         gid = str(guild.id) if guild else None
         if not self._scope_allowed(context.actor_id, context.conversation_id, gid, is_dm=guild is None):
@@ -564,7 +565,7 @@ class DiscordBridge(BaseBridge):
             raise HistoryUnavailable("Requested channel history is unavailable") from None
         records.sort(key=lambda item: int(item.event_id))
         await self._prepare_delivery_context(context)
-        selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=context.event_id)
+        selected = bound_history(records, context_messages=self.context_messages, max_bytes=self._capabilities.history_max_bytes, exclude_event_id=context.event_id)
         async def load(record, attachment, remaining_bytes):
             if media_directory is None:
                 raise ValueError("Historical media staging unavailable")
@@ -575,7 +576,7 @@ class DiscordBridge(BaseBridge):
             return replace(attachment, local_path=str(path), size_bytes=path.stat().st_size)
         selected = await prepare_history_media(self, selected, context, load,
                                                current_attachments=current_attachments)
-        return bound_history(selected, context_messages=self.context_messages, exclude_event_id=context.event_id)
+        return bound_history(selected, context_messages=self.context_messages, max_bytes=self._capabilities.history_max_bytes, exclude_event_id=context.event_id)
 
     @staticmethod
     def _session_id(

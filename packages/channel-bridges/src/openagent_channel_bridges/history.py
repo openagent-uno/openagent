@@ -6,9 +6,13 @@ from dataclasses import asdict
 from collections.abc import Iterable
 
 from .contracts import (
-    DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES,
+    DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES, MAX_NEGOTIATED_CONTEXT_BYTES,
     BridgeHistoryMessage,
 )
+
+
+class HistoryUnavailable(RuntimeError):
+    """Requested history is unavailable or cannot be represented completely."""
 
 
 def validate_context_messages(value: int) -> int:
@@ -64,11 +68,11 @@ def bound_history(history: Iterable[BridgeHistoryMessage], *,
 
     Caller fetches only the already authorized channel/thread. This function
     cannot grant access or establish chronology of untrusted provider IDs.
-    Oversized records are omitted, never truncated into misleading attribution.
+    A byte overflow fails explicitly; no complete record is silently dropped.
     """
     validate_context_messages(context_messages)
-    if type(max_bytes) is not int or not 2 <= max_bytes <= MAX_CONTEXT_BYTES:
-        raise ValueError("max_bytes must be between 2 and 65536")
+    if type(max_bytes) is not int or not 2 <= max_bytes <= MAX_NEGOTIATED_CONTEXT_BYTES:
+        raise ValueError("max_bytes must be between 2 and 262144")
     if context_messages == 0:
         return ()
     # Only callers with already bounded provider pagination may supply history.
@@ -79,11 +83,11 @@ def bound_history(history: Iterable[BridgeHistoryMessage], *,
         if item.event_id in seen:
             continue
         seen.add(item.event_id)
-        candidate = [item, *result]
-        if history_size_bytes(candidate) <= max_bytes:
-            result = candidate
+        result.insert(0, item)
         if len(result) == context_messages:
             break
+    if history_size_bytes(result) > max_bytes:
+        raise HistoryUnavailable("Requested channel history exceeds its negotiated byte budget")
     return tuple(result)
 
 

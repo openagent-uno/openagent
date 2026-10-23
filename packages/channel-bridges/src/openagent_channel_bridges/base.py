@@ -536,6 +536,9 @@ class BaseBridge:
             request = BridgeMessage(context=current, parts=tuple(parts), history=tuple(history) if history is not None else _active_history.get(),
                                     source="voice" if input_was_voice or source == "stt" else "text",
                                     presentation=self._personality_directive)
+            from .history import history_size_bytes, HistoryUnavailable
+            if history_size_bytes(request.history) > self._capabilities.history_max_bytes:
+                raise HistoryUnavailable("Requested channel history exceeds its negotiated byte budget")
             reply = await self.transport.send(request, on_event=on_event)
             latest_target = _legacy_reply_target.get() if getattr(self.transport, "legacy_markers", False) else None
         finally:

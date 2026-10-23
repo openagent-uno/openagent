@@ -44,14 +44,17 @@ def test_history_zero_default_count_chronology_dedup_and_trigger_exclusion():
 
 
 def test_history_byte_budget_includes_utf8_attribution_json_and_escaping():
-    # 40k code points exceeds the actual UTF-8 budget; omit the complete record.
-    result = bound_history([record(1, "small"), record(2, "€" * 40_000), record(3, "recent")])
-    assert [m.event_id for m in result] == ["1", "3"]
-    assert history_size_bytes(result) <= 65_536
+    # Byte overflow is explicit; the negotiated opt-in keeps complete records.
+    rows = [record(1, "small"), record(2, "€" * 40_000), record(3, "recent")]
+    with pytest.raises(RuntimeError, match="history"):
+        bound_history(rows)
+    result = bound_history(rows, max_bytes=262144)
+    assert [m.event_id for m in result] == ["1", "2", "3"]
+    assert 65_536 < history_size_bytes(result) <= 262144
     encoded = render_history(result)
     assert "untrusted" in encoded and '"actor_id":"bob"' in encoded
     with pytest.raises(ValueError):
-        BridgeMessage(context(), (BridgePart(text="trigger"),), (record(1, "€" * 40_000),))
+        BridgeMessage(context(), (BridgePart(text="trigger"),), (record(1, "€" * 90_000),))
 
 
 def test_sender_cannot_replace_current_actor_with_a_history_author():

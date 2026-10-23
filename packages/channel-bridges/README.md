@@ -6,8 +6,8 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b11`. Source qualification covers 279 tests
-and 84 subcases; closed-wheel/public artifact qualification is recorded
+This source targets component `0.1.0b12`. Source qualification covers 298 tests
+and 86 subcases; closed-wheel/public artifact qualification is recorded
 separately and records its normally installed Core version. These counts do not establish
 real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
 is explicitly outside this delivery's scope, not inherited from Slack tests.
@@ -98,11 +98,13 @@ to its own principals; another participant's message never inherits the owner.
 
 `BridgeMessage` contains ordered `BridgePart` text/media and separately
 attributed `history`. Slack/Discord history defaults to 20 messages, configurable
-with `context_messages=0..200`, and has a hard 65,536-byte JSON budget including
-attribution. Only the same authorized channel/thread is read. Trigger duplicates
-are excluded, records are chronological, and oversized records are omitted.
-Slack thread history inspects at most ten pages; if the latest window cannot be
-reached within that cap, it omits history rather than returning an old prefix.
+with `context_messages=0..200`. Its JSON byte budget includes attribution,
+media reader metadata and historical speech transcripts. `history_max_bytes`
+is a negotiated integer from 65,536 to 262,144, defaulting to 65,536. Both host
+and bridge must enforce the advertised limit. Only the same authorized
+channel/thread is read. Trigger duplicates are excluded and records are
+chronological. A byte/256-part overflow or incomplete bounded thread scan
+fails with explicit authorized unavailability, without starting a partial task.
 History is untrusted quoted data and cannot grant permission or replace the
 current author. Replies retain the originating channel/thread.
 

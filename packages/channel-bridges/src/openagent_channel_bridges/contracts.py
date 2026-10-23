@@ -13,6 +13,7 @@ API_VERSION = 1
 DEFAULT_CONTEXT_MESSAGES = 20
 MAX_CONTEXT_MESSAGES = 200
 MAX_CONTEXT_BYTES = 65_536
+MAX_NEGOTIATED_CONTEXT_BYTES = 262_144
 
 
 def _version(value: int) -> None:
@@ -214,8 +215,8 @@ class BridgeMessage:
             raise ValueError("channel input exceeds 256 parts")
         # Include attribution and escaping overhead, not only text characters.
         from .history import history_size_bytes
-        if history_size_bytes(self.history) > MAX_CONTEXT_BYTES:
-            raise ValueError("channel history exceeds 64 KiB")
+        if history_size_bytes(self.history) > MAX_NEGOTIATED_CONTEXT_BYTES:
+            raise ValueError("channel history exceeds 256 KiB")
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,9 +235,12 @@ class BridgeCapabilities:
     api_version: int = API_VERSION
     history_media: bool = False
     history_max_files: int = 16
+    history_max_bytes: int = MAX_CONTEXT_BYTES
 
     def __post_init__(self) -> None:
         _version(self.api_version)
+        if type(self.history_max_bytes) is not int or not MAX_CONTEXT_BYTES <= self.history_max_bytes <= MAX_NEGOTIATED_CONTEXT_BYTES:
+            raise ValueError("history_max_bytes must be an integer between 65536 and 262144")
         if type(self.history_media) is not bool:
             raise ValueError("history_media must be a boolean")
         if (type(self.history_max_files) is not int or not 16 <= self.history_max_files <= 64

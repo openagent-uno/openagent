@@ -274,6 +274,7 @@ class SlackBridge(BaseBridge):
                        media_directory: str | None = None, current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
             return ()
+        await self._ensure_transport_started()
         if not self._is_authorized(context.actor_id) or not self._channel_listened(context.conversation_id, is_dm):
             raise PermissionError("Slack context is no longer admitted")
         try:
@@ -323,7 +324,7 @@ class SlackBridge(BaseBridge):
                 if not context.thread_id and thread and thread != event:
                     continue
                 text = message.get("text")
-                parts = [BridgePart(text=text)] if isinstance(text, str) and text and len(text.encode("utf-8")) <= 65536 else []
+                parts = [BridgePart(text=text)] if isinstance(text, str) and text else []
                 for value in (message.get("files") or ())[:16]:
                     if not isinstance(value, dict) or not value.get("id"):
                         continue
@@ -354,7 +355,7 @@ class SlackBridge(BaseBridge):
                 raise HistoryUnavailable("Requested channel history is incomplete")
         records.sort(key=lambda item: Decimal(item.event_id))
         await self.authorize_context(context)
-        selected = bound_history(records, context_messages=self.context_messages, exclude_event_id=trigger_ts)
+        selected = bound_history(records, context_messages=self.context_messages, max_bytes=self._capabilities.history_max_bytes, exclude_event_id=trigger_ts)
         async def load(record, attachment, remaining_bytes):
             if media_directory is None or is_blocked_attachment(attachment.filename):
                 raise ValueError("Historical media staging unavailable")
@@ -370,7 +371,7 @@ class SlackBridge(BaseBridge):
             return replace(attachment, local_path=path, size_bytes=Path(path).stat().st_size)
         selected = await prepare_history_media(self, selected, context, load,
                                                current_attachments=current_attachments)
-        return bound_history(selected, context_messages=self.context_messages, exclude_event_id=trigger_ts)
+        return bound_history(selected, context_messages=self.context_messages, max_bytes=self._capabilities.history_max_bytes, exclude_event_id=trigger_ts)
 
     def _channel_listened(self, channel_id: str, is_dm: bool) -> bool:
         # DMs are always listened to (subject to allowed_users), public

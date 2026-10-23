@@ -315,12 +315,21 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(transport.requests[0].history, ())
 
     async def test_slack_unicode_context_is_byte_bounded_and_trigger_excluded(self):
-        bridge, transport = self.slack(count=100)
-        client = SlackClient([[{"ts": str(n), "user": "Uactor", "text": "界" * 10000} for n in (46, 47, 48, 49)]])
-        await bridge.handle_event(slack_event(), client, account_id="Tfixture", event_id="Ev-unicode")
-        history = transport.requests[0].history
-        self.assertEqual([m.event_id for m in history], ["48", "49"])
-        self.assertLessEqual(history_size_bytes(history), 65536)
+        for budget in (65536, 262144):
+            with self.subTest(budget=budget):
+                bridge, transport = self.slack(count=100)
+                async def start(): return BridgeCapabilities(history_max_bytes=budget)
+                transport.start = start
+                client = SlackClient([[{"ts": str(n), "user": "Uactor", "text": "界" * 10000} for n in (46, 47, 48, 49, "50.000001")]])
+                await bridge.handle_event(slack_event(), client, account_id="Tfixture", event_id="Ev-unicode")
+                if budget == 65536:
+                    self.assertEqual(transport.requests, [])
+                    self.assertIn("No agent task was started", client.posts[-1]["text"])
+                else:
+                    history = transport.requests[0].history
+                    self.assertEqual([m.event_id for m in history], ["46", "47", "48", "49"])
+                    self.assertGreater(history_size_bytes(history), 65536)
+                    self.assertLessEqual(history_size_bytes(history), budget)
 
     async def test_discord_thread_history_is_exact_chronological_and_authorized(self):
         bridge, transport, channel, _ = self.discord(parent_id=30)

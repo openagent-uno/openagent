@@ -3,13 +3,13 @@
 Provider SDK imports remain lazy; contracts can be used without an SDK or Core.
 """
 from .contracts import (
-    API_VERSION, DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES,
+    API_VERSION, DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES, MAX_NEGOTIATED_CONTEXT_BYTES,
     BridgeAttachment, BridgeAttachmentNotice, BridgeCapabilities, BridgeCommand, BridgeCommandDefinition,
     BridgeCommandResult, BridgeContext, BridgeConversation, BridgeEvent, BridgeHistoryMessage,
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )
 
-__version__ = "0.1.0b11"
+__version__ = "0.1.0b12"
 
 
 def __getattr__(name: str):

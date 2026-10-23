@@ -77,6 +77,7 @@ class StdioBridgeTransport:
         self._cancelled_requests = {}
         self._event_count = 0
         self._history_max_files = 16
+        self._history_max_bytes = 65536
         self.artifacts = ArtifactStore()
 
     async def emit(self, value):
@@ -94,6 +95,10 @@ class StdioBridgeTransport:
             raise HostClosed()
         if len(self._pending) >= MAX_PENDING:
             raise WireError("pending_limit")
+        if method == "send" and isinstance(value, BridgeMessage):
+            from .history import history_size_bytes
+            if history_size_bytes(value.history) > self._history_max_bytes:
+                raise WireError("history_byte_limit")
         history_limit = self._history_max_files if method == "send" and isinstance(value, BridgeMessage) and value.history else 16
         if history_limit > 16 and sum(part.attachment is not None for part in value.parts) > 16:
             raise WireError("artifact_limit")
@@ -135,6 +140,7 @@ class StdioBridgeTransport:
     async def start(self):
         capabilities = await self._request("start")
         self._history_max_files = capabilities.history_max_files
+        self._history_max_bytes = capabilities.history_max_bytes
         return capabilities
 
     async def stop(self):
