@@ -74,9 +74,12 @@ claude mcp add openagent-agents \
   node ids, relays and addresses never enter its context, and are redacted from
   logs and errors.
 - **Tickets are secrets.** Config is a file (perms-checked), never an env blob.
-- Today an OpenAgent agent accepts any node that can dial its agent-ALPN endpoint.
-  Enrollment + an opt-in allowlist (so only invited peers are accepted) are on the
-  roadmap; the invite ticket is what will gate access.
+- **The target must admit this client.** An OpenAgent agent refuses every
+  agent-ALPN peer unless its `openagent.yaml` lists the peer's node id under
+  `network.peers.allowlist.node_ids` (or deliberately sets `network.peers.open:
+  true`). A refused client shows up in the target's `logs/events.jsonl` as
+  `peer.denied` with this client's node id — copy that value into the target's
+  allowlist and restart it.
 
 ## License
 

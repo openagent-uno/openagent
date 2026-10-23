@@ -21,6 +21,7 @@ from openagent_core.engine import Agent
 from openagent_core.memory.db import MemoryDB
 from openagent_core.models.runtime import create_model_from_config, wire_model_runtime
 from openagent_core.core.logging import clear as clear_event_log, elog
+from openagent_identity.auth.peer_policy import load_peer_policy
 # Pre-import the update-flow modules at server boot so the PyInstaller
 # archive entries they live in are loaded into memory before any sibling
 # service that shares the same on-disk binary can swap it. Without this,
@@ -847,28 +848,41 @@ def _build_agent(config: dict, *, engine_extensions=None) -> Agent:
             environment["OPENAGENT_MCP_INSTALL_ALLOW_PATTERNS"] = _ip_allows
 
     # ``network.peers`` — who may dial the ``openagent/agent/1`` ALPN, and what
-    # they may reach once they have. Both default OFF and both are enforced in
-    # ``openagent_identity.auth.peer_policy`` at the single agent-ALPN branch of the
-    # auth middleware; read that module's header for why the ALPN opened far
-    # more than federation ever needed.
+    # they may reach once they have. ``AgentServer.start`` turns these into
+    # the startup ``PeerPolicy`` (``openagent_identity.auth.peer_policy``, whose
+    # header explains why the ALPN opened far more than federation needed):
+    # no stanza closes the ALPN, ``allowlist.node_ids`` admits those peers,
+    # ``open: true`` admits any node, and anything ambiguous refuses to start.
     #
-    # Default OFF is not timidity, it is the requirement: these agents run
-    # unattended, and an allowlist that armed itself on upgrade would cut a
-    # live mesh dead at 3am with no human attached to notice.
+    # Presence is the signal, so an explicitly empty ``node_ids`` is exported
+    # as an empty list ("nobody") instead of being dropped as if it were unset.
     _peers_cfg = ((config.get("network") or {}).get("peers") or {})
+    if "open" in _peers_cfg:
+        # Not ``bool()``: a quoted ``open: "no"`` is truthy and would open the
+        # ALPN. Anything but a YAML boolean is handed to ``load_peer_policy``
+        # verbatim, which accepts true/false spellings and refuses the rest.
+        _open = _peers_cfg["open"]
+        environment["OPENAGENT_NETWORK_PEER_OPEN"] = (
+            ("1" if _open else "0") if isinstance(_open, bool) else str(_open)
+        )
     _allowlist_cfg = (_peers_cfg.get("allowlist") or {})
     if "enabled" in _allowlist_cfg:
         environment["OPENAGENT_NETWORK_PEER_ALLOWLIST_ENABLED"] = (
             "1" if bool(_allowlist_cfg["enabled"]) else "0"
         )
-    if _allowlist_cfg.get("node_ids"):
+    if "node_ids" in _allowlist_cfg:
         _nodes = _allowlist_cfg["node_ids"]
-        if isinstance(_nodes, (list, tuple)):
-            environment["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = ",".join(
-                str(n) for n in _nodes
+        if _nodes is None:
+            _nodes = []
+        if isinstance(_nodes, str):
+            _nodes = [_nodes]
+        if not isinstance(_nodes, (list, tuple)):
+            raise ValueError(
+                "network.peers.allowlist.node_ids must be a list of node ids"
             )
-        elif isinstance(_nodes, str):
-            environment["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = _nodes
+        environment["OPENAGENT_NETWORK_PEER_ALLOWLIST"] = ",".join(
+            str(n) for n in _nodes
+        )
     _scope_cfg = (_peers_cfg.get("scope") or {})
     if "enabled" in _scope_cfg:
         environment["OPENAGENT_NETWORK_PEER_SCOPE_ENABLED"] = (
@@ -1717,9 +1731,24 @@ class AgentServer:
 
     async def start(self) -> None:
         """Start agent, gateway, scheduler, and bridges."""
+        # The federation peer policy is decided before anything is opened or
+        # bound: an ambiguous ``network.peers`` stops the process here, with
+        # no database worker left running and long before the Iroh endpoint
+        # could answer the agent ALPN.
+        peer_policy = load_peer_policy(
+            getattr(self.agent, "product_environment", os.environ)
+        )
         self._stop_event = asyncio.Event()
         local_e2e = self.config.get("_local_e2e") is True
         elog("server.start", agent=self.agent.name)
+        elog("peer.policy", **peer_policy.summary())
+        if peer_policy.mode == "open":
+            elog(
+                "peer.open_mode",
+                level="warning",
+                detail="network.peers.open is true: any node that can dial "
+                "this agent reaches its gateway API over the agent protocol",
+            )
 
         # 0. Apply anyio cancel-scope guard BEFORE any MCP operations.
         #    anyio#695: _deliver_cancellation can spin forever when
@@ -1778,6 +1807,7 @@ class AgentServer:
         #    Gateway lifecycle. Standalone agents skip the gateway.
         self._network_state = await self._build_network_state()
         if self._network_state is not None:
+            self._network_state.auth_state.peer_policy = peer_policy
             from openagent_server.gateway.server import Gateway
             self._gateway = Gateway(
                 agent=self.agent,

@@ -51,7 +51,9 @@ dependencies = [
     # otherwise hit CERTIFICATE_VERIFY_FAILED on stdlib HTTPS calls because
     # the OS trust store isn't visible inside the bundle (updater.py uses
     # certifi.where() to hand urlopen a working cafile).
-    "certifi",
+    # Floor: 2026.10.19 drops the emSign roots whose intermediate CA keys
+    # were compromised (GHSA-6q48-6c7w-9gw2); an older bundle still trusts them.
+    "certifi>=2026.10.19",
     # workflow block templating ({{expr}} resolution via SandboxedEnvironment)
     "jinja2>=3.1.0",
     # Directly imported by openagent code — currently arrives as a transitive
@@ -131,25 +133,29 @@ dependencies = [
     # Already pulled in transitively by anthropic/openai but declared
     # explicitly because the network layer imports the Ed25519 APIs
     # directly — a transitive bump must not silently drop it.
-    # Upper bound is a WHEEL AVAILABILITY constraint, not an API one: 49.0.0
-    # stopped publishing a macOS x86_64 (universal2) wheel. Without one, pip
-    # builds cryptography from source on the Intel macOS runner against that
-    # runner's OpenSSL, and the PACKAGED binary then dies at startup on
-    # `Symbol not found: _SSL_get0_group_name` — the release matrix has failed
-    # there every time it has run. Raise this only together with evidence that
-    # a macOS x86_64 wheel exists again for the new floor.
-    # Windows ARM64 is narrower still: 46.0.3 is the newest release with a
-    # native wheel there. Keep that platform on the exact known-good binary;
-    # every other platform retains the macOS-x64-safe rolling range above.
-    "cryptography>=42,<49; platform_system != 'Windows' or platform_machine != 'ARM64'",
+    # Floor: 50.0.0 fixes the X.509 verifier's wildcard-name escape and
+    # duplicate-intermediate DoS (49.0.0) and the PKCS#7 Bleichenbacher oracle.
+    # The platform split is a WHEEL AVAILABILITY constraint, not an API one:
+    # 49.0.0 stopped publishing a macOS x86_64 (universal2) wheel, and 50.x
+    # still has none. Without one, pip builds cryptography from source on the
+    # Intel macOS runner against that runner's OpenSSL, and the PACKAGED binary
+    # then dies at startup on `Symbol not found: _SSL_get0_group_name` — so
+    # Intel macOS stays on 48.0.1, the last release with that wheel. Move it
+    # onto the shared floor only with evidence that a macOS x86_64 wheel
+    # exists again. Windows ARM64 is narrower still: 46.0.3 is the newest
+    # release with a native wheel there, so it keeps that exact binary.
+    "cryptography>=50.0.2; (platform_system != 'Windows' or platform_machine != 'ARM64') and (platform_system != 'Darwin' or platform_machine != 'x86_64')",
+    "cryptography==48.0.1; platform_system == 'Darwin' and platform_machine == 'x86_64'",
     "cryptography==46.0.3; platform_system == 'Windows' and platform_machine == 'ARM64'",
     # CBOR: device-cert payload encoding. Compact and deterministic
     # (canonical CBOR), which matters because we sign the encoded bytes.
     "cbor2>=5.5",
     # aiohttp powers the gateway's HTTP+WS surface. Was previously an
     # extra; promote to core since the network layer cannot work
-    # without it.
-    "aiohttp>=3.9",
+    # without it. Floor: 3.14.4 fixes request smuggling in the pure-Python
+    # parser, Request.scheme spoofing via absolute-form targets, and
+    # multipart / connector-pool exhaustion (GHSA-pqxq-w44r-73xw and siblings).
+    "aiohttp>=3.14.4",
     # Telegram is a first-class channel in production OpenAgent deployments.
     # Keep the SDK in the base install so source-style runtime installs cannot
     # replace a bundled binary with an entry point that lacks the bridge deps.
@@ -183,13 +189,13 @@ acp = ["agent-client-protocol>=0.11.0"]
 # box. The ``voice`` extra is kept as an empty alias so existing
 # installers that resolve it keep working cleanly.
 voice = []
-websocket = ["aiohttp>=3.9"]
+websocket = ["aiohttp>=3.14.4"]
 all = [
     "discord.py>=2.3.0",
     "whatsapp-api-client-python>=0.0.46",
     "slack-bolt>=1.20.0",
     "slack-sdk>=3.30.0",
-    "aiohttp>=3.9",
+    "aiohttp>=3.14.4",
 ]
 
 [project.scripts]

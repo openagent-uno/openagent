@@ -47,6 +47,7 @@ from openagent_core.core.config import load_config
 from openagent_core.core.logging import setup_logging
 from openagent_core.core.serve_singleton import kill_stale_serve_processes
 from openagent_server.server import AgentServer
+from openagent_identity.auth.peer_policy import PeerPolicyError
 from openagent_identity.cli_commands import network_group
 
 console = Console()
@@ -890,7 +891,12 @@ def serve(
                 console.print(f"[bold]Restarting (exit code {restart_code})...[/bold]")
             _os._exit(restart_code)
 
-    asyncio.run(_serve())
+    try:
+        asyncio.run(_serve())
+    except PeerPolicyError as error:
+        # A configuration decision for the operator, not a crash: say which
+        # ``network.peers`` lines to add instead of printing a traceback.
+        raise click.ClickException(f"Refusing to start: {error}") from None
 
 
 @main.command("acp")

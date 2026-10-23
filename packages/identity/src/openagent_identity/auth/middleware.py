@@ -33,7 +33,11 @@ from openagent_identity.auth.device_cert import (
     DeviceCert,
     verify_cert,
 )
-from openagent_identity.auth.peer_policy import check_peer_request
+from openagent_identity.auth.peer_policy import (
+    CLOSED_PEER_POLICY,
+    PeerPolicy,
+    check_peer_request,
+)
 from openagent_identity.identity import iroh_node_id_public_bytes
 from openagent_identity.transport.aiohttp_iroh_site import (
     current_device_cert_wire,
@@ -58,6 +62,11 @@ class NetworkAuthState:
     after sig+expiry verification because the cert itself doesn't carry
     revocation state. Member gateways use an authenticated coordinator RPC
     for the same live check and periodically revalidate open transports.
+
+    ``peer_policy`` governs the ``openagent/agent/1`` ALPN. ``None`` means
+    closed: the host must load and attach a policy (``load_peer_policy``)
+    before any agent peer is admitted, so an embedder that never configures
+    federation cannot open it by omission.
     """
 
     def __init__(
@@ -67,8 +76,10 @@ class NetworkAuthState:
         network_id: str,
         revoked_pubkeys: set[bytes] | None = None,
         device_lookup: Callable[[bytes], Awaitable[Any]] | None = None,
+        peer_policy: PeerPolicy | None = None,
     ) -> None:
         self.coordinator_pubkey = coordinator_pubkey
+        self.peer_policy = peer_policy
         self.network_id = network_id
         self.revoked_pubkeys = revoked_pubkeys or set()
         self._device_lookup = device_lookup
@@ -315,11 +326,14 @@ def make_auth_middleware(state: NetworkAuthState):
             # (events.py, chat.py) use it to pick a source string and a session
             # prefix, and no ``require_capability`` helper exists in src/.
             #
-            # Both toggles default OFF and ``check_peer_request`` returns
-            # before reading any list when they are — an allowlist that armed
-            # itself on upgrade would cut a running mesh dead with no warning.
+            # The policy is fixed at startup and attached to this state by the
+            # host. Without one the ALPN is closed: the gate fails shut rather
+            # than open when nobody configured federation.
             denial = check_peer_request(
-                node_id=peer_id, method=request.method, path=request.path,
+                policy=state.peer_policy or CLOSED_PEER_POLICY,
+                node_id=peer_id,
+                method=request.method,
+                path=request.path,
             )
             if denial is not None:
                 return web.Response(status=403, text=denial)

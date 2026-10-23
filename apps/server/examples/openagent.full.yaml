@@ -26,38 +26,37 @@ network:
   # An inbound agent-ALPN stream is authenticated by the Iroh QUIC
   # handshake, which proves the dialler owns its node_id — NOT that it
   # is anyone you enrolled. Nothing on that path consumes an invite or
-  # checks a coordinator cert, and the synthesised cert's
-  # capabilities=["agent"] is a provenance label, not a scope (the only
-  # two readers of it pick a log string and a session-id prefix). So
-  # with both toggles off, any node that can dial this one reaches
-  # EVERY gateway route — including POST /api/mcps, which takes
-  # arbitrary argv the MCP pool then spawns.
+  # checks a coordinator cert, so a node admitted here reaches the
+  # gateway routes — including POST /api/mcps (arbitrary argv for the
+  # MCP pool) unless `scope` narrows it.
   #
-  # Both DEFAULT OFF. They can reject live traffic, and these agents run
-  # unattended; arming either on upgrade would cut a running mesh dead.
+  # Without a `peers` block the agent protocol is CLOSED: every peer is
+  # refused (`peer.denied`, reason=not_configured). With a block, say
+  # who may dial — the server refuses to start rather than guess when
+  # there is neither an allowlist nor `open: true`, and it no longer
+  # reads the old `allowlist.enabled: false` as "accept everyone".
   peers:
-    # WHO may dial. Needs your peer list, so turn `scope` on first.
+    # Accept ANY node that can dial this agent. This was the default
+    # before; keep it only for an agent meant to be reachable by
+    # strangers, ideally with `scope` on. Exclusive with node_ids.
+    # open: true
+    #
+    # WHO may dial. Build the list from logs you are ALREADY collecting
+    # — the `agent.contact` line records every dialling node_id:
+    #   grep '"event":"agent.contact"' <agent dir>/logs/events.jsonl \
+    #     | jq -r .node_id | sort -u
+    # A peer missing from the list is refused and logged as
+    # `peer.denied` (reason=not_in_allowlist) with its node_id.
     allowlist:
-      enabled: false          # DEFAULT — any node that can dial is trusted
-      # Build the list from logs you are ALREADY collecting — the
-      # `agent.contact` line has recorded every dialling node_id since
-      # the ALPN shipped, so this is a grep, not a maintenance window:
-      #   grep '"event":"agent.contact"' ~/.openagent/events.jsonl \
-      #     | jq -r .node_id | sort -u
-      # A peer that has not dialled within your log retention will NOT
-      # appear — check the list against `openagent network agents`
-      # before enabling, or you will lock out a quiet peer. Denials are
-      # logged as `peer.denied` (reason=not_in_allowlist).
-      node_ids: []
+      node_ids: []            # DEFAULT — nobody
     # WHAT a peer may reach. No list to maintain: the built-in set is
     # the routes federation actually uses (POST /api/chat, POST
     # /api/events/{id}/trigger, GET /api/health, GET /api/agent-info).
     # Everything else a peer asks for is administration, not the
     # collaboration vision §11 describes — so this shrinks the blast
-    # radius even for peers you DID enrol, and needs no per-deployment
-    # data. Turn this on before the allowlist.
+    # radius even for peers you DID enrol.
     scope:
-      enabled: false          # DEFAULT — peers reach every gateway route
+      enabled: false          # DEFAULT — admitted peers reach every route
       # Anything outside the built-in set is refused with 403 and logged
       # as `peer.denied` (reason=outside_scope) with the method+path —
       # grep that if a federation feature needs a door this build's list
