@@ -63,7 +63,7 @@ destination = Path(sys.argv[1])
 releases = (
     ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.13", "manifest.json", "fb07af701f50aaf239aba4514c230b1be1f8f7e53fa940528aa18909c4e4a3b5"),
     ("openagent-uno/openagent", "v1.1.0-beta.66", "manifest.json", "da9e466d4ba38c089fea216659311a342de96ed17c678fa8e226ad6e15ea3cf5"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.32", "manifest.json", "9075f713c7c3e41fd277d1613ce032fa8f2f7479f93e24dfdbc243084ef84875"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.33", "manifest.json", "9194f88c5a8393975a6a3d3e50a26d8f226bbcb6e9ba4fd83ecd72632e55dd35"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
@@ -179,7 +179,7 @@ if [ "$PRODUCT" = "server" ]; then
     # engine extras explicitly, matching the verified normal installed closure.
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
-        "openagent-core[engine,providers,modules]==1.1.0b32"
+        "openagent-core[engine,providers,modules]==1.1.0b33"
 else
     "$VENV/bin/python" -m pip install --disable-pip-version-check \
         --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
