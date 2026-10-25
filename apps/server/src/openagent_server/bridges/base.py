@@ -140,8 +140,20 @@ class BaseBridge(SharedBaseBridge):
     _auth_headers = GatewayBridgeTransport._auth_headers
     _get_learning_db_shim = GatewayBridgeTransport._get_learning_db_shim
 
+    def _cleanup_owned_temp_artifact(self, path: str | None) -> None:
+        # Canonical delivery files are registered by exact inode. Release both
+        # ownership registries after each send; filename-based legacy cleanup
+        # cannot recognize these files and must not inspect replaced paths.
+        if path and path in self._owned_artifacts:
+            super()._cleanup_owned_temp_artifact(path)
+            transport = self.__dict__.get("transport")
+            if isinstance(transport, GatewayBridgeTransport):
+                transport._remove_delivery_file(Path(path))
+            return
+        self._cleanup_legacy_temp_artifact(path)
+
     @staticmethod
-    def _cleanup_owned_temp_artifact(path: str | None) -> None:
+    def _cleanup_legacy_temp_artifact(path: str | None) -> None:
         """Best-effort unlink of bridge-owned temp files.
 
         We only remove files we can confidently identify as OpenAgent's

@@ -102,3 +102,41 @@ async def test_canonical_artifact_failure_does_not_fall_back_to_supplied_path(tm
             assert local.read_text() == 'must never be sent'
         finally:
             await transport.stop()
+
+
+@pytest.mark.parametrize('replacement', [None, 'file', 'symlink'])
+async def test_standalone_provider_releases_owned_cas_files_without_touching_replacements(tmp_path, replacement):
+    import os
+    from openagent_server.bridges.base import BaseBridge
+    from openagent_channel_bridges.contracts import BridgeAttachment
+    class Provider(BaseBridge):
+        name = 'telegram'
+    transport = GatewayBridgeTransport()
+    provider = Provider(transport=transport, binding_id='telegram')
+    path = tmp_path/'oa-channel-final-fixture'
+    path.write_bytes(b'owned delivery bytes')
+    info = path.stat()
+    transport._delivery_files[path] = (info.st_dev, info.st_ino)
+    attachment = BridgeAttachment('file', 'report.txt', 'text/plain', path.stat().st_size, local_path=str(path), owned=True)
+    provider._platform_attachment(attachment)
+    held = None
+    try:
+        if replacement:
+            held = path.open('rb')  # Keep the old inode alive, avoiding filesystem reuse.
+            path.unlink()
+            if replacement == 'file':
+                path.write_text('unrelated replacement')
+            else:
+                target = tmp_path/'private.txt';target.write_text('private');path.symlink_to(target)
+        provider._cleanup_owned_temp_artifact(str(path))
+        assert not provider._owned_artifacts
+        assert not transport._delivery_files
+        if replacement == 'file':
+            assert path.read_text() == 'unrelated replacement'
+        elif replacement == 'symlink':
+            assert path.is_symlink() and path.read_text() == 'private'
+        else:
+            assert not path.exists()
+    finally:
+        if held is not None:held.close()
+        await transport.stop()
