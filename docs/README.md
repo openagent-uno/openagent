@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta64 Telegram owner vault access](releases/v1.1.0-beta.64.md)
+
 - [Beta63 public package qualification](qualification/product-beta63-2026-10-25.json)
 
 - [Beta63 reliable model catalog writes](releases/v1.1.0-beta.63.md)

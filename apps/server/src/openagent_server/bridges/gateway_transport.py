@@ -71,9 +71,11 @@ class GatewayBridgeTransport:
         # Real typed ingress never keys collectors by a channel-only hint.
         # The old untyped BaseBridge adapter retains its literal session key;
         # current provider callbacks carry account/actor/thread explicitly.
-        data = json.dumps((context.binding_id, context.provider, context.account_id, context.actor_id,
-                           context.conversation_id, context.thread_id, hint), separators=(",", ":"))
-        return f"{context.provider}:{hashlib.sha256(data.encode()).hexdigest()}"
+        from .session_identity import gateway_bridge_session_id
+        return gateway_bridge_session_id(
+            context.binding_id, context.provider, context.account_id, context.actor_id,
+            context.conversation_id, context.thread_id, hint,
+        )
 
     async def prepare_text(self, text):
         from openagent_core.core.hooks import expand_quick_command

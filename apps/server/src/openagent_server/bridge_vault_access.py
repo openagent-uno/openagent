@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 
 TELEGRAM_BRIDGE_SUBJECT = "__bridge_telegram"
@@ -64,9 +65,28 @@ def owner_bridge_vault_turn(context, config: Mapping) -> bool:
     ):
         return False
     session_id = str(context.session_id or "")
-    if not session_id.startswith("tg:"):
+    senders = telegram_owner_senders(config)
+    if session_id.startswith("tg:"):
+        sender_id = session_id.removeprefix("tg:")
+        return sender_id.isdecimal() and sender_id in senders
+
+    # Typed Telegram ingress binds the private session to the configured bot,
+    # owner sender and direct conversation. Recompute that exact identity;
+    # accepting an arbitrary telegram: prefix would expose private notes to
+    # groups, other bot accounts or unapproved senders. Do not rewrite the
+    # session ID or broaden the corpus to installation-wide visibility.
+    channel = (config.get("channels") or {}).get("telegram") or {}
+    token = channel.get("token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not isinstance(token, str):
         return False
-    sender_id = session_id.removeprefix("tg:")
-    if not sender_id.isdecimal():
+    account_id, separator, secret = token.partition(":")
+    if not separator or not account_id.isdecimal() or not secret:
         return False
-    return sender_id in telegram_owner_senders(config)
+    from openagent_server.bridges.session_identity import gateway_bridge_session_id
+
+    return any(
+        sender.isdecimal() and session_id == gateway_bridge_session_id(
+            "telegram", "telegram", account_id, sender, sender, None, f"tg:{sender}",
+        )
+        for sender in senders
+    )
