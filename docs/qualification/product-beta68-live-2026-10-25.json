@@ -1,0 +1,29 @@
+{
+  "version": "1.1.0b68",
+  "productConfigVersion": "1.1.0b19",
+  "bothRunsSucceeded": true,
+  "normalIncomingTelegramRequests": true,
+  "originalPromptPreserved": true,
+  "onlyPersonaConfigurationChanged": true,
+  "allRequestedTraitsPersisted": true,
+  "providerSystemMessageContainsUpdatedPersona": true,
+  "staleBlockNoteResolved": true,
+  "identityKeysPreserved": true,
+  "databaseQuickCheck": "ok",
+  "runtimeHotAppliedWithoutRestart": true,
+  "automaticRestarts": 0,
+  "sourceCommit": "2be3f2ba756fedf4bd446f504068587e737e9d64",
+  "manifestSHA256": "5996e9c1e8be601660397bf0d4c80e07938425068f455d8ce1a92804007ec774",
+  "liveProvider": "telegram",
+  "responseVisuallyVerifiedInNativeTelegram": true,
+  "providerPersonaCheckedInNextRun": true,
+  "onlyOneAuthorizedVaultNoteChanged": true,
+  "deterministicChannelRegressions": [
+    "telegram",
+    "whatsapp",
+    "slack",
+    "discord"
+  ],
+  "otherProvidersLiveTested": false,
+  "observedUTC": "2026-10-25T18:29:00Z"
+}

@@ -1,0 +1,30 @@
+{
+  "version": "1.1.0b68",
+  "coreVersion": "1.1.0b33",
+  "bridgeVersion": "0.1.0b13",
+  "sourceCommit": "2be3f2ba756fedf4bd446f504068587e737e9d64",
+  "manifestSHA256": "5996e9c1e8be601660397bf0d4c80e07938425068f455d8ce1a92804007ec774",
+  "pytestSummary": {
+    "passed": 415,
+    "subtestsPassed": 105,
+    "skipped": 0
+  },
+  "identityFixturesPassed": 7,
+  "publicAssetCountIncludingPostProof": 16,
+  "fullPublicAssetsVerified": true,
+  "pipCheckPassed": true,
+  "installedRECORDVerified": true,
+  "normalFreshInstallPassed": true,
+  "productConfigVersion": "1.1.0b19",
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.68",
+  "publicQualificationURL": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.68/post-publish-qualification.json",
+  "publicQualificationSHA256": "a728d827af463788e42bc7e1c1dfc4d7500a55cc39ce59e1af7a8e9a0f55d5aa",
+  "channelRegressionProviders": [
+    "telegram",
+    "whatsapp",
+    "slack",
+    "discord"
+  ],
+  "realProviderAcceptanceRecordedSeparately": true,
+  "nativeAppRebuilt": false
+}
