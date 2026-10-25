@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta66 public package qualification](qualification/product-beta66-2026-10-25.json)
+
 - [Beta66 channel asset cleanup](releases/v1.1.0-beta.66.md)
 
 - [Beta65 public package qualification](qualification/product-beta65-2026-10-25.json)
