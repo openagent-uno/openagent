@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b67"
+version = "1.1.0b68"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,15 +16,15 @@ dependencies = [
     "openagent-storage-sqlite==1.1.0b33",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b2",
-    "openagent-client-transport==1.1.0b67",
+    "openagent-client-transport==1.1.0b68",
     "openagent-core[engine]==1.1.0b33",
-    "openagent-identity==1.1.0b67",
-    "openagent-dashboards==1.1.0b67",
-    "openagent-product-config==1.1.0b18",
-    "openagent-support-integration==1.1.0b67",
+    "openagent-identity==1.1.0b68",
+    "openagent-dashboards==1.1.0b68",
+    "openagent-product-config==1.1.0b19",
+    "openagent-support-integration==1.1.0b68",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.0b67",
+    "openagent-mcp==1.1.0b68",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -236,7 +236,6 @@ constraint-dependencies = [
     "openagent-module-workflows @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_module_workflows-1.1.0b1-py3-none-any.whl?download=1#sha256=a1ce9f25f0feea0764b748c2c9251fac36d3f82e84cb8d21344375a0acc00f9b",
     "openagent-modules @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_modules-1.1.0b3-py3-none-any.whl?download=1#sha256=1554a9982fbb27e14b8e93f99ce740b0758bcef66959cd3d7750d6030f0b96aa",
     "openagent-modules-full @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_modules_full-1.1.0b3-py3-none-any.whl?download=1#sha256=4ab7820df844043db4ded19800317aafbb3a4af5cb7423a425f9fbb03d8e4ced",
-    "openagent-product-config @ https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_product_config-1.1.0b18-py3-none-any.whl#sha256=dc66eb3ef0142e5778b6f7eca284ea5a2f2c1e19fc70711783e5188730d22e61",
     "openagent-shell @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_shell-1.0.0b2-py3-none-any.whl#sha256=3d68ece425467478cff0855ee20054fffe52efad9be0ca25431ba6b2694518a8",
     "openagent-storage-sqlite @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_storage_sqlite-1.1.0b33-py3-none-any.whl?download=1#sha256=7b93d7f9e81ddd0fd09ad509ec7fb7a3b1a245a98957ff07e442d8ece9aaded9",
     "openagent-tool-protocol @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_tool_protocol-1.0.0b1-py3-none-any.whl#sha256=3d4c266eb8e51552408c70448ad7c466a6cb8fa7263939412ce4069c8b73cef2",
@@ -250,3 +249,4 @@ openagent-dashboards = { path = "../../packages/dashboards" }
 openagent-identity = { path = "../../packages/identity" }
 openagent-mcp = { path = "../mcp-bridge" }
 openagent-support-integration = { path = "../../packages/integrations/support" }
+openagent-product-config = { path = "../../packages/product-config" }

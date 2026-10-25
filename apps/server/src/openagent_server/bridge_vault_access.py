@@ -1,92 +1,81 @@
-"""Explicit owner vault access for a verified, allowlisted channel turn."""
+"""Explicit owner trust for a verified private legacy channel bridge turn.
 
+Mapped Slack/Discord ingress uses the actual network user's principal instead.
+"""
 from __future__ import annotations
 
 import os
 from collections.abc import Mapping
 
 TELEGRAM_BRIDGE_SUBJECT = "__bridge_telegram"
+_OWNER_BRIDGES = {TELEGRAM_BRIDGE_SUBJECT: "telegram", "__bridge_whatsapp": "whatsapp"}
 
 
-def telegram_owner_senders(config: Mapping) -> frozenset[str]:
-    """Telegram senders named in both the owner policy and the channel allowlist.
-
-    This is the single source of the bridge owner trust: an interactive turn
-    is admitted only from one of these senders, and a durable grant captured
-    by such a turn stays usable only while this set is non-empty.
-    """
-    channel = (config.get("channels") or {}).get("telegram")
-    if not channel:
+def owner_bridge_senders(config: Mapping, provider: str) -> frozenset[str]:
+    channel = (config.get("channels") or {}).get(provider)
+    if not channel or channel.get("enabled") is False:
         return frozenset()
-    policies = config.get("runtime_tool_audiences") or {}
-    owner_channels = policies.get("vault_owner_channels") or {}
-    owners = {str(value) for value in owner_channels.get("telegram") or []}
+    owner_channels = (config.get("runtime_tool_audiences") or {}).get("vault_owner_channels") or {}
+    owners = {str(value) for value in owner_channels.get(provider) or []}
     allowed = {str(value) for value in channel.get("allowed_users") or []}
     return frozenset(owners & allowed)
 
 
+def telegram_owner_senders(config: Mapping) -> frozenset[str]:
+    """Compatibility name for the explicit Telegram owner policy."""
+    return owner_bridge_senders(config, "telegram")
+
+
 def is_telegram_bridge_principal(principal) -> bool:
-    return (
-        principal.authority == "openagent"
-        and principal.kind == "user"
-        and principal.subject_id == TELEGRAM_BRIDGE_SUBJECT
-    )
+    return is_owner_bridge_principal(principal) and principal.subject_id == TELEGRAM_BRIDGE_SUBJECT
+
+
+def is_owner_bridge_principal(principal) -> bool:
+    return (principal.authority == "openagent" and principal.kind == "user"
+        and principal.subject_id in _OWNER_BRIDGES)
 
 
 def bridge_owner_principal_active(principal, config: Mapping) -> bool:
-    """Whether the Telegram bridge principal still carries owner trust.
-
-    The bridge is not a network user, so the network directory never lists
-    it. Automation grants approved from an owner bridge turn are captured
-    with this principal; they remain active exactly while the trust that
-    admitted the approval holds. Removing every owner sender from either the
-    owner policy or the channel allowlist (or removing the channel) makes
-    those grants inactive, as revoking a network user would.
-    """
-    return is_telegram_bridge_principal(principal) and bool(
-        telegram_owner_senders(config)
-    )
+    """A durable bridge grant remains active only while explicit owner trust does."""
+    return is_owner_bridge_principal(principal) and bool(
+        owner_bridge_senders(config, _OWNER_BRIDGES[principal.subject_id]))
 
 
 def owner_bridge_vault_turn(context, config: Mapping) -> bool:
-    """Allow only a named Telegram sender on that bridge's private session.
+    """Recognize only configured owner senders on the exact bot's private route.
 
-    The bridge authenticates to the gateway with its own certificate, so its
-    principal is not the installation owner. The operator must separately name
-    the sender in both the channel allowlist and the vault owner policy.
+    The historical policy name is retained for installed configuration. It
+    already gates vault, catalog and automation management. No allowlisted
+    contact, group, other bot account or model-authored display name becomes
+    the owner. Mapped channels use the host directory instead of this bridge.
     """
     if getattr(context, "deferred", False):
         return False
     principal = context.initiator
-    if (
-        not is_telegram_bridge_principal(principal)
-        or context.author != principal
-        or context.audience != (principal,)
-    ):
+    if (not is_owner_bridge_principal(principal) or context.author != principal
+            or context.authority != principal or context.audience != (principal,)):
         return False
+    provider = _OWNER_BRIDGES[principal.subject_id]
+    senders = owner_bridge_senders(config, provider)
+    channel = (config.get("channels") or {}).get(provider) or {}
     session_id = str(context.session_id or "")
-    senders = telegram_owner_senders(config)
-    if session_id.startswith("tg:"):
-        sender_id = session_id.removeprefix("tg:")
-        return sender_id.isdecimal() and sender_id in senders
-
-    # Typed Telegram ingress binds the private session to the configured bot,
-    # owner sender and direct conversation. Recompute that exact identity;
-    # accepting an arbitrary telegram: prefix would expose private notes to
-    # groups, other bot accounts or unapproved senders. Do not rewrite the
-    # session ID or broaden the corpus to installation-wide visibility.
-    channel = (config.get("channels") or {}).get("telegram") or {}
-    token = channel.get("token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-    if not isinstance(token, str):
-        return False
-    account_id, separator, secret = token.partition(":")
-    if not separator or not account_id.isdecimal() or not secret:
-        return False
+    prefix = "tg:" if provider == "telegram" else "wa:"
+    if session_id.startswith(prefix):
+        sender = session_id.removeprefix(prefix)
+        return sender.isdecimal() and sender in senders
+    if provider == "telegram":
+        token = channel.get("token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        if not isinstance(token, str):
+            return False
+        account, separator, secret = token.partition(":")
+        if not separator or not account.isdecimal() or not secret:
+            return False
+    else:
+        account = str(channel.get("green_api_id") or os.environ.get("GREEN_API_ID", ""))
+        if not account.isdecimal():
+            return False
     from openagent_server.bridges.session_identity import gateway_bridge_session_id
-
-    return any(
-        sender.isdecimal() and session_id == gateway_bridge_session_id(
-            "telegram", "telegram", account_id, sender, sender, None, f"tg:{sender}",
-        )
-        for sender in senders
-    )
+    return any(sender.isdecimal() and session_id == gateway_bridge_session_id(
+        provider, provider, account, sender,
+        sender if provider == "telegram" else sender + "@c.us", None, prefix + sender,
+    ) for sender in senders)

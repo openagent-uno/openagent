@@ -13,16 +13,17 @@ from openagent_client_transport.stream.wire import event_to_wire, wire_to_event
 from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
 
 
+@pytest.mark.parametrize('provider', ['telegram', 'whatsapp', 'slack', 'discord'])
 @pytest.mark.parametrize('mode', ['live', 'final', 'quiet'])
-async def test_wire_artifacts_materialize_in_all_delivery_modes(tmp_path, mode):
+async def test_wire_artifacts_materialize_in_all_delivery_modes(tmp_path, mode, provider):
     bodies = {'art_image': b'synthetic image bytes', 'art_file': b'name,value\nA,1\n'}
     requests = []
     allowed = True
-    context = BridgeContext('telegram', 'telegram', 'bot', 'owner', 'owner', 'event', conversation_kind='direct')
+    context = BridgeContext(provider, provider, 'bot', 'owner', 'owner', 'event', conversation_kind='direct')
 
     class Bound:
-        name = 'telegram'
-        binding_id = 'telegram'
+        name = provider
+        binding_id = provider
         _delivery_mode = mode
         async def _prepare_delivery_context(self, value):
             assert value == context

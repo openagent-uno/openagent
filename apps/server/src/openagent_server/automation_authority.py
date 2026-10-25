@@ -190,10 +190,10 @@ class NativeAutomationAuthority:
             ).fetchone()
             from openagent_server.bridge_vault_access import (
                 bridge_owner_principal_active,
-                is_telegram_bridge_principal,
+                is_owner_bridge_principal,
             )
 
-            if is_telegram_bridge_principal(principal):
+            if is_owner_bridge_principal(principal):
                 return bool(
                     role is not None
                     and role[1] == principal.tenant_id

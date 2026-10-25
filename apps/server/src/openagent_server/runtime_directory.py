@@ -63,10 +63,10 @@ class NativeRuntimeDirectory:
     async def principal_active(self, principal):
         from openagent_server.bridge_vault_access import (
             bridge_owner_principal_active,
-            is_telegram_bridge_principal,
+            is_owner_bridge_principal,
         )
 
-        if is_telegram_bridge_principal(principal):
+        if is_owner_bridge_principal(principal):
             # The bridge is never a network user. Its grants stay active
             # exactly while the owner bridge policy that admitted them holds,
             # and only for this installation's own network.

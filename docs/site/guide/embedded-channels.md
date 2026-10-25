@@ -358,3 +358,22 @@ currently leaves the conversation kind unknown and audience incomplete; typed
 runtime dispatch and result delivery remain denied until an authenticated
 recipient proof is implemented. These limits also apply to the typed standalone
 adapter; the historical untyped compatibility API does not attest audiences.
+
+## Owner persona and management from channels
+
+Product beta68 uses host-verified ingress for `agent-manager`; a device
+certificate is no longer assumed for mapped channel turns. A private mapped
+Slack/Discord turn may manage the persona, catalog and automations when its
+current network user is the installation's primary owner. Every call rechecks
+the provider account, mapping, audience and revocation. Shared conversations
+and background/delegated executions cannot rewrite the global persona.
+
+Legacy Telegram/WhatsApp bridge principals keep their own identity. The
+historical `runtime_tool_audiences.vault_owner_channels` map explicitly lists
+owner senders for each provider; a sender must also remain in that provider's
+`allowed_users`. For WhatsApp the exact direct `<sender>@c.us` route is bound
+to `green_api_id`; for Telegram it is bound to the configured bot. Being an
+allowed contact alone does not grant owner rights. Slack/Discord legacy bridge
+credentials do not become owners: configure their network-user mapping above.
+The framework prompt remains immutable; only user-owned name/persona fields
+are editable, with optimistic revisions and immediate next-turn application.

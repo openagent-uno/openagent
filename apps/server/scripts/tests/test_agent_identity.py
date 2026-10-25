@@ -104,8 +104,10 @@ def _fixture(ctx: TestContext, label: str = "identity"):
         system_prompt="stale runtime persona",
         config={"_config_path": str(path)},
         _db=db,
+        memory_db=db,
     )
     gateway = _Gateway(agent, path)
+    gateway.runtime_service = SimpleNamespace(directory=SimpleNamespace(owner_handle=db.primary_owner_handle))
     return path, raw, db, agent, gateway
 
 
@@ -311,15 +313,16 @@ async def t_builtin_and_toolkit(ctx: TestContext) -> None:
         install_on_behalf_identity,
         reset_on_behalf_identity,
     )
-    from openagent_core.core.prompts import FRAMEWORK_SYSTEM_PROMPT
-    from openagent_core.mcp.builtins import BUILTIN_MCP_SPECS, DEFAULT_MCPS
-    from openagent_core.mcp.servers.agent_manager.adapters import build_runtime_toolkit
+    from openagent_product_config.prompts import product_prompt_blocks
+    from openagent_server.bootstrap import standalone_spec_resolver
+    from openagent_product_config.tools.agent_manager.adapters import build_runtime_toolkit
 
     path, _raw, db, agent, gateway = _fixture(ctx, "toolkit")
     pool = SimpleNamespace(
         agent_runtime=agent,
         gateway_runtime=gateway,
         _db=db,
+        memory_db=db,
     )
     toolkit = build_runtime_toolkit(pool=pool)
     assert toolkit.name == "agent-manager"
@@ -332,13 +335,13 @@ async def t_builtin_and_toolkit(ctx: TestContext) -> None:
     assert update_entrypoint is not None
     assert "framework_prompt" not in inspect.signature(update_entrypoint).parameters
 
-    spec = BUILTIN_MCP_SPECS["agent-manager"]
+    spec = standalone_spec_resolver({})({"name": "agent-manager"}, str(ctx.db_path))
     assert spec["in_process"] is True
     assert spec["adapter_module"].endswith("agent_manager.adapters")
-    assert any(row.get("builtin") == "agent-manager" for row in DEFAULT_MCPS)
-    assert "agent_get_identity" in FRAMEWORK_SYSTEM_PROMPT
-    assert "agent_update_identity" in FRAMEWORK_SYSTEM_PROMPT
-    assert "immutable framework system prompt" in FRAMEWORK_SYSTEM_PROMPT
+    product_prompt = "\n".join(block["text"] for block in product_prompt_blocks())
+    assert "agent_get_identity" in product_prompt
+    assert "agent_update_identity" in product_prompt
+    assert "immutable framework system prompt" in product_prompt
 
     token = install_on_behalf_identity(_actor())
     try:

@@ -193,6 +193,17 @@ class AgentIdentityService:
         self.config_path = Path(raw_path).expanduser().resolve()
 
     async def _authorize(self, actor: OnBehalfIdentity | None) -> None:
+        service = getattr(self.gateway, "runtime_service", None)
+        authorize = getattr(service, "authorize_agent_identity", None)
+        if callable(authorize):
+            # The host owns channel and device admission. A mapped channel
+            # may have no device-certificate OnBehalfIdentity at all; never
+            # invent an owner alias for it or trust model-supplied metadata.
+            if await authorize(actor):
+                return
+            raise AgentIdentityPermissionError(
+                "only the primary owner or an explicitly owner-bound private channel can manage the agent persona",
+            )
         if (
             actor is None
             or actor.principal_type != "user"
@@ -224,6 +235,7 @@ class AgentIdentityService:
     async def get(self, actor: OnBehalfIdentity | None) -> dict[str, Any]:
         await self._authorize(actor)
         async with _lock_for(self.config_path):
+            await self._authorize(actor)
             return self._snapshot(_read_raw_config(self.config_path)).as_dict()
 
     async def update(
@@ -252,6 +264,7 @@ class AgentIdentityService:
                 )
 
         async with _lock_for(self.config_path):
+            await self._authorize(actor)
             raw = _read_raw_config(self.config_path)
             current = self._snapshot(raw)
             if expected_revision is not None and expected_revision != current.revision:
@@ -309,10 +322,8 @@ class AgentIdentityService:
                 )
                 if gateway is not None:
                     try:
-                        from openagent_core.gateway import protocol as P
-
                         await gateway.broadcast({
-                            "type": P.AGENT_IDENTITY_CHANGED,
+                            "type": "agent_identity_changed",
                             "name": next_name,
                             "revision": revision,
                         })

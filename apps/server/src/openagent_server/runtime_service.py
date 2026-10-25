@@ -588,6 +588,48 @@ class NativeRuntimeService:
         )
         return (*dashboard_leases, *leases)
 
+    async def authorize_agent_identity(self, actor):
+        """Authorize editable persona management with the host's actual ingress.
+
+        Device REST requests, mapped Slack/Discord turns, and explicitly trusted
+        private bridge turns retain their own principals. Shared audiences,
+        delegated/background runs, stale bindings and revoked mappings cannot
+        rewrite the installation-wide persona.
+        """
+        from openagent_core.contracts import PrincipalRef, ResourceRef
+        from openagent_core.runtime import current_runtime, current_execution_context
+        from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+
+        context = current_execution_context()
+        if context is None:
+            if actor is None or actor.principal_type != "user" or actor.auth_kind != "device_cert":
+                return False
+            try:
+                context = await self.authorizer.context_for_identity(actor, "__agent_identity__")
+            except PermissionError:
+                return False
+            binding = await self.authorizer._binding(context)
+            return bool(binding is not None and actor.handle == await self.directory.owner_handle()
+                and await self.directory.principal_active(context.initiator))
+        if current_runtime() is not self.runtime:
+            return False
+        principal = context.initiator
+        if (context.deferred or context.delegation_id or context.parent_run_id
+                or principal.kind != "user" or principal.authority != "openagent"
+                or context.author != principal or context.authority != principal
+                or context.audience != (principal,)):
+            return False
+        if actor is not None and (actor.auth_kind != "device_cert" or principal != PrincipalRef(
+                "openagent", actor.tenant_id, actor.handle, actor.principal_type)):
+            return False
+        if not await self.directory.principal_active(principal):
+            return False
+        if not (principal.subject_id == await self.directory.owner_handle()
+                or owner_bridge_vault_turn(context, self.agent.config)):
+            return False
+        return await self.authorizer.authorize(context, "run.publish",
+            ResourceRef("session", context.tenant_id, context.session_id), audience=context.audience)
+
     async def _authorize_source(self, context, action, resource, *, audience=()):
         # This policy is host-owned. No MCP row or client-provided ownership
         # field can promote a personal capability into a shared-data source.
@@ -610,7 +652,14 @@ class NativeRuntimeService:
                 and context.initiator.subject_id == await self.directory.owner_handle()
             ):
                 return True
-            # An allowlisted Telegram bridge turn authenticates as its own
+            if (str(context.ingress_id or "").startswith("channel:")
+                    and not context.deferred and not context.delegation_id
+                    and context.author == context.initiator == context.authority
+                    and context.initiator.kind == "user"
+                    and context.audience == (context.initiator,)
+                    and context.initiator.subject_id == await self.directory.owner_handle()):
+                return await self.authorizer._channel(context) is not None
+            # An explicitly owner-bound private bridge turn authenticates as its own
             # principal, not the owner handle. It is already trusted for the
             # owner vault via the same policy; extend that exact trust to
             # catalog and automation management so scheduler/workflow/event

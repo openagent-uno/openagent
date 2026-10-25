@@ -42,7 +42,8 @@ def build_runtime_toolkit(*, pool: Any) -> Any:
         """Update this agent's display name and/or user-defined persona.
 
         Use only when the primary owner explicitly asks to rename the agent or
-        revise how it should behave. Omitted fields remain unchanged;
+        revise how it should behave, including through a host-verified owner
+        channel. Omitted fields remain unchanged;
         ``system_prompt=''`` clears the persona. The immutable OpenAgent
         framework prompt is not writable. Changes persist atomically and apply
         to the next agent turn without a restart. Pass ``expected_revision``

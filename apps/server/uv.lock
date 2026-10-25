@@ -40,7 +40,6 @@ constraints = [
     { name = "openagent-module-workflows", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_module_workflows-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-modules", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_modules-1.1.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-modules-full", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_modules_full-1.1.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-product-config", url = "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_product_config-1.1.0b18-py3-none-any.whl" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_shell-1.0.0b2-py3-none-any.whl" },
     { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_storage_sqlite-1.1.0b33-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_tool_protocol-1.0.0b1-py3-none-any.whl" },
@@ -1965,7 +1964,7 @@ provides-extras = ["slack", "discord", "telegram", "whatsapp", "test"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -1975,7 +1974,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = "==1.1.0b33" },
-    { name = "openagent-identity", specifier = "==1.1.0b67" },
+    { name = "openagent-identity", specifier = "==1.1.0b68" },
 ]
 
 [[package]]
@@ -2047,7 +2046,7 @@ provides-extras = ["engine", "providers", "audio", "retrieval", "modules"]
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2061,7 +2060,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
     { name = "openagent-core", specifier = "==1.1.0b33" },
-    { name = "openagent-identity", specifier = "==1.1.0b67" },
+    { name = "openagent-identity", specifier = "==1.1.0b68" },
 ]
 
 [[package]]
@@ -2122,7 +2121,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b1" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2237,7 +2236,7 @@ requires-dist = [
     { name = "openagent-identity", directory = "../../packages/identity" },
     { name = "openagent-mcp", directory = "../mcp-bridge" },
     { name = "openagent-modules", specifier = "==1.1.0b3" },
-    { name = "openagent-product-config", specifier = "==1.1.0b18" },
+    { name = "openagent-product-config", directory = "../../packages/product-config" },
     { name = "openagent-storage-sqlite", specifier = "==1.1.0b33" },
     { name = "openagent-support-integration", directory = "../../packages/integrations/support" },
     { name = "openai", specifier = ">=1.0.0" },
@@ -2291,7 +2290,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -2318,7 +2317,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
@@ -2337,7 +2336,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.0b67" },
+    { name = "openagent-identity", specifier = "==1.1.0b68" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2614,15 +2613,12 @@ requires-dist = [
 
 [[package]]
 name = "openagent-product-config"
-version = "1.1.0b18"
-source = { url = "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_product_config-1.1.0b18-py3-none-any.whl" }
+version = "1.1.0b19"
+source = { directory = "../../packages/product-config" }
 dependencies = [
     { name = "openagent-core" },
     { name = "openagent-modules-full" },
     { name = "pyyaml" },
-]
-wheels = [
-    { url = "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.43/openagent_product_config-1.1.0b18-py3-none-any.whl", hash = "sha256:dc66eb3ef0142e5778b6f7eca284ea5a2f2c1e19fc70711783e5188730d22e61" },
 ]
 
 [package.metadata]
@@ -2662,7 +2658,7 @@ requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b33" }]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.0b67"
+version = "1.1.0b68"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
