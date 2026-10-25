@@ -1,0 +1,24 @@
+{
+  "version": "1.1.0b67",
+  "coreVersion": "1.1.0b33",
+  "bridgeVersion": "0.1.0b13",
+  "sourceCommit": "53e2c27a7e66ebf04d2d6051e5b43eaf4d647655",
+  "manifestSHA256": "28e448aa244ae426f38a81e5acab81718a365b2e860c4c1f919c8be4c6f42ef7",
+  "pytestSummary": {
+    "passed": 384,
+    "subtestsPassed": 101,
+    "skipped": 0
+  },
+  "publicAssetCountIncludingPostProof": 16,
+  "fullPublicAssetsVerified": true,
+  "pipCheckPassed": true,
+  "installedRECORDVerified": true,
+  "normalFreshInstallPassed": true,
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.67",
+  "publicQualificationURL": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.67/post-publish-qualification.json",
+  "publicQualificationSHA256": "3a586b46fc655f336c30d5bc19756008d43facf7f028b7473186f83359f20ec2",
+  "coreSourceCommit": "60470a21391d0f388d56c2665e1d1d6afe85e4bd",
+  "coreManifestSHA256": "9194f88c5a8393975a6a3d3e50a26d8f226bbcb6e9ba4fd83ecd72632e55dd35",
+  "nativeAppRebuilt": false,
+  "realProviderAcceptanceRecordedSeparately": true
+}
