@@ -1,0 +1,22 @@
+{
+  "productVersion": "1.1.0b67",
+  "coreVersion": "1.1.0b33",
+  "sourceCommit": "53e2c27a7e66ebf04d2d6051e5b43eaf4d647655",
+  "manifestSHA256": "28e448aa244ae426f38a81e5acab81718a365b2e860c4c1f919c8be4c6f42ef7",
+  "normalNativeTelegramIncomingRequest": true,
+  "responseReplayInjection": false,
+  "runtimeAttachments": 4,
+  "gatewayAttachments": 4,
+  "authoredFinalAttachments": 4,
+  "successfulAttachmentToolCalls": 4,
+  "originalArtifactSHA256Preserved": true,
+  "backupRestoreQuickCheck": "ok",
+  "migrationCopyQuickCheck": "ok",
+  "scope": "Normal incoming owner Telegram request through the released standalone runtime and gateway",
+  "observedUTC": "2026-10-25T16:53:00Z",
+  "nativeTelegramImagesVisuallyConfirmed": 4,
+  "existingArtifactsReused": true,
+  "regeneratedImages": 0,
+  "operatorConfigurationAndIdentityPreserved": true,
+  "serviceAutomaticRestarts": 0
+}
