@@ -1,0 +1,171 @@
+{
+  "normalFreshInstallPassed": true,
+  "serverAndClientCLIHelpSmokePassed": true,
+  "pipCheckPassed": true,
+  "importPrefixesInstalled": true,
+  "tests": {
+    "tests": 453,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "standaloneFixturesPassed": 4,
+  "peerPolicyMiddlewareFixturesPassed": 18,
+  "catalogPolicyFixturesPassed": 7,
+  "irohRegistrationContextFixtureIncluded": true,
+  "peerPolicyRealIrohTestsPassed": 2,
+  "core31HistoryRegressionCases": 12,
+  "core31StorageTenantAndMigrationFixturesIncluded": true,
+  "pytestSummary": {
+    "passed": 361,
+    "subtestsPassed": 92,
+    "skipped": 0
+  },
+  "installedRECORDVerified": true,
+  "resolvedConstraintsSHA256": "e4f4f5007b38d665327e54cd56b67e3cf483c801900a1b0c0fb41ddc7739d18d",
+  "evidence": {
+    "server-cli-help.log": "780d4a53f974baefe7044f5939543e08d174d7380fa1d2c29920252563fc6c25",
+    "client-cli-help.log": "e9ecc0fa257ae39612e7413c66bc41f496bba4252781726edea5eb7128b9070b",
+    "installed-records.json": "b0af3dc4c497dee70927be51dc48fcf76bfb514aaee2467ee9b04a3929efb0a9",
+    "standalone-fixtures.log": "ed7d2be242abd564cd56e71b0f7fb5bb7570b2875ae94a5427f1b0bbe953cfa7",
+    "installed-distributions.json": "72744b9cf09e9bc493bbf85b7c83117862524b1d137a57b1b4c14784720d34f7",
+    "tests.xml": "8e3d2d5b0c7381dec80fd0d51ed5d17c6b11baed0c6f384235c62f25a9c84c91",
+    "catalog-policy-fixtures.log": "572c8ecec15e379bf4900c2adbdcd5e8017ce02b355f5be9227de44134fb85f5",
+    "installed-tests.log": "7dc65b16ce632a2b2c45bcb4e171fa1b1562f93b7c97de9d8e22046d76304d4b",
+    "peer-policy-fixtures.log": "4289e46bdf5e49eac2b3d0f1956107f7a982cc14c114e996473efd0bb5981196",
+    "versions-and-import-prefixes.json": "bc07323eff926a98b3b9f9aefeb6d56b54803bf181ec76222fab3b6699c94316",
+    "pip-check.log": "943e0601a42b70e870be01d3dd69f8bff6c48553c7554c63c1cf9589ed920d2f",
+    "normal-install.log": "be0dcfea5c33c33f2dbbdc8e3ca7784471a137fee17d2b9eb101811e2e7f957a",
+    "venv.log": "5d271c4b5a359888e3fc046bd01980359657e1ab947fca7fba567e0db142ffff"
+  },
+  "realProviderAcceptance": false,
+  "nativeAppRebuilt": false,
+  "nativeFrozenServerRebuilt": false,
+  "automaticUpdateQualified": false,
+  "qualificationInherited": false,
+  "status": "official-public-wheels-normal-installed-qualified",
+  "sourceCommit": "f2842ef8ccbeb3b2028ec0f8f2b28438a5192256",
+  "version": "1.1.0b63",
+  "coreVersion": "1.1.0b32",
+  "bridgeVersion": "0.1.0b13",
+  "bridgeSourceCommit": "69ce0c0519801fce110dfe75af2013dcaa3f217b",
+  "releaseURL": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.63",
+  "manifestSHA256": "ec367c693f8013aa169f40afbe0678d4de4a9444b6be551229e53136023b298e",
+  "publicAssetCount": 15,
+  "fullPublicAssetsVerified": true,
+  "assets": [
+    {
+      "file": "SHA256SUMS",
+      "sha256": "ef381962188aef137ba157af32a5b65cd2ae8fd1a09f485a0f96e01256949ec7",
+      "bytes": 1455,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/SHA256SUMS",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "install.sh",
+      "sha256": "330e3476e3414a9e3c4fa2830dff7f3046e18bb52c3f61865047c76ea047c5a4",
+      "bytes": 9357,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/install.sh",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "manifest.json",
+      "sha256": "ec367c693f8013aa169f40afbe0678d4de4a9444b6be551229e53136023b298e",
+      "bytes": 78229,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/manifest.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent-product-1.1.0-beta.63-source.tar.gz",
+      "sha256": "235427797e3bbab36285c9f503ad68eae48e2770a7c2cde474c2e3f3db9007d0",
+      "bytes": 268511967,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent-product-1.1.0-beta.63-source.tar.gz",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_cli-1.1.0b63-py3-none-any.whl",
+      "sha256": "7f27a84fea6cf8509d3cdd906cc5fc57928641dfddc9e66b9bfa954ff53d4a8f",
+      "bytes": 72725,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_cli-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_client_transport-1.1.0b63-py3-none-any.whl",
+      "sha256": "2d7f1da34eecfe6008698f2fddf055304477b3a0778a890bb33ac5b33826c688",
+      "bytes": 20470,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_client_transport-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_dashboards-1.1.0b63-py3-none-any.whl",
+      "sha256": "153d0056d6ca9d49829ffa45686cf66920a1f79e21cfe8736a429789e1e82f74",
+      "bytes": 54849,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_dashboards-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_framework-1.1.0b63-py3-none-any.whl",
+      "sha256": "e78e697fe2316103034954997d571c5971331b31a88fc15f9701fd9f1437a4ee",
+      "bytes": 445838,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_framework-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "sha256": "b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e",
+      "bytes": 47103,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_identity-1.1.0b63-py3-none-any.whl",
+      "sha256": "a17898b7c1ec161dfcfbcff719f7dafa83a561188277d1a52196ec87342ff1e9",
+      "bytes": 101979,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_identity-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_mcp-1.1.0b63-py3-none-any.whl",
+      "sha256": "3022a0dbe1f5399de94a758809ce6bdf88a33cd65e7629e573437e4cba9917a4",
+      "bytes": 22080,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_mcp-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "sha256": "dc66eb3ef0142e5778b6f7eca284ea5a2f2c1e19fc70711783e5188730d22e61",
+      "bytes": 18885,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_product_config-1.1.0b18-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "openagent_support_integration-1.1.0b63-py3-none-any.whl",
+      "sha256": "6fa89ef38d6f8316aba9ceaf5cdb06569772651f493cff76860e198dbf81c9e3",
+      "bytes": 7394,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/openagent_support_integration-1.1.0b63-py3-none-any.whl",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "qualification.json",
+      "sha256": "11dc614b3d0fab90448c96ea941449642e57bd542383a2bd55961b8d1eb8b980",
+      "bytes": 2616,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/qualification.json",
+      "fullHTTPSHashVerified": true
+    },
+    {
+      "file": "release-notes.md",
+      "sha256": "0b6676c709172173331537e927e6ccf3e0d86b5a3ff9dacd16048da1c9391545",
+      "bytes": 931,
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/release-notes.md",
+      "fullHTTPSHashVerified": true
+    }
+  ],
+  "postPublicationProofAsset": {
+    "file": "post-publish-qualification.json",
+    "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.63/post-publish-qualification.json",
+    "sha256": "4e70b6edb9b619210aebe38becce623a3e40c4f1a0644064c4eb78e586aef28e",
+    "bytes": 7780,
+    "fullHTTPSHashVerified": true
+  },
+  "publicAssetCountIncludingPostProof": 16
+}
