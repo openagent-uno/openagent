@@ -116,7 +116,18 @@ class GatewayBridgeTransport:
                                session_ref=self._session_for_context(request.context))
         if response.get("text"):
             parts.append(BridgePart(text=response["text"]))
-        for raw in response.get("attachments") or ():
+        attachments = response.get("attachments") or ()
+        # Current wire attachments are canonical CAS references without local
+        # paths. Live and legacy final-only modes must resolve them through the
+        # same authenticated reader as quiet mode, preserving attachment order.
+        canonical = [raw for raw in attachments if isinstance(raw, dict) and "artifact_id" in raw]
+        materialized = iter(await self._materialize_final_reply(
+            request.context, {"attachments": canonical},
+        )) if canonical else iter(())
+        for raw in attachments:
+            if isinstance(raw, dict) and "artifact_id" in raw:
+                parts.append(next(materialized))
+                continue
             path = getattr(raw, "path", None) if isinstance(raw, Attachment) else raw.get("path")
             if not path:
                 continue

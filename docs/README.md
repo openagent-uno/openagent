@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta65 generated channel assets](releases/v1.1.0-beta.65.md)
+
 - [Beta64 public package qualification](qualification/product-beta64-2026-10-25.json)
 
 - [Beta64 Telegram owner vault access](releases/v1.1.0-beta.64.md)

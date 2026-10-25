@@ -874,7 +874,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b1" }]
 
 [[package]]
 name = "openagent-cli"
-version = "1.1.0b64"
+version = "1.1.0b65"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -910,7 +910,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.0b64"
+version = "1.1.0b65"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -920,7 +920,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = "==1.1.0b32" },
-    { name = "openagent-identity", specifier = "==1.1.0b64" },
+    { name = "openagent-identity", specifier = "==1.1.0b65" },
 ]
 
 [[package]]
@@ -1031,7 +1031,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.0b64"
+version = "1.1.0b65"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
