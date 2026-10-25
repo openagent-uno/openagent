@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta63 reliable model catalog writes](releases/v1.1.0-beta.63.md)
+
 - [Beta62 official public wheel qualification](qualification/product-beta62-2026-10-23.json)
 
 - [Beta62 verified legacy projection and canonical runtime coexistence](releases/v1.1.0-beta.62.md)
