@@ -24,6 +24,17 @@ not identified a final answer, quiet delivery says so and directs the reader
 to the session instead of reposting accumulated narration. A host that already
 returns `BridgeReply.parts` remains responsible for that final-result contract.
 
+## Canonical runtime output
+
+Product beta67 consumes Core beta33. After the engine converts output markers
+into canonical session artifact references, the streaming gateway preserves
+those references and the authored `final_answer` selection. It revalidates
+current session links and publication authority instead of parsing the cleaned
+text again. The runtime observation generator remains scoped through terminal
+publication and closes in the same task. A composed regression exercises real
+admission, execution, SQLite observation, `StreamSession` and gateway wire
+encoding for both selected media and a text-only final answer with previews.
+
 ## Historical attachments
 
 `BridgeCapabilities.history_media` is a boolean, false unless the host explicitly
