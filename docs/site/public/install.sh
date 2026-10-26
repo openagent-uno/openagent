@@ -63,9 +63,9 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.14", "manifest.json", "121a1d6e7a3103045fde019c824f15c598c5f91dc96452e7f8421c11693ba5b4"),
-    ("openagent-uno/openagent", "v1.1.0", "manifest.json", "3fe409074f06d78175b197113f900ee64e83f0db2d6e5258b3a64ab57b47238b"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.35", "manifest.json", "6359e34bdf4a3aaa32208f15782e586cae8cab2550e9542b2518d83c6b89c0a0"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.15", "manifest.json", "9c51e5151703eb81fdad738cd93f70c64edfbc27d1ddc214682c9f7eadac90b5"),
+    ("openagent-uno/openagent", "v1.1.1", "manifest.json", "75a825ce3680733e279dd4ab76a23406ac90477ca4b9e31c37ef0af77a8e1cf0"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.36", "manifest.json", "3c06f632b4708d914b6a1d83012300cd888e282a290ca9f40897082ac8e7832e"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )

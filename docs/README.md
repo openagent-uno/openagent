@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Stable 1.1.2 safe SQLite search cancellation](releases/v1.1.2.md)
+
 - [Stable 1.1.1 actionable AI errors](releases/v1.1.1.md)
 - [Channel bridges beta15 actionable AI errors](releases/channel-bridges-0.1.0-beta.15.md)
 

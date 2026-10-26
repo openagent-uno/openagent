@@ -1,8 +1,8 @@
 # Download OpenAgent
 
-The server and CLI are now **[v1.1.1 stable](https://github.com/openagent-uno/openagent/releases/tag/v1.1.1)**, using official Core beta 36,
+The server and CLI are now **[v1.1.2 stable](https://github.com/openagent-uno/openagent/releases/tag/v1.1.2)**, using official Core beta 37,
 channel bridges beta 15, connector SDK/runner 0.1.12 and Host Tools 1.0.0b6.
-The [stable qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.0-2026-10-26.json) records verified public downloads, a fresh Python 3.13 server installation and installed Iroh/model/tool tests. Live provider acceptance is reported separately.
+The [1.1.2 qualification receipt](https://github.com/openagent-uno/openagent/releases/download/v1.1.2/qualification.json) records installed package, authenticated Iroh/provider-failure and App error-rendering checks. The [previous stable receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.0-2026-10-26.json) retains the fresh Python 3.13 installation evidence. Production acceptance is reported separately.
 The current desktop App remains
 **v1.1.0-beta.22**, published for macOS, Windows and Linux on ARM64 and x64.
 [App22/server45 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
@@ -51,7 +51,7 @@ and connector SDK releases and acquires the verified local connector runner.
 curl -fsSL https://openagent.uno/install.sh | sh -s -- --server
 ```
 
-The server installer selects `openagent-core[engine,providers,modules]==1.1.0b36`,
+The server installer selects `openagent-core[engine,providers,modules]==1.1.0b37`,
 including SQLAlchemy async support. When assembling directly from release wheels,
 install those extras too: the bare Framework wheel is not the qualified
 `NativeProvider` dependency closure. The installer source also requests the
@@ -79,7 +79,7 @@ curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
 
 ## Libraries
 
-- [OpenAgent Core v1.1.0-beta.36](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.36)
+- [OpenAgent Core v1.1.0-beta.37](https://github.com/openagent-uno/openagent-core/releases/tag/v1.1.0-beta.37)
   — kernel, SDK, storage and optional module wheels.
 - [OpenAgent Tools v1.0.0-beta.4](https://github.com/openagent-uno/openagent-tools/releases/tag/v1.0.0-beta.4)
   — filesystem, editor, shell, web search, device capabilities and the optional
