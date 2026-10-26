@@ -1,0 +1,73 @@
+{
+  "productVersion": "1.1.2",
+  "sourceCommit": "722da5ec98f2a17ecd6fd19cec9d7fbdd226f10a",
+  "qualifiedAtUtc": "2026-10-26T21:59:43.608684+00:00",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.2",
+  "isPrerelease": false,
+  "coreVersion": "1.1.0b37",
+  "channelBridgesVersion": "0.1.0b15",
+  "proxyRelease": "https://github.com/Spicy-Sparks/claude-sub-proxy/releases/tag/v0.1.5",
+  "tests": {
+    "coreSourceAndInstalled": {
+      "passed": 506,
+      "subtestsPassed": 90
+    },
+    "sqliteCancellationRegressionsPassed": 4,
+    "installedMacProduct": {
+      "passed": 417,
+      "subtestsPassed": 104
+    },
+    "installedLinuxProduct": {
+      "passed": 420,
+      "subtestsPassed": 101
+    },
+    "appSharedLogicPassed": 146,
+    "electronErrorRenderingUnchangedFullPasses": 2,
+    "proxyTestsPassed": 74
+  },
+  "publicDelivery": {
+    "anonymousAssetBodiesVerified": 17,
+    "completeInstallerFirstPartyWheelsVerified": 40,
+    "website": {
+      "websiteInstallerByteEquality": true,
+      "sha256": "54e95a85cb42c5efd6e78c97b2f1a91bc6430a09a942c164da88852f5bcf9cec",
+      "downloadsStatesStable112": true,
+      "pagesWorkflowRun": "40405841217",
+      "pagesWorkflowInitialAndRestoredState": "disabled_manually"
+    }
+  },
+  "production": {
+    "agentsOnStable112": 3,
+    "freshOnlineBackupsAndRestoredCopyQuickChecksPassed": 3,
+    "identitiesConfigurationAndHistoryPreserved": true,
+    "authenticatedOwnerIrohRealClaudeAndCompletedReadOnlyToolRunsPassed": 3,
+    "actualModel": "claude-opus-5-5",
+    "normalStopAndRestartChecksPassed": 3,
+    "performaIntegrityWorkerObservedDuringStop": true,
+    "performaStopSeconds": 2.39,
+    "postCutoverAutomaticRestarts": 0,
+    "enabledOwnerAutomationsAuthorized": 13,
+    "ribelRealOwnerAndTwoTaskAuthorizationsRestored": true,
+    "duplicateDailyCostReportsDisabledWithDefinitionsAndHistoryRetained": 4,
+    "remainingDailyCostSchedule": "08:00 Europe/Rome",
+    "activeDeepSeekReferences": 0,
+    "enabledClaudeModels": [
+      "claude-opus-5-5",
+      "claude-sonnet-5-5",
+      "claude-haiku-5-5"
+    ],
+    "claudeTokenLifetimeDays": 365,
+    "sharedProxyVersion": "0.1.5",
+    "telegramBotsCredentialAndPendingQueueChecksPassed": 3
+  },
+  "scope": {
+    "nativeApp": "Existing native App binaries display the new server error text; no binary rebuild in this server/CLI release",
+    "liveEndToEnd": "Existing owner identity over production Iroh, standalone Runtime, real Claude Opus 5.5, tool discovery and durable successful runs",
+    "channels": "Installed provider/error-delivery integration tests and read-only live Telegram readiness checks"
+  },
+  "remainingLimits": [
+    "VPS CPU steal remains high (about 66-78 percent observed), beyond the agent code changes",
+    "About 7.2 GiB free on the VPS after retaining recovery and qualification artifacts",
+    "Iroh 0.35 emits UniFFI cross-thread teardown warnings in asyncio debug fixtures; the reproduced production native crash instead traced to SQLite index cancellation"
+  ]
+}

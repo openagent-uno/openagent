@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Stable 1.1.2 production and public delivery qualification](qualification/product-stable-1.1.2-production.json)
+
 - [Stable 1.1.2 safe SQLite search cancellation](releases/v1.1.2.md)
 
 - [Stable 1.1.1 actionable AI errors](releases/v1.1.1.md)
