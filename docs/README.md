@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Beta70: completion of explicit file deliveries](releases/v1.1.0-beta.70.md)
+
 - [Beta69: repeated-name Slack attachments and interactive tool budgets](releases/v1.1.0-beta.69.md)
 
 - [Beta66 public package qualification](qualification/product-beta66-2026-10-25.json)

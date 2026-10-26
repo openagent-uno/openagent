@@ -11,11 +11,12 @@ The public guide and verified downloads are at
 [openagent.uno](https://openagent.uno/); new coordinated product releases are
 published only from this repository.
 
-The beta60 Python source consumes independently released Core beta28 and channel
-bridges beta12, including authoritative final replies, current speech audience
-proofs and complete negotiated bounded channel history. Its wheel qualification is recorded separately from native apps,
-frozen servers and live provider acceptance. Existing updater endpoints stay
-in place until every supported platform completes its signed transition chain.
+The beta70 Python source consumes independently released Core beta35 and channel
+bridges beta14. Explicit send-file requests omitted from an attested final
+answer receive bounded same-model completion repair, with normal artifact,
+session and recipient checks retained. Wheel, native app and live provider
+qualification remain separate. Existing updater endpoints stay in place until
+each supported platform completes its signed transition chain.
 
 ## Official connectors
 

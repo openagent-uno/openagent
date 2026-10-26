@@ -14,8 +14,8 @@ resolution-markers = [
 
 [manifest]
 constraints = [
-    { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_core-1.1.0b34-py3-none-any.whl?download=1" },
+    { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_core-1.1.0b35-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_device_tools-1.0.0b4-py3-none-any.whl" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_editor-1.0.0b2-py3-none-any.whl" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_filesystem-1.0.0b2-py3-none-any.whl" },
@@ -861,12 +861,12 @@ wheels = [
 [[package]]
 name = "openagent-capability-host"
 version = "1.0.0b1"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1" }
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-tool-protocol" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1", hash = "sha256:227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1", hash = "sha256:227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342" },
 ]
 
 [package.metadata]
@@ -919,16 +919,16 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b34" },
+    { name = "openagent-core", specifier = "==1.1.0b35" },
     { name = "openagent-identity", specifier = "==1.1.0" },
 ]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b34"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_core-1.1.0b34-py3-none-any.whl?download=1" }
+version = "1.1.0b35"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_core-1.1.0b35-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_core-1.1.0b34-py3-none-any.whl?download=1", hash = "sha256:cb382c12939a04ffb970d206e9208d3e651e34cd6fdf5e8cbec40b9efd066afa" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.35/openagent_core-1.1.0b35-py3-none-any.whl?download=1", hash = "sha256:11c6641678d14a87c786c4022a279426c631ef6f902c67db3ec25f05073bfee8" },
 ]
 
 [package.metadata]
@@ -1052,8 +1052,8 @@ requires-dist = [
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b34" },
-    { name = "srptools", specifier = ">=1.0.1" },
+    { name = "openagent-core", specifier = "==1.1.0b35" },
+    { name = "srptools", specifier = ">=1.0.1,<3" },
 ]
 
 [[package]]
