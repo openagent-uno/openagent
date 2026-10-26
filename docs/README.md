@@ -160,3 +160,5 @@ Windows locale and frozen-interpreter environment handling. The three encoding
 regressions live in `packages/host-tools/tests/test_stdio_encoding.py`; the
 compatibility 0.1.3 build for existing consumers retains its independent release
 and does not change this product's host-tools version or dependency closure.
+- [Channel bridges beta14: independent staging for same-name Slack attachments](releases/channel-bridges-0.1.0-beta.14.md)
+

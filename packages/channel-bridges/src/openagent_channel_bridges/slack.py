@@ -19,6 +19,7 @@ import logging
 import shutil
 import tempfile
 import time
+import uuid
 from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -967,7 +968,11 @@ class SlackBridge(BaseBridge):
         if session is None:
             return _SlackDownloadOutcome(path=None, error="download_failed")
         target = Path(tmp) / safe_attachment_staging_name(
-            safe_attachment_filename(Path(parsed.path).stem, fallback="slack"),
+            # Private URLs often end in the original basename (image.png),
+            # shared by several independent uploads in the same message.
+            # A fresh staging identity preserves every file without weakening
+            # exclusive creation, host authorization or the displayed name.
+            uuid.uuid4().hex,
             filename,
         )
         copied = 0
