@@ -39,6 +39,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                 expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,modules]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
                 self.assertEqual((destination/'install-requirements.txt').read_text().splitlines(),expected)
         self.assertNotRegex(source,r'DIST="openagent-(?:framework|cli).*==')
+        self.assertNotIn("--pre --constraint", source)
         self.assertIn('--requirement "$WHEELHOUSE/install-requirements.txt"',source)
 
 if __name__ == '__main__':unittest.main()

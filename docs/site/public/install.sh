@@ -198,7 +198,7 @@ EOF
 
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
 "$VENV/bin/python" -m pip install --disable-pip-version-check \
-    --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" \
+    --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" \
     --requirement "$WHEELHOUSE/install-requirements.txt"
 
 if [ "$PRODUCT" = "server" ]; then
