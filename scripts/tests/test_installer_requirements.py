@@ -21,7 +21,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                 destination = Path(directory)
                 payloads = {}; replaced=[]
                 for index, (repo, tag, manifest_name, _) in enumerate(releases):
-                    names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')] if 'beta.69' in tag or 'beta.70' in tag else [('openagent-core','6.1.0b8')] if repo.endswith('openagent-core') else [('fixture-'+str(index),'1.0.0')]
+                    names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')] if repo == 'openagent-uno/openagent' and tag.startswith('v1.1.0') else [('openagent-core','6.1.0b8')] if repo.endswith('openagent-core') else [('fixture-'+str(index),'1.0.0')]
                     rows=[];assets=[]
                     for name, version in names:
                         filename=name.replace('-','_')+'-'+version+'-py3-none-any.whl'

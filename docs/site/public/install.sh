@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the current OpenAgent v1.1 beta server or CLI from the five
+# Install the current OpenAgent 1.1 stable server or CLI from the five
 # canonical, independently versioned GitHub releases.
 set -eu
 
@@ -16,7 +16,7 @@ while [ "$#" -gt 0 ]; do
         --check) CHECK_ONLY="1"; shift ;;
         -h|--help)
             cat <<'EOF'
-OpenAgent v1.1 beta installer
+OpenAgent 1.1 stable installer
 
 Flags:
   --server       Install the standalone server (default)
@@ -39,7 +39,7 @@ for candidate in python3.13 python3.12 python3.11 python3; do
 done
 
 if [ -z "$PYTHON" ]; then
-    echo "OpenAgent v1.1 beta requires Python 3.11 or newer." >&2
+    echo "OpenAgent 1.1 requires Python 3.11 or newer." >&2
     exit 1
 fi
 
@@ -64,8 +64,8 @@ from urllib.request import Request, urlopen
 destination = Path(sys.argv[1])
 releases = (
     ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.14", "manifest.json", "121a1d6e7a3103045fde019c824f15c598c5f91dc96452e7f8421c11693ba5b4"),
-    ("openagent-uno/openagent", "v1.1.0-beta.69", "manifest.json", "bd005089ab740afeeddc3a2af76452f10bf96d512a113ce3705c9abc9bdceb61"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.34", "manifest.json", "0d5588a0108a4fafa686017a6f0178394c076225803d1715c87c8e1f0592565d"),
+    ("openagent-uno/openagent", "v1.1.0", "manifest.json", "3fe409074f06d78175b197113f900ee64e83f0db2d6e5258b3a64ab57b47238b"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.35", "manifest.json", "6359e34bdf4a3aaa32208f15782e586cae8cab2550e9542b2518d83c6b89c0a0"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
