@@ -272,3 +272,22 @@ async def test_native_channel_host_never_maps_unknown_recipient_or_owner_fallbac
         await host.stop()
         await service.runtime.close()
         await db.close()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('code',['provider_not_configured','model_not_configured','auth_expired','quota_exhausted','rate_limit'])
+async def test_failed_native_channel_receives_public_ai_remedy_and_keeps_failure(tmp_path,code):
+    from openagent_core.core.public_errors import PUBLIC_MESSAGES,RunTurnError
+    service, host, bridge, context, current, calls, users, store, db = await assemble(tmp_path)
+    async def fail(request, context, runtime):
+        raise RunTurnError('PRIVATE-TOKEN provider diagnostics',code=code)
+    service.runtime.services.executor.execute=fail
+    try:
+        reply=await host.send(BridgeMessage(context,(BridgePart(text='question'),)))
+        assert reply.status=='failed'
+        assert [part.text for part in reply.parts]==[PUBLIC_MESSAGES[code]]
+        record=await store.get(reply.run_ref)
+        assert record.status=='failed' and record.output['error_code']==code
+        assert 'PRIVATE' not in str(reply)
+    finally:
+        await service.runtime.close()
+        await db.close()

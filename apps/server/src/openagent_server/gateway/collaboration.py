@@ -8,6 +8,8 @@ cannot have two different execution transports active at the same time.
 
 from __future__ import annotations
 
+from openagent_server.public_run_errors import public_run_response
+
 from openagent_server.bootstrap import start_stream
 
 import asyncio
@@ -434,7 +436,7 @@ class Collaboration:
                 service = self.gateway.runtime_service
                 record = await service.runtime.wait(request_id, prepared.context)
                 return {
-                    "response": record.output or "",
+                    "response": public_run_response(record),
                     "errored": record.status != "success",
                     "request_id": request_id,
                     "session_id": sid,

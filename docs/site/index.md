@@ -10,7 +10,7 @@ hero:
     alt: OpenAgent
   actions:
     - theme: brand
-      text: Download v1.1 beta
+      text: Download OpenAgent
       link: /downloads
     - theme: alt
       text: Official connectors

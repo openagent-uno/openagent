@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "openagent-channel-bridges"
-version = "0.1.0b14"
+version = "0.1.0b15"
 description = "Official stateless messaging channels for embedded and standalone OpenAgent"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{name = "OpenAgent contributors"}]
 dependencies = [
-    "openagent-core>=1.1.0b24,<2", "aiohttp>=3.9,<4",
+    "openagent-core>=1.1.0b36,<2", "aiohttp>=3.9,<4",
 ]
 
 [project.optional-dependencies]
@@ -23,7 +23,7 @@ test = [
     "pytest>=8", "pytest-asyncio>=0.23", "openagent-storage-sqlite>=1.1.0b24,<2",
     # The integration fixture exercises the real SQLite host implementation;
     # runtime consumers do not install these optional engine dependencies.
-    "openagent-core[engine]>=1.1.0b24,<2",
+    "openagent-core[engine]>=1.1.0b36,<2",
 ]
 
 [project.urls]

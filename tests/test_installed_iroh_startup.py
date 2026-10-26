@@ -20,6 +20,7 @@ from openagent_identity.client.session import SessionDialer, NetworkBinding, Loo
 class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.model_requests=[]
+        self.provider_failure=None
         app=web.Application();app.router.add_post('/v1/chat/completions',self.model_reply)
         self.provider=TestServer(app);await self.provider.start_server()
 
@@ -34,6 +35,9 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
     async def model_reply(self,request):
         self.assertEqual(request.headers.get('Authorization'),'Bearer fixture-only-secret')
         body=await request.json();self.model_requests.append(body)
+        if self.provider_failure:
+            status, message = self.provider_failure
+            return web.json_response({'error': {'message': message, 'type': 'provider_error'}}, status=status)
         messages=body.get('messages',[])
         start=max((i for i,m in enumerate(messages) if m.get('role')=='user' and 'Fixture' in str(m.get('content',''))),default=0)
         results=[m for m in messages[start:] if m.get('role')=='tool']
@@ -157,6 +161,31 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                             self.assertEqual(response.status,200,await response.text())
                         cursor=await server.agent.memory_db._conn.execute("SELECT COUNT(*) FROM ui_views WHERE title='Fixture dashboard'")
                         self.assertEqual((await cursor.fetchone())[0],1)
+                    # The real authenticated Iroh path must retain the safe category
+                    # through provider -> durable Runtime -> live turn and replay.
+                    from openagent_core.core.public_errors import PUBLIC_MESSAGES
+                    for code, status, diagnostic in (
+                        ('auth', 401, 'Invalid API key PRIVATE-PROVIDER-TOKEN'),
+                        ('auth_expired', 401, 'OAuth token expired PRIVATE-PROVIDER-TOKEN'),
+                        ('quota_exhausted', 400, 'Your credit balance is too low to access the API PRIVATE-PROVIDER-TOKEN'),
+                    ):
+                        with self.subTest(code=code):
+                            self.provider_failure=(status, diagnostic)
+                            body={'session_id':'alice-session', 'request_id':'failure-'+code,
+                                  'message':'Fixture provider failure '+code}
+                            for attempt in range(2):
+                                async with http.post(urls['alice']+'/api/collaboration/turns',json=body) as response:
+                                    result=await response.json()
+                                    self.assertEqual(response.status,200,result)
+                                    self.assertTrue(result['errored'],result)
+                                    self.assertIn(result['response'],(PUBLIC_MESSAGES[code], 'Error: '+PUBLIC_MESSAGES[code]))
+                                    self.assertNotIn('PRIVATE-PROVIDER-TOKEN',str(result))
+                            async with http.get(urls['alice']+'/api/runtime/runs/failure-'+code) as response:
+                                record=await response.json()
+                                self.assertEqual(response.status,200,record)
+                                self.assertEqual(record['status'],'failed')
+                                self.assertNotIn('PRIVATE-PROVIDER-TOKEN',str(record))
+                    self.provider_failure=None
                     self.assertTrue(self.model_requests)
                     system='\n'.join(m['content'] for m in self.model_requests[0]['messages'] if m.get('role')=='system')
                     self.assertIn('tool_search_list_tools(source_ref)',system)

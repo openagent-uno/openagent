@@ -296,3 +296,21 @@ async def test_non_boolean_actor_admission_cannot_trigger_membership_or_runtime(
     _assert_no_runtime_invocation(transport)
     assert not transport.delivery_contexts
     await bridge.stop()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('code',['provider_not_configured','model_not_configured','auth_expired','quota_exhausted','rate_limit'])
+async def test_native_ai_error_reaches_channel_with_an_actionable_remedy(code):
+    from openagent_core.core.public_errors import PUBLIC_MESSAGES
+    transport=Transport(BridgeReply((BridgePart(text=PUBLIC_MESSAGES[code]),),status='failed'))
+    bridge=CaptureBridge(transport)
+    await bridge.dispatch_turn('target','hint','question',context=context())
+    delivered=' '.join(row[2] for row in bridge.sent if row[0]=='text')
+    assert PUBLIC_MESSAGES[code] in delivered
+    assert '/clear' not in delivered
+
+@pytest.mark.asyncio
+async def test_arbitrary_provider_error_is_not_disclosed_in_native_channel():
+    transport=Transport(BridgeReply((BridgePart(text='PRIVATE-KEY provider JSON'),),status='failed'))
+    bridge=CaptureBridge(transport)
+    await bridge.dispatch_turn('target','hint','question',context=context())
+    assert bridge.sent and 'PRIVATE' not in str(bridge.sent)

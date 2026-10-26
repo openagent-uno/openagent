@@ -1159,15 +1159,13 @@ class BaseBridge:
         # before the normal attachment / chunking path tries to render
         # it as a regular reply.
         if response.get("type") == "error":
-            err_text = ((response.get("text") or "").strip() if getattr(self.transport, "legacy_markers", False)
-                        else "The host could not complete this channel request.")
-            preview = err_text[:300] if err_text else "errore non noto"
-            user_msg = (
-                "⚠️ Ho avuto un problema a elaborare il messaggio.\n\n"
-                f"Dettagli: {preview}\n\n"
-                "Riprova tra qualche istante. Se continua, prova `/clear` "
-                "per ricominciare la conversazione."
-            )
+            from openagent_core.core.public_errors import PUBLIC_MESSAGES
+            text = (response.get("text") or "").strip()
+            # Typed host responses may carry a constant public model error.
+            # Arbitrary provider bodies, stack traces and credential strings
+            # remain hidden for both native and legacy transports.
+            public = text if text in PUBLIC_MESSAGES.values() else PUBLIC_MESSAGES["generic"]
+            user_msg = "⚠️ " + public
             try:
                 await self.send_response_text(target, user_msg)
             except Exception:

@@ -232,10 +232,12 @@ class NativeChannelTransport:
             if record.terminal:
                 break
             await asyncio.sleep(0.025)
-        if record.status != "success":
-            return BridgeReply(status="failed", session_ref=context.session_id, run_ref=run_id)
         if not await self._fresh(request.context, canonical):
             raise PermissionError("Channel result audience changed")
+        if record.status != "success":
+            from openagent_server.public_run_errors import public_run_error
+            return BridgeReply(parts=(BridgePart(text=str(public_run_error(record))),),
+                               status="failed", session_ref=context.session_id, run_ref=run_id)
         answer = terminal_answer(final or {},
             require_attested=getattr(self.bridge, "_delivery_mode", "quiet") == "quiet")
         source_parts = answer.get("parts")

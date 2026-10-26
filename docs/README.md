@@ -1,5 +1,8 @@
 # Product documentation
 
+- [Stable 1.1.1 actionable AI errors](releases/v1.1.1.md)
+- [Channel bridges beta15 actionable AI errors](releases/channel-bridges-0.1.0-beta.15.md)
+
 - [Beta70 public package qualification](qualification/product-beta70-2026-10-26.json)
 
 - [Beta70: completion of explicit file deliveries](releases/v1.1.0-beta.70.md)

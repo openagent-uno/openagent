@@ -11,7 +11,7 @@ const DESKTOP_ROOT = resolve(HERE, '..');
 const APP_ROOT = resolve(DESKTOP_ROOT, '..');
 const WEB_ROOT = join(APP_ROOT, 'universal', 'dist');
 
-test('live chat survives navigation and a child first-frame reasoning signal', async () => {
+test('live chat preserves AI account errors, navigation and child reasoning', async () => {
   const testRoot = await mkdtemp(join(tmpdir(), 'openagent-live-chat-e2e-'));
   const userData = join(testRoot, 'electron-user-data');
   await mkdir(userData, { recursive: true });
@@ -132,6 +132,18 @@ test('live chat survives navigation and a child first-frame reasoning signal', a
     await page.getByText('Research child', { exact: true }).click();
     await expect(page).toHaveURL(/session=e2e-session%3A%3Asub%3A%3Aresearcher%3A%3Arun-1/);
     await expect(page.getByLabel('Reasoning', { exact: true })).toBeVisible();
+
+    // Server-side public categories must reach the existing app verbatim.
+    // Neither failed provider credentials nor quota exhaustion is fixed by /clear.
+    for (const text of [
+      'No AI provider account is configured. Open Models and Providers and connect an account or add an API key.',
+      'AI account authentication has expired or was revoked. Reconnect the account in Models and Providers; retrying the message cannot renew it.',
+      "The AI account's usage allowance or credits are exhausted. Check usage and billing; wait for the quota reset, add credits or select another account.",
+    ]) {
+      gateway.sendChatFrame({ type: 'error', session_id: childId, text });
+      await expect(page.getByText('Error: ' + text, { exact: true })).toBeVisible();
+    }
+
   } catch (error) {
     const output = mainOutput.join('').trim();
     if (output) error.message += `\n\nElectron main output:\n${output}`;

@@ -351,9 +351,8 @@ class NativeRuntimeService:
                 record = await self.runtime.get_run(identifier, context)
                 if record.terminal:
                     if record.status != "success":
-                        raise RuntimeError(
-                            f"Agent run ended with status {record.status}"
-                        )
+                        from openagent_server.public_run_errors import public_run_error
+                        raise public_run_error(record)
                     if not completed_frame:
                         yield {
                             "kind": "done",

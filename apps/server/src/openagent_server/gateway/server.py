@@ -3484,10 +3484,12 @@ class Gateway:
                 enabled_count = -1
             if enabled_count == 0:
                 elog("session.rejected_no_models", session_id=session_id)
-                return (
-                    "No models are enabled. Add one via /models or ask "
-                    "the agent to add an openai/anthropic/google model."
-                )
+                from openagent_core.core.public_errors import PUBLIC_MESSAGES
+                providers = await self.agent.memory_db.list_providers()
+                code = "model_not_configured" if any(
+                    p.get("enabled") and p.get("kind", "llm") == "llm" for p in providers
+                ) else "provider_not_configured"
+                return PUBLIC_MESSAGES[code]
 
             # ModelDispatcher handles per-session binding internally; it
             # reports ``history_mode = None`` so this is a no-op for
