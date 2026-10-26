@@ -1,0 +1,106 @@
+{
+  "status": "normal-product-wheel-install-and-installed-channel-regressions-passed",
+  "sourceCommit": "a3433fc28321905690c40d014eed4af765285231",
+  "productVersion": "1.1.0b70",
+  "productWheels": 9,
+  "coreVersion": "1.1.0b35",
+  "channelBridgesVersion": "0.1.0b14",
+  "productTestsPassed": 47,
+  "productSubtestsPassed": 4,
+  "coreInstalledTestsPassed": 132,
+  "coreSubtestsPassed": 26,
+  "coreQualificationReceipt": "/Users/alessandrogerelli/.codex/worktrees/ics-release-automation/ICS/.ics/release/prepared-core35-attachment-completion-20261026/core35/qualification.json",
+  "nativeAppOrLiveProviderQualification": false,
+  "pipCheckPassed": true,
+  "testSourcePinsSHA256": "ebbe898100bd685329e4b5ebd5f1a9afa749b67035032fff3fea2e58be7bba63",
+  "upstreamPublicManifests": [
+    {
+      "repository": "openagent-tools",
+      "tag": "v1.0.0-beta.4",
+      "manifestSHA256": "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"
+    },
+    {
+      "repository": "openagent-tools",
+      "tag": "connectors-v0.1.12",
+      "manifestSHA256": "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"
+    }
+  ],
+  "qualificationInherited": false,
+  "publicRelease": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.70",
+  "publicAssets": [
+    {
+      "filename": "SHA256SUMS",
+      "bytes": 1183,
+      "sha256": "1543b658717443dad03e4a1d7c024124cb17758f559520daa1bfaa9d20cec948",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/SHA256SUMS"
+    },
+    {
+      "filename": "manifest.json",
+      "bytes": 82629,
+      "sha256": "1fee76974cbc34fabcb8b3b2e930fdf7317f261ec8975e7f6f184552aa046544",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/manifest.json"
+    },
+    {
+      "filename": "openagent_cli-1.1.0b70-py3-none-any.whl",
+      "bytes": 72725,
+      "sha256": "478ce76174d67a894dda2e5212c2dbabb0e7d99fd677fd8cf31c18115eec39f2",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_cli-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_client_transport-1.1.0b70-py3-none-any.whl",
+      "bytes": 20470,
+      "sha256": "6bcca5b783c0afae3ae45cdd45b4498a3dbf59def16553de0d9b8517f83db0e6",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_client_transport-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_dashboards-1.1.0b70-py3-none-any.whl",
+      "bytes": 54850,
+      "sha256": "98c8e31d7040f37649a10bce1316a2ec4b4d0121c4a351403420cfcb7f0b403a",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_dashboards-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_framework-1.1.0b70-py3-none-any.whl",
+      "bytes": 447506,
+      "sha256": "440706cfaaade1978e2b5927b4606fc4e00f8a86b622e46b64eb1b2a6d419083",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_framework-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "bytes": 47103,
+      "sha256": "b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_host_tools-1.0.0b6-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_identity-1.1.0b70-py3-none-any.whl",
+      "bytes": 101980,
+      "sha256": "17379ddd4a15826b8093f158da414ef6eb5eb10a0a7fcd1c7979563f697e17e2",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_identity-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_mcp-1.1.0b70-py3-none-any.whl",
+      "bytes": 22081,
+      "sha256": "11a5f3f148951b90e055eb88f28bf7d545037420d3d1377d286a00a69c92b09c",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_mcp-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_product_config-1.1.0b19-py3-none-any.whl",
+      "bytes": 19074,
+      "sha256": "51f3919010b8ff0f90c264388c8e45d4147b7244d3c52e67f086a6e92f0b15b6",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_product_config-1.1.0b19-py3-none-any.whl"
+    },
+    {
+      "filename": "openagent_support_integration-1.1.0b70-py3-none-any.whl",
+      "bytes": 7394,
+      "sha256": "f96d75bd1239bda251ddd0437740df14c64b97fc075c8871f6584b4b41898596",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/openagent_support_integration-1.1.0b70-py3-none-any.whl"
+    },
+    {
+      "filename": "qualification.json",
+      "bytes": 1171,
+      "sha256": "17f07ca49312232412af738a969c98950ae4dc1e73eb372114d8bb0d27e83d75",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.70/qualification.json"
+    }
+  ],
+  "publicFullSHA256Verification": true,
+  "productManifestSHA256": "1fee76974cbc34fabcb8b3b2e930fdf7317f261ec8975e7f6f184552aa046544"
+}
