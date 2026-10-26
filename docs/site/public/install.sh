@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the current OpenAgent v1.1 beta server or CLI from the four
+# Install the current OpenAgent v1.1 beta server or CLI from the five
 # canonical, independently versioned GitHub releases.
 set -eu
 
@@ -48,14 +48,16 @@ trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
 WHEELHOUSE="$TMP_DIR/wheels"
 mkdir -p "$WHEELHOUSE"
 
-"$PYTHON" - "$WHEELHOUSE" <<'PY'
+"$PYTHON" - "$WHEELHOUSE" "$PRODUCT" <<'PY'
 from __future__ import annotations
 
+from email.parser import BytesParser
 import hashlib
 import json
 from pathlib import Path
 import sys
 import time
+import zipfile
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -127,6 +129,29 @@ for repository, tag, manifest_name, manifest_digest in releases:
         (destination / name).write_bytes(payload)
         verified += 1
 
+# Resolve installation requirements from the exact wheel bytes just verified.
+# A separately maintained version literal can silently select an older release
+# or a package from an index instead of the manifest-qualified wheelhouse.
+versions = {}
+for wheel in destination.glob("*.whl"):
+    with zipfile.ZipFile(wheel) as archive:
+        entries = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
+        if len(entries) != 1:
+            raise SystemExit(f"Ambiguous wheel metadata: {wheel.name}")
+        metadata = BytesParser().parsebytes(archive.read(entries[0]))
+    name, version = metadata["Name"], metadata["Version"]
+    if not name or not version or name in versions:
+        raise SystemExit(f"Missing or duplicate distribution metadata: {wheel.name}")
+    versions[name] = version
+product = sys.argv[2]
+if product == "server":
+    requirements = [
+        "openagent-framework[discord,slack,whatsapp]==" + versions["openagent-framework"],
+        "openagent-core[engine,providers,modules]==" + versions["openagent-core"],
+    ]
+else:
+    requirements = ["openagent-cli==" + versions["openagent-cli"]]
+(destination / "install-requirements.txt").write_text("\n".join(requirements) + "\n")
 print(f"Verified {verified} first-party wheels from the canonical releases.")
 PY
 
@@ -146,10 +171,8 @@ if [ "$PRODUCT" = "server" ]; then
     # The Discord, Slack and WhatsApp bridges import their SDKs only when a
     # configured channel starts, so a bare Framework wheel cannot run them.
     # Telegram is already a base dependency of the Framework wheel.
-    DIST="openagent-framework[discord,slack,whatsapp]==1.1.0b68"
     COMMAND="openagent"
 else
-    DIST="openagent-cli==1.1.0b68"
     COMMAND="openagent-cli"
 fi
 
@@ -174,16 +197,9 @@ whatsapp-api-client-python==0.0.49
 EOF
 
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
-if [ "$PRODUCT" = "server" ]; then
-    # The standalone's NativeProvider needs async ORM support. Require Core's
-    # engine extras explicitly, matching the verified normal installed closure.
-    "$VENV/bin/python" -m pip install --disable-pip-version-check \
-        --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST" \
-        "openagent-core[engine,providers,modules]==1.1.0b33"
-else
-    "$VENV/bin/python" -m pip install --disable-pip-version-check \
-        --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" "$DIST"
-fi
+"$VENV/bin/python" -m pip install --disable-pip-version-check \
+    --pre --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" \
+    --requirement "$WHEELHOUSE/install-requirements.txt"
 
 if [ "$PRODUCT" = "server" ]; then
     # Reuse the same manifest/archive verifier used by frozen server builds.
@@ -233,7 +249,7 @@ if [ -e "$DEST" ] && [ ! -L "$DEST" ]; then
 fi
 ln -sfn "$VENV/bin/$COMMAND" "$DEST"
 
-echo "Installed $DIST at $DEST"
+echo "Installed verified OpenAgent $PRODUCT at $DEST"
 case ":$PATH:" in
     *":$PREFIX:"*) ;;
     *) echo "Add $PREFIX to PATH to run $COMMAND directly." ;;
