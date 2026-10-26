@@ -1,0 +1,151 @@
+{
+  "productVersion": "1.1.0",
+  "sourceCommit": "da0a9740e7ee5bb69de9a074855a57202906b1c2",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.0",
+  "releaseIsPrerelease": false,
+  "scope": "Stable standalone server, CLI and shared Python product packages; native App binaries not rebuilt",
+  "coreVersion": "1.1.0b35",
+  "channelBridgesVersion": "0.1.0b14",
+  "publicAssets": [
+    {
+      "name": "install.sh",
+      "bytes": 10187,
+      "sha256": "811cbda8030fe291a2bb4e7dad6bc7638cf2b33759da6e4b68d1bc0cd02e74fb",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "manifest.json",
+      "bytes": 75457,
+      "sha256": "3fe409074f06d78175b197113f900ee64e83f0db2d6e5258b3a64ab57b47238b",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_cli-1.1.0-py3-none-any.whl",
+      "bytes": 72689,
+      "sha256": "8c45a5c1f63089fdee52996b4b1e3df273c7d66002e890bee7eea4315c3e1b51",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_client_transport-1.1.0-py3-none-any.whl",
+      "bytes": 20439,
+      "sha256": "a6f1bfcd6e6fb8bb6cec870aafe7b2d29f163a5f3bba2172f58b738136464f17",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_dashboards-1.1.0-py3-none-any.whl",
+      "bytes": 54820,
+      "sha256": "18161dab98f284e5e14662b8c9a3ee07567c2fea599899d86063d69c22692ac1",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_framework-1.1.0-py3-none-any.whl",
+      "bytes": 447459,
+      "sha256": "a5502311ecbda38966b404f1e780ea6e8ef9c5bee4616a5cd3c91bbdae2a30a5",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_host_tools-1.0.0b6-py3-none-any.whl",
+      "bytes": 47103,
+      "sha256": "b7e127a036d0a18c1fce2f38dae5f405e68b80eb8d4ed16fd6e0758f6b272a5e",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_identity-1.1.0-py3-none-any.whl",
+      "bytes": 102169,
+      "sha256": "e829bad0342a2197026ee566ea3862d0070b06d369534e45ac1af47a7304b6ad",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_mcp-1.1.0-py3-none-any.whl",
+      "bytes": 22038,
+      "sha256": "cec2c78310d065d76049f96e3e57c51ee4824a44349752b5e34740ea362af721",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_product_config-1.1.0b19-py3-none-any.whl",
+      "bytes": 19074,
+      "sha256": "25c5a8de0f6df6ca0ae0b4ad5301f27a253c2c91b58998beddafeda42144be6d",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent_support_integration-1.1.0-py3-none-any.whl",
+      "bytes": 7370,
+      "sha256": "f9bd41dc72654fc42de76ef68cb654e2962ab0fec2c31f2a9e0010f9b01fac54",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "qualification.json",
+      "bytes": 792,
+      "sha256": "b6b8ebbb12ef15d0a95cf7073437f9537e6e06c16e8da88579f15cee1db8ddbc",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "openagent-v1.1.0-source.tar.gz",
+      "bytes": 268601627,
+      "sha256": "d6dec79a8c0a8f9c2fd7d3cd73be0a55df057bfc8f60f4f0a60ed813637a2a43",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "SOURCE-SHA256SUMS",
+      "bytes": 97,
+      "sha256": "8d3f4f5d896f8167a64f57de30e2ae216b64abb7df7a986c67dc75da93d500b3",
+      "fullAnonymousBodyVerified": true
+    },
+    {
+      "name": "SHA256SUMS",
+      "bytes": 1239,
+      "sha256": "0c3bdcc1bbc8c48d04544ffb2359bc580601cf37adc3a277b29861131f9fb3f5",
+      "fullAnonymousBodyVerified": true
+    }
+  ],
+  "installedMacTests": {
+    "passed": 394,
+    "subtestsPassed": 101,
+    "actualIrohTwoAccountModelToolLoopAndReplayIsolation": true
+  },
+  "installerRegressionTestsPassed": 28,
+  "proxyTestsPassed": 70,
+  "srptools1CompatibilityTestsPassed": 2,
+  "freshPublicInstaller": {
+    "platform": "darwin-arm64",
+    "python": "3.13",
+    "verifiedFirstPartyWheels": 40,
+    "actualServerInstallPassed": true,
+    "connectorRunnerVersion": "0.1.12",
+    "pipCheckPassed": true,
+    "selfcheckVersion": "1.1.0",
+    "desktopSrpVectorsPassed": 2,
+    "actualIrohTwoAccountModelToolLoopAndReplayIsolationPassed": true
+  },
+  "production": {
+    "agents": 3,
+    "version": "1.1.0",
+    "backupAndMigrationCopyChecksPassed": true,
+    "identitiesAndHistoryPreserved": true,
+    "existingOwnerDeviceAuthenticatedIrohHealthCatalogReconnectPassed": 3,
+    "newlyBoundOwnerTasksAuthorized": 2,
+    "deepseekRemovedFromCatalogAndFallbacks": true,
+    "claudeModels": [
+      "claude-opus-5-5",
+      "claude-sonnet-5-5",
+      "claude-haiku-5-5"
+    ],
+    "opusIsDefaultClassifier": true,
+    "proxyVersion": "0.1.4",
+    "duplicateCostSchedulesDisabledWithHistoryRetained": 4,
+    "costScheduleKept": "08:00 Europe/Rome",
+    "postDeployRestarts": 0,
+    "existingEnabledSchedulesReviewedAsOwner": 17,
+    "liveClaudeTokenRenewal": "Official one-year setup-token flow requested by owner; pending browser authorization"
+  },
+  "unqualifiedBoundaries": [
+    "Actual Claude inference blocked: both stored OAuth refresh tokens expired; fresh interactive reauthorization requested.",
+    "VPS measured about 70-78 percent CPU steal. Linux native runtime Iroh fixture hit deadlines; equivalent installed Mac test passed.",
+    "Iroh 0.35 emits UniFFI event-loop-thread teardown warnings under asyncio debug tests. Prior native SIGSEGV has no confirmed root cause; faulthandler enabled and post-deploy restart counts checked."
+  ],
+  "installedLinuxTests": {
+    "passed": 393,
+    "subtestsPassed": 101,
+    "nativeIrohRuntimeFixture": "Failed on deadline under VPS CPU contention; not counted as passed"
+  }
+}
