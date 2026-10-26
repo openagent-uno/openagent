@@ -64,8 +64,8 @@ from urllib.request import Request, urlopen
 destination = Path(sys.argv[1])
 releases = (
     ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.15", "manifest.json", "9c51e5151703eb81fdad738cd93f70c64edfbc27d1ddc214682c9f7eadac90b5"),
-    ("openagent-uno/openagent", "v1.1.1", "manifest.json", "75a825ce3680733e279dd4ab76a23406ac90477ca4b9e31c37ef0af77a8e1cf0"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.36", "manifest.json", "3c06f632b4708d914b6a1d83012300cd888e282a290ca9f40897082ac8e7832e"),
+    ("openagent-uno/openagent", "v1.1.2", "manifest.json", "fa48a3ea46f099f6b3afe291dec94c8f8987ca9b426ef00688f7fe89a8ed576d"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.37", "manifest.json", "bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead"),
     ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
     ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
 )
