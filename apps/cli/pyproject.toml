@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-cli"
-version = "1.1.0b68"
+version = "1.1.0b69"
 description = "CLI client for OpenAgent — connects to any OpenAgent Gateway"
 requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-client-transport==1.1.0b68",
+    "openagent-client-transport==1.1.0b69",
     # The CLI network compatibility modules import this package directly.
-    "openagent-identity==1.1.0b68",
+    "openagent-identity==1.1.0b69",
     "aiohttp>=3.9",
     "click>=8.0",
     "rich>=13.0",
@@ -47,8 +47,8 @@ openagent-cli = "openagent_cli.main:main"
 # Public release wheels for source UV resolution; preserve declared versions and extras.
 [tool.uv]
 constraint-dependencies = [
-    "openagent-capability-host @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1#sha256=227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342",
-    "openagent-core @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.33/openagent_core-1.1.0b33-py3-none-any.whl?download=1#sha256=2be67cb6db406e142dc2839857d82f79f0830bef2e8fafdf598aee4a8adcffc5",
+    "openagent-capability-host @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_capability_host-1.0.0b1-py3-none-any.whl?download=1#sha256=227d2a50962241d69c8d816efc60621ca2c8062351a9d8609d2d9b951d7c1342",
+    "openagent-core @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.34/openagent_core-1.1.0b34-py3-none-any.whl?download=1#sha256=cb382c12939a04ffb970d206e9208d3e651e34cd6fdf5e8cbec40b9efd066afa",
     "openagent-device-tools @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_device_tools-1.0.0b4-py3-none-any.whl#sha256=6557b9a3dae398eee5374283b09d626b834177f3e377e890e54e16304caf74aa",
     "openagent-editor @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_editor-1.0.0b2-py3-none-any.whl#sha256=c38ede7fa9a76515cfd4dec42efff30d688942ead589ed6b49c50a8816feb93c",
     "openagent-filesystem @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/openagent_filesystem-1.0.0b2-py3-none-any.whl#sha256=76d7becc81d90455c0aba46b71b1182a47d6c6bccaa41fee2965b6d530b6da3c",
