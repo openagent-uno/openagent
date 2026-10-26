@@ -29,6 +29,11 @@ from srptools import (
 )
 
 
+def _proof_bytes(value: str | bytes) -> bytes:
+    """Preserve the protocol's ASCII-hex proof representation across SRP versions."""
+    return value.encode("ascii") if isinstance(value, str) else bytes(value)
+
+
 def _coerce_bytes(x) -> bytes:
     """Decode srptools' hex-string-as-bytes into raw bytes.
 
@@ -171,7 +176,7 @@ class Srp6aBackend:
         # in-memory size — fine for short-lived state.
         session = SRPServerSession(
             ctx,
-            verifier.hex(),
+            password_verifier=verifier.hex(),
             private=secrets.token_hex(32),
         )
         session.process(ke1.hex(), salt.hex())
@@ -195,10 +200,17 @@ class Srp6aBackend:
             raise PakeError(f"login_finish M1 must be {self.PROOF_LEN} bytes, got {len(ke3)}")
         # ke3 is srptools' ASCII-hex bytes form (see PROOF_LEN comment).
         # ``verify_proof`` only accepts that exact form.
-        if not state.session.verify_proof(ke3):
+        # srptools 1.x exposes ASCII-hex bytes; 2.x exposes hex strings and
+        # interprets a bytes argument as raw digest bytes. Keep our existing
+        # wire protocol while passing each library its declared proof form.
+        try:
+            proof = ke3 if isinstance(state.session.key_proof, bytes) else ke3.decode("ascii")
+        except UnicodeDecodeError:
+            raise PakeError("login proof verification failed") from None
+        if not state.session.verify_proof(proof):
             raise PakeError("login proof verification failed")
         # Server proof goes back as srptools delivered it — same encoding.
-        return bytes(state.session.key_proof_hash)
+        return _proof_bytes(state.session.key_proof_hash)
 
 
 # ── Client-side helpers ───────────────────────────────────────────────────
@@ -284,11 +296,11 @@ class Srp6aClientLogin:
             raise PakeError("client: SRP could not derive shared key")
         # Pass srptools' values straight through — they're already in the
         # form ``verify_proof`` expects. See ``PROOF_LEN`` comment.
-        self.session_key = bytes(session.key)
-        M1 = bytes(session.key_proof)
+        self.session_key = _proof_bytes(session.key)
+        M1 = _proof_bytes(session.key_proof)
         if len(M1) != Srp6aBackend.PROOF_LEN:
             raise PakeError(f"client: unexpected proof length {len(M1)}")
-        self._expected_M2 = bytes(session.key_proof_hash)
+        self._expected_M2 = _proof_bytes(session.key_proof_hash)
         return M1
 
     def verify_server(self, M2: bytes) -> None:

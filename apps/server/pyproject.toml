@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.0b70"
+version = "1.1.0"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,15 +16,15 @@ dependencies = [
     "openagent-storage-sqlite==1.1.0b34",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b2",
-    "openagent-client-transport==1.1.0b70",
+    "openagent-client-transport==1.1.0",
     "openagent-core[engine]==1.1.0b34",
-    "openagent-identity==1.1.0b70",
-    "openagent-dashboards==1.1.0b70",
+    "openagent-identity==1.1.0",
+    "openagent-dashboards==1.1.0",
     "openagent-product-config==1.1.0b19",
-    "openagent-support-integration==1.1.0b70",
+    "openagent-support-integration==1.1.0",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.0b70",
+    "openagent-mcp==1.1.0",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -128,7 +128,7 @@ dependencies = [
     # SRP-6a: PAKE backend for the coordinator login flow. Pure-Python.
     # The coordinator stores a verifier (never the password) and runs
     # the standard SRP-6a exchange to mint device certs.
-    "srptools>=1.0.1",
+    "srptools>=1.0.1,<3",
     # Ed25519 sign/verify for device certificates and key management.
     # Already pulled in transitively by anthropic/openai but declared
     # explicitly because the network layer imports the Ed25519 APIs

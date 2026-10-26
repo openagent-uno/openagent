@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-cli"
-version = "1.1.0b70"
+version = "1.1.0"
 description = "CLI client for OpenAgent — connects to any OpenAgent Gateway"
 requires-python = ">=3.11"
 license = "MIT"
 
 dependencies = [
-    "openagent-client-transport==1.1.0b70",
+    "openagent-client-transport==1.1.0",
     # The CLI network compatibility modules import this package directly.
-    "openagent-identity==1.1.0b70",
+    "openagent-identity==1.1.0",
     "aiohttp>=3.9",
     "click>=8.0",
     "rich>=13.0",
