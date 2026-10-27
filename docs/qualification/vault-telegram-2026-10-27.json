@@ -1,0 +1,158 @@
+{
+  "date": "2026-10-27",
+  "change": "Restore explicitly authorized private Telegram owner/operator Vault access in three installation configurations.",
+  "cause": "Each installation admitted the private sender in channels.telegram.allowed_users but omitted runtime_tool_audiences.vault_owner_channels.telegram.",
+  "serverCodeChanged": false,
+  "newReleaseRequired": false,
+  "backup": "Original private YAML retained per installation; no database or Vault reset, import or migration.",
+  "liveTestTransport": "Existing production Telegram BridgeSession loopback proxy with its coordinator-signed __bridge_telegram certificate and the real typed private conversation IDs.",
+  "telegramMessagesSent": false,
+  "externalTelegramIngressAndDeliveryExercised": false,
+  "tests": {
+    "bridgeAuthorizationTests": 9,
+    "subtests": 13,
+    "existingEnabledAutomationsStillAuthorized": 13
+  },
+  "agents": [
+    {
+      "agent": "Performa",
+      "version": "1.1.2",
+      "policyChecks": {
+        "agent": ".openagent",
+        "beforeDenied": 2,
+        "afterAuthorized": 2,
+        "negativeBoundaryChecks": 8,
+        "passed": true
+      },
+      "grantedExistingPrivateSenders": 2,
+      "idleCountsAtRestart": {
+        "session_runs": 0,
+        "task_runs": 0,
+        "workflow_runs": 0,
+        "task_run_requests": 0,
+        "workflow_run_requests": 0
+      },
+      "normalStop": "Result=success\nExecMainCode=1\nExecMainStatus=0\n",
+      "service": {
+        "NRestarts": "0",
+        "ActiveState": "active"
+      },
+      "qaRuns": [
+        {
+          "passed": true,
+          "search": true,
+          "readExistingNote": true,
+          "readQaNote": true,
+          "createdQaNote": true,
+          "completedVaultTools": [
+            "vault_list_directory",
+            "vault_read_note",
+            "vault_search_notes",
+            "vault_write_note"
+          ]
+        },
+        {
+          "passed": true,
+          "search": true,
+          "readExistingNote": true,
+          "readQaNote": true,
+          "createdQaNote": false,
+          "completedVaultTools": [
+            "vault_read_note",
+            "vault_search_notes"
+          ]
+        }
+      ],
+      "qaNoteSha256": "638ff65d5668e9c7352acf5c7797054430eb54f727bab7a03ede692c6fae32e2",
+      "notesBefore": 508,
+      "notesAfter": 509,
+      "passed": true
+    },
+    {
+      "agent": "Ribel",
+      "version": "1.1.2",
+      "policyChecks": {
+        "agent": ".ribel-agent",
+        "beforeDenied": 1,
+        "afterAuthorized": 1,
+        "negativeBoundaryChecks": 4,
+        "passed": true
+      },
+      "grantedExistingPrivateSenders": 1,
+      "idleCountsAtRestart": {
+        "session_runs": 0,
+        "task_runs": 0,
+        "workflow_runs": 0,
+        "task_run_requests": 0,
+        "workflow_run_requests": 0
+      },
+      "normalStop": "Result=success\nExecMainCode=1\nExecMainStatus=0\n",
+      "service": {
+        "NRestarts": "0",
+        "ActiveState": "active"
+      },
+      "qaRuns": [
+        {
+          "passed": true,
+          "search": true,
+          "readExistingNote": true,
+          "readQaNote": true,
+          "createdQaNote": true,
+          "completedVaultTools": [
+            "vault_read_note",
+            "vault_search",
+            "vault_validate_note",
+            "vault_write_note"
+          ]
+        }
+      ],
+      "qaNoteSha256": "7dc0db3652d5d4cffb5193823bac749acf61aa5fd35b22521276b57a92ae3f38",
+      "notesBefore": 298,
+      "notesAfter": 299,
+      "passed": true
+    },
+    {
+      "agent": "Yoanna",
+      "version": "1.1.2",
+      "policyChecks": {
+        "agent": ".yoanna-agent",
+        "beforeDenied": 1,
+        "afterAuthorized": 1,
+        "negativeBoundaryChecks": 4,
+        "passed": true
+      },
+      "grantedExistingPrivateSenders": 1,
+      "idleCountsAtRestart": {
+        "session_runs": 0,
+        "task_runs": 0,
+        "workflow_runs": 0,
+        "task_run_requests": 0,
+        "workflow_run_requests": 0
+      },
+      "normalStop": "Result=success\nExecMainCode=1\nExecMainStatus=0\n",
+      "service": {
+        "NRestarts": "0",
+        "ActiveState": "active"
+      },
+      "qaRuns": [
+        {
+          "passed": true,
+          "search": true,
+          "readExistingNote": true,
+          "readQaNote": true,
+          "createdQaNote": true,
+          "completedVaultTools": [
+            "vault_read_note",
+            "vault_search_notes",
+            "vault_write_note"
+          ]
+        }
+      ],
+      "qaNoteSha256": "0d1625e7edea4f5186d0afe2001a931d767fcd2bc7e73ee322ecbef6dca798d5",
+      "notesBefore": 186,
+      "notesAfter": 187,
+      "passed": true
+    }
+  ],
+  "passed": true
+}

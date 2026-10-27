@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Telegram Vault access configuration repair, 27 October](qualification/vault-telegram-2026-10-27.json)
+
 - [Stable 1.1.2 production and public delivery qualification](qualification/product-stable-1.1.2-production.json)
 
 - [Stable 1.1.2 safe SQLite search cancellation](releases/v1.1.2.md)

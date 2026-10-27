@@ -377,3 +377,14 @@ allowed contact alone does not grant owner rights. Slack/Discord legacy bridge
 credentials do not become owners: configure their network-user mapping above.
 The framework prompt remains immutable; only user-owned name/persona fields
 are editable, with optimistic revisions and immediate next-turn application.
+
+If a private Telegram owner can chat but reports that the Memory Vault is
+unavailable, check both lists. `channels.telegram.allowed_users` admits the
+contact; `runtime_tool_audiences.vault_owner_channels.telegram` grants explicit
+owner trust. Configure only verified owner/operator sender IDs in the latter
+and keep them in the channel allowlist. Apply this independently to each
+installation and restart the server after changing this configuration. A
+successful native App Vault request or scheduled run does not verify Telegram
+access. Verify discovery, search, note creation and reread through the bridge's
+authenticated private conversation; reconnecting MCPs or rebuilding the Vault
+does not repair a missing authorization policy.
