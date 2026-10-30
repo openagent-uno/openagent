@@ -59,11 +59,13 @@ jobs:
       max-parallel: 1
       matrix:
         include:
+          # Windows keeps open SQLite handles visible; qualify it before
+          # spending the serial native build phase on the remaining targets.
+          - { runner: windows-2022, platform: win32-x64 }
           - { runner: macos-15, platform: darwin-arm64 }
           - { runner: macos-15-intel, platform: darwin-x64 }
           - { runner: ubuntu-24.04, platform: linux-x64 }
           - { runner: ubuntu-24.04-arm, platform: linux-arm64 }
-          - { runner: windows-2022, platform: win32-x64 }
           - { runner: windows-11-arm, platform: win32-arm64 }
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90

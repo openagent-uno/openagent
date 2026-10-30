@@ -3,10 +3,11 @@
   "scope": "advanced browser, MCP Apps and native computer capabilities; source tests only",
   "public_inputs": {
     "core": {
-      "tag": "v1.1.0-beta.39",
-      "source": "3d1d129f0050f055035429344d59e20627a83708",
-      "manifest_sha256": "63baf0c37d200948d8b9629aad174d355c818311da4be41375be00baa41a3f1b",
-      "anonymous_assets_verified": 7
+      "tag": "v1.1.0-beta.40",
+      "source": "b351396b95947c66dbda28d810b198260b815731",
+      "manifest_sha256": "6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3",
+      "anonymous_assets_verified": 7,
+      "capability_host": "1.0.0b3"
     },
     "tools": {
       "tag": "v1.0.0-beta.6",
@@ -38,7 +39,8 @@
     "host_tools": {
       "passed": 141,
       "skipped": 2,
-      "failed": 0
+      "failed": 0,
+      "platform_scope": "local macOS source qualification; six fresh native platform bundles pending"
     },
     "product_python": {
       "passed": 440,
@@ -51,7 +53,14 @@
       "server",
       "cli"
     ],
-    "python_source_install": "non-editable own-product wheels; independently published Core and Tools wheels"
+    "python_source_install": "non-editable own-product wheels; independently published Core and Tools wheels",
+    "core40": {
+      "passed": 663,
+      "subtests_passed": 97,
+      "installed_connection_lifetime_regressions": 9,
+      "installed_wheel_record_entries_verified": 422,
+      "python_3_11_ast_files": 415
+    }
   },
   "execution_policy": "one heavy phase at a time under the shared serial-heavy lock",
   "pending": [
@@ -75,5 +84,14 @@
     "actual_r3_sidecar_check": "passed against materialized public Device b8",
     "affected_server_tests": 6,
     "affected_server_subtests": 2
+  },
+  "windows_sqlite_followup": {
+    "failed_run": "41119124071",
+    "failed_job": 124302646650,
+    "observed": "129 passed, 11 skipped, 3 WinError32 cleanup failures on Windows x64",
+    "cause": "SQLite connection context managed transactions but did not close connections; explicit closure now covers lease, audit and idempotency scopes including setup failures",
+    "resolved_upstream": "Core40 / Capability Host3, portable retained-handle and rollback regression proof",
+    "prior_four_bundle_candidates_admissible": false,
+    "next_native_order": "Windows x64 first, max-parallel 1"
   }
 }

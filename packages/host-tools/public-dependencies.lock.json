@@ -2,9 +2,9 @@
   "schema": 1,
   "releases": {
     "core": {
-      "base": "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.39/",
-      "manifest_sha256": "63baf0c37d200948d8b9629aad174d355c818311da4be41375be00baa41a3f1b",
-      "source_commit": "3d1d129f0050f055035429344d59e20627a83708"
+      "base": "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/",
+      "manifest_sha256": "6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3",
+      "source_commit": "b351396b95947c66dbda28d810b198260b815731"
     },
     "tools": {
       "base": "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/",
