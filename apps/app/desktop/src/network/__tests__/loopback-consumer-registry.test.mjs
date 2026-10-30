@@ -135,3 +135,53 @@ test('same-account out-of-order completion releases only the stale reservation',
   assert.equal(registry.release('account-a', 101), true);
   assert.equal(registry.consumerCount('account-a'), 0);
 });
+
+test('logout retires the renderer lifetime synchronously even while a sibling retains the tunnel', () => {
+  const released = [];
+  let registry;
+  registry = createLoopbackConsumerRegistry((accountId, rendererId) => {
+    released.push({ accountId, rendererId, lifetime: registry.consumerLifetime(accountId, rendererId) });
+  });
+  registry.claim('shared-account', 101);
+  registry.claim('shared-account', 202);
+  const oldLifetime = registry.consumerLifetime('shared-account', 101);
+  const siblingLifetime = registry.consumerLifetime('shared-account', 202);
+  assert.ok(oldLifetime);
+  assert.equal(registry.release('shared-account', 101), false);
+  assert.deepEqual(released, [{ accountId: 'shared-account', rendererId: 101, lifetime: undefined }]);
+  assert.equal(registry.consumerLifetime('shared-account', 202), siblingLifetime);
+  registry.claim('shared-account', 101);
+  assert.notEqual(registry.consumerLifetime('shared-account', 101), oldLifetime);
+  assert.equal(registry.consumerLifetime('shared-account', 202), siblingLifetime);
+});
+
+test('overlapping attempts preserve the current lifetime until its last claim is released', () => {
+  const released = [];
+  const registry = createLoopbackConsumerRegistry((...args) => released.push(args));
+  registry.claim('account', 101, 1);
+  const lifetime = registry.consumerLifetime('account', 101);
+  registry.claim('account', 101, 2);
+  registry.release('account', 101, 1);
+  assert.equal(registry.consumerLifetime('account', 101), lifetime);
+  assert.deepEqual(released, []);
+  registry.release('account', 101, 2);
+  assert.equal(registry.consumerLifetime('account', 101), undefined);
+  assert.deepEqual(released, [['account', 101]]);
+});
+
+test('account and renderer retirement notify only the exact lifetimes being revoked', () => {
+  const released = [];
+  const registry = createLoopbackConsumerRegistry((...args) => released.push(args));
+  registry.claim('one', 101);
+  registry.claim('one', 202);
+  registry.claim('two', 101);
+  const unaffected = registry.consumerLifetime('one', 202);
+  assert.deepEqual(registry.releaseRenderer(101), ['two']);
+  assert.equal(registry.consumerLifetime('one', 202), unaffected);
+  assert.deepEqual(released, [['one', 101], ['two', 101]]);
+  registry.clearAccount('one');
+  assert.deepEqual(released, [['one', 101], ['two', 101], ['one', 202]]);
+  assert.equal(registry.consumerCount('one'), 0);
+  registry.clearAccount('one');
+  assert.equal(released.length, 3);
+});

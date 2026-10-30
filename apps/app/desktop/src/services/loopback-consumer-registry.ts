@@ -17,19 +17,24 @@ export interface LoopbackConsumerRegistry {
    */
   releaseRenderer(rendererId: number): string[];
   hasConsumer(accountId: string, rendererId: number): boolean;
+  /** Opaque lifetime of this renderer's current claim, renewed after logout. */
+  consumerLifetime(accountId: string, rendererId: number): object | undefined;
   hasConsumers(accountId: string): boolean;
   consumerCount(accountId: string): number;
   clearAccount(accountId: string): void;
 }
 
 type ConsumerToken = number | 'session';
+type ConsumerClaim = { tokens: Set<ConsumerToken>; lifetime: object };
 
-export function createLoopbackConsumerRegistry(): LoopbackConsumerRegistry {
-  const accounts = new Map<string, Map<number, Set<ConsumerToken>>>();
+export function createLoopbackConsumerRegistry(
+  onReleased?: (accountId: string, rendererId: number) => void,
+): LoopbackConsumerRegistry {
+  const accounts = new Map<string, Map<number, ConsumerClaim>>();
 
   const removeEmptyAccount = (
     accountId: string,
-    renderers: Map<number, Set<ConsumerToken>>,
+    renderers: Map<number, ConsumerClaim>,
   ): boolean => {
     if (renderers.size > 0) return false;
     accounts.delete(accountId);
@@ -43,25 +48,28 @@ export function createLoopbackConsumerRegistry(): LoopbackConsumerRegistry {
         renderers = new Map();
         accounts.set(accountId, renderers);
       }
-      let tokens = renderers.get(rendererId);
-      if (!tokens) {
-        tokens = new Set();
-        renderers.set(rendererId, tokens);
+      let claim = renderers.get(rendererId);
+      if (!claim) {
+        claim = { tokens: new Set(), lifetime: {} };
+        renderers.set(rendererId, claim);
       }
-      tokens.add(attemptToken ?? 'session');
+      claim.tokens.add(attemptToken ?? 'session');
     },
 
     release(accountId, rendererId, attemptToken) {
       const renderers = accounts.get(accountId);
       if (!renderers) return true;
+      let released = false;
       if (attemptToken === undefined) {
-        renderers.delete(rendererId);
+        released = renderers.delete(rendererId);
       } else {
-        const tokens = renderers.get(rendererId);
-        tokens?.delete(attemptToken);
-        if (tokens?.size === 0) renderers.delete(rendererId);
+        const claim = renderers.get(rendererId);
+        claim?.tokens.delete(attemptToken);
+        if (claim?.tokens.size === 0) released = renderers.delete(rendererId);
       }
-      return removeEmptyAccount(accountId, renderers);
+      const empty = removeEmptyAccount(accountId, renderers);
+      if (released) onReleased?.(accountId, rendererId);
+      return empty;
     },
 
     releaseRenderer(rendererId) {
@@ -69,11 +77,14 @@ export function createLoopbackConsumerRegistry(): LoopbackConsumerRegistry {
       for (const [accountId, renderers] of accounts) {
         if (!renderers.delete(rendererId)) continue;
         if (removeEmptyAccount(accountId, renderers)) emptied.push(accountId);
+        onReleased?.(accountId, rendererId);
       }
       return emptied;
     },
 
-    hasConsumer(accountId,rendererId) { return (accounts.get(accountId)?.get(rendererId)?.size ?? 0) > 0; },
+    hasConsumer(accountId,rendererId) { return (accounts.get(accountId)?.get(rendererId)?.tokens.size ?? 0) > 0; },
+
+    consumerLifetime(accountId, rendererId) { return accounts.get(accountId)?.get(rendererId)?.lifetime; },
 
     hasConsumers(accountId) {
       return (accounts.get(accountId)?.size ?? 0) > 0;
@@ -83,12 +94,14 @@ export function createLoopbackConsumerRegistry(): LoopbackConsumerRegistry {
       const renderers = accounts.get(accountId);
       if (!renderers) return 0;
       let count = 0;
-      for (const tokens of renderers.values()) count += tokens.size;
+      for (const claim of renderers.values()) count += claim.tokens.size;
       return count;
     },
 
     clearAccount(accountId) {
+      const renderers = accounts.get(accountId);
       accounts.delete(accountId);
+      for (const rendererId of renderers?.keys() ?? []) onReleased?.(accountId, rendererId);
     },
   };
 }

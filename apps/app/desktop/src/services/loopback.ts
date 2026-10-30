@@ -60,7 +60,25 @@ interface InternalStartLoopbackArgs extends StartLoopbackArgs {
 const accountStarts = createAccountStartCoordinator<StartedLoopback>();
 const accountStops = createAccountStopBarrier();
 const credentialPreferences = createCredentialPreferenceCoordinator();
-const consumers = createLoopbackConsumerRegistry();
+const mcpAppContextListeners = new Set<(accountId: string, rendererId: number) => void>();
+const consumers = createLoopbackConsumerRegistry((accountId, rendererId) => {
+  for (const listener of mcpAppContextListeners) {
+    try { listener(accountId, rendererId); }
+    catch (error) { console.warn('[loopback] MCP App context retirement failed:', error); }
+  }
+});
+
+/** Called synchronously after an authenticated renderer claim is released. */
+export function onMcpAppContextReleased(listener: (accountId: string, rendererId: number) => void): () => void {
+  mcpAppContextListeners.add(listener);
+  return () => { mcpAppContextListeners.delete(listener); };
+}
+
+export function getMcpAppConsumerLifetime(accountId: string, rendererId: number): object {
+  const lifetime = consumers.consumerLifetime(accountId, rendererId);
+  if (!lifetime) throw new Error('mcp_app_account_unavailable');
+  return lifetime;
+}
 const observedRenderers = new Set<number>();
 
 /**

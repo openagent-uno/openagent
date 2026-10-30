@@ -21,6 +21,10 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ['**/*.cjs'],
+    languageOptions: { globals: { __dirname: 'readonly', __filename: 'readonly', module: 'readonly' } },
+  },
+  {
     plugins: { 'react-hooks': reactHooks },
     languageOptions: {
       parserOptions: { ecmaVersion: 'latest', sourceType: 'module' },

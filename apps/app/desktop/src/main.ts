@@ -349,6 +349,16 @@ interface CreateWindowOptions {
   connectAccountId?: string;
 }
 
+function rendererBaseUrl(): string {
+  const testRendererUrl = isDev && process.env.NODE_ENV === 'test'
+    && process.env.OPENAGENT_DESKTOP_E2E === '1'
+    ? process.env.OPENAGENT_DESKTOP_E2E_RENDERER_URL?.trim()
+    : undefined;
+  return testRendererUrl || (runtimePolicy.useStaticRenderer
+    ? `http://127.0.0.1:${staticPort}`
+    : resolveDevServerUrl(process.env.OPENAGENT_DEV_SERVER_PORT));
+}
+
 function createWindow(opts: CreateWindowOptions = {}): BrowserWindow {
   const { route, markChild = false, connectAccountId } = opts;
   const isMac = process.platform === 'darwin';
@@ -384,14 +394,7 @@ function createWindow(opts: CreateWindowOptions = {}): BrowserWindow {
   const trustedContents = win.webContents;
   const webContentsId = trustedContents.id;
 
-  const testRendererUrl = isDev && process.env.NODE_ENV === 'test'
-    && process.env.OPENAGENT_DESKTOP_E2E === '1'
-    ? process.env.OPENAGENT_DESKTOP_E2E_RENDERER_URL?.trim()
-    : undefined;
-  const baseUrl = testRendererUrl
-    || (runtimePolicy.useStaticRenderer
-      ? `http://127.0.0.1:${staticPort}`
-      : resolveDevServerUrl(process.env.OPENAGENT_DEV_SERVER_PORT));
+  const baseUrl = rendererBaseUrl();
   const rendererPolicy = createRendererUrlPolicy(baseUrl);
   // Register authority and navigation guards before the first document load.
   registerTrustedRenderer(win, rendererPolicy, (url) => shell.openExternal(url));
@@ -896,7 +899,7 @@ app.whenReady().then(async () => {
     staticPort = await startStaticServer();
   }
 
-  mcpApps=await registerMcpApps(app.getAppPath(),[runtimePolicy.useStaticRenderer?`http://127.0.0.1:${staticPort}`:'http://localhost:8081'],CLIENT_INSTANCE_ID);
+  mcpApps=await registerMcpApps(app.getAppPath(),[new URL(rendererBaseUrl()).origin],CLIENT_INSTANCE_ID);
   createWindow();
   // Status discovery is asynchronous so a missing/outdated optional host
   // binary never delays the first window. Any persisted canonical grant is

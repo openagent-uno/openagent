@@ -5,7 +5,7 @@ export interface McpAppsTransport { open(request: McpAppOpenRequest): Promise<Mc
 export interface McpAppSurfaceProps { request: McpAppOpenRequest; scopeKey?: string; title?: string; }
 export interface McpAppHint { toolRef: string; resourceUri: string; toolCallId?: string; }
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
-const text = (value: unknown, max = 2048): value is string => typeof value === 'string' && value.length > 0 && value.length <= max && !/[\u0000-\u001f\u007f]/.test(value);
+const text = (value: unknown, max = 2048): value is string => typeof value === 'string' && value.length > 0 && value.length <= max && [...value].every(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127);
 function parsed(value: unknown): Record<string, unknown> | undefined {
   if (record(value)) return value;
   if (typeof value !== 'string' || value.length > 64 * 1024) return undefined;
