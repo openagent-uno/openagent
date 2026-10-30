@@ -16,12 +16,20 @@ class InstallerRequirementsTests(unittest.TestCase):
         code = re.search(r'"\$PYTHON" - "\$WHEELHOUSE"(?: "\$PRODUCT")? <<\x27PY\x27\n(.*?)\nPY', source, re.S).group(1)
         # Build a complete fixture for every configured release. No network/pip.
         releases = __import__('ast').literal_eval(re.search(r'releases = (\(.*?\n\))', code, re.S).group(1))
+        releases = (*releases, ('openagent-uno/openagent-core', 'fixture-modules', 'manifest.json', '0'*64, 'modules'))
         for product in ('server', 'cli'):
             with self.subTest(product=product), tempfile.TemporaryDirectory() as directory:
                 destination = Path(directory)
                 payloads = {}; replaced=[]
-                for index, (repo, tag, manifest_name, _) in enumerate(releases):
-                    names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')] if repo == 'openagent-uno/openagent' and tag.startswith('v1.1.0') else [('openagent-core','6.1.0b8')] if repo.endswith('openagent-core') else [('fixture-'+str(index),'1.0.0')]
+                for index, (repo, tag, manifest_name, _, selection) in enumerate(releases):
+                    if selection == 'modules':
+                        names = [('openagent-core','6.1.0b7'), ('openagent-modules','1.1.0b3')]
+                    elif repo == 'openagent-uno/openagent' and re.fullmatch(r'v\d+\.\d+\.\d+(?:-beta\.\d+)?', tag):
+                        names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')]
+                    elif repo.endswith('openagent-core'):
+                        names = [('openagent-core','6.1.0b8')]
+                    else:
+                        names = [('fixture-'+str(index),'1.0.0')]
                     rows=[];assets=[]
                     for name, version in names:
                         filename=name.replace('-','_')+'-'+version+'-py3-none-any.whl'
@@ -29,7 +37,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                         with zipfile.ZipFile(buf,'w') as archive:archive.writestr(name.replace('-','_')+'-'+version+'.dist-info/METADATA','Name: '+name+'\nVersion: '+version+'\n')
                         data=buf.getvalue();url='https://github.com/'+repo+'/releases/download/'+tag+'/'+filename
                         payloads[url]=data;rows.append({'file':filename,'sha256':__import__('hashlib').sha256(data).hexdigest()});assets.append({'name':filename,'browser_download_url':url})
-                    manifest=json.dumps({'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest))
+                    manifest=json.dumps({'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest,selection))
                     url='https://github.com/'+repo+'/releases/download/'+tag+'/'+manifest_name;payloads[url]=manifest;assets.append({'name':manifest_name,'browser_download_url':url})
                     payloads['https://api.github.com/repos/'+repo+'/releases/tags/'+tag]=json.dumps({'assets':assets}).encode()
                 fixture_code=re.sub(r'releases = \(.*?\n\)', 'releases = '+repr(tuple(replaced)), code, count=1, flags=re.S)

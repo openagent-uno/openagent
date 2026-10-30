@@ -63,11 +63,11 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.15", "manifest.json", "9c51e5151703eb81fdad738cd93f70c64edfbc27d1ddc214682c9f7eadac90b5"),
-    ("openagent-uno/openagent", "v1.1.2", "manifest.json", "fa48a3ea46f099f6b3afe291dec94c8f8987ca9b426ef00688f7fe89a8ed576d"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.37", "manifest.json", "bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead"),
-    ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228"),
-    ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9"),
+    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.15", "manifest.json", "9c51e5151703eb81fdad738cd93f70c64edfbc27d1ddc214682c9f7eadac90b5", "all"),
+    ("openagent-uno/openagent", "v1.1.2", "manifest.json", "fa48a3ea46f099f6b3afe291dec94c8f8987ca9b426ef00688f7fe89a8ed576d", "all"),
+    ("openagent-uno/openagent-core", "v1.1.0-beta.37", "manifest.json", "bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead", "all"),
+    ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228", "all"),
+    ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9", "all"),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -92,7 +92,7 @@ def fetch(url: str, *, max_bytes: int = 64 << 20) -> bytes:
 
 
 verified = 0
-for repository, tag, manifest_name, manifest_digest in releases:
+for repository, tag, manifest_name, manifest_digest, selection in releases:
     api = f"https://api.github.com/repos/{repository}/releases/tags/{tag}"
     release = json.loads(fetch(api, max_bytes=1 << 20))
     assets = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
@@ -115,8 +115,13 @@ for repository, tag, manifest_name, manifest_digest in releases:
         }
 
     wheel_assets = {name: url for name, url in assets.items() if name.endswith(".whl")}
+    if selection == "modules":
+        wheel_assets = {name: url for name, url in wheel_assets.items()
+                        if name.startswith(("openagent_module_", "openagent_modules-", "openagent_modules_full-"))}
+    elif selection != "all":
+        raise SystemExit(f"Unsupported first-party artifact selection: {selection}")
     if not wheel_assets:
-        raise SystemExit(f"{repository} {tag}: no wheels found")
+        raise SystemExit(f"{repository} {tag}: no selected wheels found")
 
     for name, url in wheel_assets.items():
         digest = expected.get(name)
@@ -126,7 +131,10 @@ for repository, tag, manifest_name, manifest_digest in releases:
         actual = hashlib.sha256(payload).hexdigest()
         if actual != digest:
             raise SystemExit(f"{repository} {tag}: checksum mismatch for {name}")
-        (destination / name).write_bytes(payload)
+        target = destination / name
+        if target.exists() and hashlib.sha256(target.read_bytes()).hexdigest() != digest:
+            raise SystemExit(f"Conflicting immutable artifact across releases: {name}")
+        target.write_bytes(payload)
         verified += 1
 
 # Resolve installation requirements from the exact wheel bytes just verified.
