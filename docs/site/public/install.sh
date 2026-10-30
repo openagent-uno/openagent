@@ -1,6 +1,6 @@
 #!/bin/sh
-# Install the current OpenAgent 1.1 stable server or CLI from the five
-# canonical, independently versioned GitHub releases.
+# Install the current OpenAgent 1.1 stable server or CLI from four
+# canonical, independently versioned GitHub release manifests.
 set -eu
 
 PRODUCT="server"
@@ -63,11 +63,10 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ("openagent-uno/openagent", "channel-bridges-v0.1.0-beta.15", "manifest.json", "9c51e5151703eb81fdad738cd93f70c64edfbc27d1ddc214682c9f7eadac90b5", "all"),
-    ("openagent-uno/openagent", "v1.1.2", "manifest.json", "fa48a3ea46f099f6b3afe291dec94c8f8987ca9b426ef00688f7fe89a8ed576d", "all"),
-    ("openagent-uno/openagent-core", "v1.1.0-beta.37", "manifest.json", "bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead", "all"),
-    ("openagent-uno/openagent-tools", "v1.0.0-beta.4", "manifest.json", "20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228", "all"),
-    ("openagent-uno/openagent-tools", "connectors-v0.1.12", "manifest.json", "4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9", "all"),
+    ('openagent-uno/openagent', 'v1.1.3', 'manifest.json', '51808bb18a9e3a420783c006e39b6533cc08e85099926b9e7c07b641a1fdb8f3', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.40', 'manifest.json', '6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'modules'),
+    ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'all'),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
