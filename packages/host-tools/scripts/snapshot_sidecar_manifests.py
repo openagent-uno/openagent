@@ -13,9 +13,9 @@ import asyncio
 import json
 import os
 import shutil
+import site
 from pathlib import Path
 
-from openagent_device_tools import sidecars as device_sidecars
 from openagent_host_tools.config import PluginSpec
 from openagent_host_tools.manifests import contract_payload, manifest_sha256
 from openagent_host_tools.mcp_stdio import MCPStdioServer
@@ -25,7 +25,22 @@ from openagent_host_tools.sidecars import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT = Path(device_sidecars.__file__).with_name("sidecar-manifests.json")
+SNAPSHOT = ROOT / "src" / "openagent_host_tools" / "sidecar-manifests.json"
+
+
+def _expected_contracts() -> dict[str, dict]:
+    """Read the installed dependency's complete materialized public contract."""
+    return {manifest.name: contract_payload(manifest)
+        for manifest in (COMPUTER_CONTROL_MANIFEST, AGENT_IN_CHROME_MANIFEST)}
+
+
+def _capture_destination(output: Path | None) -> Path:
+    destination = (output if output is not None else SNAPSHOT).expanduser().resolve()
+    installed = [Path(path).resolve() for path in site.getsitepackages()]
+    installed.append(Path(site.getusersitepackages()).resolve())
+    if any(part.lower() in {"site-packages", "dist-packages"} for part in destination.parts) or any(destination.is_relative_to(root) for root in installed):
+        raise SystemExit("Capture output must not modify installed SDK packages; select an owned source --output")
+    return destination
 
 
 def _commands(bundle: Path) -> dict[str, tuple[str, ...]]:
@@ -96,11 +111,16 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--output", type=Path,
+        help="Owned source capture destination; defaults to this product's source snapshot, never installed SDK data")
     args = parser.parse_args()
+    if args.check and args.output is not None:
+        parser.error("--output cannot be combined with read-only --check")
+    output = None if args.check else _capture_destination(args.output)
     captured = asyncio.run(_probe(args.bundle.resolve()))
     if args.check:
-        expected = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-        if captured != expected:
+        expected = _expected_contracts()
+        if _canonical(captured) != _canonical(expected):
             for name in sorted(set(captured) | set(expected)):
                 if captured.get(name) != expected.get(name):
                     actual_hash = (
@@ -116,7 +136,7 @@ def main() -> None:
                     print(f"{name}: expected {expected_hash}, live {actual_hash}")
             raise SystemExit("sidecar MCP catalog drift; regenerate the snapshot and lock")
         return
-    SNAPSHOT.write_text(_canonical(captured), encoding="utf-8")
+    output.write_text(_canonical(captured), encoding="utf-8")
 
 
 def _manifest_for_hash(raw: dict):
@@ -134,12 +154,17 @@ def _manifest_for_hash(raw: dict):
                 str(tool.get("description") or ""),
                 dict(tool.get("input_schema") or {}),
                 ToolClassification(tool["classification"]),
+                classification_by_argument={argument: {value: ToolClassification(classification)
+                    for value, classification in options.items()} for argument, options in
+                    (tool.get("classification_by_argument") or {}).items()},
+                metadata=dict(tool.get("_meta") or {}),
             )
             for tool in raw.get("tools", ())
         ),
         platforms=tuple(raw.get("platforms") or ()),
         os_requirements=tuple(raw.get("os_requirements") or ()),
         manifest_version=int(raw.get("manifest_version") or 1),
+        resource_protocol=raw.get("resource_protocol"),
     )
 
 

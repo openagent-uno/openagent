@@ -53,7 +53,7 @@ jobs:
 
   bundle:
     needs: signing-inputs
-    if: always() && (inputs.signing_mode == 'local' || needs.signing-inputs.result == 'success')
+    if: ${{ !cancelled() && (inputs.signing_mode == 'local' || needs.signing-inputs.result == 'success') }}
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -227,7 +227,7 @@ jobs:
 
   assemble:
     needs: bundle
-    if: always() && needs.bundle.result == 'success'
+    if: ${{ !cancelled() && needs.bundle.result == 'success' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

@@ -9,10 +9,12 @@
       "anonymous_assets_verified": 7
     },
     "tools": {
-      "tag": "v1.0.0-beta.5",
-      "source": "d345b402d5bd8627deef6e2e61ad4843a6448dd3",
-      "manifest_sha256": "c738dea6eb58b2f1858b9deae95e0246125e96b0672667a1a39260177574f3b9",
-      "anonymous_assets_verified": 9
+      "tag": "v1.0.0-beta.6",
+      "source": "6b5b8a0424b935b3644f4ebadb57e7f2f73d2553",
+      "manifest_sha256": "f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd",
+      "anonymous_assets_verified": 9,
+      "device_tools": "1.0.0b8",
+      "unchanged_wheels_reused": 6
     },
     "mcp_apps": {
       "tag": "mcp-apps-v0.1.1",
@@ -34,7 +36,7 @@
       "warnings": 25
     },
     "host_tools": {
-      "passed": 135,
+      "passed": 141,
       "skipped": 2,
       "failed": 0
     },
@@ -58,5 +60,20 @@
     "new public product wheels and desktop installers",
     "installed application and production acceptance",
     "updater and public transport verification"
-  ]
+  ],
+  "catalog_followup": {
+    "scope": "Exact materialized offline/live MCP schemas, including argument policy; pinned Zod4 snapshot replaces stale legacy schema. Runtime JS3 and native0.1.5 unchanged.",
+    "native_tools": 15,
+    "browser_tools": 25,
+    "source_python_tests": 29,
+    "installed_wheel_tests": 29,
+    "browser_tests": 16,
+    "windows_only_skip": 1,
+    "failed_host_ci": "41112603457",
+    "failed_candidates_published": false,
+    "snapshot_ownership_regressions": 6,
+    "actual_r3_sidecar_check": "passed against materialized public Device b8",
+    "affected_server_tests": 6,
+    "affected_server_subtests": 2
+  }
 }

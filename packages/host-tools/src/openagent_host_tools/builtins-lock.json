@@ -2,7 +2,7 @@
   "lock_version": 1,
   "servers": {
     "agent-in-chrome": {
-      "sha256": "1c0e9e411b204058879e67d0a6b2855ef3d0cb4b47ebc25fa0a7d584048ae1f1",
+      "sha256": "50dd37d658b242a748050bf4e4629e2017062f65df7f53bfd5f261b949ead581",
       "version": "3.0.0"
     },
     "computer-control": {
