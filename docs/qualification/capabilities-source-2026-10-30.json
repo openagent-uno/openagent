@@ -22,6 +22,14 @@
       "source": "9a2d3c93d1034afd0fa2f7f3879e7879c0d792f6",
       "archive_sha256": "6358549ed8d01d8811c9aa569b3ae030b17ccbe9551aef003bc4a506d7fca621",
       "anonymous_assets_verified": 2
+    },
+    "host_tools": {
+      "tag": "v1.0.0b7",
+      "source": "047d060ca1eb82839af6baf1dbc09056695fca71",
+      "release_index_sha256": "661c7f87cbcefddf66c619ccd63e44ef4f2b3c0f98981bfc45a52b8923e0e824",
+      "wheel_sha256": "7d1d97c11fc9309d6309f3d7006b067fc3d65102d7a36342104169ef7c3dec6e",
+      "anonymous_assets_verified": 14,
+      "anonymous_method": "all14 full streaming SHA/size from authorized worker; Mac HEAD14/full index/full wheel/Range206"
     }
   },
   "validation": {
@@ -60,12 +68,30 @@
       "installed_connection_lifetime_regressions": 9,
       "installed_wheel_record_entries_verified": 422,
       "python_3_11_ast_files": 415
+    },
+    "native_host_release": {
+      "run_id": 41128301649,
+      "platforms_passed": 6,
+      "assemble": "passed",
+      "source_attempt": 1,
+      "mac_linux_tests": {
+        "passed": 141,
+        "skipped": 2
+      },
+      "windows_tests": {
+        "passed": 132,
+        "skipped": 11
+      },
+      "macos_notarization": [
+        "darwin-arm64",
+        "darwin-x64"
+      ],
+      "final_signed_runtime_qa": "both macOS archives extracted: codesign, stapler, Gatekeeper, exact catalog and Host NDJSON Unicode filesystem read/shutdown; Intel via Rosetta",
+      "user_tcc_reset": false
     }
   },
   "execution_policy": "one heavy phase at a time under the shared serial-heavy lock",
   "pending": [
-    "six genuine Host Tools beta7 platform bundles",
-    "signing and notarization of macOS payloads",
     "new public product wheels and desktop installers",
     "installed application and production acceptance",
     "updater and public transport verification"
