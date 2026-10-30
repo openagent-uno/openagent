@@ -1,6 +1,6 @@
 {
   "name": "@openagent/mcp-apps",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "Optional source-bound MCP Apps host and isolated browser sandbox",

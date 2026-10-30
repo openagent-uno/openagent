@@ -73,11 +73,33 @@ async function body(request){let size=0,parts=[];for await(const chunk of reques
 
 export async function createMcpAppHostService(options) {
   if(!path.isAbsolute(options.assetRoot)||typeof options.openSession!=='function'||typeof options.requestSession!=='function'||typeof options.currentOwner!=='function')throw new Error('invalid_mcp_app_host');
-  const views=new Map(),retiring=new Set();let origin='',sandboxOrigin='',closed=false,opening=0;
+  const views=new Map(),retiring=new Set();let origin='',sandboxOrigin='',closed=false;const pendingOpens=new Set();
   for(const ancestor of options.parentOrigins??[]){if(!/^(https?:\/\/[^\s;]+|[a-z][a-z0-9+.-]*:)$/i.test(ancestor))throw new Error('invalid_parent_origin')} 
   const maxViews=options.maxViews??16;
   if(!Number.isInteger(maxViews)||maxViews<1||maxViews>256)throw new Error('invalid_view_limit');
-  async function authorize(view){if(closed||!view||view.expires<=Date.now()||await options.currentOwner()!==view.owner)throw new Error('app_revoked');const result=await options.requestSession(view.session,'authorize',{display_received:true},view.reference);if(result?.authorized!==true||closed||!views.has(view.id)||view.expires<=Date.now()||await options.currentOwner()!==view.owner)throw new Error('app_revoked')}
+  function live(view){return !closed&&view&&views.get(view.id)===view&&view.expires>Date.now()}
+  async function authorize(view){
+    if(!live(view))throw new Error('app_revoked');
+    const owner=await options.currentOwner();if(!live(view)||owner!==view.owner)throw new Error('app_revoked');
+    const result=await options.requestSession(view.session,'authorize',{display_received:true},view.reference);
+    if(!live(view)||result?.authorized!==true)throw new Error('app_revoked');
+    const current=await options.currentOwner();if(!live(view)||current!==view.owner)throw new Error('app_revoked');
+  }
+  function revocationRace(value,signal){
+    if(signal.aborted)return Promise.reject(new Error('app_revoked'));
+    return new Promise((resolve,reject)=>{
+      const abort=()=>reject(new Error('app_revoked'));
+      signal.addEventListener('abort',abort,{once:true});
+      Promise.resolve(value).then(resolve,reject).finally(()=>signal.removeEventListener('abort',abort));
+    });
+  }
+  function revokeViews(predicate=()=>true){
+    // Snapshot before mutation. A host predicate is never renderer authority.
+    const pending=[...pendingOpens].filter(item=>predicate(item.reference));
+    const ids=[...views].filter(([,view])=>predicate(view.reference)).map(([id])=>id);
+    for(const item of pending)item.cancel.abort()
+    for(const id of ids)void retire(id);
+  }
   async function once(view,input,operation) {
     // Retain a fixed-size identity, not thousands of copies of user draft text.
     const digest=createHash('sha256').update(JSON.stringify({method:input.method,params:input.params})).digest('hex');
@@ -86,7 +108,7 @@ export async function createMcpAppHostService(options) {
     if(view.requests.size>=2048)throw new Error('request_limit');
     if(view.interactive!==null)throw new Error('interactive_decision_busy');
     const token=Symbol(input.id);view.interactive=token;
-    const promise=Promise.resolve().then(operation).finally(()=>{if(view.interactive===token)view.interactive=null});
+    const promise=Promise.resolve().then(async()=>{await authorize(view);if(!live(view))throw new Error('app_revoked');return operation()}).finally(()=>{if(view.interactive===token)view.interactive=null});
     view.requests.set(input.id,{digest,promise});return promise;
   }
   function retire(id){
@@ -148,6 +170,7 @@ export async function createMcpAppHostService(options) {
       const input=await body(request);
       if(typeof input.id!=='string'||input.id.length===0||input.id.length>128||typeof input.method!=='string'||!input.params||typeof input.params!=='object'||Array.isArray(input.params))throw new Error('invalid_request');
       if(!['authorize','tools/call','resources/read','ui/open-link','ui/message','ui/update-model-context'].includes(input.method))throw new Error('unsupported_method');
+      await authorize(view);
       const cancel=new AbortController();view.active.add(cancel);
       response.once('close',()=>{if(!response.writableEnded)cancel.abort()});
       try{
@@ -168,13 +191,19 @@ export async function createMcpAppHostService(options) {
     origin,sandboxOrigin,
     async open(reference){
       for(const [id,view] of views)if(view.expires<=Date.now())void retire(id);
-      if(closed||views.size+opening>=maxViews)throw new Error('mcp_app_view_limit');
-      opening++;
-      let session;
+      if(closed||views.size+pendingOpens.size>=maxViews)throw new Error('mcp_app_view_limit');
+      const pending={reference,cancel:new AbortController(),work:0,done:false};pendingOpens.add(pending);
+      const release=()=>{if(pending.done&&pending.work===0)pendingOpens.delete(pending)};
+      const track=value=>{pending.work++;return Promise.resolve(value).finally(()=>{pending.work--;release()})};
+      const signal=pending.cancel.signal;let session,cleaned=false;
+      const check=()=>{if(closed||signal.aborted)throw new Error('app_revoked')};
+      const cleanup=()=>{if(!session||cleaned)return;cleaned=true;const task=Promise.resolve().then(()=>options.closeSession?.(session,reference)).catch(()=>{});retiring.add(task);void task.then(()=>retiring.delete(task));return task};
       try{
-        const owner=await options.currentOwner();if(!owner)throw new Error('mcp_app_authentication_required');
-        session=await options.openSession(reference);
-        if(closed||await options.currentOwner()!==owner)throw new Error('mcp_app_owner_changed');
+        const owner=await revocationRace(track(options.currentOwner()),signal);check();if(!owner)throw new Error('mcp_app_authentication_required');
+        const opening=track(Promise.resolve().then(()=>{check();return options.openSession(reference,signal)}).then(value=>{session=value;if(signal.aborted||closed){void cleanup();throw new Error('app_revoked')}return value}));
+        await revocationRace(opening,signal);check();
+        const current=await revocationRace(track(options.currentOwner()),signal);check();
+        if(current!==owner)throw new Error('mcp_app_owner_changed');
         const resource=parseUiResource(session.resource,session.tool?._meta?.ui?.resourceUri);
         const policy=clampPolicy(resource,approvableResourcePolicy(resource),{});
         const id=randomBytes(32).toString('base64url');
@@ -183,10 +212,11 @@ export async function createMcpAppHostService(options) {
         const lifetime=Math.min(declaredTtl,300000),view={id,owner,session,resource,policy,policyPromise:null,interactive:null,reference,expires:Date.now()+lifetime,active:new Set(),requests:new Map(),timer:null};
         views.set(id,view);view.timer=setTimeout(()=>{void retire(id)},lifetime);view.timer.unref?.();
         return {viewId:id,url:origin+'/view/'+id};
-      }catch(error){if(session)await options.closeSession?.(session,reference).catch(()=>{});throw error}
-      finally{opening--}
+      }catch(error){void cleanup();throw error}
+      finally{pending.done=true;release()}
     },
+    revokeAll(){revokeViews()},revokeViews,
     async close(viewId){const view=views.get(viewId);if(view&&await options.currentOwner()!==view.owner)throw new Error('mcp_app_owner_changed');await retire(viewId)},
-    async shutdown(){closed=true;for(const id of [...views.keys()])void retire(id);await Promise.allSettled([...retiring]);await Promise.all([shut(host),shut(sandbox)])},
+    async shutdown(){closed=true;revokeViews();await Promise.allSettled([...retiring]);await Promise.all([shut(host),shut(sandbox)])},
   };
 }

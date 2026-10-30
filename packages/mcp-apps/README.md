@@ -101,3 +101,19 @@ once, preserving the complete result. Browser authorization sends
 guards always request authorization without a display snapshot. Delivery is
 scheduled outside authorization to prevent recursive authorization/flush loops.
 Passing Chrome tests cover delayed lossless results, cancellation, late-result suppression, completed/cancelled bootstrap receipts and terminal displays without available arguments. No empty input is invented.
+
+Desktop host 0.1.1 adds synchronous `revokeAll()` and host-only
+`revokeViews(predicate?)`. Both retire matching published views and abort their
+active operations and native decisions without changing either loopback origin.
+Pending opens are registered before the first owner lookup; a revoked open rejects
+immediately, and any subsequently allocated backend session is closed once.
+The optional second `openSession(reference, signal)` argument lets adapters abort
+network work while preserving their existing request deadline. Work ignoring that
+signal continues to count against admission until it actually settles. A targeted
+predicate receives the host's original reference object, allowing private
+main-process account/renderer bindings without trusting renderer-supplied identity.
+Adapters must still suspend new opens synchronously before logout or context
+replacement, fence their own authentication/API awaits, and resume only after
+verifying the new account. Revocation neither retries mutations nor resurrects old
+views after same-account login. Actual HTTP and compiled adopter tests cover these
+races, including a request body arriving after revocation and exact one-time cleanup.
