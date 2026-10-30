@@ -1,0 +1,62 @@
+{
+  "status": "source-qualified-release-artifacts-pending",
+  "scope": "advanced browser, MCP Apps and native computer capabilities; source tests only",
+  "public_inputs": {
+    "core": {
+      "tag": "v1.1.0-beta.39",
+      "source": "3d1d129f0050f055035429344d59e20627a83708",
+      "manifest_sha256": "63baf0c37d200948d8b9629aad174d355c818311da4be41375be00baa41a3f1b",
+      "anonymous_assets_verified": 7
+    },
+    "tools": {
+      "tag": "v1.0.0-beta.5",
+      "source": "d345b402d5bd8627deef6e2e61ad4843a6448dd3",
+      "manifest_sha256": "c738dea6eb58b2f1858b9deae95e0246125e96b0672667a1a39260177574f3b9",
+      "anonymous_assets_verified": 9
+    },
+    "mcp_apps": {
+      "tag": "mcp-apps-v0.1.1",
+      "source": "9a2d3c93d1034afd0fa2f7f3879e7879c0d792f6",
+      "archive_sha256": "6358549ed8d01d8811c9aa569b3ae030b17ccbe9551aef003bc4a506d7fca621",
+      "anonymous_assets_verified": 2
+    }
+  },
+  "validation": {
+    "desktop": {
+      "passed": 131,
+      "failed": 0,
+      "includes": "actual compiled adapter logout, same-account relogin, late-open and native decision revocation"
+    },
+    "desktop_iroh_native_runtime": "passed",
+    "universal_types": "passed",
+    "universal_lint": {
+      "errors": 0,
+      "warnings": 25
+    },
+    "host_tools": {
+      "passed": 135,
+      "skipped": 2,
+      "failed": 0
+    },
+    "product_python": {
+      "passed": 440,
+      "subtests_passed": 153,
+      "skipped": 1,
+      "failed": 0
+    },
+    "uv_locks": [
+      "host-tools",
+      "server",
+      "cli"
+    ],
+    "python_source_install": "non-editable own-product wheels; independently published Core and Tools wheels"
+  },
+  "execution_policy": "one heavy phase at a time under the shared serial-heavy lock",
+  "pending": [
+    "six genuine Host Tools beta7 platform bundles",
+    "signing and notarization of macOS payloads",
+    "new public product wheels and desktop installers",
+    "installed application and production acceptance",
+    "updater and public transport verification"
+  ]
+}

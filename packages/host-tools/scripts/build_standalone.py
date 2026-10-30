@@ -112,6 +112,10 @@ def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
                         "CFBundleShortVersionString": PROJECT_VERSION,
                         "CFBundleVersion": "1",
                         "LSBackgroundOnly": True,
+                        "NSAudioCaptureUsageDescription": (
+                            "OpenAgent captures audio from an explicitly authorized application "
+                            "when you enable its computer audio capability."
+                        ),
                     },
                     handle,
                 )

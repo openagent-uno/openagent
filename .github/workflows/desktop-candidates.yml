@@ -1,0 +1,101 @@
+name: Desktop native candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed canonical main commit with sealed public dependencies
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-native-candidates
+  cancel-in-progress: false
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - { runner: ubuntu-24.04, platform: linux-x64, script: 'build:linux', arch: '--x64' }
+          - { runner: ubuntu-24.04-arm, platform: linux-arm64, script: 'build:linux', arch: '--arm64' }
+          - { runner: windows-2022, platform: win32-x64, script: 'build:win', arch: '--x64' }
+          - { runner: windows-11-arm, platform: win32-arm64, script: 'build:win', arch: '--arm64' }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/app
+    env:
+      CARGO_BUILD_JOBS: '1'
+      CMAKE_BUILD_PARALLEL_LEVEL: '1'
+      npm_config_jobs: '1'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the immutable reviewed main source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$SOURCE_SHA" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git merge-base --is-ancestor "$SOURCE_SHA" origin/main
+          git diff --quiet HEAD
+          node -e 'const d=require("./desktop/package.json"),u=require("./universal/package.json"); if(d.version!==u.version)throw Error("desktop/universal version mismatch")'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked client dependencies
+        run: |
+          npm --prefix universal ci --no-fund --no-audit
+          npm --prefix desktop ci --no-fund --no-audit
+      - name: Build the renderer
+        run: |
+          cd universal
+          npx expo export --platform web
+      - name: Acquire the exact public host bundle
+        run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform }} .release-deps/host-tools-dist
+      - name: Stage the renderer without changing source
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          fs.cpSync('universal/dist','desktop/web-build',{recursive:true,errorOnExist:true});
+          const index='desktop/web-build/index.html';
+          fs.writeFileSync(index,fs.readFileSync(index,'utf8').replace(/(href|src)="\//g,'$1="./'));
+          NODE
+      - name: Package the native target without publication
+        working-directory: apps/app/desktop
+        env:
+          OPENAGENT_HOST_TOOLS_DIST: ${{ github.workspace }}/apps/app/.release-deps/host-tools-dist
+        run: npm run ${{ matrix.script }} -- ${{ matrix.arch }} --publish never --config.publish.channel beta
+      - name: Verify packaged payloads and update metadata
+        working-directory: apps/app/desktop
+        env:
+          REQUIRE_SIGNED: 'false'
+        run: node scripts/test-packaged-artifacts.mjs ${{ matrix.platform }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            apps/app/desktop/release/*.zip
+            apps/app/desktop/release/*.exe
+            apps/app/desktop/release/*.AppImage
+            apps/app/desktop/release/*.deb
+            apps/app/desktop/release/*.yml
+            apps/app/desktop/release/*.blockmap
+            apps/app/desktop/release/*.sha256
+            apps/app/desktop/release/release-manifest-*.json
+          if-no-files-found: error
+          retention-days: 14

@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Browser, MCP Apps and native capability source qualification, 30 October](qualification/capabilities-source-2026-10-30.json)
+
 - [MCP Apps: optional isolated UI host and local qualification](site/guide/mcp-apps.md)
 
 - [Desktop host bridge: subprocess fencing, cancellation and source qualification](qualification/desktop-host-bridge-2026-10-30.json)

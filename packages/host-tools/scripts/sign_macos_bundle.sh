@@ -4,9 +4,12 @@ set -euo pipefail
 bundle="${1:?usage: sign_macos_bundle.sh <bundle-dir>}"
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 repo_root="$(cd "$script_dir/.." && pwd)"
-for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
-  test -n "${!name:-}" || { echo "missing required release secret: $name" >&2; exit 1; }
-done
+test -n "${APPLE_TEAM_ID:-}" || { echo "missing required release input: APPLE_TEAM_ID" >&2; exit 1; }
+if [[ -z "${APPLE_NOTARY_PROFILE:-}" ]]; then
+  for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD; do
+    test -n "${!name:-}" || { echo "missing required release secret: $name (or use APPLE_NOTARY_PROFILE)" >&2; exit 1; }
+  done
+fi
 test -d "$bundle" || { echo "bundle does not exist: $bundle" >&2; exit 1; }
 
 temp_base="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
@@ -81,11 +84,13 @@ done
 "$bundle/node" -e "process.stdout.write('node-ok')" | grep -qx node-ok
 notary_zip="$work_root/notarize.zip"
 ditto -c -k --keepParent "$bundle" "$notary_zip"
-xcrun notarytool submit "$notary_zip" \
-  --apple-id "$APPLE_ID" \
-  --password "$APPLE_APP_SPECIFIC_PASSWORD" \
-  --team-id "$APPLE_TEAM_ID" \
-  --wait
+if [[ -n "${APPLE_NOTARY_PROFILE:-}" ]]; then
+  xcrun notarytool submit "$notary_zip" --keychain-profile "$APPLE_NOTARY_PROFILE" --wait
+else
+  xcrun notarytool submit "$notary_zip" \
+    --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+    --team-id "$APPLE_TEAM_ID" --wait
+fi
 xcrun stapler staple "$helper"
 xcrun stapler validate "$helper"
 spctl --assess --type execute --verbose=4 "$helper"

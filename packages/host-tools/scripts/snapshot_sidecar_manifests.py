@@ -15,6 +15,7 @@ import os
 import shutil
 from pathlib import Path
 
+from openagent_device_tools import sidecars as device_sidecars
 from openagent_host_tools.config import PluginSpec
 from openagent_host_tools.manifests import contract_payload, manifest_sha256
 from openagent_host_tools.mcp_stdio import MCPStdioServer
@@ -24,7 +25,7 @@ from openagent_host_tools.sidecars import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT = ROOT / "src" / "openagent_host_tools" / "sidecar-manifests.json"
+SNAPSHOT = Path(device_sidecars.__file__).with_name("sidecar-manifests.json")
 
 
 def _commands(bundle: Path) -> dict[str, tuple[str, ...]]:

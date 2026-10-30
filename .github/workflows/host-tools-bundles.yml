@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Exact reviewed canonical main commit for Host Tools B6
+        description: Exact reviewed canonical main commit for Host Tools B7
         required: true
         type: string
       signing_mode:
@@ -26,8 +26,8 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   SOURCE_SHA: ${{ inputs.source_sha }}
-  CARGO_BUILD_JOBS: 2
-  CMAKE_BUILD_PARALLEL_LEVEL: 2
+  CARGO_BUILD_JOBS: 1
+  CMAKE_BUILD_PARALLEL_LEVEL: 1
   UV_CONCURRENT_BUILDS: 1
   UV_CONCURRENT_DOWNLOADS: 4
   UV_CONCURRENT_INSTALLS: 2
@@ -81,11 +81,11 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b6
+          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b7
           git diff --quiet HEAD
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -215,7 +215,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
       - uses: actions/download-artifact@v4
         with:
           pattern: host-tools-@(darwin|linux|win32)-*

@@ -25,24 +25,11 @@ CURSOR_TOLERANCE = 2
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 CHROME_SMOKE_MARKER = "OPENAGENT_CHROME_RELEASE_SMOKE"
 CHROME_SMOKE_MUTATED_MARKER = f"{CHROME_SMOKE_MARKER}_MUTATED"
-EXPECTED_CHROME_TOOLS = (
-    "tabs_context_mcp",
-    "tabs_create_mcp",
-    "navigate",
-    "computer",
-    "find",
-    "form_input",
-    "get_page_text",
-    "read_page",
-    "javascript_tool",
-    "read_console_messages",
-    "read_network_requests",
-    "resize_window",
-    "upload_image",
-    "list_extensions",
-    "install_extension",
-    "remove_extension",
-)
+# Validate against the catalog shipped by the exact pinned device-tools wheel.
+from openagent_device_tools.sidecars import AGENT_IN_CHROME_MANIFEST, COMPUTER_CONTROL_MANIFEST
+EXPECTED_CHROME_TOOLS = tuple(tool.name for tool in AGENT_IN_CHROME_MANIFEST.tools)
+EXPECTED_COMPUTER_TOOLS = {tool.name for tool in COMPUTER_CONTROL_MANIFEST.tools}
+
 SHELL_COMPLETION_CAPABILITY = "openagent/shell-completion"
 SHELL_COMPLETION_LOGGER = "openagent.shell"
 
@@ -336,10 +323,7 @@ async def _computer_control(
                             f"{initialized.serverInfo.name}"
                         )
                     catalog = await session.list_tools()
-                    expected_tools = {
-                        "computer", "computer_list_displays", "computer_list_windows",
-                        "computer_capture_window",
-                    }
+                    expected_tools = EXPECTED_COMPUTER_TOOLS
                     if {tool.name for tool in catalog.tools} != expected_tools:
                         raise RuntimeError(
                             "unexpected computer-control tool catalog: "

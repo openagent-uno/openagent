@@ -15,9 +15,14 @@ python_bin="${PYTHON:-python3}"
 
 [[ "$(uname -s)" == Darwin ]] || { echo "local signing requires macOS" >&2; exit 1; }
 [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || { echo "source commit must be a full SHA" >&2; exit 1; }
-for name in CSC_NAME APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+for name in CSC_NAME APPLE_TEAM_ID; do
   [[ -n "${!name:-}" ]] || { echo "missing signing input: $name" >&2; exit 1; }
 done
+if [[ -z "${APPLE_NOTARY_PROFILE:-}" ]]; then
+  for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD; do
+    [[ -n "${!name:-}" ]] || { echo "missing signing input: $name (or use APPLE_NOTARY_PROFILE)" >&2; exit 1; }
+  done
+fi
 command -v "$python_bin" >/dev/null
 [[ ! -e "$output_dir" ]] || { echo "output directory must not exist: $output_dir" >&2; exit 1; }
 mkdir -p "$output_dir"
