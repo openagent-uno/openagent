@@ -1,0 +1,50 @@
+{
+  "qualifiedAtDate": "2026-10-30",
+  "status": "source-qualified; not released or deployed",
+  "baseCommit": "e8738595af4f65535448c7570686cb808b413abc",
+  "component": "apps/app/desktop",
+  "changes": [
+    "Canonical packages/host-tools source discovery before historical layout fallback",
+    "One completed handshake shared by concurrent starts; failed initialize retires its owned process",
+    "Exact subprocess fencing for stdout, stderr and cancellation",
+    "Bounded NDJSON frame and typed response/event validation fail closed as transport loss",
+    "Prompt local cancellation and deadline validation; best-effort cancel of the same call without replay",
+    "Owned process shutdown and forced termination of an unresponsive retired shim"
+  ],
+  "tests": {
+    "command": "npm run test:capabilities",
+    "cwd": "apps/app/desktop",
+    "typescriptBuildPassed": true,
+    "passed": 55,
+    "failed": 0,
+    "skipped": 0,
+    "focusedHostBridgeCases": 14,
+    "platform": "darwin-arm64",
+    "transport": "Real spawned Node NDJSON peers plus existing capability/socket/manager suites"
+  },
+  "files": [
+    {
+      "path": "apps/app/desktop/src/capabilities/host-bridge.ts",
+      "sha256": "e959456d860fe4168b374a80eac738ac5220b299f5a9eefab36d850f3aab956c"
+    },
+    {
+      "path": "apps/app/desktop/src/capabilities/__tests__/host-bridge.test.mjs",
+      "sha256": "b65cedf39badd8012419e9124ca928290d9ffaddeffbbcbb0ae794ed284fe655"
+    },
+    {
+      "path": "apps/app/desktop/src/capabilities/__tests__/host-bridge-peer.mjs",
+      "sha256": "542bd7533657b72608e694714d06b05316870c1c0d7bd4acff7e58361ebd3632"
+    }
+  ],
+  "unchangedBoundaries": [
+    "Device consent, application IDs, identities and exact capability destination selection",
+    "Published host-tools checksum lock and openagent-device-tools dependency remain unchanged",
+    "No automatic retry of uncertain external mutations"
+  ],
+  "notQualified": [
+    "Installed Electron UI and live authenticated remote tool execution",
+    "Windows and Linux process lifecycle acceptance",
+    "Signing, packaging, publishing, installer/updater delivery and production deployment",
+    "New native tool package adoption; source tests do not install new upstream artifacts"
+  ]
+}

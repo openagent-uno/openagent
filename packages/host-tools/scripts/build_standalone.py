@@ -42,6 +42,21 @@ def checked_clean(path: Path, parent: Path) -> None:
         shutil.rmtree(resolved)
 
 
+def _computer_cargo_environment() -> dict[str, str]:
+    env = dict(os.environ)
+    if sys.platform == "darwin":
+        raw = env.get("MACOSX_DEPLOYMENT_TARGET") or "12.0"
+        tokens = raw.split(".")
+        if not 1 <= len(tokens) <= 3 or any(not token.isascii() or not token.isdigit() for token in tokens):
+            raise SystemExit("MACOSX_DEPLOYMENT_TARGET must be a numeric macOS version")
+        parts = tuple(int(token) for token in tokens)
+        # Apply the native floor to Rust and dependency C/C++ build scripts as
+        # well as our Objective-C bridge; preserve a higher caller target.
+        padded = parts + (0,) * (3 - len(parts))
+        env["MACOSX_DEPLOYMENT_TARGET"] = raw if padded >= (12, 0, 0) else "12.0"
+    return env
+
+
 def _build_computer_control(source: Path) -> Path:
     cargo = shutil.which("cargo")
     if cargo is None:
@@ -51,6 +66,7 @@ def _build_computer_control(source: Path) -> Path:
         [cargo, "build", "--release", "--locked", "--target-dir", str(target), "--manifest-path", str(source / "Cargo.toml")],
         cwd=ROOT,
         check=True,
+        env=_computer_cargo_environment(),
     )
     return target / "release" / ("openagent-computer-control.exe" if sys.platform == "win32" else "openagent-computer-control")
 

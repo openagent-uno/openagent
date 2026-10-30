@@ -87,9 +87,13 @@ export function discoverHostTools(options: HostToolsDiscoveryOptions): HostTools
     };
   }
 
-  // appPath is normally <workspace>/openagent-app/desktop in development.
-  const workspaceRoot = path.dirname(path.dirname(options.appPath));
-  const repo = path.join(workspaceRoot, 'openagent-host-tools');
+  // Prefer the owning product component. The historical sibling layout is
+  // retained for callers running an older checkout, never for packaged apps.
+  const canonicalRepo = path.resolve(options.appPath, '../../..', 'packages/host-tools');
+  const canonicalMain = path.join(canonicalRepo, 'src', 'openagent_host_tools', '__main__.py');
+  const repo = exists(canonicalMain)
+    ? canonicalRepo
+    : path.resolve(options.appPath, '../..', 'openagent-host-tools');
   const development = platform === 'win32'
     ? [
         path.join(repo, 'dist', `${platform}-${arch}`, exe),
@@ -146,14 +150,17 @@ export interface LocalHostBridgeOptions {
 
 /** Main-process-only NDJSON bridge to the stand-alone capability host. */
 export class LocalHostBridge extends EventEmitter {
+  private supportsResources = false;
   private child: ChildProcessWithoutNullStreams | null = null;
   private stdoutBuffer = '';
   private stderrTail = '';
   private requestSequence = 0;
   private pending = new Map<string, PendingRequest>();
   private stopping = false;
+  private startPromise: Promise<unknown> | null = null;
   private stopPromise: Promise<void> | null = null;
   private childClosed = new WeakMap<ChildProcessWithoutNullStreams, Promise<void>>();
+  private retiringChildren = new Map<ChildProcessWithoutNullStreams, Promise<void>>();
 
   constructor(private readonly options: LocalHostBridgeOptions) {
     super();
@@ -163,8 +170,20 @@ export class LocalHostBridge extends EventEmitter {
     return !!this.child && this.child.exitCode == null && !this.child.killed;
   }
 
-  async start(): Promise<unknown> {
+  start(): Promise<unknown> {
+    if (this.startPromise) return this.startPromise;
+    const operation = this.startChild();
+    this.startPromise = operation;
+    operation.then(
+      () => { if (this.startPromise === operation) this.startPromise = null; },
+      () => { if (this.startPromise === operation) this.startPromise = null; },
+    );
+    return operation;
+  }
+
+  private async startChild(): Promise<unknown> {
     if (this.stopPromise) await this.stopPromise;
+    if (this.retiringChildren.size) await Promise.all(this.retiringChildren.values());
     if (this.running) return undefined;
     if (this.options.launch.unavailableReason) {
       throw new CapabilityProtocolError(
@@ -188,10 +207,16 @@ export class LocalHostBridge extends EventEmitter {
     this.childClosed.set(child, new Promise((resolve) => child.once('close', () => resolve())));
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => this.handleStdout(chunk));
+    child.stdout.on('data', (chunk: string) => this.handleStdout(child, chunk));
     child.stderr.on('data', (chunk: string) => {
+      if (this.child !== child) return;
       this.stderrTail = (this.stderrTail + chunk).slice(-STDERR_TAIL_BYTES);
       this.emit('stderr', chunk);
+    });
+    child.stdin.on('error', (error) => {
+      if (this.child !== child) return;
+      void this.retireChild(child);
+      this.handleExit(child, error);
     });
     child.on('error', (error) => this.handleExit(child, error));
     child.on('exit', (code, signal) => {
@@ -200,11 +225,21 @@ export class LocalHostBridge extends EventEmitter {
       this.handleExit(child, new Error(detail));
     });
 
-    return this.request({
-      type: 'initialize',
-      protocol: HOST_TOOLS_PROTOCOL,
-      principal: this.options.principal,
-    });
+    try {
+      const initialized = await this.request({
+        type: 'initialize',
+        protocol: HOST_TOOLS_PROTOCOL,
+        principal: this.options.principal,
+      });
+      this.supportsResources = !!initialized && typeof initialized === 'object' && (initialized as {features?:{mcp_app_resources?:unknown}}).features?.mcp_app_resources === 1;
+      return initialized;
+    } catch (error) {
+      // A failed handshake must not leave an uninitialized executor available.
+      // Retire only this startup's child if another lifecycle already began.
+      if (this.child === child) await this.hardStop();
+      else await this.retireChild(child);
+      throw error;
+    }
   }
 
   async catalog(): Promise<HostToolsCatalog> {
@@ -245,12 +280,8 @@ export class LocalHostBridge extends EventEmitter {
     if (args.signal?.aborted) {
       throw new CapabilityProtocolError('cancelled', 'Client tool call was cancelled');
     }
-    const onAbort = () => {
-      void this.request({ type: 'cancel', call_id: args.callId }, 2_000).catch(() => {});
-    };
-    args.signal?.addEventListener('abort', onAbort, { once: true });
-    try {
-      return await this.request({
+    const timeoutMs = requestTimeout(args.deadlineMs);
+    return this.request({
         type: 'call',
         call_id: args.callId,
         server: args.server,
@@ -260,10 +291,29 @@ export class LocalHostBridge extends EventEmitter {
         arguments_sha256: args.argumentsSha256,
         deadline_ms: args.deadlineMs,
         principal: args.principal ?? this.options.principal,
-      }, requestTimeout(args.deadlineMs));
-    } finally {
-      args.signal?.removeEventListener('abort', onAbort);
-    }
+      }, timeoutMs, args.signal);
+  }
+
+  async readResource(args: {callId:string;server:string;uri:string;deadlineMs?:number;signal?:AbortSignal;principal?:Record<string,unknown>}):Promise<unknown> {
+    if (!this.supportsResources) throw new CapabilityProtocolError('mcp_app_resources_unsupported', 'Installed host does not support MCP App resources');
+    return this.request({type:'read_resource',call_id:args.callId,server:args.server,uri:args.uri,
+      principal:args.principal??this.options.principal,deadline_ms:args.deadlineMs},requestTimeout(args.deadlineMs),args.signal);
+  }
+
+  /** Trusted desktop UI decisions only. Never forward model arguments here. */
+  async providerControl(decision: {
+    tool: 'browser_control' | 'browser_permissions';
+    args: Record<string, unknown>;
+    principal: Record<string, unknown>;
+  }, signal?: AbortSignal): Promise<unknown> {
+    return this.request({
+      type: 'provider_control',
+      call_id: `operator-${++this.requestSequence}`,
+      server: 'agent-in-chrome',
+      tool: decision.tool,
+      args: decision.args,
+      principal: decision.principal,
+    }, 32_000, signal);
   }
 
   stop(): Promise<void> {
@@ -294,6 +344,7 @@ export class LocalHostBridge extends EventEmitter {
           'Local capability host stopped',
         ));
       }
+      await Promise.all(this.retiringChildren.values());
       return;
     }
     this.stopping = true;
@@ -342,7 +393,11 @@ export class LocalHostBridge extends EventEmitter {
     return result;
   }
 
-  private request(request: Omit<HostToolsRequest, 'id'>, timeoutMs = CONTROL_TIMEOUT_MS): Promise<unknown> {
+  private request(
+    request: Omit<HostToolsRequest, 'id'>,
+    timeoutMs = CONTROL_TIMEOUT_MS,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     const child = this.child;
     if (!child || child.exitCode != null || child.killed) {
       return Promise.reject(new CapabilityProtocolError(
@@ -353,15 +408,51 @@ export class LocalHostBridge extends EventEmitter {
     const id = `desktop-${++this.requestSequence}`;
     const frame: HostToolsRequest = { id, ...request };
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
+      let dispatched = false;
+      const cancelRemote = () => {
+        // A retired request cannot cancel a call in a replacement process.
+        if (!dispatched || (request.type !== 'call' && request.type !== 'provider_control' && request.type !== 'read_resource') || this.child !== child) return;
+        void this.request({ type: 'cancel', call_id: request.call_id }, 2_000).catch(() => {});
+      };
+      const cleanup = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+      };
+      const onAbort = () => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
         this.pending.delete(id);
-        reject(new CapabilityProtocolError(
+        pending.reject(new CapabilityProtocolError('cancelled', 'Client tool call was cancelled'));
+        cancelRemote();
+      };
+      const timer = setTimeout(() => {
+        const pending = this.pending.get(id);
+        if (!pending) return;
+        this.pending.delete(id);
+        pending.reject(new CapabilityProtocolError(
           'host_timeout',
           `Local capability host did not answer ${request.type} within ${timeoutMs}ms`,
         ));
+        cancelRemote();
       }, Math.max(1, timeoutMs));
-      this.pending.set(id, { resolve, reject, timer });
-      child.stdin.write(`${JSON.stringify(frame)}\n`, (error) => {
+      this.pending.set(id, {
+        resolve: (value) => { cleanup(); resolve(value); },
+        reject: (error) => { cleanup(); reject(error); },
+        timer,
+      });
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) { onAbort(); return; }
+      let serialized: string;
+      try {
+        serialized = `${JSON.stringify(frame)}\n`;
+      } catch (error) {
+        const pending = this.pending.get(id);
+        this.pending.delete(id);
+        pending?.reject(new CapabilityProtocolError('invalid_arguments', 'Client tool arguments are not JSON serializable'));
+        return;
+      }
+      dispatched = true;
+      child.stdin.write(serialized, (error) => {
         if (!error) return;
         const pending = this.pending.get(id);
         if (!pending) return;
@@ -375,42 +466,52 @@ export class LocalHostBridge extends EventEmitter {
     });
   }
 
-  private handleStdout(chunk: string): void {
+  private handleStdout(child: ChildProcessWithoutNullStreams, chunk: string): void {
+    if (this.child !== child) return;
     this.stdoutBuffer += chunk;
-    if (Buffer.byteLength(this.stdoutBuffer, 'utf8') > MAX_LINE_BYTES) {
-      const error = new CapabilityProtocolError(
-        'host_protocol_error',
-        `Local capability host emitted a line larger than ${MAX_LINE_BYTES} bytes`,
-      );
-      const child = this.child;
-      if (child) {
-        this.handleExit(child, error);
-        void this.terminateDetachedChild(child);
-      }
-      return;
-    }
     let newline: number;
     while ((newline = this.stdoutBuffer.indexOf('\n')) >= 0) {
-      const line = this.stdoutBuffer.slice(0, newline).trim();
+      const rawLine = this.stdoutBuffer.slice(0, newline);
       this.stdoutBuffer = this.stdoutBuffer.slice(newline + 1);
-      if (line) this.handleLine(line);
+      if (Buffer.byteLength(rawLine, 'utf8') > MAX_LINE_BYTES) {
+        this.failProtocol(child, 'host-tools emitted an oversized frame');
+        return;
+      }
+      const line = rawLine.trim();
+      if (line) this.handleLine(child, line);
+      if (this.child !== child) return;
+    }
+    if (Buffer.byteLength(this.stdoutBuffer, 'utf8') > MAX_LINE_BYTES) {
+      this.failProtocol(child, 'host-tools emitted an oversized frame');
     }
   }
 
-  private handleLine(line: string): void {
-    let frame: Record<string, unknown>;
+  private handleLine(child: ChildProcessWithoutNullStreams, line: string): void {
+    let value: unknown;
     try {
-      frame = JSON.parse(line) as Record<string, unknown>;
+      value = JSON.parse(line);
     } catch {
-      this.emit('protocol-error', new Error('host-tools emitted malformed JSON'));
+      this.failProtocol(child, 'host-tools emitted malformed JSON');
       return;
     }
+    if (!isRecord(value)) {
+      this.failProtocol(child, 'host-tools emitted a non-object frame');
+      return;
+    }
+    const frame = value;
     if (frame.type === 'event') {
+      if (!isRecord(frame.event) || typeof frame.event.type !== 'string') {
+        this.failProtocol(child, 'host-tools emitted a malformed event');
+        return;
+      }
       this.emit('event', frame);
       return;
     }
-    if (frame.type !== 'response' || typeof frame.id !== 'string') {
-      this.emit('protocol-error', new Error('host-tools emitted an unknown frame'));
+    if (frame.type !== 'response' || typeof frame.id !== 'string' ||
+        typeof frame.ok !== 'boolean' ||
+        (!frame.ok && (!isRecord(frame.error) ||
+          typeof frame.error.code !== 'string' || typeof frame.error.message !== 'string'))) {
+      this.failProtocol(child, 'host-tools emitted a malformed response');
       return;
     }
     const response = frame as unknown as HostToolsResponse;
@@ -429,6 +530,15 @@ export class LocalHostBridge extends EventEmitter {
     ));
   }
 
+  private failProtocol(child: ChildProcessWithoutNullStreams, message: string): void {
+    if (this.child !== child) return;
+    const error = new CapabilityProtocolError('host_transport_lost', message);
+    void this.retireChild(child);
+    this.emit('protocol-error', error);
+    this.handleExit(child, error);
+    this.stdoutBuffer = '';
+  }
+
   private handleExit(child: ChildProcessWithoutNullStreams, error: Error): void {
     if (this.child !== child) return;
     this.child = null;
@@ -440,11 +550,28 @@ export class LocalHostBridge extends EventEmitter {
     if (!this.stopping) this.emit('exit', transportError);
   }
 
+  private retireChild(child: ChildProcessWithoutNullStreams): Promise<void> {
+    const existing = this.retiringChildren.get(child);
+    if (existing) return existing;
+    const operation = this.terminateDetachedChild(child);
+    this.retiringChildren.set(child, operation);
+    operation.then(
+      () => { this.retiringChildren.delete(child); },
+      () => { this.retiringChildren.delete(child); },
+    );
+    return operation;
+  }
+
   private async terminateDetachedChild(child: ChildProcessWithoutNullStreams): Promise<void> {
     if (child.exitCode == null) child.kill('SIGTERM');
     if (!await this.waitForChildClose(child, TERMINATE_EXIT_TIMEOUT_MS)) {
       if (child.exitCode == null) child.kill('SIGKILL');
-      await this.waitForChildClose(child, FORCE_EXIT_TIMEOUT_MS);
+      if (!await this.waitForChildClose(child, FORCE_EXIT_TIMEOUT_MS)) {
+        throw new CapabilityProtocolError(
+          'host_stop_timeout',
+          `Retired local capability shim did not exit (pid=${String(child.pid)})`,
+        );
+      }
     }
   }
 
@@ -543,12 +670,22 @@ function verifyPackagedExecutable(
 }
 
 function requestTimeout(deadlineMs?: number): number {
-  if (deadlineMs == null || !Number.isFinite(deadlineMs)) return 120_000;
+  if (deadlineMs == null) return 120_000;
+  if (!Number.isFinite(deadlineMs) || deadlineMs <= 0) {
+    throw new CapabilityProtocolError('invalid_deadline', 'Client tool deadline must be finite and positive');
+  }
   // Accept both an absolute epoch deadline and a relative duration. The wire
   // currently uses a duration; supporting epoch values makes skewed peers fail
   // closed instead of hanging forever.
   const remaining = deadlineMs > 1_000_000_000_000
     ? deadlineMs - Date.now()
     : deadlineMs;
+  if (remaining <= 0 || remaining > 24 * 60 * 60 * 1000) {
+    throw new CapabilityProtocolError('invalid_deadline', 'Client tool deadline must be within the next 24 hours');
+  }
   return Math.max(1, Math.min(remaining, 24 * 60 * 60 * 1000));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }

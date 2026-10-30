@@ -32,6 +32,7 @@ async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> Con
             status = await host.status()
             result = {
                 "protocol": HOST_PROTOCOL,
+                "features": {"mcp_app_resources": 1},
                 "consent": status["consent"],
                 "config_path": status["config_path"],
             }
@@ -66,6 +67,22 @@ async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> Con
                     if request.get("arguments_sha256") is not None
                     else None
                 ),
+            )
+            result = result_obj.to_wire()
+        elif request_type == "read_resource":
+            if not request.get("principal"):
+                raise HostError("invalid_request", "Resource reads require an exact trusted principal")
+            result = await host.read_resource(str(request.get("server") or ""), request.get("uri"),
+                principal=request["principal"], call_id=str(request.get("call_id") or request_id),
+                deadline_ms=request.get("deadline_ms"))
+        elif request_type == "provider_control":
+            if not request.get("principal"):
+                raise HostError("invalid_request", "provider_control requires the exact trusted principal")
+            if not isinstance(request.get("args"), dict):
+                raise HostError("invalid_request", "provider_control args must be an object")
+            result_obj = await host.provider_control(
+                str(request.get("server") or ""), str(request.get("tool") or ""), request["args"],
+                principal=request["principal"], call_id=str(request.get("call_id") or request_id),
             )
             result = result_obj.to_wire()
         elif request_type == "cancel":

@@ -3,6 +3,7 @@ import type {
   CapabilityServerFrame,
   ClientCapabilityServer,
   ClientToolCall,
+  ClientResourceRead,
   ClientToolResultError,
   ClientToolResultValue,
 } from '../../../common/client-capabilities';
@@ -12,6 +13,7 @@ export type {
   CapabilityServerFrame,
   ClientCapabilityServer,
   ClientToolCall,
+  ClientResourceRead,
   ClientToolResultError,
   ClientToolResultValue,
 };
@@ -21,11 +23,12 @@ export const HOST_TOOLS_PROTOCOL = 'openagent-host-tools/1' as const;
 
 export interface HostToolsRequest {
   id: string;
-  type: 'initialize' | 'catalog' | 'call' | 'cancel' | 'status' | 'shutdown' | 'set_consent' | 'release_principal';
+  type: 'initialize' | 'catalog' | 'call' | 'read_resource' | 'provider_control' | 'cancel' | 'status' | 'shutdown' | 'set_consent' | 'release_principal';
   protocol?: typeof HOST_TOOLS_PROTOCOL;
   principal?: Record<string, unknown>;
   server?: string;
   tool?: string;
+  uri?: string;
   args?: Record<string, unknown>;
   idempotency_key?: string;
   arguments_sha256?: string;
@@ -127,6 +130,14 @@ export function parseCapabilityServerFrame(raw: string): CapabilityServerFrame {
       if (frame.duplicate !== undefined && typeof frame.duplicate !== 'boolean') {
         invalid('duplicate must be a boolean');
       }
+      return frame as unknown as CapabilityServerFrame;
+    case 'client_resource_read':
+      for (const key of ['call_id', 'server', 'uri', 'session_id', 'account_id']) requireString(frame, key);
+      requireGeneration(frame);
+      if (!(frame.uri as string).startsWith('ui://') || (frame.uri as string).length > 4096 || /[\u0000-\u001f\u007f]/.test(frame.uri as string)) invalid('invalid app resource URI');
+      for (const key of ['call_id','server','session_id','account_id']) if ((frame[key] as string).length > 512 || /[\u0000-\u001f\u007f]/.test(frame[key] as string)) invalid('invalid resource scope');
+      if (frame.network_id !== undefined) requireString(frame, 'network_id');
+      if (frame.deadline_ms !== undefined && (typeof frame.deadline_ms !== 'number' || !Number.isFinite(frame.deadline_ms) || frame.deadline_ms <= 0)) invalid('invalid resource deadline');
       return frame as unknown as CapabilityServerFrame;
     case 'client_tool_call':
       requireString(frame, 'call_id');

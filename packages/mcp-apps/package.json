@@ -1,0 +1,36 @@
+{
+  "name": "@openagent/mcp-apps",
+  "version": "0.1.0-source.7",
+  "private": true,
+  "type": "module",
+  "description": "Optional source-bound MCP Apps host and isolated browser sandbox",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.mjs"
+    },
+    "./sandbox": "./src/sandbox.mjs",
+    "./desktop": {
+      "types": "./src/desktop.d.ts",
+      "default": "./src/desktop.mjs"
+    }
+  },
+  "files": [
+    "src",
+    "fixtures",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "typesVersions": {
+    "*": {
+      "desktop": [
+        "src/desktop.d.ts"
+      ]
+    }
+  }
+}

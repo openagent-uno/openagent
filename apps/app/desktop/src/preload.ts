@@ -59,12 +59,21 @@ function makeMenuActionSubscription(
 }
 
 contextBridge.exposeInMainWorld('desktop', {
+  mcpApps: Object.freeze({onDraft:(callback:(draft:import('./services/mcp-app-policy').McpAppDraft)=>void)=>{
+    const listener=(_event:Electron.IpcRendererEvent,draft:import('./services/mcp-app-policy').McpAppDraft)=>callback(draft);
+    ipcRenderer.on('mcp-apps:draft',listener);return()=>{ipcRenderer.removeListener('mcp-apps:draft',listener)};
+  },open:(request: import('@openagent/mcp-apps/desktop').McpAppReference)=>ipcRenderer.invoke('mcp-apps:open',request),close:(viewId:string)=>ipcRenderer.invoke('mcp-apps:close',viewId)}),
   platform: process.platform,
   isDesktop: true,
   isChild,
   // Read-only boot identity. It binds renderer-originated session_open frames
   // to the Electron-main capability channel; it grants no local authority.
   clientInstanceId,
+
+  browserControl: Object.freeze({
+    inventory:(accountId:string)=>ipcRenderer.invoke('browser:inventory',accountId),
+    decide:(input:{accountId:string;requestId:string;action:'resume'|'grant'|'revoke'})=>ipcRenderer.invoke('browser:decision',input),
+  }),
 
   // Local capability control plane. No tool invocation method is exposed.
   getCapabilityStatus: (): Promise<DesktopCapabilityStatus> =>

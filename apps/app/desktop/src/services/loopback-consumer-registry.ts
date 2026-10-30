@@ -16,6 +16,7 @@ export interface LoopbackConsumerRegistry {
    * accounts that now have no consumers.
    */
   releaseRenderer(rendererId: number): string[];
+  hasConsumer(accountId: string, rendererId: number): boolean;
   hasConsumers(accountId: string): boolean;
   consumerCount(accountId: string): number;
   clearAccount(accountId: string): void;
@@ -71,6 +72,8 @@ export function createLoopbackConsumerRegistry(): LoopbackConsumerRegistry {
       }
       return emptied;
     },
+
+    hasConsumer(accountId,rendererId) { return (accounts.get(accountId)?.get(rendererId)?.size ?? 0) > 0; },
 
     hasConsumers(accountId) {
       return (accounts.get(accountId)?.size ?? 0) > 0;

@@ -333,6 +333,8 @@ class NativeRuntimeService:
                                 "tool_call_id": call_id,
                                 "tool_name": binding["name"],
                                 "tool_server": binding["source_id"],
+                                "tool_ref": binding["tool_ref"],
+                                "metadata": binding.get("metadata", {}),
                                 "tool_args": event.payload["arguments"],
                                 "execution_host": binding.get("execution_host"),
                                 "result": None,
@@ -517,6 +519,11 @@ class NativeRuntimeService:
         )
 
     async def close(self):
+        if getattr(self, "mcp_apps", None) is not None:
+            await self.mcp_apps.shutdown()
+            if self.runtime is not None:
+                self.runtime.services.registry.unbind("mcp_apps", owner="host")
+            self.mcp_apps = None
         await self.official_connectors.close()
         try:
             if self.runtime is not None:

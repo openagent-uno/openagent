@@ -168,6 +168,10 @@ def _normalise_tools(raw: Any) -> tuple[dict[str, Any], ...]:
                 tool_name=name,
             ),
         }
+        metadata = item.get("_meta") or {}
+        if not isinstance(metadata, dict) or len(json.dumps(metadata, allow_nan=False).encode()) > 65536:
+            raise ClientCapabilityError("INVALID_CATALOG", "Tool presentation metadata exceeds its bound")
+        if metadata: normalised["_meta"] = metadata
         tools.append(normalised)
     return tuple(tools)
 
@@ -306,11 +310,15 @@ def normalise_catalog(raw: Any) -> dict[str, dict[str, Any]]:
             raise ClientCapabilityError(
                 "CATALOG_QUOTA", "total tool count exceeds the catalog limit",
             )
+        resource_protocol = item.get("resource_protocol")
+        if resource_protocol not in {None, "mcp-app-resources/1"}:
+            raise ClientCapabilityError("INVALID_CATALOG", "Unsupported resource transport protocol")
         servers[name] = {
             "name": name,
             "version": version,
             "instructions": instructions,
             "tools": tools,
+            **({"resource_protocol": resource_protocol} if resource_protocol else {}),
         }
     return servers
 
@@ -864,6 +872,68 @@ class CapabilityRegistry:
             **tool,
             "execution_host": conn.origin(self).execution_host,
         }
+
+    async def read_resource(self, origin: TurnExecutionOrigin, server_name: str, uri: str, *,
+                            session_id: str | None = None, execution_context: ExecutionContext | None = None,
+                            source_id: str | None = None, timeout_s: float = 30.0) -> dict[str, Any]:
+        if origin.registry is not self:
+            raise ClientCapabilityError("INVALID_ORIGIN", "Resource origin belongs to another registry")
+        conn, server = self._require_server(origin, server_name)
+        if server.get("resource_protocol") != "mcp-app-resources/1":
+            raise ClientCapabilityError("MCP_APP_RESOURCES_UNSUPPORTED", "The exact client bundle does not advertise MCP App resources")
+        if (execution_context is None or execution_context.deferred or execution_context.session_id != session_id
+                or not source_id or not any(lease.source_id == source_id
+                    and lease.instance_id == origin.client_instance_id
+                    and lease.generation == f"{origin.generation}:{origin.auth_epoch}"
+                    for lease in execution_context.capabilities)):
+            raise ClientCapabilityError("MISSING_EXECUTION_CONTEXT", "Resource reads require the exact current session and capability lease")
+        declared = set()
+        for tool in server["tools"]:
+            meta = tool.get("_meta") or {}
+            ui = meta.get("ui") or {}
+            value = ui.get("resourceUri") if isinstance(ui, dict) else None
+            value = value or meta.get("ui/resourceUri")
+            if isinstance(value, str): declared.add(value)
+        if not isinstance(uri, str) or not uri.startswith("ui://") or len(uri) > 4096 or any(ord(c) < 32 or ord(c) == 127 for c in uri) or uri not in declared:
+            raise ClientCapabilityError("RESOURCE_NOT_DECLARED", "Only this exact source's declared app resource can be read")
+        if len(conn.pending) >= MAX_PENDING_CALLS_PER_CONNECTION:
+            raise ClientCapabilityError("CLIENT_BACKPRESSURE", "The exact client has too many pending operations")
+        if not isinstance(timeout_s, (int, float)) or not math.isfinite(timeout_s) or timeout_s <= 0:
+            raise ValueError("Invalid resource deadline")
+        timeout_s = min(timeout_s, 30.0)
+        call_id = uuid.uuid4().hex
+        future = asyncio.get_running_loop().create_future()
+        conn.pending[call_id] = _PendingCall(future, conn.generation, _canonical_json_sha256({"uri": uri}),
+            server_name, "resources/read", session_id, "read_only", context_key=execution_context.coalescing_key, source_id=source_id)
+        try:
+            async with asyncio.timeout(timeout_s):
+                sent = await conn.send_json(conn.ws, {"type": "client_resource_read", "call_id": call_id,
+                    "generation": conn.generation, "server": server_name, "uri": uri,
+                    "session_id": session_id, "account_id": conn.account_id, "network_id": conn.network_id,
+                    "deadline_ms": int((time.time() + timeout_s) * 1000)})
+                if not sent: raise ClientCapabilityError("CLIENT_OFFLINE", "The exact client resource transport disconnected")
+                result = await future
+            current, current_server = self._require_server(origin, server_name)
+            if current is not conn or current_server != server:
+                raise ClientCapabilityError("CLIENT_REPLACED", "The client resource registration changed during the read")
+            if (not isinstance(result, dict) or not isinstance(result.get("contents"), list) or len(result["contents"]) != 1
+                    or len(json.dumps(result, ensure_ascii=False, allow_nan=False).encode()) > 2 * 1024 * 1024):
+                raise ClientCapabilityError("INVALID_RESOURCE", "Resource response exceeds its bound or is malformed")
+            item = result["contents"][0]
+            if (not isinstance(item, dict) or item.get("uri") != uri or item.get("mimeType") != "text/html;profile=mcp-app"
+                    or not isinstance(item.get("text", item.get("blob")), str)):
+                raise ClientCapabilityError("INVALID_RESOURCE", "Resource response does not match its declared HTML document")
+            return result
+        except (asyncio.TimeoutError, asyncio.CancelledError) as exc:
+            try: await conn.send_json(conn.ws, {"type": "client_tool_cancel", "call_id": call_id,
+                "generation": conn.generation, "reason": "resource_read_cancelled"})
+            except Exception: pass
+            if isinstance(exc, asyncio.TimeoutError):
+                raise ClientCapabilityError("CLIENT_TIMEOUT", "The exact client resource read timed out") from exc
+            raise
+        finally:
+            conn.pending.pop(call_id, None)
+            if not future.done(): future.cancel()
 
     async def call_tool(
         self,

@@ -1,0 +1,8 @@
+{
+  "status": "local_development_candidate_not_published",
+  "artifacts": {
+    "openagent_capability_host-1.0.0b2.dev20261030-py3-none-any.whl": "485b748223ae86d2839c2ac02ecb7cfa68a4c191f10d07f49b020f7920d30611",
+    "openagent_core-1.1.0b38.dev20261030-py3-none-any.whl": "f29912473a84262898a8e7873d818b572b9448cf2bac334fa4a0b9d7ecdf1974",
+    "openagent_storage_sqlite-1.1.0b38.dev20261030-py3-none-any.whl": "fe1ce73e96b5535e808f27f064635b2f60251d62eab73fb037c2dd282a0be7d1"
+  }
+}

@@ -1,3 +1,4 @@
+import McpAppDraftReview from '../../components/McpAppDraftReview';
 /**
  * Chat screen — editorial single-column flow, no left/right bubbles.
  * Inspired by Claude Code / Codex: messages read like a document, with
@@ -113,6 +114,7 @@ export default function ChatScreen() {
   // never trigger a re-render on their own.
   const sessions = useChat((s) => s.sessions);
   const activeSessionId = useChat((s) => s.activeSessionId);
+  const draftAccountId = useConnection((state) => state.activeAccountId);
   useSharedView('session', activeSessionId || undefined);
   const sessionsHydrated = useChat((s) => s.sessionsHydrated);
   const createSession = useChat((s) => s.createSession);
@@ -1641,6 +1643,7 @@ export default function ChatScreen() {
                   </View>
                 )}
                 <MessageList
+                  sessionId={activeSession.id}
                   messages={activeSession.messages}
                   isProcessing={activeSession.isProcessing}
                   statusText={activeSession.statusText}
@@ -1703,6 +1706,7 @@ export default function ChatScreen() {
 
             <SharedPresence id={activeSessionId || undefined} />
             {activeSessionId && <SessionSharing sessionId={activeSessionId} />}
+            <McpAppDraftReview scope={{accountId:draftAccountId??undefined,sessionId:activeSessionId??undefined}} scopeKey={`${draftAccountId}:${activeSessionId}`} onInsert={text=>setInput(current=>`${current}${current?'\n\n':''}${text}`)} />
             <MessageComposer
               inputRef={composerInputRef}
               input={input}

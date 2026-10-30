@@ -1,7 +1,9 @@
+import { createHash, randomUUID } from 'node:crypto';
 import {
   CapabilityProtocolError,
   type ClientCapabilityServer,
   type ClientToolCall,
+  type ClientResourceRead,
   type DesktopCapabilityStatus,
 } from './protocol';
 import { CapabilitySocket, type CapabilityConnectionPhase } from './capability-socket';
@@ -450,6 +452,7 @@ export class CapabilityManager {
       deviceLabel: this.options.deviceLabel,
       getOffer: () => ({ generation: this.generation, servers: this.servers }),
       invoke: (call, signal) => this.invoke(accountId, call, signal),
+      readResource: (call, signal) => this.readResource(accountId, call, signal),
       onPhase: (phase, error) => {
         this.socketPhases.set(channelKey, phase);
         if (error && phase === 'error') this.lastError = error;
@@ -467,6 +470,14 @@ export class CapabilityManager {
     this.drainPendingToolEvents(accountId, socket);
     socket.start();
     this.emitStatus();
+  }
+
+  private async readResource(accountId:string,call:ClientResourceRead,signal:AbortSignal):Promise<unknown> {
+    const target=this.targets.get(accountId),server=this.servers.find(server=>server.name===call.server);
+    if(this.emergencyBlocked||!this.consent.enabled||!this.hostReady||!this.host.running||!target
+      ||call.network_id!==undefined&&call.network_id!==target.networkId||server?.resource_protocol!=='mcp-app-resources/1')throw new CapabilityProtocolError('capability_revoked','Exact resource host is unavailable');
+    return this.host.readResource({callId:call.call_id,server:call.server,uri:call.uri,deadlineMs:call.deadline_ms,
+      principal:this.accountPrincipal(accountId,call.account_id),signal});
   }
 
   private async invoke(accountId: string, call: ClientToolCall, signal: AbortSignal) {
@@ -507,6 +518,20 @@ export class CapabilityManager {
       // therefore safe as a broker isolation key, but never as a selector.
       principal: this.accountPrincipal(accountId, call.account_id),
     });
+  }
+
+  async browserInventory(accountId: string): Promise<unknown> {
+    if (!this.consent.enabled || this.emergencyBlocked || !this.hostReady || !this.consentVerified) throw new CapabilityProtocolError('capability_revoked', 'Browser access is disabled');
+    const args = { action: 'inventory' };
+    const callId = `operator-inventory-${randomUUID()}`;
+    return this.host.call({callId, server:'agent-in-chrome',tool:'browser_control',toolArgs:args,
+      idempotencyKey:callId,argumentsSha256:createHash('sha256').update(JSON.stringify(args)).digest('hex'),
+      principal:this.accountPrincipal(accountId)});
+  }
+
+  async browserDecision(accountId: string, decision: {tool:'browser_control'|'browser_permissions';args:Record<string,unknown>}, generation: number): Promise<unknown> {
+    if (generation !== this.generation || !this.consent.enabled || this.emergencyBlocked || !this.hostReady || !this.consentVerified) throw new CapabilityProtocolError('capability_revoked', 'Browser decision belongs to an expired connection');
+    return this.host.providerControl({...decision,principal:this.accountPrincipal(accountId)});
   }
 
   private accountPrincipal(

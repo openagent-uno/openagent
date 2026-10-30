@@ -157,7 +157,7 @@ class LocalBrokerServer:
         async def process(request: dict[str, Any]) -> None:
             request_type = request.get("type")
             principal = request.get("principal")
-            if request_type == "call":
+            if request_type in {"call", "provider_control", "read_resource"}:
                 principal = principal or "local-control-client"
                 principals[_principal_id(principal)] = principal
             current = asyncio.current_task()
@@ -334,7 +334,7 @@ class LocalBrokerServer:
             while True:
                 raw = conn.recv_bytes()
                 request = json.loads(raw)
-                if request.get("type") == "call":
+                if request.get("type") in {"call", "provider_control", "read_resource"}:
                     principal = request.get("principal") or "local-control-client"
                     principals[_principal_id(principal)] = principal
                 future = asyncio.run_coroutine_threadsafe(
@@ -672,6 +672,16 @@ class LocalCapabilityClient:
     async def cancel(self, call_id: str) -> bool:
         result = await self._request("cancel", call_id=call_id)
         return bool(result.get("cancelled"))
+
+    async def read_resource(self, server: str, uri: str, *, principal: str | dict[str, Any],
+                            call_id: str | None = None, deadline_ms: int | float | None = None) -> dict[str, Any]:
+        return await self._request("read_resource", server=server, uri=uri, principal=principal,
+            call_id=call_id or ("resource-" + secrets.token_hex(12)), deadline_ms=deadline_ms)
+
+    async def provider_control(self, server: str, tool: str, arguments: dict[str, Any], *, principal: str | dict[str, Any], call_id: str | None = None) -> ToolResult:
+        result = await self._request("provider_control", server=server, tool=tool, args=arguments,
+                                     principal=principal, call_id=call_id or ("operator-" + secrets.token_hex(12)))
+        return ToolResult.from_wire(result)
 
     async def release_principal(self, principal: str | dict[str, Any]) -> None:
         await self._request("release_principal", principal=principal)

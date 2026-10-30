@@ -9,6 +9,7 @@ import {
   protocolError,
   type ClientCapabilityServer,
   type ClientToolCall,
+  type ClientResourceRead,
 } from './protocol';
 
 const CONNECT_TIMEOUT_MS = 15_000;
@@ -48,6 +49,7 @@ export interface CapabilitySocketOptions {
   deviceLabel: string;
   getOffer: () => CapabilityOffer;
   invoke: (call: ClientToolCall, signal: AbortSignal) => Promise<unknown>;
+  readResource?: (call: ClientResourceRead, signal: AbortSignal) => Promise<unknown>;
   onPhase?: (phase: CapabilityConnectionPhase, error?: string) => void;
   onActivity?: (activeCalls: number) => void;
   reconnect?: boolean;
@@ -269,10 +271,41 @@ export class CapabilitySocket {
         this.active.get(frame.call_id)?.abort(frame.reason || 'Cancelled by server');
         return;
       }
+      case 'client_resource_read':
+        await this.handleResourceRead(frame);
+        return;
       case 'client_tool_call':
         await this.handleToolCall(frame);
         return;
     }
+  }
+
+  private async handleResourceRead(call: ClientResourceRead): Promise<void> {
+    const offer=this.options.getOffer(),server=offer.servers.find(server=>server.name===call.server);
+    const declared=server?.tools.some(tool=>{
+      const meta=tool._meta??{},ui=meta.ui;
+      return !!ui&&typeof ui==='object'&&(ui as {resourceUri?:unknown}).resourceUri===call.uri || meta['ui/resourceUri']===call.uri;
+    });
+    if(!this.acknowledged||call.account_id!==this.options.trustedAccountId||call.network_id!==undefined&&call.network_id!==this.options.trustedAccountId||call.generation!==offer.generation
+      ||server?.resource_protocol!=='mcp-app-resources/1'||!declared||!this.options.readResource){
+      await this.sendError(call,new CapabilityProtocolError('mcp_app_resources_unavailable','Exact client resource capability is unavailable'));return;
+    }
+    if(call.deadline_ms!==undefined&&(call.deadline_ms<=0||call.deadline_ms>1_000_000_000_000&&call.deadline_ms<=Date.now())){await this.sendError(call,new CapabilityProtocolError('deadline_exceeded','Resource deadline elapsed'));return;}
+    if(this.active.has(call.call_id)||this.active.size>=MAX_ACTIVE_TOOL_CALLS){await this.sendError(call,new CapabilityProtocolError('client_backpressure','Resource operation cannot be admitted'));return;}
+    const controller=new AbortController();this.active.set(call.call_id,controller);this.options.onActivity?.(this.active.size);
+    const timeout=localDeadline(call.deadline_ms)??30000,timer=setTimeout(()=>controller.abort('Resource deadline elapsed'),Math.min(timeout,30000));
+    try{
+      const result=await this.options.readResource(call,controller.signal);
+      if(controller.signal.aborted)throw new CapabilityProtocolError('cancelled','Resource read cancelled');
+      if(!result||typeof result!=='object'||Array.isArray(result)||Buffer.byteLength(JSON.stringify(result),'utf8')>2*1024*1024)throw new CapabilityProtocolError('invalid_resource','Resource exceeds its bound');
+      await this.send({type:'client_tool_result',call_id:call.call_id,generation:call.generation,result:result as Record<string,unknown>},controller.signal);
+    }catch(error){
+      // The coordinator already retired a cancelled resource request. Sending
+      // a terminal reply afterwards would create an unknown-call race on the
+      // still healthy capability channel; never replay or publish late data.
+      if(!controller.signal.aborted)await this.sendError(call,error);
+    }
+    finally{clearTimeout(timer);this.active.delete(call.call_id);this.options.onActivity?.(this.active.size)}
   }
 
   private async handleToolCall(call: ClientToolCall): Promise<void> {
@@ -365,7 +398,7 @@ export class CapabilitySocket {
     }
   }
 
-  private sendError(call: ClientToolCall, error: unknown): Promise<void> {
+  private sendError(call: Pick<ClientToolCall, 'call_id' | 'generation'>, error: unknown): Promise<void> {
     return this.send({
       type: 'client_tool_result',
       call_id: call.call_id,

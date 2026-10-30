@@ -49,12 +49,17 @@ import RunLaunchCard from './RunLaunchCard';
 import ReasoningIndicator from './ReasoningIndicator';
 import { colors, font, radius } from '../theme';
 import UIViewSurface from './ui/UIViewSurface';
+import McpAppSurface from './McpAppSurface';
+import { mcpAppHint } from '../services/mcp-apps';
+import { useChat } from '../stores/chat';
+import { useConnection } from '../stores/connection';
 
 // How many trailing messages to render before "Load earlier". Caps the
 // DOM + per-delta reconciliation on long transcripts to a fixed window.
 const TRANSCRIPT_WINDOW = 60;
 
 export interface MessageListProps {
+  sessionId?: string;
   messages: ChatMessage[];
   isProcessing?: boolean;
   statusText?: string;
@@ -95,11 +100,15 @@ export interface MessageListProps {
 }
 
 function MessageListBase({
-  messages, isProcessing, statusText, isReasoning, maxItems, onRegenerate, onEditUser,
+  sessionId, messages, isProcessing, statusText, isReasoning, maxItems, onRegenerate, onEditUser,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
   hasMoreBefore, onLoadEarlier,
 }: MessageListProps) {
+  const activeId = useChat(state => state.activeSessionId);
+  const activeMessages = useChat(state => state.sessions.find(session => session.id === state.activeSessionId)?.messages);
+  const accountId = useConnection(state => state.activeAccountId);
+  const appSessionId = sessionId ?? (messages === activeMessages ? activeId ?? undefined : undefined);
   // Windowing: render only the last `shown` messages. With bottom-pinned
   // scroll the tail is what the user sees; a long transcript otherwise
   // materializes thousands of deeply-nested DOM nodes and re-maps + diffs
@@ -243,6 +252,8 @@ function MessageListBase({
       }
       return wrap(
         <ToolCard
+          sessionId={appSessionId}
+          appScopeKey={accountId ?? ""}
           toolInfo={msg.toolInfo}
           fallbackText={msg.text}
           onOpenMemory={onOpenMemory}
@@ -642,8 +653,10 @@ function DayDivider({ timestamp }: { timestamp: number }) {
 }
 
 const ToolCard = memo(function ToolCard({
-  toolInfo, fallbackText, onOpenMemory, toolInvocationId, durableStatus,
+  sessionId, appScopeKey, toolInfo, fallbackText, onOpenMemory, toolInvocationId, durableStatus,
 }: {
+  sessionId?: string;
+  appScopeKey?: string;
   toolInfo?: ToolInfo;
   fallbackText: string;
   onOpenMemory?: (target: MemoryTarget) => void;
@@ -725,8 +738,10 @@ const ToolCard = memo(function ToolCard({
   const hasArgs = !!(info.tool_args && Object.keys(info.tool_args).length > 0);
   const hasResult = !isError && info.result != null && info.result !== '';
   const canExpand = toolCardHasExpandableDetails(info);
+  const interactive = mcpAppHint(info);
 
   return (
+    <>
     <TouchableOpacity
       activeOpacity={canExpand ? 0.85 : 1}
       onPress={() => { if (canExpand) setExpanded(!expanded); }}
@@ -857,6 +872,8 @@ const ToolCard = memo(function ToolCard({
         </View>
       )}
     </TouchableOpacity>
+    {interactive && sessionId ? <McpAppSurface request={{ sessionId, toolRef: interactive.toolRef, toolCallId: interactive.toolCallId ?? toolInvocationId, accountId: appScopeKey || undefined }} scopeKey={appScopeKey} /> : null}
+    </>
   );
 });
 

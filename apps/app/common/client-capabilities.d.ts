@@ -14,12 +14,14 @@ export interface ClientCapabilityTool {
   input_schema?: Record<string, unknown>;
   classification?: string;
   classification_by_argument?: Record<string, Record<string, string>>;
+  _meta?: Record<string, unknown>;
 }
 
 export interface ClientCapabilityServer {
   name: string;
   version?: string;
   instructions?: string;
+  resource_protocol?: 'mcp-app-resources/1';
   tools: ClientCapabilityTool[];
 }
 
@@ -79,6 +81,18 @@ export interface ClientToolCall {
   network_id?: string;
   idempotency_key: string;
   arguments_sha256: string;
+}
+
+export interface ClientResourceRead {
+  type: 'client_resource_read';
+  call_id: string;
+  generation: number;
+  server: string;
+  uri: string;
+  deadline_ms?: number;
+  session_id: string;
+  account_id: string;
+  network_id?: string;
 }
 
 export interface ClientToolCancel {
@@ -150,6 +164,7 @@ export type CapabilityServerFrame =
   | CapabilityHelloAck
   | CapabilityHeartbeatAck
   | ClientToolCall
+  | ClientResourceRead
   | ClientToolCancel
   | ClientToolEventAck;
 

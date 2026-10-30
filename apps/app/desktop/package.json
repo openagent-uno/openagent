@@ -32,6 +32,7 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@number0/iroh": "^0.35.0",
+    "@openagent/mcp-apps": "file:vendor/openagent-mcp-apps-0.1.0-source.7.tgz",
     "@windwalker-io/srp": "^1.0.1",
     "cbor2": "^2.3.0",
     "electron-store": "^8.0.0",
@@ -107,7 +108,7 @@
         "Contents/Frameworks/Electron Framework\\.framework/.*/Resources/"
       ],
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
+        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network \u2014 required when connecting to a server running on the same Mac or LAN."
       },
       "target": [
         {

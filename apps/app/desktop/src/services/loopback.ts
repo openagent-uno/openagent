@@ -532,3 +532,10 @@ export function registerLoopbackHandlers(): void {
     return h ? h.loopback.port : null;
   });
 }
+
+/** Exact already-authenticated tunnel, available only to its renderer owner. */
+export function getMcpAppLoopback(accountId:string,rendererId:number):RunningLoopback {
+ const handle=handles.get(accountId);
+ if(!handle||!consumers.hasConsumer(accountId,rendererId))throw new Error('mcp_app_account_unavailable');
+ return handle.loopback;
+}

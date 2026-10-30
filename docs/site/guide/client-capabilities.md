@@ -76,6 +76,29 @@ OS/architecture: the release version and every bundled file's SHA-256 are
 verified before Desktop or CLI starts them, so no user-installed Node.js,
 Python or `npx` is required.
 
+### Desktop host transport lifecycle
+
+The Desktop bridge binds stdout, stderr, pending responses and cancellation to
+the exact subprocess it started. A retired process cannot publish events into a
+replacement connection. Concurrent starts share one completed handshake; a
+failed handshake retires its executor before returning. Malformed JSON,
+non-object frames and invalid response/event envelopes close that transport and
+leave uncertain mutations unresolved rather than replaying them.
+
+Cancellation rejects the local wait immediately and sends a best-effort cancel
+to the same subprocess. A call deadline also cancels outstanding work; neither
+path retries the operation. Durations must be finite and positive and fit
+within 24 hours. The compatibility form accepts an epoch deadline within that
+same remaining budget and rejects an expired deadline before dispatch.
+Transport shutdown waits for the owned subprocess and escalates termination
+when needed; it does not stop the shared broker or another client's process.
+
+Development builds prefer `packages/host-tools` in the canonical product
+checkout. Older source layouts retain their explicit sibling fallback.
+Packaged discovery continues to require the pinned executable and complete
+bundle manifest. The [30 October source qualification](../../qualification/desktop-host-bridge-2026-10-30.json)
+records the bridge regressions and the remaining installed-product gates.
+
 ## Server-originated work
 
 Only a turn received from a live authenticated Desktop or CLI instance has a
@@ -133,3 +156,24 @@ reminder is not a new human message and does not prove previous assistant
 output was delivered; the final answer must cover the original task on its
 own. This source contract does not claim that immutable product60 or a native
 client has adopted Core29.
+
+
+### Native accessibility source candidate (30 October 2026)
+
+The local host facade binds shared computer-control `snapshot_id` results to
+the normalized originating account/device principal for their bounded lifetime.
+A different account, device or generation cannot use the observation, and
+principal release removes the ownership record. The native sidecar remains
+authoritative for exact target checks and single use. Repeating an already
+recorded idempotency key returns the ledger result without another native
+mutation. No document contents or credentials are added to this ownership map.
+
+The candidate Tools surface is `computer_accessibility_snapshot` and
+`computer_accessibility_action` (`press`, `show_menu`, `set_value`). These are
+registered through normal discovery, not hardcoded client UI buttons. The
+source facade was exercised with the actual macOS native sidecar and an owned
+AppKit window, including cross-account rejection, Unicode edits and one button
+press across an idempotent replay. This is source qualification; published
+host-tools dependencies, release locks, installed applications and other native
+platforms are unchanged. Rebuild and verify the release artifacts before
+claiming installed-product adoption.

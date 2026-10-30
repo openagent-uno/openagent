@@ -1,3 +1,5 @@
+import BrowserControlPanel from '../../components/BrowserControlPanel';
+import { useCallback } from 'react';
 import { colors, font, radius } from '../../theme';
 /**
  * Settings screen — agent identity, channels, dream mode, auto-update, connection.
@@ -143,6 +145,17 @@ export default function SettingsScreen() {
   const [capabilityStatus, setCapabilityStatus] = useState<DesktopCapabilityStatus | null>(null);
   const [capabilityBusy, setCapabilityBusy] = useState(false);
   const capabilityApi = desktopCapabilities();
+  const browserAccountId=useConnection(state=>state.activeAccountId);
+  const browserInventory=useCallback(()=>{
+    const bridge=typeof window!=='undefined'?(window as any).desktop?.browserControl:null;
+    if(!bridge||!browserAccountId)throw new Error('Choose a connected account for browser control');
+    return bridge.inventory(browserAccountId);
+  },[browserAccountId]);
+  const browserDecide=useCallback((input:{requestId:string;action:'resume'|'grant'|'revoke'})=>{
+    const bridge=typeof window!=='undefined'?(window as any).desktop?.browserControl:null;
+    if(!bridge||!browserAccountId)throw new Error('Choose a connected account for browser control');
+    return bridge.decide({accountId:browserAccountId,requestId:input.requestId,action:input.action});
+  },[browserAccountId]);
 
   useEffect(() => {
     // The connection store points ``setBaseUrl`` at the loopback
@@ -733,6 +746,8 @@ export default function SettingsScreen() {
             </Text>
           )}
         </Card>
+
+        <Card style={{marginTop:14}}><BrowserControlPanel inventory={browserInventory} decide={browserDecide} scopeKey={browserAccountId??''} enabled={Boolean(enabled&&browserAccountId&&capabilityApi)} /></Card>
 
         <Card style={{ marginTop: 14 }}>
           <Text style={styles.channelHint}>

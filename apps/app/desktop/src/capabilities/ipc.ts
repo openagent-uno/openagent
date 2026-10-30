@@ -1,3 +1,5 @@
+import { getMcpAppLoopback } from '../services/loopback';
+import { performBrowserDecision } from './browser-operator';
 import { BrowserWindow, dialog } from 'electron';
 import type { CapabilityManager } from './manager';
 import type { DesktopCapabilityStatus } from './protocol';
@@ -45,6 +47,26 @@ export function registerCapabilityHandlers(manager: CapabilityManager): void {
       if (result.response !== 1) return manager.getStatus();
     }
     return manager.setEnabled(enabled);
+  });
+
+  handleTrustedIpc('browser:inventory', (event, accountId: unknown) => {
+    if (typeof accountId !== 'string' || !accountId) throw new Error('invalid_browser_account');
+    getMcpAppLoopback(accountId,event.sender.id);
+    return manager.browserInventory(accountId);
+  });
+  handleTrustedIpc('browser:decision', async (event, input:unknown) => {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('invalid_browser_decision');
+    const raw=input as Record<string,unknown>;
+    if (Object.keys(raw).some(key=>!['accountId','requestId','action'].includes(key)) || typeof raw.accountId !== 'string') throw new Error('invalid_browser_decision');
+    const accountId=raw.accountId, loopback=getMcpAppLoopback(accountId,event.sender.id), generation=manager.getStatus().generation;
+    const check=()=>{if(getMcpAppLoopback(accountId,event.sender.id)!==loopback || manager.getStatus().generation!==generation)throw new Error('browser_connection_changed')};
+    return performBrowserDecision(async()=>{check();return manager.browserInventory(accountId)},async decision=>{check();return manager.browserDecision(accountId,decision,generation)},
+      {requestId:raw.requestId,action:raw.action},async detail=>{
+        const owner=BrowserWindow.fromWebContents(event.sender);
+        const options:Electron.MessageBoxOptions={type:'question',title:'Browser control',message:'Confirm browser decision',detail:`Account: ${accountId}\n${detail}`,buttons:['Cancel','Confirm'],defaultId:0,cancelId:0,noLink:true};
+        const response=owner&&!owner.isDestroyed()?await dialog.showMessageBox(owner,options):await dialog.showMessageBox(options);
+        return response.response===1;
+      });
   });
 
   handleTrustedIpc('capabilities:emergencyDisable', () => manager.emergencyDisable());

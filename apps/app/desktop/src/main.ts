@@ -1,3 +1,5 @@
+import {registerMcpApps} from './services/mcp-apps';
+import type {McpAppHostService} from '@openagent/mcp-apps/desktop';
 /**
  * Electron main process.
  *
@@ -299,7 +301,7 @@ function startStaticServer(): Promise<number> {
         const content = fs.readFileSync(filePath);
         res.writeHead(200, {
           'Content-Type': contentType,
-          'Content-Security-Policy': PRODUCTION_CSP,
+          'Content-Security-Policy': PRODUCTION_CSP.replace("frame-src 'self' blob:", "frame-src 'self' blob: "+(mcpApps?.origin??'')),
           'X-Content-Type-Options': 'nosniff',
           'Referrer-Policy': 'no-referrer',
           'Cross-Origin-Opener-Policy': 'same-origin',
@@ -894,6 +896,7 @@ app.whenReady().then(async () => {
     staticPort = await startStaticServer();
   }
 
+  mcpApps=await registerMcpApps(app.getAppPath(),[runtimePolicy.useStaticRenderer?`http://127.0.0.1:${staticPort}`:'http://localhost:8081'],CLIENT_INSTANCE_ID);
   createWindow();
   // Status discovery is asynchronous so a missing/outdated optional host
   // binary never delays the first window. Any persisted canonical grant is
@@ -901,6 +904,8 @@ app.whenReady().then(async () => {
   void capabilityManager.start();
   setupAutoUpdater();
 });
+
+let mcpApps:McpAppHostService|undefined;
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -921,6 +926,7 @@ app.on('before-quit', (event) => {
     try {
       // Await local-principal release before Electron tears down the main
       // process. Otherwise sidecar/browser state could outlive its account.
+      await mcpApps?.shutdown();
       await stopAllLoopbacks();
       await capabilityManager?.shutdown();
     } catch (error) {

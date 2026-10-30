@@ -1363,6 +1363,8 @@ class Gateway:
     def _register_routes(self, app) -> None:
         """Register the gateway WebSocket endpoint and REST API routes."""
         from openagent_server import runtime_service as runtime_api
+        from .api import mcp_apps as mcp_apps_api
+        app.router.add_post("/api/sessions/{session_id}/mcp-apps/{operation:.+}", mcp_apps_api.handle)
         from openagent_server.automation_management import handle_authorize, handle_authorization
         app.router.add_get("/api/automations/{kind}/{id}/authorization", handle_authorization)
         app.router.add_post("/api/automations/{kind}/{id}/authorization", handle_authorize)

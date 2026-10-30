@@ -211,6 +211,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   }
   return (
     <><SharedPresence kind="session" id={sessionId} /><MessageList
+      sessionId={sessionId}
       messages={display}
       isProcessing={streaming}
       anchorMessageId={messageId}

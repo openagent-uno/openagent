@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import socket
+import secrets
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Awaitable, Callable
@@ -71,6 +72,7 @@ class PerPrincipalMCPPool:
             data_directory=str(self.data_root),
         )
         self._instances: dict[str, MCPStdioServer] = {}
+        self._control_secrets: dict[str, str] = {}
         self._ports: dict[str, _PortLease] = {}
         self._principal_accounts: dict[str, str] = {}
         self._account_principals: dict[str, set[str]] = {}
@@ -104,6 +106,7 @@ class PerPrincipalMCPPool:
             finally:
                 await adapter.close()
                 lease.close()
+                self._control_secrets.pop(probe_key, None)
 
     def supervise_initial_failure(self, error: BaseException) -> None:
         """Retry a transient failure of the pool's catalog probe."""
@@ -161,11 +164,13 @@ class PerPrincipalMCPPool:
             if self._probe_restart_task is asyncio.current_task():
                 self._probe_restart_task = None
 
-    async def call(self, tool: str, args: dict[str, Any]) -> ToolResult:
+    async def _principal_adapter(self):
         principal = current_principal.get()
         key = _chrome_principal_key(principal)
         assert principal is not None
         async with self._guard:
+            if self._closing:
+                raise HostError("plugin_unavailable", "The exact browser pool is closing")
             self._principal_accounts[principal] = key
             self._account_principals.setdefault(key, set()).add(principal)
             adapter = self._instances.get(key)
@@ -188,7 +193,26 @@ class PerPrincipalMCPPool:
                 self._ports[key] = lease
                 self._instance_health[key] = True
                 self._instance_reasons[key] = None
-        return await adapter.call(tool, args)
+        return adapter
+
+    async def call(self, tool: str, args: dict[str, Any]) -> ToolResult:
+        return await (await self._principal_adapter()).call(tool, args)
+
+    async def read_resource(self, uri: str) -> dict[str, Any]:
+        return await (await self._principal_adapter()).read_resource(uri)
+
+    async def provider_control(self, tool: str, arguments: dict[str, Any], *, principal: str) -> ToolResult:
+        """A trusted local UI decision, bound to an already attached principal."""
+        from .mcp_stdio import call_provider_control
+        key = _chrome_principal_key(principal)
+        async with self._guard:
+            if self._closing or self._principal_accounts.get(principal) != key:
+                raise HostError("provider_control_unavailable", "the exact local principal is not attached")
+            adapter = self._instances.get(key)
+            secret = self._control_secrets.get(key)
+            if adapter is None or not secret or not self._instance_health.get(key, False):
+                raise HostError("provider_control_unavailable", "the exact browser instance is unavailable")
+        return await call_provider_control(adapter, tool, arguments, secret=secret)
 
     def availability_for_principal(self, principal: str) -> tuple[bool, str | None]:
         """Return health for one certified network/account only.
@@ -222,6 +246,7 @@ class PerPrincipalMCPPool:
             lease = self._ports.pop(key, None)
             self._instance_health.pop(key, None)
             self._instance_reasons.pop(key, None)
+            self._control_secrets.pop(key, None)
         if adapter is not None:
             await adapter.close()
         if lease is not None:
@@ -239,6 +264,7 @@ class PerPrincipalMCPPool:
             instances = list(self._instances.values())
             leases = list(self._ports.values())
             self._instances.clear()
+            self._control_secrets.clear()
             self._ports.clear()
             self._principal_accounts.clear()
             self._account_principals.clear()
@@ -259,8 +285,11 @@ class PerPrincipalMCPPool:
         profile.mkdir(parents=True, exist_ok=True)
         extensions.mkdir(parents=True, exist_ok=True)
         lease = _PortLease.acquire(self.data_root / "ports", key)
+        secret = secrets.token_hex(32)
+        self._control_secrets[key] = secret
         env = {
             **self.spec.env,
+            "OPENAGENT_BROWSER_CONTROL_SECRET": secret,
             "OPENAGENT_CHROME_PROFILE_DIR": str(profile),
             "OPENAGENT_CHROME_EXTENSIONS_DIR": str(extensions),
             "OPENAGENT_CHROME_CDP_PORT": str(lease.port),
@@ -334,11 +363,17 @@ def _chrome_principal_key(principal: str | None) -> str:
             "network_context_required",
             "agent-in-chrome cannot run without a certified network id",
         )
+    scope = value.get("browser_scope")
+    if scope is not None and (not isinstance(scope, str) or len(scope) != 64 or any(ch not in "0123456789abcdef" for ch in scope)):
+        raise HostError("account_context_required", "browser scope must be a trusted opaque scope hash")
+    key = {
+        "account_id": str(value["account_id"]).strip(),
+        "network_id": str(value["network_id"]).strip(),
+    }
+    if scope is not None:
+        key["browser_scope"] = scope
     return json.dumps(
-        {
-            "account_id": str(value["account_id"]).strip(),
-            "network_id": str(value["network_id"]).strip(),
-        },
+        key,
         sort_keys=True,
         separators=(",", ":"),
         ensure_ascii=False,

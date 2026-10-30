@@ -11,12 +11,12 @@ requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "OpenAgent contributors" }]
 dependencies = [
-    "openagent-capability-host==1.0.0b1",
-    "openagent-tool-protocol==1.0.0b1",
-    "openagent-filesystem==1.0.0b2",
-    "openagent-editor==1.0.0b2",
-    "openagent-shell==1.0.0b2",
-    "openagent-device-tools==1.0.0b4",
+    "openagent-capability-host==1.0.0b2.dev2026103002",
+    "openagent-tool-protocol==1.0.0b2.dev2026103002",
+    "openagent-filesystem==1.0.0b3.dev2026103002",
+    "openagent-editor==1.0.0b3.dev2026103002",
+    "openagent-shell==1.0.0b3.dev2026103002",
+    "openagent-device-tools==1.0.0b7.dev2026103004",
 ]
 
 [project.optional-dependencies]
@@ -63,3 +63,12 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+# Local candidate artifacts; independently built Core/Tools are consumed as wheels.
+[tool.uv.sources]
+openagent-capability-host = { path = "../../apps/server/vendor/runtime-candidate/openagent_capability_host-1.0.0b2.dev2026103002-py3-none-any.whl" }
+openagent-tool-protocol = { path = "../../apps/server/vendor/runtime-candidate/openagent_tool_protocol-1.0.0b2.dev2026103002-py3-none-any.whl" }
+openagent-device-tools = { path = "../../apps/server/vendor/runtime-candidate/openagent_device_tools-1.0.0b7.dev2026103004-py3-none-any.whl" }
+openagent-filesystem = { path = "../../apps/server/vendor/runtime-candidate/openagent_filesystem-1.0.0b3.dev2026103002-py3-none-any.whl" }
+openagent-editor = { path = "../../apps/server/vendor/runtime-candidate/openagent_editor-1.0.0b3.dev2026103002-py3-none-any.whl" }
+openagent-shell = { path = "../../apps/server/vendor/runtime-candidate/openagent_shell-1.0.0b3.dev2026103002-py3-none-any.whl" }

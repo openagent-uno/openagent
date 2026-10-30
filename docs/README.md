@@ -1,5 +1,9 @@
 # Product documentation
 
+- [MCP Apps: optional isolated UI host and local qualification](site/guide/mcp-apps.md)
+
+- [Desktop host bridge: subprocess fencing, cancellation and source qualification](qualification/desktop-host-bridge-2026-10-30.json)
+
 - [Telegram Vault access configuration repair, 27 October](qualification/vault-telegram-2026-10-27.json)
 
 - [Stable 1.1.2 production and public delivery qualification](qualification/product-stable-1.1.2-production.json)
