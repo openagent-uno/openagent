@@ -57,6 +57,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
       - name: Install locked client dependencies
         run: |
           npm --prefix universal ci --no-fund --no-audit

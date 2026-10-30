@@ -1097,10 +1097,12 @@ requires-dist = [
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.5/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.5/openagent_shell-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.5/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" },
+    { name = "pyinstaller", marker = "extra == 'build'", specifier = "==6.22.3" },
+    { name = "pyinstaller-hooks-contrib", marker = "extra == 'build'", specifier = "==2026.9" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"

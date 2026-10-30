@@ -89,6 +89,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Provision pinned OpenSSL for Windows ARM64
         if: matrix.platform == 'win32-arm64'
@@ -111,16 +112,37 @@ jobs:
             libwayland-dev libxkbcommon-dev libpipewire-0.3-dev libdbus-1-dev \
             libegl1-mesa-dev libgl1-mesa-dev libgbm-dev pkg-config xvfb xauth openbox x11-apps \
             x11-utils x11-xserver-utils
+      - name: Keep macOS native dependencies portable and statically bind OpenSSL
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl_root="$(brew --prefix openssl@3)"
+          test -f "$openssl_root/lib/libcrypto.a"
+          test -f "$openssl_root/lib/libssl.a"
+          echo "MACOSX_DEPLOYMENT_TARGET=12.0" >> "$GITHUB_ENV"
+          echo "OPENSSL_DIR=$openssl_root" >> "$GITHUB_ENV"
+          echo "OPENSSL_STATIC=1" >> "$GITHUB_ENV"
       - name: Install verified public dependencies and the fresh canonical wheel
         shell: bash
         run: |
           set -euo pipefail
           python packages/host-tools/scripts/prepare_public_wheels.py wheelhouse
-          python -m pip install uv
+          python -m pip install uv==0.11.14
           uv build --wheel --out-dir candidate-wheel packages/host-tools
-          python -m pip install wheelhouse/*.whl candidate-wheel/*.whl pytest pytest-asyncio pyinstaller
-          python -m pip check
-          python -m pip freeze --all > wheelhouse/install-freeze.txt
+          uv sync --project packages/host-tools --locked --no-editable --extra dev --extra build
+          python - <<'PYTHON'
+          import os
+          from pathlib import Path
+          scripts = Path.cwd() / "packages/host-tools/.venv" / ("Scripts" if os.name == "nt" else "bin")
+          executable = scripts / ("python.exe" if os.name == "nt" else "python")
+          import subprocess
+          subprocess.run(["uv", "pip", "check", "--python", str(executable)], check=True)
+          with open("wheelhouse/install-freeze.txt", "w") as receipt:
+              subprocess.run(["uv", "pip", "freeze", "--python", str(executable)], check=True, stdout=receipt)
+          with open(os.environ["GITHUB_PATH"], "a") as output:
+              output.write(str(scripts) + "\n")
+          PYTHON
       - name: Test the host-tools package
         shell: bash
         run: python -m pytest packages/host-tools/tests -q
@@ -229,7 +251,7 @@ jobs:
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
           git diff --quiet HEAD
-          python -m pip install uv
+          python -m pip install uv==0.11.14
           uv build --wheel --out-dir dist packages/host-tools
       - name: Verify all six native archives and produce the candidate consumer lock
         shell: bash
