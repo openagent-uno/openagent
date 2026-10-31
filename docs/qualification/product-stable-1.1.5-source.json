@@ -1,0 +1,77 @@
+{
+  "version": "1.1.5",
+  "status": "installed-wheels-full-profile-and-actual-cli-qualified-public-install-pending",
+  "compiled_source": "94dd6a9d29a355be005f55c50791b5a8e36f1413",
+  "manifest_sha256": "1384e2f3381facba4faa9f3eea0d0b76c0d63d82ca043793499f6c8f2d8dbe45",
+  "installer_sha256": "ddd1ca58fb0de5dd7e6241179ef985eb34a4ba30a4e280ce47a55194052d4957",
+  "qualification": {
+    "status": "installed-wheel-qualified",
+    "source": "94dd6a9d29a355be005f55c50791b5a8e36f1413",
+    "first_party_distributions": 39,
+    "receipt": "/Users/alessandrogerelli/2026-10-29/riesci-a-decompilare-l-app-di/work/product-1.1.5-installed-qa-r2/qualification.json",
+    "scopes": [
+      "fresh installed wheels",
+      "RECORD hashes",
+      "isolated imports",
+      "CLI entrypoints",
+      "product Python tests"
+    ],
+    "publication": false,
+    "actual_cli": {
+      "receipt_sha256": "6cd9b6b1cfd5073544c4491851904b7dc3e63bc008df96cfa05a486758792fbd",
+      "post_start_invite_repack": true,
+      "stable_seconds": 3.158,
+      "ordinary_sigterm_count": 1,
+      "fixture_exit_code": 0,
+      "owned_children_remaining": 0,
+      "identity_preserved": true,
+      "source_overlay": false,
+      "scope": "Actual installed CLI local-e2e gateway/repack/ordinary SIGTERM only; not full profile, provider, App GUI or production"
+    },
+    "full_profile": {
+      "receipt_sha256": "231a2493153bb601c695bb6c6e0559a04dd30e3905d8f1c1ceaeb263c72872cc",
+      "module_ids": [
+        "attachments",
+        "budget",
+        "delegation",
+        "events",
+        "logs",
+        "mcp",
+        "models",
+        "scheduler",
+        "search",
+        "sessions",
+        "skills",
+        "tool-discovery",
+        "vault",
+        "workflows"
+      ],
+      "catalog_tools": 210,
+      "budget_read": true,
+      "sqlite_connections_tracked": 8,
+      "sqlite_workers_alive": 0,
+      "owned_children_remaining": 0,
+      "model_calls": 0,
+      "network_attempts": 0,
+      "scope": "Installed full NativeRuntimeService and module graph; controlled certificate/worker dependencies, no Gateway/Iroh/HTTP transport or installer acceptance"
+    },
+    "tests": {
+      "passed": 469,
+      "subtests": 168,
+      "failed": 0
+    }
+  },
+  "public_release_verified": false,
+  "public_installer_qualified": false,
+  "production_candidate_qualified": false,
+  "docs_site_deployed": false,
+  "desktop_app": {
+    "current_public_version": "1.1.0-beta.22",
+    "beta23_public": false,
+    "new_app_gui_acceptance": false
+  },
+  "other_product_e2e_claimed": {
+    "GlassPalace": false,
+    "ICS": false
+  }
+}
