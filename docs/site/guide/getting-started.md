@@ -1,12 +1,15 @@
 # Getting Started
 
+Package and isolated runtime checks for 1.1.4 passed, but production startup qualification found a database connection failure while preparing invitation tickets after gateway startup. SDK 1.1.5 is being qualified to fix that CLI lifecycle; it is not yet published.
+
 OpenAgent can be used as the complete standalone product or embedded as a
-library. Current Python releases are **server/CLI v1.1.0-beta.45**, Core beta22,
-connector SDK/runner 0.1.8 and Host Tools 1.0.0b6: 114 official connectors plus
-Custom MCP, including 90 token profiles with two reads each. Desktop **App
-v1.1.0-beta.22** is public, with an actual Linux x64 marketplace trial against server45.
-See [downloads](../downloads) and [qualification status](./connector-status.md)
-for the independently recorded installation, provider, packaging and GUI boundaries.
+library. The qualified public server/CLI cohort is **[v1.1.4](https://github.com/openagent-uno/openagent/releases/tag/v1.1.4)**,
+with Core/SQLite beta41, unchanged modules from beta37, Tools beta6, Host Tools
+B7, capability-host B3, Python connectors 0.1.15 and native Go connector
+SDK/runner 0.1.14. The App host library is MCP Apps 0.1.1. Desktop **App
+v1.1.0-beta.22** remains the published download; beta23 is not public.
+See [downloads](../downloads) for package, installation, production and GUI
+qualification boundaries. These page updates still await site deployment.
 
 ## Desktop app
 
@@ -32,21 +35,21 @@ authenticated device turns; Telegram, scheduled work and other clients do not in
 
 <ReleaseDownloads target="cli" />
 
-The beta server and CLI are Python 3.11+ wheels. The interpreter must include
+The server and thin remote CLI are Python 3.11+ wheels. The interpreter must include
 `venv` and `ensurepip`; some Linux distributions package these separately
 (for example `python3-venv` on Debian). The public installation was qualified
-on CPython 3.11.14/Linux x64. Use the normal public installer rather than
-assembling a partial wheel set:
+with separate server and CLI prefixes from the anonymous release assets. Use
+the version-pinned public installer rather than assembling a partial wheel set:
 
 ```bash
 # Standalone server
-curl -fsSL https://openagent.uno/install.sh | sh -s -- --server
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --server
 
 # CLI
-curl -fsSL https://openagent.uno/install.sh | sh -s -- --cli
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --cli
 
 # Download and verify every first-party wheel without installing
-curl -fsSL https://openagent.uno/install.sh | sh -s -- --check
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --check
 ```
 
 The installer checks first-party wheels against the four pinned manifests
@@ -54,22 +57,36 @@ below, creates its isolated virtual environment and refuses to overwrite an
 unrelated command. Server installation also acquires and verifies the SDK-pinned
 native connector runner; users do not need a Go compiler. `--check` verifies the
 wheelhouse without installing dependencies or acquiring the native runner.
-Installing server and CLI uses the same default installation root. The
-[historical beta43 public-installer receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
-records its successful combined installation and dependency checks with default
-HOME/TMPDIR and without a source overlay. The current installer pins beta51/SDK0.1.12;
-its [public-source installation trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product51-public-installer-2026-10-19.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom catalog without a HOME override or source overlay. The receipt tracks canonical website byte verification separately.
-Installed beta51 qualification passed 241 tests and 15 React source groups.
-Neither boundary claims native App GUI acceptance or Windows/macOS server execution.
+The default installer root is shared; the CLI remains a remote client and does
+not need the server engine, model runtime or local connector runner.
+The [current qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.4-source.json)
+records 452 tests and 156 subtests on installed wheels, successful anonymous
+server/CLI installation with pip checks, CLI/server help and native catalog/ORM
+probes. The full profile in the public-installer prefix started 14 modules and
+exposed 210 catalog tools, read budgets and closed eight tracked SQLite
+connections with zero remaining workers or child processes. That profile used
+controlled certificate/worker dependencies and made no model/provider calls;
+it does not establish authenticated production transport health, App GUI,
+GlassPalace or ICS end-to-end acceptance. Production health remains pending.
 
 | Pinned release manifest | SHA-256 |
 | --- | --- |
-| [Product beta51](https://github.com/openagent-uno/openagent/releases/download/v1.1.0-beta.51/manifest.json) | `5d2538252f99cb4208da3dc25aa219261203af9ed866b0d66ac1d2bf64e7de7d` |
-| [Core beta 22](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.22/manifest.json) | `291be9e298c1035ae88079b849620e9a8a04e03f43dd9180f86ebe6e79f4876d` |
-| [Tools beta 4](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.4/manifest.json) | `20b583195ac624c8f46a3c484eb596a5545dc514d60cbe7ed12e7b6f4da48228` |
-| [Connector SDK 0.1.12](https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.12/manifest.json) | `4b864472df3cbfd01131b0c152d94da81ff6f3f161e976bbbe4c768c56fb87c9` |
+| [Product 1.1.4](https://github.com/openagent-uno/openagent/releases/download/v1.1.4/manifest.json) | `3b7efd619fda220a5e230a0314428701e3580577405dc7a6820507399a46b68a` |
+| [Core beta41](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.41/manifest.json) | `5d8c24acd692a41e7921c1c7ddf5be011732ecc0f3f3a8c97ed8fe756f610e46` |
+| [Unchanged modules, beta37](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/manifest.json) | `bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead` |
+| [Tools beta6](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/manifest.json) | `f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd` |
 
-The product manifest also binds the unchanged Host Tools B6 wheel/bundles.
+The [immutable installer](https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh)
+has SHA256 `ffadfde161ebb78b69f5c2b9ec95bc0a6f638588e56278bc6cc03cf05a4915be`.
+The product manifest also binds the unchanged Host B7 wheel. The six-platform
+[Host B7 index](https://github.com/openagent-uno/openagent/releases/download/v1.0.0b7/release-index.json)
+has SHA256 `661c7f87cbcefddf66c619ccd63e44ef4f2b3c0f98981bfc45a52b8923e0e824`;
+capability-host B3 retains its original Core40 provenance and exact wheel bytes.
+The separately versioned Go runner 0.1.14 comes from the server wheel's verified
+connector lock. The older [beta51 installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product51-public-installer-2026-10-19.json)
+and [beta43 installer](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product43-public-installer-2026-10-17.json)
+receipts retain their original versions and scope.
+
 Embedding products or custom packagers should follow the
 [operator acquisition contract](./connector-operations.md#pinning-the-shared-implementation),
 including native runner acquisition, instead of treating a bare Framework

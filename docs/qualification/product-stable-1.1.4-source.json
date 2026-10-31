@@ -1,6 +1,6 @@
 {
   "version": "1.1.4",
-  "status": "installed-wheel-qualified-public-installer-and-production-pending",
+  "status": "public-installer-and-installed-full-profile-qualified-production-startup-failed",
   "compiled_source": "a067c27962fd17c43f80993e7de3d0f7caa20881",
   "core": {
     "version": "1.1.0b41",
@@ -49,23 +49,111 @@
       "skill-data": 5
     },
     "budget_read": true,
-    "startup_seconds": 1.003,
+    "startup_seconds": 1.644,
     "local_e2e": false,
     "automation_workers": 0,
     "model_calls": 0,
     "network_attempts": 0,
     "sqlite_workers_alive": 0,
     "owned_children_remaining": 0,
-    "boundary": "Installed full NativeRuntimeService and module graph; controlled certificate/worker dependencies, no Gateway/Iroh/HTTP transport or installer acceptance"
+    "boundary": "Full NativeRuntimeService and module graph from the actual anonymous public server-install prefix; controlled certificate/worker dependencies. No authenticated production Gateway/Iroh/HTTP, model/provider or App/GP/ICS end-to-end acceptance.",
+    "sqlite_connections_tracked": 8,
+    "qualified_from_public_installer_prefix": true,
+    "tracked_connections_closed": 8
   },
   "evidence": {
     "installed_wheels_sha256": "b29eddce279b3b38ddb68120268ad163106e7ffcd59ce8bcdccdea10eea7ec81",
-    "full_profile_sha256": "70459ab5de919281d3c93f1c9ef4ef2d37d50c7f3958762e234df871da1b84e7"
+    "full_profile_sha256": "51e1c70d0a0990836bc37a2284ca64ff463e3ea98f73a00e774b4d89c98b0c49",
+    "source_full_profile_sha256": "70459ab5de919281d3c93f1c9ef4ef2d37d50c7f3958762e234df871da1b84e7",
+    "public_installer_full_profile_sha256": "51e1c70d0a0990836bc37a2284ca64ff463e3ea98f73a00e774b4d89c98b0c49",
+    "public_installer_receipt_sha256": "e09444375ff52564a30b314e22a66e2c23f5ea315d3dccf6d4cff714a14bec94"
   },
   "public_installer": {
     "manifest_sha256": "3b7efd619fda220a5e230a0314428701e3580577405dc7a6820507399a46b68a",
     "installer_sha256": "ffadfde161ebb78b69f5c2b9ec95bc0a6f638588e56278bc6cc03cf05a4915be",
-    "qualified": false
+    "qualified": true,
+    "source": "4390316fcb564f2b64cd6ba2afccbc0135804cff",
+    "anonymous_release_assets": true,
+    "source_overlay": false,
+    "server_started_by_install_test": false,
+    "provider_calls": 0,
+    "stage_results": [
+      {
+        "name": "shell-syntax",
+        "exit_code": 0
+      },
+      {
+        "name": "public-server-install",
+        "exit_code": 0
+      },
+      {
+        "name": "server-pip-check",
+        "exit_code": 0
+      },
+      {
+        "name": "installed-server-native-catalog-orm",
+        "exit_code": 0
+      },
+      {
+        "name": "public-server-help",
+        "exit_code": 0
+      },
+      {
+        "name": "public-cli-install",
+        "exit_code": 0
+      },
+      {
+        "name": "cli-pip-check",
+        "exit_code": 0
+      },
+      {
+        "name": "public-cli-help",
+        "exit_code": 0
+      },
+      {
+        "name": "thin-cli-profile",
+        "exit_code": 0
+      }
+    ],
+    "installer_url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh",
+    "manifest_url": "https://github.com/openagent-uno/openagent/releases/download/v1.1.4/manifest.json",
+    "full_profile_after_install_qualified": true
   },
-  "production_candidate_qualified": false
+  "production_candidate_qualified": false,
+  "release_source": "4390316fcb564f2b64cd6ba2afccbc0135804cff",
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.4",
+  "public_release_verified": true,
+  "full_profile_source_trial": {
+    "startup_seconds": 1.003,
+    "evidence_sha256": "70459ab5de919281d3c93f1c9ef4ef2d37d50c7f3958762e234df871da1b84e7",
+    "boundary": "Installed full NativeRuntimeService and module graph; controlled certificate/worker dependencies, no Gateway/Iroh/HTTP transport or installer acceptance"
+  },
+  "cohort": {
+    "core": "1.1.0b41",
+    "sqlite": "1.1.0b41",
+    "module_manifest": {
+      "release": "v1.1.0-beta.37",
+      "sha256": "bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead"
+    },
+    "tools_manifest": {
+      "release": "v1.0.0-beta.6",
+      "sha256": "f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd"
+    },
+    "device_tools": "1.0.0b8",
+    "python_connectors": "0.1.15",
+    "native_go_connector_sdk_runner": "0.1.14",
+    "mcp_apps": "0.1.1",
+    "host_b7_cap3_bytes_unchanged": true
+  },
+  "production_acceptance_pending": "Production qualification failed during CLI post-start invitation repacking: a second MemoryDB connection repeated operational schema initialization, raised sqlite3.OperationalError, and left an owned aiosqlite worker alive after service shutdown. Existing successful package/install/full-profile checks do not qualify that CLI lifecycle. SDK 1.1.5 remediation is prepared but not yet qualified or published.",
+  "desktop_app": {
+    "current_public_version": "1.1.0-beta.22",
+    "next_beta23_public": false,
+    "new_app_gui_acceptance": false
+  },
+  "other_product_e2e_claimed": {
+    "GlassPalace": false,
+    "ICS": false
+  },
+  "docs_site_deployed": false
 }
