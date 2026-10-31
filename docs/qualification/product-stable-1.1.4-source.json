@@ -1,0 +1,71 @@
+{
+  "version": "1.1.4",
+  "status": "installed-wheel-qualified-public-installer-and-production-pending",
+  "compiled_source": "a067c27962fd17c43f80993e7de3d0f7caa20881",
+  "core": {
+    "version": "1.1.0b41",
+    "source": "f057da10cc335f43b069c28baf67aaf8777745e3",
+    "manifest_sha256": "5d8c24acd692a41e7921c1c7ddf5be011732ecc0f3f3a8c97ed8fe756f610e46",
+    "public_tests": 669,
+    "subtests": 97
+  },
+  "product_config": "1.1.0b20",
+  "host": {
+    "version": "1.0.0b7",
+    "source": "047d060ca1eb82839af6baf1dbc09056695fca71",
+    "index_sha256": "661c7f87cbcefddf66c619ccd63e44ef4f2b3c0f98981bfc45a52b8923e0e824",
+    "unchanged_capability_host": "1.0.0b3",
+    "capability_host_original_release": "v1.1.0-beta.40"
+  },
+  "installed_wheels": {
+    "first_party_distributions": 39,
+    "tests": 452,
+    "subtests": 156,
+    "record_before_and_after": true,
+    "source_overlays": false
+  },
+  "full_profile": {
+    "module_ids": [
+      "attachments",
+      "budget",
+      "delegation",
+      "events",
+      "logs",
+      "mcp",
+      "models",
+      "scheduler",
+      "search",
+      "sessions",
+      "skills",
+      "tool-discovery",
+      "vault",
+      "workflows"
+    ],
+    "catalog_tools": 210,
+    "management_sources": {
+      "budget": 4,
+      "models": 18,
+      "skills": 3,
+      "skill-data": 5
+    },
+    "budget_read": true,
+    "startup_seconds": 1.003,
+    "local_e2e": false,
+    "automation_workers": 0,
+    "model_calls": 0,
+    "network_attempts": 0,
+    "sqlite_workers_alive": 0,
+    "owned_children_remaining": 0,
+    "boundary": "Installed full NativeRuntimeService and module graph; controlled certificate/worker dependencies, no Gateway/Iroh/HTTP transport or installer acceptance"
+  },
+  "evidence": {
+    "installed_wheels_sha256": "b29eddce279b3b38ddb68120268ad163106e7ffcd59ce8bcdccdea10eea7ec81",
+    "full_profile_sha256": "70459ab5de919281d3c93f1c9ef4ef2d37d50c7f3958762e234df871da1b84e7"
+  },
+  "public_installer": {
+    "manifest_sha256": "3b7efd619fda220a5e230a0314428701e3580577405dc7a6820507399a46b68a",
+    "installer_sha256": "ffadfde161ebb78b69f5c2b9ec95bc0a6f638588e56278bc6cc03cf05a4915be",
+    "qualified": false
+  },
+  "production_candidate_qualified": false
+}
