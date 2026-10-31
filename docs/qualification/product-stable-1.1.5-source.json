@@ -1,6 +1,6 @@
 {
   "version": "1.1.5",
-  "status": "installed-wheels-full-profile-and-actual-cli-qualified-public-install-pending",
+  "status": "public-installer-full-profile-and-actual-cli-qualified-production-pending",
   "compiled_source": "94dd6a9d29a355be005f55c50791b5a8e36f1413",
   "manifest_sha256": "1384e2f3381facba4faa9f3eea0d0b76c0d63d82ca043793499f6c8f2d8dbe45",
   "installer_sha256": "ddd1ca58fb0de5dd7e6241179ef985eb34a4ba30a4e280ce47a55194052d4957",
@@ -61,8 +61,8 @@
       "failed": 0
     }
   },
-  "public_release_verified": false,
-  "public_installer_qualified": false,
+  "public_release_verified": true,
+  "public_installer_qualified": true,
   "production_candidate_qualified": false,
   "docs_site_deployed": false,
   "desktop_app": {
@@ -73,5 +73,58 @@
   "other_product_e2e_claimed": {
     "GlassPalace": false,
     "ICS": false
-  }
+  },
+  "release_source": "ca27f3a70b5fb5e914e09fd7021cdddb7378208d",
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.5",
+  "public_evidence": {
+    "anonymous_assets": 13,
+    "anonymous_assets_receipt_sha256": "c55eb7b6b8ae0d3a420aa86b97ae1e1a49278d93a277c8f5ed9dc6896250d9fc",
+    "installer_receipt_sha256": "51ac9d06f7aba09f1ba791f989641f31cbfa76dd30355c5d292fcb6c942bfa20",
+    "full_profile_receipt_sha256": "b7492f21046ae34621c4dc44874a177588aaa4e3cc10cff7db637579a634feb4",
+    "actual_cli_receipt_sha256": "753b4fb8fb786827e0d10401e3be5a3241c5c2149b0431f95b8788fc0f9c495a"
+  },
+  "public_full_profile": {
+    "module_ids": [
+      "attachments",
+      "budget",
+      "delegation",
+      "events",
+      "logs",
+      "mcp",
+      "models",
+      "scheduler",
+      "search",
+      "sessions",
+      "skills",
+      "tool-discovery",
+      "vault",
+      "workflows"
+    ],
+    "catalog_tools": 210,
+    "management_sources": {
+      "budget": 4,
+      "models": 18,
+      "skills": 3,
+      "skill-data": 5
+    },
+    "budget_read": true,
+    "startup_seconds": 1.344,
+    "local_e2e": false,
+    "automation_workers": 0,
+    "model_calls": 0,
+    "network_attempts": 0,
+    "sqlite_connections_tracked": 8,
+    "sqlite_workers_alive": 0,
+    "owned_children_remaining": 0,
+    "boundary": "Installed full NativeRuntimeService and module graph; controlled certificate/worker dependencies, no Gateway/Iroh/HTTP transport or installer acceptance"
+  },
+  "public_cli": {
+    "poststart_repack": true,
+    "ordinary_sigterm_count": 1,
+    "exit_code": 0,
+    "identity_preserved": true,
+    "owned_children_remaining": 0,
+    "boundary": "Actual public installed CLI on a fresh local-e2e network; not production or signed App GUI"
+  },
+  "production_acceptance_pending": "Performa is safely stopped with Restart=no while the exact public115 prefix is staged. Fresh production serving stability and three-service owner health/catalog/grant checks are pending; their versions must be reported explicitly."
 }

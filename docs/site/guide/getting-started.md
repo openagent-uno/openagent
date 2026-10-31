@@ -1,9 +1,9 @@
 # Getting Started
 
-Package and isolated runtime checks for 1.1.4 passed, but production startup qualification found a database connection failure while preparing invitation tickets after gateway startup. SDK 1.1.5 is being qualified to fix that CLI lifecycle; it is not yet published.
+SDK 1.1.5 is public and has passed installed package, full runtime and actual CLI startup/shutdown checks. Production rollout and signed desktop GUI acceptance are still pending; see the qualification receipt for the exact scope.
 
 OpenAgent can be used as the complete standalone product or embedded as a
-library. The qualified public server/CLI cohort is **[v1.1.4](https://github.com/openagent-uno/openagent/releases/tag/v1.1.4)**,
+library. The qualified public server/CLI cohort is **[v1.1.5](https://github.com/openagent-uno/openagent/releases/tag/v1.1.5)**,
 with Core/SQLite beta41, unchanged modules from beta37, Tools beta6, Host Tools
 B7, capability-host B3, Python connectors 0.1.15 and native Go connector
 SDK/runner 0.1.14. The App host library is MCP Apps 0.1.1. Desktop **App
@@ -43,13 +43,13 @@ the version-pinned public installer rather than assembling a partial wheel set:
 
 ```bash
 # Standalone server
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --server
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh | sh -s -- --server
 
 # CLI
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --cli
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh | sh -s -- --cli
 
 # Download and verify every first-party wheel without installing
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --check
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh | sh -s -- --check
 ```
 
 The installer checks first-party wheels against the four pinned manifests
@@ -59,8 +59,8 @@ native connector runner; users do not need a Go compiler. `--check` verifies the
 wheelhouse without installing dependencies or acquiring the native runner.
 The default installer root is shared; the CLI remains a remote client and does
 not need the server engine, model runtime or local connector runner.
-The [current qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.4-source.json)
-records 452 tests and 156 subtests on installed wheels, successful anonymous
+The [current qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.5-source.json)
+records 469 tests and 168 subtests on installed wheels, successful anonymous
 server/CLI installation with pip checks, CLI/server help and native catalog/ORM
 probes. The full profile in the public-installer prefix started 14 modules and
 exposed 210 catalog tools, read budgets and closed eight tracked SQLite
@@ -71,13 +71,13 @@ GlassPalace or ICS end-to-end acceptance. Production health remains pending.
 
 | Pinned release manifest | SHA-256 |
 | --- | --- |
-| [Product 1.1.4](https://github.com/openagent-uno/openagent/releases/download/v1.1.4/manifest.json) | `3b7efd619fda220a5e230a0314428701e3580577405dc7a6820507399a46b68a` |
+| [Product 1.1.5](https://github.com/openagent-uno/openagent/releases/download/v1.1.5/manifest.json) | `1384e2f3381facba4faa9f3eea0d0b76c0d63d82ca043793499f6c8f2d8dbe45` |
 | [Core beta41](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.41/manifest.json) | `5d8c24acd692a41e7921c1c7ddf5be011732ecc0f3f3a8c97ed8fe756f610e46` |
 | [Unchanged modules, beta37](https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/manifest.json) | `bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead` |
 | [Tools beta6](https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/manifest.json) | `f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd` |
 
-The [immutable installer](https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh)
-has SHA256 `ffadfde161ebb78b69f5c2b9ec95bc0a6f638588e56278bc6cc03cf05a4915be`.
+The [immutable installer](https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh)
+has SHA256 `ddd1ca58fb0de5dd7e6241179ef985eb34a4ba30a4e280ce47a55194052d4957`.
 The product manifest also binds the unchanged Host B7 wheel. The six-platform
 [Host B7 index](https://github.com/openagent-uno/openagent/releases/download/v1.0.0b7/release-index.json)
 has SHA256 `661c7f87cbcefddf66c619ccd63e44ef4f2b3c0f98981bfc45a52b8923e0e824`;

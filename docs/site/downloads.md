@@ -1,12 +1,12 @@
 # Download OpenAgent
 
-Package and isolated runtime checks for 1.1.4 passed, but production startup qualification found a database connection failure while preparing invitation tickets after gateway startup. SDK 1.1.5 is being qualified to fix that CLI lifecycle; it is not yet published.
+SDK 1.1.5 is public and has passed installed package, full runtime and actual CLI startup/shutdown checks. Production rollout and signed desktop GUI acceptance are still pending; see the qualification receipt for the exact scope.
 
-The qualified public server and CLI cohort is **[v1.1.4](https://github.com/openagent-uno/openagent/releases/tag/v1.1.4)**:
+The qualified public server and CLI cohort is **[v1.1.5](https://github.com/openagent-uno/openagent/releases/tag/v1.1.5)**:
 Core/SQLite beta41, unchanged modules from beta37, Tools beta6, Host Tools B7,
 capability-host B3, Python connectors 0.1.15, native Go connector SDK/runner 0.1.14
-and MCP Apps 0.1.1. The [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.4-source.json)
-records 452 tests and 156 subtests on installed wheels, anonymous public
+and MCP Apps 0.1.1. The [qualification receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product-stable-1.1.5-source.json)
+records 469 tests and 168 subtests on installed wheels, anonymous public
 server/CLI installer checks, and a full 14-module catalog with 210 tools.
 The public-installer profile closed all eight tracked SQLite connections and
 left zero workers or owned child processes. It used controlled certificate and
@@ -68,7 +68,7 @@ Use the verified public installer described in
 and connector SDK releases and acquires the verified local connector runner.
 
 ```bash
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --server
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh | sh -s -- --server
 ```
 
 The server installer selects `openagent-core[engine,providers,modules]==1.1.0b41`,
@@ -94,7 +94,7 @@ The CLI is a thin Python 3.11+ remote client. Its installation verifies the same
 first-party manifests but does not install the server engine or start an agent.
 
 ```bash
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/install.sh | sh -s -- --cli
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.5/install.sh | sh -s -- --cli
 ```
 
 ## Libraries
@@ -114,11 +114,11 @@ curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.4/i
 - [Connector auth service 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connector-auth-v0.1.6)
   — historical operator release; deployed broker and enrollment boundaries are
   recorded in [connector status](./guide/connector-status.md).
-- [Product 1.1.4 manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.4/manifest.json)
+- [Product 1.1.5 manifest](https://github.com/openagent-uno/openagent/releases/download/v1.1.5/manifest.json)
   — exact component versions, source commits and SHA256 digests.
 
 These documentation updates still await site deployment. The commands above
-use the immutable, qualified 1.1.4 release installer; they do not assume that
+use the immutable, qualified 1.1.5 release installer; they do not assume that
 the website convenience endpoint has already changed.
 
 Existing 0.x installations continue to use their historical updater endpoints
