@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "status": "test-only-pin-corrected-native-app-build-pending",
+  "app_version": "1.1.0-beta.23",
+  "sdk_public_release_source": "ca27f3a70b5fb5e914e09fd7021cdddb7378208d",
+  "first_ci": {
+    "run_id": 41187265995,
+    "url": "https://github.com/openagent-uno/openagent-app/actions/runs/41187265995",
+    "source": "ca27f3a70b5fb5e914e09fd7021cdddb7378208d",
+    "conclusion": "failure",
+    "cause": "One packaging test still expected the B6 public index, source and wheel; the committed lock already contains the public B7 index.",
+    "desktop_tests": {
+      "passed": 130,
+      "failed": 1
+    },
+    "native_builds_started": false,
+    "publication": false
+  },
+  "correction": {
+    "only_app_file": "apps/app/desktop/src/capabilities/__tests__/packaging.test.mjs",
+    "test_file_sha256": "cb6f1dce483145e5db19c8cfff4f5ae90f2f3cacefa71cd4308eef32626bb9cd",
+    "runtime_payload_changed": false,
+    "host_lock_changed": false,
+    "strict_hash_source_and_wheel_checks_retained": true,
+    "strict_version_and_tag_assertions_added": true
+  },
+  "host_tools": {
+    "version": "1.0.0b7",
+    "source": "047d060ca1eb82839af6baf1dbc09056695fca71",
+    "raw_public_index_sha256": "661c7f87cbcefddf66c619ccd63e44ef4f2b3c0f98981bfc45a52b8923e0e824",
+    "python_wheel_sha256": "7d1d97c11fc9309d6309f3d7006b067fc3d65102d7a36342104169ef7c3dec6e"
+  },
+  "focused_packaging_tests": {
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "duration_ms": 346.889125,
+    "command": [
+      "node",
+      "--test",
+      "apps/app/desktop/src/capabilities/__tests__/packaging.test.mjs"
+    ],
+    "log_sha256": "c1051c9ee6b66e89c4cb873a01d7355ba7a886684e7a2a09a0d9aa749a485bca"
+  },
+  "signed_native_app_qualified": false,
+  "gui_qualified": false,
+  "app_beta23_public": false
+}
