@@ -23,6 +23,8 @@ import sys
 import threading
 from dataclasses import dataclass, field
 
+from openagent_core.chat_commands import COMMAND_SCOPES
+
 from . import __version__
 from .contracts import BridgeContext, BridgeMessage, MAX_CONTEXT_MESSAGES
 from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
@@ -293,7 +295,8 @@ def describe():
             "max_line_bytes": MAX_LINE, "max_pending": MAX_PENDING,
             "max_chunk_bytes": MAX_CHUNK, "max_artifact_bytes": MAX_ARTIFACT,
             "methods": ["start", "authorize_context", "authorize_delivery", "send", "command", "transcribe", "synthesize", "stop"],
-            "artifact_methods": ["read_artifact", "upload_begin", "upload_chunk", "upload_finish"]}
+            "artifact_methods": ["read_artifact", "upload_begin", "upload_chunk", "upload_finish"],
+            "core_commands": sorted(COMMAND_SCOPES)}
 
 
 async def serve(read_line, write_line, *, factory=configure):

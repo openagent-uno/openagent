@@ -18,6 +18,8 @@ import tempfile
 from .contracts import (BridgeAttachment, BridgeCapabilities, BridgeCommandDefinition,
     BridgeCommandResult, BridgeEvent, BridgePart, BridgePickerOption, BridgeReply)
 
+from openagent_core.chat_commands import COMMAND_SCOPES
+
 PROTOCOL = "channel-bridge-ipc/v1"
 MAX_LINE = 2 * 1024 * 1024
 MAX_CHUNK = 64 * 1024
@@ -343,9 +345,11 @@ def capabilities(value):
             raise WireError("invalid_command")
         commands.append(BridgeCommandDefinition(**command))
     kwargs = dict(value); kwargs["commands"] = tuple(commands)
-    for name in ("input_media", "output_media", "progress_kinds"):
+    for name in ("input_media", "output_media", "progress_kinds", "core_commands"):
         if name in kwargs and (not isinstance(kwargs[name], list) or len(kwargs[name]) > 64 or any(not isinstance(s, str) for s in kwargs[name])):
             raise WireError("invalid_capabilities")
+    if not set(kwargs.get("core_commands", ())) <= COMMAND_SCOPES:
+        raise WireError("invalid_capabilities")
     return BridgeCapabilities(**kwargs)
 
 

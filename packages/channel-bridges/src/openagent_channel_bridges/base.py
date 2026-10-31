@@ -734,7 +734,10 @@ class BaseBridge:
         current = await self._prepare_delivery_context(current)
         options = [{"value": option.value, "label": option.label, "subtitle": option.subtitle, "active": option.active}
                    for option in result.options]
-        return {"text": "\n".join(p.text for p in result.parts if p.text is not None),
+        text = "\n".join(p.text for p in result.parts if p.text is not None)
+        if not text and result.status != "completed":
+            text = "This command could not be completed."
+        return {"text": text,
                 "status": result.status, "picker": {"options": options, "command": result.picker_command,
                                                        "prompt": result.picker_prompt} if options else None}
 

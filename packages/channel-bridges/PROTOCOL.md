@@ -149,6 +149,21 @@ generated for the previous cohort. Each delivery still requires fresh provider
 proof and current host actor/recipient ACLs. Golden vectors, including Unicode
 and delimiter collisions, are in `tests/conversation-v1-vectors.json`.
 
+## Inherited chat commands
+
+`start` capabilities may contain `core_commands`, a list of Core command scopes
+(`session`, `instance`). The bridge then publishes the matching Core catalogue,
+so a host offers the shared commands without listing them. Explicit `commands`
+entries with the same name win. Inherited commands carry no
+`confirmation_required`, because only Telegram has a confirmation surface.
+
+An older bridge rejects the unknown field. A host must first read the
+`core_commands` list from `--describe` and send only scopes found there.
+
+`command` results report the real outcome. `status` is `completed`, `unsupported`
+or `failed`, and a bridge shows success only for `completed`. See
+[the Core contract](https://github.com/openagent-uno/openagent-core/blob/main/docs/chat-commands.md).
+
 ## Media
 
 Input attachment metadata has `kind`, `filename`, `mime_type`, `size_bytes`,

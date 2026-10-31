@@ -236,9 +236,19 @@ class BridgeCapabilities:
     history_media: bool = False
     history_max_files: int = 16
     history_max_bytes: int = MAX_CONTEXT_BYTES
+    # Core command scopes the host forwards. The bridge publishes the matching
+    # Core catalogue, so a host inherits it without listing commands itself.
+    core_commands: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         _version(self.api_version)
+        object.__setattr__(self, "core_commands", tuple(self.core_commands))
+        if self.core_commands:
+            from openagent_core.chat_commands import commands_for_scopes
+            declared = {item.name for item in self.commands}
+            inherited = tuple(BridgeCommandDefinition(spec.name, spec.description)
+                              for spec in commands_for_scopes(self.core_commands) if spec.name not in declared)
+            object.__setattr__(self, "commands", (*self.commands, *inherited))
         if type(self.history_max_bytes) is not int or not MAX_CONTEXT_BYTES <= self.history_max_bytes <= MAX_NEGOTIATED_CONTEXT_BYTES:
             raise ValueError("history_max_bytes must be an integer between 65536 and 262144")
         if type(self.history_media) is not bool:

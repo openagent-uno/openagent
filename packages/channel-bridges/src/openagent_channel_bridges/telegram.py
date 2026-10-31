@@ -726,13 +726,20 @@ class TelegramBridge(BaseBridge):
         # first. The callback handler (``_on_callback``) re-emits the
         # original command only on confirmation.
         if cmd in _DESTRUCTIVE_COMMANDS:
+            await self._ensure_transport_started()
+            if not any(item.name == cmd for item in self._capabilities.commands):
+                await update.message.reply_text(
+                    f"/{cmd} non è disponibile su questo agente: la conversazione non è stata azzerata.")
+                return
             from telegram import InlineKeyboardButton, InlineKeyboardMarkup
             kb = InlineKeyboardMarkup([[
                 InlineKeyboardButton("✅ Sì", callback_data=f"confirm_cmd:{cmd}"),
                 InlineKeyboardButton("❌ Annulla", callback_data="cancel_cmd"),
             ]])
             await update.message.reply_text(
-                f"Confermi `/{cmd}`? Cancellerà la storia della conversazione.",
+                f"Confermi `/{cmd}`? Avvia una nuova conversazione e interrompe l'operazione in corso: "
+                "l'agente non userà più il contesto di quella attuale. "
+                "La memoria a lungo termine e il vault non vengono toccati.",
                 reply_markup=kb,
                 parse_mode="Markdown",
             )
@@ -795,12 +802,17 @@ class TelegramBridge(BaseBridge):
             return
         if data.startswith("confirm_cmd:"):
             cmd = data[len("confirm_cmd:"):]
-            result = await self.send_command(cmd, session_id=f"tg:{user_id}", context=bridge_context, confirmed=True)
+            # "Fatto" is an outcome the host reports, never an assumption.
             try:
-                await cb.edit_message_text(
-                    f"✅ Fatto: `/{cmd}`. {result or 'Conversazione resettata.'}",
-                    parse_mode="Markdown",
-                )
+                result = await self.send_command_full(cmd, session_id=f"tg:{user_id}", context=bridge_context, confirmed=True)
+            except Exception as exc:  # noqa: BLE001 - shown as not done, detail stays in the log
+                logger.warning("telegram /%s failed: %s", cmd, type(exc).__name__)
+                result = {"status": "failed", "text": ""}
+            detail = result.get("text") or ""
+            text = (f"✅ Fatto: `/{cmd}`. {detail}" if result.get("status") == "completed" else
+                    f"⚠️ `/{cmd}` non eseguito: la conversazione non è stata azzerata. {detail}")
+            try:
+                await cb.edit_message_text(text.rstrip(), parse_mode="Markdown")
             except Exception:
                 pass
             return
