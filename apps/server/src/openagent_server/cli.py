@@ -36,7 +36,7 @@ try:
 except ImportError:
     pass
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -49,6 +49,9 @@ from openagent_core.core.serve_singleton import kill_stale_serve_processes
 from openagent_server.server import AgentServer
 from openagent_identity.auth.peer_policy import PeerPolicyError
 from openagent_identity.cli_commands import network_group
+
+if TYPE_CHECKING:
+    from openagent_core.memory.db import MemoryDB
 
 console = Console()
 _STALE_TEMP_ARTIFACT_MAX_AGE_S = 12 * 60 * 60
@@ -128,6 +131,7 @@ async def _repack_serve_invites_after_start(
     agent_dir: Path,
     config: dict,
     network_row: dict,
+    db: MemoryDB,
     require_address_hints: bool = False,
 ) -> tuple[tuple[str, dict] | None, list[dict]]:
     """Serialize startup invites after the coordinator published NodeAddr.
@@ -138,6 +142,9 @@ async def _repack_serve_invites_after_start(
     it reuses the unspent ``auto-bootstrap`` row instead of creating a second
     invitation, then both the bootstrap and every active invite are packed from
     the freshly-written ``coordinator_addr.json`` cache.
+
+    The running agent lends its already migrated database. Reopening storage
+    here would rerun schema DDL while the live runtime is using the same file.
     """
 
     from openagent_identity.cli_commands import (
@@ -145,15 +152,20 @@ async def _repack_serve_invites_after_start(
         mint_first_user_invite,
     )
 
+    if db is None or db._conn is None:
+        raise RuntimeError("Serving invite packing requires the live agent database")
+
     bootstrap_invite = await mint_first_user_invite(
         agent_dir=agent_dir,
         config=config,
         network_row=network_row,
+        db=db,
     )
     active_invites = await list_active_invite_tickets(
         agent_dir=agent_dir,
         config=config,
         network_row=network_row,
+        db=db,
     )
     if require_address_hints:
         from openagent_identity.ticket import InviteTicket
@@ -805,6 +817,7 @@ def serve(
                             agent_dir=active_dir,
                             config=config,
                             network_row=network_row,
+                            db=server.agent.memory_db,
                             require_address_hints=local_e2e,
                         )
                     )

@@ -91,7 +91,16 @@ def _db_path_from_config(config: dict) -> str:
 
 async def _open_db(config: dict) -> MemoryDB:
     db = MemoryDB(_db_path_from_config(config))
-    await db.connect()
+    try:
+        await db.connect()
+    except BaseException:
+        # connect can fail after allocating the SQLite worker. The caller
+        # cannot clean up a database that this helper never returned.
+        try:
+            await db.close()
+        except BaseException:
+            pass  # Retain the original startup error or cancellation.
+        raise
     return db
 
 
@@ -190,17 +199,25 @@ async def mint_first_user_invite(
     agent_dir: Path,
     config: dict,
     network_row: dict,
+    db: MemoryDB | None = None,
 ) -> tuple[str, dict] | None:
     """Return a usable user-invite ticket while the coordinator has zero users.
 
     Reuses an existing unspent auto-bootstrap invite if one is still
     valid — otherwise mints a fresh one. Returns ``None`` once any user
     has joined, so the "first-time join" banner stops nagging.
+
+    A running host may lend its connected database. Its lifetime remains
+    with that host; only a connection opened here is closed here.
     """
     from openagent_identity.coordinator_addr_cache import read_cache
     from openagent_identity.ticket import InviteTicket
 
-    db = await _open_db(config)
+    owns_db = db is None
+    if owns_db:
+        db = await _open_db(config)
+    elif db._conn is None:
+        raise RuntimeError("Invite packing requires an already connected database")
     try:
         store = CoordinatorStore(db)
         users = await store.list_users()
@@ -242,8 +259,8 @@ async def mint_first_user_invite(
             "expires_at": invite.expires_at,
         }
     finally:
-        if db._conn is not None:
-            await db._conn.close()
+        if owns_db:
+            await db.close()
 
 
 async def list_active_invite_tickets(
@@ -251,6 +268,7 @@ async def list_active_invite_tickets(
     agent_dir: Path,
     config: dict,
     network_row: dict,
+    db: MemoryDB | None = None,
 ) -> list[dict]:
     """Return every unspent, unexpired invite packed as a ticket string.
 
@@ -258,11 +276,17 @@ async def list_active_invite_tickets(
     created_by}``. Used by ``serve`` to surface all redeemable invites
     on startup so the operator doesn't have to run ``network invite``
     just to see what's already minted.
+
+    A supplied database is borrowed and must already be connected.
     """
     from openagent_identity.coordinator_addr_cache import read_cache
     from openagent_identity.ticket import InviteTicket
 
-    db = await _open_db(config)
+    owns_db = db is None
+    if owns_db:
+        db = await _open_db(config)
+    elif db._conn is None:
+        raise RuntimeError("Invite packing requires an already connected database")
     try:
         store = CoordinatorStore(db)
         invites = await store.list_invitations(include_expired=False)
@@ -295,8 +319,8 @@ async def list_active_invite_tickets(
             })
         return out
     finally:
-        if db._conn is not None:
-            await db._conn.close()
+        if owns_db:
+            await db.close()
 
 
 async def _run_init(ctx, name: str | None, personal: bool):

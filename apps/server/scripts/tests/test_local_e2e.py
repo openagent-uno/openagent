@@ -167,57 +167,69 @@ async def test_local_e2e_view_seed_warms_message_and_tool_search(
             await db.close()
 
 
-@test("local_e2e", "local E2E agent opens only its database")
+@test("local_e2e", "local E2E product preparation migrates storage and preserves the injected pool")
 async def test_local_e2e_agent_boot_is_hermetic(ctx: TestContext) -> None:
     from openagent_core.core.agent import Agent
-
-    class SpyDB:
-        connected = False
-
-        async def connect(self) -> None:
-            self.connected = True
+    from openagent_core.memory.db import MemoryDB
+    from openagent_server.bootstrap import prepare_agent
+    from unittest.mock import AsyncMock, patch
 
     class ForbiddenPool:
         async def connect_all(self) -> None:
             raise AssertionError("MCP pool connected in local E2E mode")
 
-    db = SpyDB()
+    db = MemoryDB(str(ctx.test_dir / f"product-preparation-{uuid.uuid4().hex}.sqlite3"))
+    pool = ForbiddenPool()
     agent = Agent(
         model=None,
-        mcp_pool=ForbiddenPool(),  # type: ignore[arg-type]
+        mcp_pool=pool,  # type: ignore[arg-type]
         config={"_local_e2e": True},
     )
-    agent._db = db  # type: ignore[assignment]
-
-    await agent.initialize()
-
-    assert db.connected is True
-    assert agent._initialized is True
+    agent._db = db
+    try:
+        with patch.object(agent, "load_model_catalog", AsyncMock(side_effect=AssertionError("model hydration in QA preparation"))) as hydrate:
+            await prepare_agent(agent, {"_local_e2e": True})
+            hydrate.assert_not_awaited()
+        assert agent.memory_db is db
+        assert agent.capability_pool is pool
+        assert db._conn is not None
+        # Exercise the real standalone dashboard migration, not a connect spy.
+        row = await (await db._conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='ui_views'"
+        )).fetchone()
+        assert row is not None and row[0] == "ui_views"
+    finally:
+        await db.close()
 
 
 @test("local_e2e", "local E2E server omits every background writer")
 async def test_local_e2e_server_boot_is_hermetic(ctx: TestContext) -> None:
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, patch
     from openagent_server.server import AgentServer
 
-    class FakeAgent:
-        name = "fixture"
-        model = None
-        _db = None
-
-        async def initialize(self) -> None:
-            return None
-
-    server = AgentServer(FakeAgent(), {"_local_e2e": True})  # type: ignore[arg-type]
-
-    async def no_network():
-        return None
-
-    server._build_network_state = no_network  # type: ignore[method-assign]
-    await server.start()
+    server = AgentServer(SimpleNamespace(name="fixture", model=None), {"_local_e2e": True})  # type: ignore[arg-type]
+    bridge = SimpleNamespace(name="owned-bridge", start=AsyncMock(side_effect=AssertionError("bridge started")))
+    server._bridges = [bridge]
+    before = set(asyncio.all_tasks())
+    with patch("openagent_server.bootstrap.start_voice_warmups", side_effect=AssertionError("voice warmup started")) as voice, \
+         patch.object(server, "_start_scheduler", AsyncMock(side_effect=AssertionError("scheduler started"))) as scheduler:
+        # Product writers are separate from the real gateway bootstrap. Test
+        # their exclusion directly; a fake agent is not a gateway substitute.
+        await server._start_product_services(True)
+        voice.assert_not_called()
+        scheduler.assert_not_awaited()
+        bridge.start.assert_not_awaited()
 
     assert server._scheduler is None
-    assert server._bridges == []
+    assert server._bridges == [bridge]
+    assert server._bridge_tasks == []
+    assert not server._warmup_tasks
     assert server._curator_task is None
+    assert getattr(server, "_vault_autocommit_task", None) is None
+    assert getattr(server, "_semantic_index_task", None) is None
+    assert set(asyncio.all_tasks()) == before
 
 
 @test("local_e2e", "serve re-packs one bootstrap invite only after address publication")
@@ -266,45 +278,47 @@ async def test_local_e2e_serve_ticket_has_address_hints(ctx: TestContext) -> Non
     assert provisional_ticket.relay_url is None
     assert provisional_ticket.addresses is None
 
-    # With discovery disabled, packing before AgentServer publishes its cache
-    # is an explicit startup error rather than printing an unusable ticket.
+    db = await product_memory_db(str(root / "openagent.db"))
     try:
-        await _repack_serve_invites_after_start(
+        # The real post-start packer borrows the running agent's migrated DB.
+        # With discovery disabled it must still reject unpublished addresses.
+        try:
+            await _repack_serve_invites_after_start(
+                agent_dir=root,
+                config=config,
+                network_row=network,
+                db=db,
+                require_address_hints=True,
+            )
+        except click.ClickException:
+            pass
+        else:
+            raise AssertionError("serve accepted a local E2E ticket before address publication")
+
+        direct_hint = "127.0.0.1:43123"
+        write_cache(
+            root,
+            node_id=provisional_ticket.coordinator_node_id,
+            relay_url=None,
+            direct_addresses=[direct_hint],
+        )
+        bootstrap, active = await _repack_serve_invites_after_start(
             agent_dir=root,
             config=config,
             network_row=network,
+            db=db,
             require_address_hints=True,
         )
-    except click.ClickException:
-        pass
-    else:
-        raise AssertionError("serve accepted a local E2E ticket before address publication")
+        assert bootstrap is not None
+        final_ticket = InviteTicket.decode(bootstrap[0])
+        assert bootstrap[1]["code"] == provisional[1]["code"]
+        assert final_ticket.addresses == (direct_hint,)
+        assert final_ticket.coordinator_node_id == provisional_ticket.coordinator_node_id
 
-    direct_hint = "127.0.0.1:43123"
-    write_cache(
-        root,
-        node_id=provisional_ticket.coordinator_node_id,
-        relay_url=None,
-        direct_addresses=[direct_hint],
-    )
-    bootstrap, active = await _repack_serve_invites_after_start(
-        agent_dir=root,
-        config=config,
-        network_row=network,
-        require_address_hints=True,
-    )
-    assert bootstrap is not None
-    final_ticket = InviteTicket.decode(bootstrap[0])
-    assert bootstrap[1]["code"] == provisional[1]["code"]
-    assert final_ticket.addresses == (direct_hint,)
-    assert final_ticket.coordinator_node_id == provisional_ticket.coordinator_node_id
+        matching = [item for item in active if item["code"] == bootstrap[1]["code"]]
+        assert len(matching) == 1
+        assert InviteTicket.decode(matching[0]["ticket"]).addresses == (direct_hint,)
 
-    matching = [item for item in active if item["code"] == bootstrap[1]["code"]]
-    assert len(matching) == 1
-    assert InviteTicket.decode(matching[0]["ticket"]).addresses == (direct_hint,)
-
-    db = await product_memory_db(str(root / "openagent.db"))
-    try:
         invitations = await CoordinatorStore(db).list_invitations(include_expired=True)
         assert len(invitations) == 1
         assert invitations[0].code == bootstrap[1]["code"]
