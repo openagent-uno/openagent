@@ -2298,7 +2298,7 @@ provides-extras = ["slack", "discord", "telegram", "whatsapp", "test"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.4"
+version = "1.1.5"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -2308,7 +2308,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = "==1.1.0b41" },
-    { name = "openagent-identity", specifier = "==1.1.4" },
+    { name = "openagent-identity", specifier = "==1.1.5" },
 ]
 
 [[package]]
@@ -2381,7 +2381,7 @@ provides-extras = ["capabilities", "engine", "providers", "audio", "retrieval", 
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.4"
+version = "1.1.5"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2395,7 +2395,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
     { name = "openagent-core", specifier = "==1.1.0b41" },
-    { name = "openagent-identity", specifier = "==1.1.4" },
+    { name = "openagent-identity", specifier = "==1.1.5" },
 ]
 
 [[package]]
@@ -2456,7 +2456,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.4"
+version = "1.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2624,7 +2624,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.4"
+version = "1.1.5"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -2651,7 +2651,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.4"
+version = "1.1.5"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
@@ -2670,7 +2670,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.4" },
+    { name = "openagent-identity", specifier = "==1.1.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2992,7 +2992,7 @@ requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b41" }]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.4"
+version = "1.1.5"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
