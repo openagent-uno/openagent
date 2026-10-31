@@ -1,6 +1,7 @@
 """Explicit standalone module graph; installed packages never auto-activate."""
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -25,6 +26,15 @@ from openagent_module_workflows import descriptor as workflows
 FULL_DESCRIPTORS = (
     tool_discovery, sessions, search, vault, mcp, workflows, scheduler, events,
     delegation, skills, models, budget, attachments, logs, ptc,
+)
+
+# The standalone host owns these management sources and their explicit DB
+# bindings. Avoid repeatedly importing the full runtime in cold stdio children;
+# upstream module defaults remain usable by independent hosts unchanged.
+FULL_DESCRIPTORS = tuple(
+    replace(descriptor, in_process_management=True)
+    if descriptor.id in {"budget", "models", "skills"} else descriptor
+    for descriptor in FULL_DESCRIPTORS
 )
 
 
