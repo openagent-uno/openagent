@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import importlib
 import os
 import shutil
 import sys
@@ -51,12 +52,24 @@ def start_voice_warmups(config: dict[str, Any]) -> set[asyncio.Task]:
         return set()
 
     async def whisper() -> None:
-        from openagent_core.voice.voice import _load_local_model
-        await _load_local_model()
+        # Optional voice modules can cold-import large provider/schema trees.
+        # to_thread carries this task's runtime ContextVars without blocking
+        # gateway HTTP; the async loader and its locks stay on this loop.
+        voice = await asyncio.to_thread(importlib.import_module, "openagent_core.voice.voice")
+        try:
+            # The loader otherwise imports this optional native package before
+            # its first await. Warm its import here, leaving model loading to
+            # the original coroutine (including its absent-package fallback).
+            await asyncio.to_thread(importlib.import_module, "faster_whisper")
+        except ImportError:
+            pass
+        await voice._load_local_model()
 
     async def piper() -> None:
-        from openagent_core.voice import tts_local
-        if tts_local.is_available():
+        tts_local = await asyncio.to_thread(importlib.import_module, "openagent_core.voice.tts_local")
+        # is_available imports optional piper/ONNX code too; voice-name
+        # selection is only a ContextVar/config lookup and stays on this loop.
+        if await asyncio.to_thread(tts_local.is_available):
             await tts_local._load_voice(tts_local._resolve_voice_name(None))
 
     async def guarded(name: str, operation: Any) -> None:
