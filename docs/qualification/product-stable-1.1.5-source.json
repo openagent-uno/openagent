@@ -126,5 +126,5 @@
     "owned_children_remaining": 0,
     "boundary": "Actual public installed CLI on a fresh local-e2e network; not production or signed App GUI"
   },
-  "production_acceptance_pending": "Performa is safely stopped with Restart=no while the exact public115 prefix is staged. Fresh production serving stability and three-service owner health/catalog/grant checks are pending; their versions must be reported explicitly."
+  "production_acceptance_pending": "At the 2026-10-31T11:50Z operator handoff, Performa was serving SDK 1.1.5 with filesystem13/editor4/shell7; Yoanna was serving SDK 1.1.5 but was not qualified (filesystem0/editor0/shell7); Ribel remained on SDK 1.1.4. Production fleet qualification remains incomplete. Owned stop-protection guards on Performa and Yoanna were retained; no production data or identity was restored."
 }
