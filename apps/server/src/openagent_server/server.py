@@ -1629,6 +1629,7 @@ class AgentServer:
         self._bridge_sessions: list = []
         self._scheduler = None
         self._gateway = None
+        self._network_state = None
         self._stop_event: asyncio.Event | None = None
 
     @classmethod
@@ -2029,7 +2030,7 @@ class AgentServer:
         from contextlib import nullcontext
         from openagent_core.runtime import runtime_scope
         service = getattr(self._gateway, "runtime_service", None)
-        with runtime_scope(service.runtime) if service else nullcontext():
+        with runtime_scope(getattr(service, "runtime", None)) if service else nullcontext():
             await self._stop(timeout)
 
     async def _stop(self, timeout: float = 15) -> None:
@@ -2039,6 +2040,35 @@ class AgentServer:
         (which closes MCP subprocesses) hangs, we log a warning and
         move on so the process can still exit.
         """
+        try:
+            await self._stop_components()
+        finally:
+            try:
+                # A failed bridge/gateway must not leave the owned endpoint
+                # alive, even if its runtime never finished construction.
+                if self._network_state is not None:
+                    try:
+                        await asyncio.wait_for(self._network_state.stop(), timeout=10)
+                    except (asyncio.TimeoutError, Exception) as e:
+                        logger.warning("NetworkState stop error: %s", e)
+                    finally:
+                        self._network_state = None
+            finally:
+                # Startup can fail before the gateway runtime owns any
+                # lifecycle. The host still owns this Agent and its DB.
+                try:
+                    shutdown_task = asyncio.create_task(self.agent.shutdown(), name="agent-shutdown")
+                    await asyncio.wait_for(asyncio.shield(shutdown_task), timeout=timeout)
+                except (asyncio.TimeoutError, asyncio.CancelledError):
+                    logger.debug("Agent shutdown still in progress after %ss; exiting best-effort", timeout)
+                except Exception as e:
+                    logger.warning("Agent shutdown error: %s", e)
+                finally:
+                    if self._stop_event is not None:
+                        self._stop_event.set()
+
+    async def _stop_components(self) -> None:
+        """Stop initialized services before the DB-owning Agent is shut down."""
         elog("server.stop", agent=self.agent.name)
         for task in self._warmup_tasks:
             task.cancel()
@@ -2122,31 +2152,6 @@ class AgentServer:
             except (asyncio.TimeoutError, Exception) as e:
                 logger.warning("Gateway stop error: %s", e)
 
-        # 2b. NetworkState (Iroh endpoint + coordinator service)
-        if self._network_state is not None:
-            try:
-                await asyncio.wait_for(self._network_state.stop(), timeout=10)
-            except (asyncio.TimeoutError, Exception) as e:
-                logger.warning("NetworkState stop error: %s", e)
-            self._network_state = None
-
-        # 4. Agent (MCP subprocess cleanup can hang because the anyio-
-        #    based MCP client waits for subprocesses that may ignore
-        #    SIGTERM).  Give it a deadline; if it doesn't finish, log
-        #    and move on — orphaned subprocesses will be reaped when we
-        #    exit.  The MCP SDK uses anyio cancel scopes which can leak
-        #    CancelledError into our asyncio tasks, so we catch broadly.
-        try:
-            shutdown_task = asyncio.create_task(self.agent.shutdown(), name="agent-shutdown")
-            await asyncio.wait_for(asyncio.shield(shutdown_task), timeout=timeout)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            logger.debug("Agent shutdown still in progress after %ss; exiting best-effort", timeout)
-        except Exception as e:
-            logger.warning("Agent shutdown error: %s", e)
-
-        if self._stop_event is not None:
-            self._stop_event.set()
-
     async def wait(self) -> None:
         """Block until stop() is called or a termination signal arrives.
 
@@ -2203,7 +2208,17 @@ class AgentServer:
                     pass
 
     async def __aenter__(self) -> AgentServer:
-        await self.start()
+        try:
+            await self.start()
+        except BaseException:
+            # __aexit__ is never entered when __aenter__ fails. Roll back the
+            # partially started host here, including cancellation, and keep
+            # the original startup error even if best-effort cleanup fails.
+            try:
+                await self.stop()
+            except BaseException:
+                logger.warning("Server startup rollback failed", exc_info=True)
+            raise
         return self
 
     async def __aexit__(self, *_exc) -> None:
