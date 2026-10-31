@@ -1054,8 +1054,11 @@ class CustomViewRepository:
                 if cursor.rowcount != 1:
                     raise CustomViewConflict("Custom View ACL version changed")
                 await conn.commit()
-            except Exception:
-                await conn.rollback()
+            except BaseException:
+                try:
+                    await conn.rollback()
+                except BaseException:
+                    pass  # Cleanup must not replace the transaction's original failure.
                 raise
         return await self.list_grants(view_id, access)
 
@@ -1108,8 +1111,11 @@ class CustomViewRepository:
                 if cursor.rowcount != 1:
                     raise CustomViewConflict("Custom View ACL version changed")
                 await conn.commit()
-            except Exception:
-                await conn.rollback()
+            except BaseException:
+                try:
+                    await conn.rollback()
+                except BaseException:
+                    pass  # Cleanup must not replace the transaction's original failure.
                 raise
         return await self.list_grants(view_id, access)
 
@@ -1430,8 +1436,11 @@ class CustomViewRepository:
                         (view_id, access.tenant_id, key, _json(value), now_ms),
                     )
                 await conn.commit()
-            except Exception:
-                await conn.rollback()
+            except BaseException:
+                try:
+                    await conn.rollback()
+                except BaseException:
+                    pass  # Cleanup must not replace the transaction's original failure.
                 raise
         row = await self._authorized_row(conn, view_id, access)
         return await self._full(conn, row, access=access)
@@ -1570,8 +1579,11 @@ class CustomViewRepository:
                     revision=next_revision, actions=new_actions, now_ms=now_ms,
                 )
                 await conn.commit()
-            except Exception:
-                await conn.rollback()
+            except BaseException:
+                try:
+                    await conn.rollback()
+                except BaseException:
+                    pass  # Cleanup must not replace the transaction's original failure.
                 raise
         row = await self._authorized_row(conn, view_id, access)
         return await self._full(conn, row, access=access)
@@ -1686,8 +1698,11 @@ class CustomViewRepository:
                     revision=next_revision, actions=current["actions"], now_ms=now_ms,
                 )
                 await conn.commit()
-            except Exception:
-                await conn.rollback()
+            except BaseException:
+                try:
+                    await conn.rollback()
+                except BaseException:
+                    pass  # Cleanup must not replace the transaction's original failure.
                 raise
         row = await self._authorized_row(conn, view_id, access)
         return await self._full(conn, row, access=access)
@@ -1858,8 +1873,11 @@ class CustomViewRepository:
                 revision=next_revision, actions=current["actions"], now_ms=now_ms,
             )
             await conn.commit()
-        except Exception:
-            await conn.rollback()
+        except BaseException:
+            try:
+                await conn.rollback()
+            except BaseException:
+                pass  # Cleanup must not replace the transaction's original failure.
             raise
         return next_revision
 
