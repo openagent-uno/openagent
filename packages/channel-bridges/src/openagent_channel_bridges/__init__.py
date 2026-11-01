@@ -1,6 +1,6 @@
 """Official OpenAgent channels, independent of standalone services.
 
-Provider SDK imports remain lazy; contracts can be used without an SDK or Core.
+Provider SDK imports remain lazy; contracts can be used without a provider SDK or running engine.
 """
 from .contracts import (
     API_VERSION, DEFAULT_CONTEXT_MESSAGES, MAX_CONTEXT_BYTES, MAX_CONTEXT_MESSAGES, MAX_NEGOTIATED_CONTEXT_BYTES,
@@ -9,7 +9,7 @@ from .contracts import (
     BridgeMessage, BridgePart, BridgePickerOption, BridgeReply, BridgeTransport,
 )
 
-__version__ = "0.1.0b14"
+__version__ = "0.1.0b16"
 
 
 def __getattr__(name: str):

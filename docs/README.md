@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Bridge beta16 local preparation: inherited commands and truthful outcomes](releases/channel-bridges-0.1.0-beta.16.md)
+
 - [Shared chat commands: inherited semantics and truthful gateway outcomes](../packages/channel-bridges/PROTOCOL.md#inherited-chat-commands)
 
 - [SDK 1.1.4 installed wheels and full module startup qualification](qualification/product-stable-1.1.4-source.json)
