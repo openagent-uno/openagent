@@ -1,5 +1,7 @@
 # Product documentation
 
+- [Standalone 1.1.6 local candidate: shared commands and Core beta42](releases/v1.1.6.md)
+
 - [Bridge beta16 local preparation: inherited commands and truthful outcomes](releases/channel-bridges-0.1.0-beta.16.md)
 
 - [Shared chat commands: inherited semantics and truthful gateway outcomes](../packages/channel-bridges/PROTOCOL.md#inherited-chat-commands)
