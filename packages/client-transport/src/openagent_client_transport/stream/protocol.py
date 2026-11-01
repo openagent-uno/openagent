@@ -79,7 +79,7 @@ Server → Client::
     {"type": "audio_end",      "session_id": "...", "total_chunks": N}
     {"type": "turn_complete",  "session_id": "..."}
     {"type": "error",          "text": "..."}
-    {"type": "command_result", "text": "...", "picker"?: {...}, "context"?: {...}}
+    {"type": "command_result", "text": "...", "status": "completed|failed|unsupported", "picker"?: {...}, "context"?: {...}}
     {"type": "context_report", "session_id": "...", "report": {...}}
     {"type": "pong"}
     {"type": "resource_event", "resource": "...", "action": "...", "id": "..."}
@@ -111,6 +111,10 @@ stream frames (``text_final`` / ``seed`` / ``status`` / ``delta`` /
 ``response`` / …) for the not-yet-persisted transcript tail. Clients should
 replace their live tail from this snapshot, then continue processing normal
 frames. Completed turns are still hydrated from ``GET /api/sessions/{id}/runs``.
+
+A ``command_result.status`` preserves the command's actual outcome. Only
+``completed`` acknowledges success; a missing status from an older gateway is
+unverified and bridges fail closed instead of inferring completion from text.
 
 A ``command_result`` may carry an optional ``picker`` when the command
 offers a list to choose from (today only ``/model`` with no argument). The

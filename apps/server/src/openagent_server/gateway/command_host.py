@@ -16,6 +16,7 @@ class GatewayCommandHost(ChatCommandHost):
         self.gateway = gateway
         self.client_id = client_id
         self.handle = handle
+        self.expose_errors = not client_id.startswith("bridge:")
 
     async def stop_session(self, session: SessionRef) -> StopOutcome:
         # ``_interrupt_stream_sessions`` cancels the LIVE StreamSession turn (the

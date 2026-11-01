@@ -1,6 +1,6 @@
 # Product documentation
 
-- [Shared chat commands: bridges and gateway inherit them from Core](../packages/channel-bridges/PROTOCOL.md#inherited-chat-commands)
+- [Shared chat commands: inherited semantics and truthful gateway outcomes](../packages/channel-bridges/PROTOCOL.md#inherited-chat-commands)
 
 - [SDK 1.1.4 installed wheels and full module startup qualification](qualification/product-stable-1.1.4-source.json)
 

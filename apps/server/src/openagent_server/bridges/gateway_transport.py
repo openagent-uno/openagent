@@ -228,7 +228,13 @@ class GatewayBridgeTransport:
                     subtitle=option.get("subtitle"), active=bool(option.get("active"))))
             else:
                 options.append(BridgePickerOption(value=str(option), label=str(option)))
-        return BridgeCommandResult(status="failed" if result.get("type") == "error" else "completed",
+        # A command_result frame is not proof of success: Core may have
+        # reported failed/unsupported. Older hosts without a status cannot
+        # truthfully acknowledge a reset either.
+        status = result.get("status")
+        if result.get("type") == "error" or status not in ("completed", "failed", "unsupported"):
+            status = "failed"
+        return BridgeCommandResult(status=status,
             parts=(BridgePart(text=result.get("text") or ""),), options=tuple(options),
             picker_command=picker.get("command"), picker_prompt=picker.get("prompt"))
 

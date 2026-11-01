@@ -19,7 +19,7 @@ def bridge_welcome_text(name: str | None = None) -> str:
         "Send me a message, photo, voice note, or file and I'll help.\n\n"
         "Commands:\n"
         "/stop — cancel the current operation (keeps context)\n"
-        "/clear — wipe everything and start a fresh conversation\n"
+        "/clear — start a fresh conversation; keep long-term memory and vault\n"
         "/new — same as /clear\n"
         "/status — agent status\n"
         "/help — all commands"

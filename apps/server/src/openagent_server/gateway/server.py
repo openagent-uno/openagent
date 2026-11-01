@@ -2495,8 +2495,9 @@ class Gateway:
         # carries the /context breakdown for rich clients while text-only
         # channels render ``text``. Unknown to bridges, so it's ignored there.
         context_payload: dict | None = None
+        status = "completed"
         if name in self._SHARED_COMMANDS:
-            text, picker, context_payload = await self._shared_command(ws, client_id, name, session_id, handle, arg)
+            text, picker, context_payload, status = await self._shared_command(ws, client_id, name, session_id, handle, arg)
         elif name == "usage":
             from openagent_server.gateway.api.usage import _usage_summary_for_agent
 
@@ -2525,7 +2526,8 @@ class Gateway:
             # Send the result to the client FIRST, then restart, so the
             # confirmation isn't lost to the socket teardown.
             elog("command.result", client_id=client_id, name=name, text=text)
-            await self._safe_ws_send_json(ws, {"type": P.COMMAND_RESULT, "text": text})
+            await self._safe_ws_send_json(ws, {"type": P.COMMAND_RESULT, "text": text,
+                                               "status": "completed" if result.get("ok") else "failed"})
             if result.get("ok") and result.get("updated"):
                 async def _delayed_update_restart():
                     await asyncio.sleep(0.5)
@@ -2539,8 +2541,9 @@ class Gateway:
             control.request_restart(self, source="ws_command")
         else:
             text = f"Unknown command: {name}"
+            status = "unsupported"
         elog("command.result", client_id=client_id, name=name, text=text)
-        result_frame: dict = {"type": P.COMMAND_RESULT, "text": text}
+        result_frame: dict = {"type": P.COMMAND_RESULT, "text": text, "status": status}
         if picker is not None:
             result_frame["picker"] = picker
         if context_payload is not None:
@@ -2596,7 +2599,7 @@ class Gateway:
                     )))
             except Exception:  # noqa: BLE001 — best-effort UI hint
                 pass
-        return result.text, result.picker, result.context
+        return result.text, result.picker, result.context, result.status
 
     # Prefix used by each bridge when naming its per-user session ids.
     # Used ONLY for the legacy, unscoped fallback path of /clear (no
@@ -2614,12 +2617,12 @@ class Gateway:
     }
 
     async def _forget_one_session(self, session_id: str) -> int:
-        """Forget just one session. Returns 1 on success, 0 on failure."""
+        """Forget just one session; propagate failure so reset is not acknowledged."""
         try:
             await self.agent.forget_session(session_id)
         except Exception as e:
             elog("session.forget_one", session_id=session_id, forgotten=0, error=str(e))
-            return 0
+            raise
         elog("session.forget_one", session_id=session_id, forgotten=1)
         return 1
 
@@ -2649,11 +2652,13 @@ class Gateway:
                 if sid.startswith(prefix):
                     sids.add(sid)
         forgotten = 0
+        failed = 0
         for sid in sids:
             try:
                 await self.agent.forget_session(sid)
                 forgotten += 1
             except Exception as e:
+                failed += 1
                 logger.debug("forget_session(%s) failed: %s", sid, e)
         elog(
             "session.forget_all",
@@ -2661,6 +2666,8 @@ class Gateway:
             forgotten=forgotten,
             total=len(sids),
         )
+        if failed:
+            raise RuntimeError(f"Could not forget {failed} conversation(s)")
         return forgotten
 
     async def _handle_terminal_frame(
