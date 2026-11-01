@@ -63,8 +63,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.6', 'manifest.json', '1bb40ff7ffd9bb09404ea10f80720de68e9ba57f618fc5fb5fc7de4326bf2830', 'all'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.42', 'manifest.json', 'd49381d2be4d7c2bfb29372134c5a14b996f3c065b79c74a6dd3a7e30a916104', 'all'),
+    ('openagent-uno/openagent', 'v1.1.6', 'manifest.json', '30fbf464ddb2929bb939864ee0ba661ea2df82af2436529ba2885995d6566592', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.42', 'manifest.json', 'cc2355ef8984fc4bef75b3b7177d9c6b11aacc4df0be7dabe786e86cf86647f0', 'all'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'modules'),
     ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'all'),
 )
