@@ -149,6 +149,21 @@ generated for the previous cohort. Each delivery still requires fresh provider
 proof and current host actor/recipient ACLs. Golden vectors, including Unicode
 and delimiter collisions, are in `tests/conversation-v1-vectors.json`.
 
+## Inherited chat commands
+
+`start` capabilities may contain `core_commands`, a list of Core command scopes
+(`session`, `instance`). The bridge then publishes the matching Core catalogue,
+so a host offers the shared commands without listing them. Explicit `commands`
+entries with the same name win. Inherited commands carry no
+`confirmation_required`, because only Telegram has a confirmation surface.
+
+An older bridge rejects the unknown field. A host must first read the
+`core_commands` list from `--describe` and send only scopes found there.
+
+`command` results report the real outcome. `status` is `completed`, `unsupported`
+or `failed`, and a bridge shows success only for `completed`. See
+[the Core contract](https://github.com/openagent-uno/openagent-core/blob/main/docs/chat-commands.md).
+
 ## Media
 
 Input attachment metadata has `kind`, `filename`, `mime_type`, `size_bytes`,
@@ -199,3 +214,20 @@ not increase the 65,536-byte quoted-history limit, 256 total message parts or
 any advertised media budget. Slack main-channel reads use at most two pages
 of 100 before the exact trigger; thread reads retain their ten-page bound.
 Required missing or repeated cursors are failures, not empty history.
+
+## Shared-command local review, 1 November 2026
+
+The standalone gateway preserves Core's `status` in its additive WebSocket
+`command_result.status` field. The gateway bridge transport propagates it
+instead of treating every reply frame as a completed command. Missing/unknown
+status from an older gateway is unverified and maps to `failed`. Clients can
+still show its text, but must not announce success.
+
+A failed `forget_session` also fails the standalone reset instead of rotating
+and reporting completion. Third-party bridge results hide provider exception
+text. Catalogue/reset help and welcome wording now accurately preserve long-term
+memory and vault; the standalone history-forgetting policy remains unchanged.
+
+Local verification: bridge suite 340 tests and 86 subtests; standalone command
+suite 21 tests, including the real StreamSession cancellation cases and two new
+gateway/transport failure regressions. No provider account or publication was used.

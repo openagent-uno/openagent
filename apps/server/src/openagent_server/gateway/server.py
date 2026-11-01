@@ -21,7 +21,8 @@ from typing import Any, Awaitable, Callable, TYPE_CHECKING
 from weakref import WeakKeyDictionary
 
 from openagent_server.gateway import protocol as P
-from openagent_server.gateway.commands import command_help_text
+from openagent_server.gateway.command_host import GatewayCommandHost
+from openagent_server.gateway.commands import COMMAND_SPECS
 from openagent_server.gateway.sessions import SessionManager
 from openagent_server.gateway.terminals import TerminalManager
 from openagent_server.gateway.capabilities import (
@@ -43,6 +44,7 @@ if TYPE_CHECKING:
     from openagent_core.core.agent import Agent
     from openagent_identity.state import NetworkState
 
+from openagent_core.chat_commands import SESSION_SCOPE, ChatCommandRequest, ChatCommandService, SessionRef
 from openagent_core.core.logging import elog
 
 logger = logging.getLogger(__name__)
@@ -2493,72 +2495,9 @@ class Gateway:
         # carries the /context breakdown for rich clients while text-only
         # channels render ``text``. Unknown to bridges, so it's ignored there.
         context_payload: dict | None = None
-        if name in ("new", "reset", "clear"):
-            # /new, /reset, /clear: full wipe — stop anything running, drop
-            # the queue, AND forget provider-native resume state. Scoped to
-            # ``session_id`` when given; falls back to client-wide wipe
-            # otherwise. ``_interrupt_stream_sessions`` cancels the LIVE
-            # StreamSession turn (the real registry); ``sm.stop_current``
-            # is kept for the legacy/REST path. Without the former a turn
-            # streaming into the session survives the wipe and can
-            # interleave a stale reply into the fresh conversation.
-            if session_id:
-                stream_stopped = await self._interrupt_stream_sessions(
-                    client_id, session_id, reason="manual", handle=handle,
-                )
-                stopped = sm.stop_current(client_id, session_id=session_id) or stream_stopped
-                cleared = sm.clear_queue_for_session(client_id, session_id)
-                forgotten = await self._forget_one_session(session_id)
-            else:
-                stream_stopped = await self._interrupt_stream_sessions(
-                    client_id, reason="manual", handle=handle,
-                )
-                stopped = sm.stop_current(client_id) or stream_stopped
-                cleared = sm.clear_queue(client_id)
-                forgotten = await self._forget_all_client_sessions(client_id)
-            fresh_sid = sm.create_session(client_id, handle=handle)
-            parts = []
-            if stopped:
-                parts.append("stopped current operation")
-            if cleared:
-                parts.append(f"cleared {cleared} queued message{'s' if cleared != 1 else ''}")
-            if forgotten:
-                parts.append(f"forgot {forgotten} prior conversation{'s' if forgotten != 1 else ''}")
-            parts.append(f"fresh session: {fresh_sid[-8:]}")
-            text = ". ".join(p.capitalize() if i == 0 else p for i, p in enumerate(parts)) + "."
-        elif name == "stop":
-            # Cancel the LIVE StreamSession turn (the registry that runs
-            # chat turns). The legacy ``sm.stop_current`` is OR'd in for the
-            # REST/legacy path but is a no-op for stream traffic — its
-            # queue/worker is never populated on this path, which is why
-            # ``/stop`` silently did nothing before.
-            if session_id:
-                stream_stopped = await self._interrupt_stream_sessions(
-                    client_id, session_id, reason="manual", handle=handle,
-                )
-                stopped = sm.stop_current(client_id, session_id=session_id) or stream_stopped
-                cleared = sm.clear_queue_for_session(client_id, session_id)
-            else:
-                stream_stopped = await self._interrupt_stream_sessions(
-                    client_id, reason="manual", handle=handle,
-                )
-                stopped = sm.stop_current(client_id) or stream_stopped
-                cleared = sm.clear_queue(client_id)
-            parts = []
-            if stopped:
-                parts.append("Stopped current operation")
-            if cleared:
-                parts.append(f"cleared {cleared} queued message{'s' if cleared != 1 else ''}")
-            text = ". ".join(parts) + "." if parts else "Nothing running."
-        elif name == "status":
-            # Reflect the registry that actually runs turns (StreamSession),
-            # not the always-idle SessionManager queue.
-            busy = self._client_has_active_stream_turn(client_id, handle=handle) or sm.is_busy(client_id)
-            depth = sm.queue_depth(client_id)
-            sessions = sm.list_sessions(client_id)
-            text = f"{'Busy' if busy else 'Idle'} | Queue: {depth} | Sessions: {len(sessions)}"
-        elif name == "queue":
-            text = f"Queue depth: {sm.queue_depth(client_id)}"
+        status = "completed"
+        if name in self._SHARED_COMMANDS:
+            text, picker, context_payload, status = await self._shared_command(ws, client_id, name, session_id, handle, arg)
         elif name == "usage":
             from openagent_server.gateway.api.usage import _usage_summary_for_agent
 
@@ -2570,27 +2509,6 @@ class Gateway:
                 text = f"Usage: ${spend:.4f} / ${float(budget):.4f} this month across {len(by_model)} model(s)."
             else:
                 text = f"Usage tracking available for {len(by_model)} model(s); monthly spend is ${spend:.4f}."
-        elif name == "context":
-            # Per-conversation context-window composition (Claude-Code
-            # /context). Text form renders on every channel; the structured
-            # ``context`` payload lets rich clients (app/CLI) draw the panel.
-            if not session_id:
-                text = "No active session to inspect."
-            else:
-                try:
-                    from openagent_core.core.context_report import (
-                        build_context_report,
-                        format_context_report_text,
-                    )
-
-                    report = build_context_report(self.agent, session_id)
-                    if report is None:
-                        text = "No context to report for this session yet."
-                    else:
-                        text = format_context_report_text(report)
-                        context_payload = report
-                except Exception as exc:  # noqa: BLE001
-                    text = f"Could not read context: {exc}"
         elif name == "update":
             # Run the (multi-minute, blocking) download+apply OFF the event
             # loop — doing it inline froze the entire gateway (no health,
@@ -2608,7 +2526,8 @@ class Gateway:
             # Send the result to the client FIRST, then restart, so the
             # confirmation isn't lost to the socket teardown.
             elog("command.result", client_id=client_id, name=name, text=text)
-            await self._safe_ws_send_json(ws, {"type": P.COMMAND_RESULT, "text": text})
+            await self._safe_ws_send_json(ws, {"type": P.COMMAND_RESULT, "text": text,
+                                               "status": "completed" if result.get("ok") else "failed"})
             if result.get("ok") and result.get("updated"):
                 async def _delayed_update_restart():
                     await asyncio.sleep(0.5)
@@ -2620,168 +2539,67 @@ class Gateway:
         elif name == "restart":
             text = "Restarting..."
             control.request_restart(self, source="ws_command")
-        elif name == "help":
-            text = command_help_text()
-        elif name == "compact":
-            if not session_id:
-                text = "No active session to compact."
-            else:
-                try:
-                    from openagent_core.session_control import SessionControl
-                    from openagent_core.media import parse_compaction_status
-                    from openagent_core.stream.events import SessionCompacted
-                    from openagent_core.stream.events import now_ms as _compact_now_ms
-                    from openagent_client_transport.stream.wire import event_to_wire as _compact_e2w
-
-                    async def _compact_status(raw: str, _sid=session_id, _ws=ws) -> None:
-                        # Same envelope the turn runner lifts into a typed
-                        # SessionCompacted frame — emit it here too so a
-                        # manual /compact draws the identical compaction
-                        # card (app) / step line as an automatic fold. The
-                        # verbose command_result below still lands as the
-                        # authoritative confirmation for text-only clients.
-                        comp = parse_compaction_status(raw)
-                        if comp is None:
-                            return
-                        await self._safe_ws_send_json(_ws, _compact_e2w(SessionCompacted(
-                            session_id=_sid,
-                            ts_ms=_compact_now_ms(),
-                            phase=comp["phase"],
-                            folded_runs=comp["folded_runs"],
-                            kept_runs_count=comp["kept_runs_count"],
-                            summary_chars=comp["summary_chars"],
-                            tokens_before=comp["tokens_before"],
-                            tokens_after=comp["tokens_after"],
-                        )))
-
-                    result = await SessionControl(self.agent).compact(
-                        session_id, on_status=_compact_status,
-                    )
-                    if result is None:
-                        text = "Nothing to compact — the conversation is empty or already compacted."
-                    else:
-                        # Concise outcome only. The channels want just the
-                        # start + end of the fold, not a recap of it — and the
-                        # desktop app already draws the detailed card from the
-                        # session_compacted frames emitted above. A verbose
-                        # "folded N turns into a recap (X chars)…" line here
-                        # would be exactly the full transcript we're avoiding.
-                        text = "Compacted conversation."
-                        # Push a fresh ContextReport so the always-visible
-                        # context panel updates immediately after manual
-                        # compaction, without the user having to switch
-                        # sessions and come back.
-                        try:
-                            from openagent_core.core.context_report import build_context_report
-                            from openagent_core.stream.events import ContextReport as _CR
-
-                            report = build_context_report(self.agent, session_id)
-                            if report is not None:
-                                await self._safe_ws_send_json(ws, _compact_e2w(_CR(
-                                    session_id=session_id,
-                                    ts_ms=_compact_now_ms(),
-                                    report=report,
-                                )))
-                        except Exception:  # noqa: BLE001 — best-effort UI hint
-                            pass
-                except Exception as exc:  # noqa: BLE001
-                    text = f"Compaction failed: {exc}"
-        elif name == "model":
-            from openagent_core.session_control import SessionControl
-            session_control = SessionControl(self.agent)
-            if not session_id:
-                text = "No active session — cannot read or change model pin."
-            else:
-                db = getattr(self.agent, "memory_db", None)
-                if db is None:
-                    text = "Memory DB not available."
-                elif arg is None or arg.strip() == "":
-                    # List configured models + current pin. Use the *enriched*
-                    # query: ``list_models`` returns raw ``models`` rows that
-                    # carry neither ``runtime_id`` (derived from provider+model)
-                    # nor ``provider_name`` (on the providers table), so every
-                    # entry would fail the ``if not rid`` guard below and the
-                    # picker would show only "Auto". ``kind='llm'`` also drops
-                    # TTS/STT rows that share the table.
-                    try:
-                        models = await session_control.available_models()
-                        current_pin = await session_control.model_pin(session_id)
-                        if not models:
-                            text = "No models configured."
-                        else:
-                            lines = ["Configured models (enabled):"]
-                            options = []
-                            for m in models:
-                                rid = m.get("runtime_id") or ""
-                                if not rid:
-                                    continue
-                                disp = m.get("display_name") or m.get("model") or rid
-                                provider = m.get("provider_name") or ""
-                                is_active = rid == current_pin
-                                pin_marker = " ← active" if is_active else ""
-                                lines.append(f"  • {rid}  ({disp}){pin_marker}")
-                                options.append({
-                                    "label": disp,
-                                    "value": rid,
-                                    "subtitle": provider or rid,
-                                    "active": is_active,
-                                })
-                            if not current_pin:
-                                lines.append("Current: Auto (no pin)")
-                            lines.append("Usage: /model <runtime_id> | /model default")
-                            text = "\n".join(lines)
-                            # Structured picker for bridges that can render a
-                            # keyboard/select. Add an explicit "Auto" option
-                            # that clears the pin (maps to /model default).
-                            picker_options = [{
-                                "label": "Auto",
-                                "value": "default",
-                                "active": not current_pin,
-                            }] + options
-                            picker = {
-                                "command": "model",
-                                "prompt": "Pick a model for this conversation:",
-                                "options": picker_options,
-                            }
-                    except Exception as exc:  # noqa: BLE001
-                        text = f"Failed to list models: {exc}"
-                elif arg.strip().lower() in ("default", "none", "reset"):
-                    try:
-                        await session_control.clear_model_pin(session_id)
-                        text = "Model pin cleared — back to Auto (best model picked automatically)."
-                    except Exception as exc:  # noqa: BLE001
-                        text = f"Failed to clear model pin: {exc}"
-                else:
-                    runtime_id = arg.strip()
-                    try:
-                        model_row = await db.get_model_by_runtime_id(runtime_id)
-                        if model_row is None:
-                            # Invalid — list valid options
-                            models = await db.list_models(enabled_only=True)
-                            valid = [m.get("runtime_id") or "" for m in models if m.get("runtime_id")]
-                            text = (
-                                f"Unknown model {runtime_id!r}. "
-                                f"Valid options: {', '.join(valid) or '(none configured)'}"
-                            )
-                        elif not model_row.get("enabled"):
-                            text = f"Model {runtime_id!r} is disabled — enable it first."
-                        else:
-                            await session_control.pin_model(session_id, runtime_id)
-                            disp = model_row.get("display_name") or model_row.get("model") or runtime_id
-                            text = f"Switched to {disp} ({runtime_id}) for this session."
-                    except ValueError as exc:
-                        text = f"Cannot pin model: {exc}"
-                    except Exception as exc:  # noqa: BLE001
-                        text = f"Failed to switch model: {exc}"
         else:
             text = f"Unknown command: {name}"
+            status = "unsupported"
         elog("command.result", client_id=client_id, name=name, text=text)
-        result_frame: dict = {"type": P.COMMAND_RESULT, "text": text}
+        result_frame: dict = {"type": P.COMMAND_RESULT, "text": text, "status": status}
         if picker is not None:
             result_frame["picker"] = picker
         if context_payload is not None:
             result_frame["context"] = context_payload
         await self._safe_ws_send_json(ws, result_frame)
+
+    # /usage, /update and /restart administer this installation and stay here.
+    _SHARED_COMMANDS = frozenset(
+        spec.name for spec in COMMAND_SPECS if spec.scope == SESSION_SCOPE
+    )
+
+    async def _shared_command(self, ws, client_id, name, session_id, handle, arg):
+        """Delegate one command to Core; only rich-client frames stay here."""
+        from openagent_client_transport.stream.wire import event_to_wire
+        from openagent_core.core.context_report import build_context_report
+        from openagent_core.media import parse_compaction_status
+        from openagent_core.stream.events import ContextReport, SessionCompacted, now_ms
+
+        async def compaction_status(raw: str) -> None:
+            # Same envelope the turn runner lifts into a typed SessionCompacted
+            # frame, so a manual /compact draws the identical card or step line
+            # as an automatic fold.
+            comp = parse_compaction_status(raw)
+            if comp is None:
+                return
+            await self._safe_ws_send_json(ws, event_to_wire(SessionCompacted(
+                session_id=session_id,
+                ts_ms=now_ms(),
+                phase=comp["phase"],
+                folded_runs=comp["folded_runs"],
+                kept_runs_count=comp["kept_runs_count"],
+                summary_chars=comp["summary_chars"],
+                tokens_before=comp["tokens_before"],
+                tokens_after=comp["tokens_after"],
+            )))
+
+        result = await ChatCommandService(
+            self.agent, GatewayCommandHost(self, client_id, handle),
+        ).execute(
+            ChatCommandRequest(name, SessionRef(session_id), arg),
+            on_compaction_status=compaction_status,
+        )
+        if result.compacted:
+            # Push a fresh ContextReport so the always-visible context panel
+            # updates immediately after manual compaction.
+            try:
+                report = build_context_report(self.agent, session_id)
+                if report is not None:
+                    await self._safe_ws_send_json(ws, event_to_wire(ContextReport(
+                        session_id=session_id,
+                        ts_ms=now_ms(),
+                        report=report,
+                    )))
+            except Exception:  # noqa: BLE001 — best-effort UI hint
+                pass
+        return result.text, result.picker, result.context, result.status
 
     # Prefix used by each bridge when naming its per-user session ids.
     # Used ONLY for the legacy, unscoped fallback path of /clear (no
@@ -2799,12 +2617,12 @@ class Gateway:
     }
 
     async def _forget_one_session(self, session_id: str) -> int:
-        """Forget just one session. Returns 1 on success, 0 on failure."""
+        """Forget just one session; propagate failure so reset is not acknowledged."""
         try:
             await self.agent.forget_session(session_id)
         except Exception as e:
             elog("session.forget_one", session_id=session_id, forgotten=0, error=str(e))
-            return 0
+            raise
         elog("session.forget_one", session_id=session_id, forgotten=1)
         return 1
 
@@ -2834,11 +2652,13 @@ class Gateway:
                 if sid.startswith(prefix):
                     sids.add(sid)
         forgotten = 0
+        failed = 0
         for sid in sids:
             try:
                 await self.agent.forget_session(sid)
                 forgotten += 1
             except Exception as e:
+                failed += 1
                 logger.debug("forget_session(%s) failed: %s", sid, e)
         elog(
             "session.forget_all",
@@ -2846,6 +2666,8 @@ class Gateway:
             forgotten=forgotten,
             total=len(sids),
         )
+        if failed:
+            raise RuntimeError(f"Could not forget {failed} conversation(s)")
         return forgotten
 
     async def _handle_terminal_frame(

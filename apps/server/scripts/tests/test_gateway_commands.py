@@ -781,3 +781,49 @@ async def t_commands_api(ctx: TestContext) -> None:
     assert cmds["model"]["arg_source"] == "models", cmds["model"]
     assert cmds["stop"]["arg_source"] is None, cmds["stop"]
     assert cmds["model"]["description"], cmds["model"]
+
+
+@test("gateway_commands", "Core reset failure stays failed through gateway and bridge transport")
+async def t_reset_failure_is_not_acknowledged(ctx: TestContext) -> None:
+    from types import SimpleNamespace
+    from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
+
+    for scoped in (True, False):
+        h = _Harness()
+        client = "bridge:telegram"
+        sid = h.sessions.get_or_create_session(client, "tg:155490357")
+        async def fail_forget(_sid):
+            raise RuntimeError("PRIVATE provider detail")
+        h.agent.forget_session = fail_forget
+        transport = GatewayBridgeTransport()
+        async def authorized(_context): return True
+        async def command(name, session, arg):
+            await h.run_command(client, name, session)
+            return h._last_frame
+        transport.authorize_context = authorized
+        transport._session_for_context = lambda _context: sid if scoped else None
+        transport._legacy_command_full = command
+        result = await transport.command(SimpleNamespace(context=None, name="new", argument=None))
+        assert result.status == "failed", result
+        assert "not reset" in result.parts[0].text
+        assert "PRIVATE" not in result.parts[0].text
+        assert h.sessions.list_sessions(client) == [sid], h.sessions.list_sessions(client)
+
+
+@test("gateway_commands", "bridge requires explicit gateway command status")
+async def t_gateway_command_status_is_explicit(ctx: TestContext) -> None:
+    from types import SimpleNamespace
+    from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
+
+    transport = GatewayBridgeTransport()
+    async def authorized(_context): return True
+    transport.authorize_context = authorized
+    transport._session_for_context = lambda _context: "session"
+    for frame, expected in (({"type": "command_result", "text": "old host"}, "failed"),
+                            ({"status": "unexpected"}, "failed"),
+                            ({"status": "completed"}, "completed"),
+                            ({"status": "unsupported"}, "unsupported")):
+        async def command(*_args): return frame
+        transport._legacy_command_full = command
+        result = await transport.command(SimpleNamespace(context=None, name="new", argument=None))
+        assert result.status == expected, result
