@@ -16,15 +16,15 @@ dependencies = [
     "openagent-storage-sqlite==1.1.0b42",
     "openagent-modules==1.1.0b3",
     "openagent-execution==1.0.0b3",
-    "openagent-client-transport==1.1.5",
+    "openagent-client-transport==1.1.6",
     "openagent-core[engine]==1.1.0b42",
-    "openagent-identity==1.1.5",
-    "openagent-dashboards==1.1.5",
+    "openagent-identity==1.1.6",
+    "openagent-dashboards==1.1.6",
     "openagent-product-config==1.1.0b20",
-    "openagent-support-integration==1.1.5",
+    "openagent-support-integration==1.1.6",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.5",
+    "openagent-mcp==1.1.6",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
