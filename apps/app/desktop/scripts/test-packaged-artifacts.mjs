@@ -70,6 +70,7 @@ function run(command, args, options = {}) {
     timeout: 180_000,
     ...options,
   });
+  if (result.error) throw new Error(`${command} did not complete: ${result.error.message}`, {cause: result.error});
   assert.equal(
     result.status,
     0,
@@ -226,6 +227,7 @@ assert(
 validatePayload(releaseDir);
 
 const extractionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-artifact-smoke-'));
+let acceptanceFailure;
 try {
   if (targetPlatform === 'darwin') {
     const launchCandidates = [];
@@ -334,8 +336,16 @@ try {
     );
     smokeExecutable(executables[0]);
   }
+} catch (error) {
+  acceptanceFailure = error;
+  throw error;
 } finally {
-  fs.rmSync(extractionRoot, { recursive: true, force: true });
+  try {
+    fs.rmSync(extractionRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  } catch (error) {
+    if (!acceptanceFailure) throw error;
+    console.error(`Owned artifact scratch cleanup also failed (${error.code}); retaining the original acceptance error.`);
+  }
 }
 
 const installers = files.filter((file) => extensions.some((extension) => file.endsWith(extension)));
