@@ -105,6 +105,8 @@ jobs:
           node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts
           node apps/app/desktop/scripts/canonical-update-feed.js .canonical-publication/artifacts .canonical-publication/artifacts/release-metadata .canonical-publication/canonical-feed "$APP_TAG"
       - name: Refuse to replace an immutable App release
+        env:
+          GH_TOKEN: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
         run: |
           python3 - <<'PY'
           import json,subprocess,os
@@ -122,6 +124,7 @@ jobs:
         id: draft
         uses: softprops/action-gh-release@v2.6.2
         with:
+          token: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
           tag_name: ${{ env.APP_TAG }}
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App canonical updater migration
@@ -149,6 +152,7 @@ jobs:
       - name: Verify uploaded hashes before publication
         env:
           RELEASE_ID: ${{ steps.draft.outputs.id }}
+          GH_TOKEN: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release-draft.json
           node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts --release-json release-draft.json --expect-draft true --expect-prerelease true
@@ -156,6 +160,8 @@ jobs:
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input publish.json > release-published.json
           node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts --release-json release-published.json --expect-draft false --expect-prerelease true
       - name: Publish verified channel metadata without changing immutable installers
+        env:
+          GH_TOKEN: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
         run: |
           python3 - <<'PY'
           import importlib.util,json,os,hashlib,subprocess
