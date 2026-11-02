@@ -290,7 +290,7 @@ try {
     const installers = files.filter((file) => file.endsWith('.exe'));
     assert.equal(installers.length, 1, 'Windows build must produce exactly one installer');
     const installDir = path.join(extractionRoot, 'installed');
-    run(installers[0], ['/S', `/D=${installDir}`], {stdio: 'ignore'});
+    run(installers[0], ['/S', `/D=${installDir}`], {stdio: 'ignore', timeout: 360_000});
     validatePayload(installDir);
     const installedExecutables = walk(installDir).filter((file) => file.toLowerCase().endsWith('.exe'));
     const executables = installedExecutables.filter(

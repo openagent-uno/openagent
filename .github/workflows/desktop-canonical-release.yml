@@ -116,14 +116,14 @@ jobs:
           Copy-Item desktop/release "$proof/desktop/release" -Recurse
           Copy-Item $target "$proof/desktop/release/win-arm64-unpacked" -Recurse
           $lock = Get-Content desktop/package-lock.json -Raw | ConvertFrom-Json -AsHashtable
-          $helpers = @{ private=$true; dependencies=@{ '@electron/asar'=$lock.packages['node_modules/@electron/asar'].version; 'js-yaml'=$lock.packages['node_modules/js-yaml'].version; 'app-builder-bin'=$lock.packages['node_modules/app-builder-bin'].version } }
+          $helpers = @{ private=$true; dependencies=@{ '@electron/asar'=$lock.packages['node_modules/@electron/asar'].version; 'js-yaml'=$lock.packages['node_modules/js-yaml'].version; 'app-builder-lib'=$lock.packages['node_modules/app-builder-lib'].version } }
+          $helpers.overrides = @{ 'app-builder-lib' = @{ '@noble/hashes' = '1.8.0' } }
           $helpers | ConvertTo-Json -Depth 5 | Set-Content "$proof/package.json" -Encoding utf8
           & npm --prefix $proof install --ignore-scripts --no-fund --no-audit
           if ($LASTEXITCODE -ne 0) { throw 'Verifier dependency installation failed' }
           Push-Location $proof
-          $builder = & node -p "require('app-builder-bin').appBuilderPath"
           $payload = Join-Path "$proof/desktop/release" $installer[0].Name
-          & $builder blockmap --input $payload --output "$payload.blockmap"
+          & node -e "require('app-builder-lib/out/targets/blockmap/blockmap.js').buildBlockMap(process.argv[1], 'gzip', process.argv[1]+'.blockmap').catch(e=>{console.error(e);process.exit(1)})" $payload
           if ($LASTEXITCODE -ne 0) { throw 'Blockmap generation failed' }
           Pop-Location
           "ACCEPTANCE_DESKTOP=$proof/desktop" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
