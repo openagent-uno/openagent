@@ -25,7 +25,7 @@ Declared resource CSP is intersected with the host's explicit `approvedCsp`. Mis
 This is source qualification, not a published package, signed desktop release or live third-party connector acceptance. The fixture app in `fixtures/counter.html` is synthetic. The package version intentionally carries a private `source` prerelease; consumers must pin the actual packed candidate and its hash rather than pretending it is a public release.
 
 
-The desktop service is exported at `@openagent/mcp-apps/desktop`. Its browser broker forwards abort signals and rejects late publication after close, owner change or revoked authorization. `test/desktop.test.mjs` runs the real Node service in Chromium; `test/surfaces-browser.test.mjs` bundles the actual three adopter surface components. `test/runtime-browser.test.mjs` is an optional full integration test selected by `OPENAGENT_TEST_RUNTIME_ROOT`, `OPENAGENT_TEST_PRODUCT` (`glasspalace`, `ics` or `standalone`) and `OPENAGENT_TEST_PYTHON`. The standalone handler fixture additionally takes `OPENAGENT_TEST_RUNTIME_FIXTURE_ROOT` pointing to the adopter fixture repository. These tests compile the actual product desktop adapter and use the installed source tarball, so response wrapping, route selection and account selectors are exercised. Their control-plane identity/session endpoints are owned fixtures, not production authentication evidence.
+The desktop service is exported at `@openagent/mcp-apps/desktop`. Its browser broker forwards abort signals and rejects late publication after close, owner change or revoked authorization. `test/desktop.test.mjs` runs the real Node service in Chromium; `test/surfaces-browser.test.mjs` bundles the actual three adopter surface components. `test/runtime-browser.test.mjs` is an optional full integration test selected by `OPENAGENT_TEST_RUNTIME_ROOT`, `OPENAGENT_TEST_PRODUCT` (a configured host name or `standalone`) and `OPENAGENT_TEST_PYTHON`. The standalone handler fixture additionally takes `OPENAGENT_TEST_RUNTIME_FIXTURE_ROOT` pointing to the adopter fixture repository. These tests compile the actual product desktop adapter and use the installed source tarball, so response wrapping, route selection and account selectors are exercised. Their control-plane identity/session endpoints are owned fixtures, not production authentication evidence.
 
 
 The Node desktop service accepts a trusted `approvePolicy` callback. It receives
@@ -52,7 +52,7 @@ roles fail explicitly. Suggested text remains visibly attributed to the app.
 The three renderer review components reject stale account, actor, workspace,
 agent or session scopes. They never invoke a chat-send API.
 
-The completed serial qualification used `test/protocol.test.mjs`, `test/browser.test.mjs`, `test/desktop.test.mjs`, `test/product-policy.test.mjs` and `test/draft-surfaces-browser.test.mjs`, followed by desktop and universal `npx tsc --noEmit` in OpenAgent, GlassPalace and ICS. The comparison workspace receipt `outputs/openagent-codex-phase3/mcp-phase-c.json` records commands, logs, hashes and acceptance boundaries. Draft tests use the actual components in an owned composer fixture; full authenticated installed-product acceptance remains separate.
+The completed serial qualification used `test/protocol.test.mjs`, `test/browser.test.mjs`, `test/desktop.test.mjs`, `test/product-policy.test.mjs` and `test/draft-surfaces-browser.test.mjs`, followed by desktop and universal `npx tsc --noEmit` in OpenAgent, embedding hosts. The comparison workspace receipt `outputs/openagent-codex-phase3/mcp-phase-c.json` records commands, logs, hashes and acceptance boundaries. Draft tests use the actual components in an owned composer fixture; full authenticated installed-product acceptance remains separate.
 
 
 Interactive host decisions retain a SHA-256 request identity instead of the
@@ -91,7 +91,7 @@ requires an ownership marker, has no native/browser builtins or broker daemon,
 and awaits owned MCP children during cleanup. The canonical and both Computers client-resource chains passed local source qualification; installed-wheel graph acceptance is recorded separately by the packaging qualification.
 
 
-Client-provided Apps have separate end-to-end fixtures. `test/client-runtime-browser.test.mjs` uses the canonical real capability WebSocket/current certificate-origin selector and lease, raw resource frames, facade, two owned stdio MCPs, actual desktop adapter and Chromium. `test/computer-runtime-browser.test.mjs` uses the GlassPalace/ICS Computers v2 desktop executor and per-server runtime sources, with a controlled authenticated control-plane ingress; signed current-lease behavior is tested separately by the products' Go suites. Both fixtures give two servers the same URI and deny calls to a sibling belonging only to the other server. The canonical fixture also cancels an in-flight resource read. Every fixture uses an explicitly owned direct facade without native/browser builtins or a persistent broker daemon and awaits its own children before cleanup. Enable the respective tests with `OPENAGENT_TEST_CANONICAL_CLIENT_RESOURCES=1` or `OPENAGENT_TEST_COMPUTER_CLIENT_RESOURCES=1`; supply the actual Python runtime and a locally installed Chromium path. These tests qualify local source/candidates, not production authentication or third-party services.
+Client-provided Apps have separate end-to-end fixtures. `test/client-runtime-browser.test.mjs` uses the canonical real capability WebSocket/current certificate-origin selector and lease, raw resource frames, facade, two owned stdio MCPs, actual desktop adapter and Chromium. `test/computer-runtime-browser.test.mjs` uses the embedding hosts Computers v2 desktop executor and per-server runtime sources, with a controlled authenticated control-plane ingress; signed current-lease behavior is tested separately by the products' Go suites. Both fixtures give two servers the same URI and deny calls to a sibling belonging only to the other server. The canonical fixture also cancels an in-flight resource read. Every fixture uses an explicitly owned direct facade without native/browser builtins or a persistent broker daemon and awaits its own children before cleanup. Enable the respective tests with `OPENAGENT_TEST_CANONICAL_CLIENT_RESOURCES=1` or `OPENAGENT_TEST_COMPUTER_CLIENT_RESOURCES=1`; supply the actual Python runtime and a locally installed Chromium path. These tests qualify local source/candidates, not production authentication or third-party services.
 
 
 The desktop presentation buffers bootstrap and live invocation display until its
@@ -117,3 +117,14 @@ replacement, fence their own authentication/API awaits, and resume only after
 verifying the new account. Revocation neither retries mutations nor resurrects old
 views after same-account login. Actual HTTP and compiled adopter tests cover these
 races, including a request body arriving after revocation and exact one-time cleanup.
+
+## Shared browser decisions and neutral host acceptance
+
+`@openagent/mcp-apps/browser-operator` owns parsing and validation of pending
+browser decisions and revalidation after native confirmation. Hosts supply
+inventory, dispatch and consent callbacks. Do not copy this state machine.
+Optional external acceptance targets are supplied as JSON in
+`OPENAGENT_TEST_HOSTS` (name, root, universalRoot, bridge, optional themeAlias).
+Runtime fixtures require `OPENAGENT_TEST_RUNTIME_HOST` with identityModule,
+actorHeader and actorTokenPrefix. No consuming project is named or selected
+inside this package. Missing optional targets are not product acceptance.

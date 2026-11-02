@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {startProductAdapter} from './product-adapter.mjs';
-const products=[{name:'ics',root:process.env.OPENAGENT_TEST_ICS_ROOT},{name:'glasspalace',root:process.env.OPENAGENT_TEST_GLASSPALACE_ROOT}];
+import {externalHosts} from './hosts.mjs';
+const products=externalHosts;
 const reference={sessionId:'session-alice',agentId:'agent-1',workspaceId:'workspace-1',toolRef:'owned-tool'};
 function deferred(){let resolve;const promise=new Promise(yes=>{resolve=yes});return{promise,resolve}}
 const turn=()=>new Promise(resolve=>setImmediate(resolve));

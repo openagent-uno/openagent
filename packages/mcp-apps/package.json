@@ -1,6 +1,6 @@
 {
   "name": "@openagent/mcp-apps",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "Optional source-bound MCP Apps host and isolated browser sandbox",
@@ -13,6 +13,10 @@
     "./desktop": {
       "types": "./src/desktop.d.ts",
       "default": "./src/desktop.mjs"
+    },
+    "./browser-operator": {
+      "types": "./src/browser-operator.d.ts",
+      "import": "./src/browser-operator.mjs"
     }
   },
   "files": [
@@ -30,6 +34,9 @@
     "*": {
       "desktop": [
         "src/desktop.d.ts"
+      ],
+      "browser-operator": [
+        "src/browser-operator.d.ts"
       ]
     }
   }

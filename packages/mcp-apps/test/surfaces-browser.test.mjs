@@ -9,11 +9,9 @@ import {createMcpAppHostService} from '../src/desktop.mjs';
 const require=createRequire(new URL('../../../apps/app/desktop/package.json',import.meta.url));
 const {chromium}=require('playwright'),{build}=require('esbuild');
 const universal=new URL('../../../apps/app/universal/',import.meta.url).pathname;
-const sourceRoot=process.env.OPENAGENT_TEST_PRODUCTS_ROOT;
+import {externalHosts} from './hosts.mjs';
 const html=await fs.readFile(new URL('../fixtures/counter.html',import.meta.url),'utf8');
-const products=[{name:'standalone',root:universal,bridge:'desktop'},
- {name:'glasspalace',root:sourceRoot&&path.join(sourceRoot,'GlassPalace/client/universal'),bridge:'glasspalaceDesktop'},
- {name:'ics',root:sourceRoot&&path.join(sourceRoot,'ICS/client/universal'),bridge:'icsDesktop'}];
+const products=[{name:'standalone',root:universal,bridge:'desktop'},...externalHosts.map(host=>({name:host.name,root:host.universalRoot,bridge:host.bridge}))];
 for(const product of products)test('actual '+product.name+' interactive surface opens, closes and fences stale account/session results',{skip:!product.root,timeout:30000},async()=>{
  const request={sessionId:'session-a',toolRef:'opaque-ref',toolCallId:'invocation-id',agentId:'agent-a',workspaceId:'workspace-a',accountId:'account-a'};
  const entry=`import React from 'react';import{createRoot}from'react-dom/client';import Surface from ${JSON.stringify(path.join(product.root,'components/McpAppSurface.web.tsx'))};

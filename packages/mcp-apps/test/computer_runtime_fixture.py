@@ -19,7 +19,8 @@ sys.path.insert(0, str(repo/'runtime/openagent/tests/v1'))
 if os.environ.get('OPENAGENT_TEST_INSTALLED_RUNTIME') != '1':
     sys.path.insert(0, str(repo/'runtime/openagent/src'))
 fixtures=importlib.import_module('test_runtime_contract')
-identity=importlib.import_module(product+'_agent_runtime.identity')
+config=json.loads(os.environ['OPENAGENT_TEST_RUNTIME_HOST'])
+identity=importlib.import_module(config['identityModule'])
 from openagent_host_tools.config import PluginConfigStore, PluginSpec
 from openagent_host_tools.paths import HostPaths
 from openagent_core import RunRequest
@@ -36,7 +37,7 @@ async def main():
         body=await request.json();method=body.get('method')
         if method not in {'openagent/computers/mcp/catalog','openagent/computers/mcp/call','resources/read'}:
             return await original(plane,request)
-        actor=plane.actor(request.headers.get('X-'+('GlassPalace' if product=='glasspalace' else 'ICS')+'-Actor-Context',''))
+        actor=plane.actor(request.headers.get(config['actorHeader'],''))
         if actor in plane.revoked:raise web.HTTPForbidden()
         # Attribution comes from this verified fixture ingress, never method params.
         params=body.get('params',{});session='session-'+actor
@@ -49,7 +50,7 @@ async def main():
     started=False
     try:
         await fixture.asyncSetUp();started=True
-        token=('gp_actor_' if product=='glasspalace' else 'ics_actor_')+'alice'
+        token=config['actorTokenPrefix']+'alice'
         with identity.actor_scope(token):
             ctx=await fixture.identity.resolve(token)
             definitions=await fixture.catalog.discover(ctx)

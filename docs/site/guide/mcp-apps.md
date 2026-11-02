@@ -33,7 +33,7 @@ The canonical desktop path retains tool `_meta` and negotiates `mcp-app-resource
 
 The dedicated `client_resource_read` frame carries the original server, session, generation and certified account/network; its channel is bound to the verified client instance and auth epoch. Replies retain raw MCP resource contents. The broker independently checks consent, principal, declared resource and the provider generation before publication. Cancellation propagates through registry, WebSocket, bridge, facade and SDK stdio; reconnect or another server with the same URI never supplies a fallback. Old host bundles without the negotiated flag fail explicitly.
 
-GlassPalace and ICS expose their per-server authorized MCP catalog/resource routes through Computers v2 and the runtime `ComputerMcpSource`. Current signed lease, actor, workspace, computer, generation, session and explicit local server allowlist remain required. This path is separate from the existing fixed filesystem/shell relay. Raw sibling tool names and duplicate `ui://` URIs stay within the exact originating server.
+embedding hosts expose their per-server authorized MCP catalog/resource routes through Computers v2 and the runtime `ComputerMcpSource`. Current signed lease, actor, workspace, computer, generation, session and explicit local server allowlist remain required. This path is separate from the existing fixed filesystem/shell relay. Raw sibling tool names and duplicate `ui://` URIs stay within the exact originating server.
 
 The three actual client-resource chains passed local source qualification with two independent owned SDK stdio peers, actual desktop adapters and Chromium. Canonical tests also cover a wrong current-client selector, cancellation and channel revocation. Their certificate/control-plane ingress is a controlled fixture; production certificate issuance and signed lease behavior are separate acceptance boundaries. Final installed-wheel graph/client reruns are tracked by the packaging receipt rather than inferred from source results.
 
@@ -47,8 +47,19 @@ Saved invocation display uses a trusted live reader. `authorize` accepts `displa
 
 ## Phase C qualification
 
-The `0.1.0-source.6` runtime passed **58 tests plus all six desktop/universal TypeScript checks** in OpenAgent, GlassPalace and ICS. The three installed runtime copies and source.6 archive hashes matched. The comparison workspace's `outputs/openagent-codex-phase3/mcp-phase-c.json` and `.md` record exact logs, hashes and limits. A later documentation-only package has a distinct version/hash while preserving these qualified runtime JavaScript/declaration bytes.
+The `0.1.0-source.6` runtime passed **58 tests plus all six desktop/universal TypeScript checks** in OpenAgent, embedding hosts. The three installed runtime copies and source.6 archive hashes matched. The comparison workspace's `outputs/openagent-codex-phase3/mcp-phase-c.json` and `.md` record exact logs, hashes and limits. A later documentation-only package has a distinct version/hash while preserving these qualified runtime JavaScript/declaration bytes.
 
 Native callback tests use the actual adapters with mocked Electron dialog/shell effects; no real OS consent dialog was clicked in those tests. Draft components run in an owned composer fixture, not a full authenticated installed application. No source result alone proves a signed release, production account or live third-party service. The current Core and SQLite source composition is `1.1.0b38.dev2026103005`; capability-host transport uses `1.0.0b2.dev2026103002`. Candidate graph versions and hashes must be taken from the actual packaging receipts, not old published release locks.
 
 The Core host service retains at most 16 MiB of serialized completed results globally, 32 active delivery cohorts and 8,192 reserved IDs. Expired cache entries never permit a repeated mutation. A pending duplicate disconnect cannot cancel the original operation; current callers retain complete results through publication authorization.
+
+## Shared browser decisions and neutral host acceptance
+
+`@openagent/mcp-apps/browser-operator` owns parsing and validation of pending
+browser decisions and revalidation after native confirmation. Hosts supply
+inventory, dispatch and consent callbacks. Do not copy this state machine.
+Optional external acceptance targets are supplied as JSON in
+`OPENAGENT_TEST_HOSTS` (name, root, universalRoot, bridge, optional themeAlias).
+Runtime fixtures require `OPENAGENT_TEST_RUNTIME_HOST` with identityModule,
+actorHeader and actorTokenPrefix. No consuming project is named or selected
+inside this package. Missing optional targets are not product acceptance.

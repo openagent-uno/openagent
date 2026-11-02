@@ -29,7 +29,8 @@ async def main():
             from types import SimpleNamespace
             sys.path.insert(0, str(repo/'apps/server/src'))
             from openagent_server.gateway.api.mcp_apps import handle
-            from glasspalace_agent_runtime.identity import actor_scope
+            config = json.loads(os.environ['OPENAGENT_TEST_RUNTIME_HOST'])
+            actor_scope = importlib.import_module(config['identityModule']).actor_scope
             async def context(request, session_id):
                 token = fixture.binding.verify(request.headers)
                 value = await fixture.identity.resolve(token)

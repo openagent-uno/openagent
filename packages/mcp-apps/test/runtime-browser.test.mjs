@@ -1,3 +1,4 @@
+import {runtimeHost} from './hosts.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {spawn} from 'node:child_process';
@@ -9,7 +10,7 @@ const {chromium}=require('playwright');
 const runtimeRoot=process.env.OPENAGENT_TEST_RUNTIME_ROOT;
 const python=process.env.OPENAGENT_TEST_PYTHON;
 const product=process.env.OPENAGENT_TEST_PRODUCT;
-const enabled=runtimeRoot&&python&&['glasspalace','ics','standalone'].includes(product);
+const enabled=runtimeRoot&&python&&Boolean(runtimeHost());
 
 test('real adopter HTTP + Core exact-source MCP stdio + loopback host + Chromium app', {skip:!enabled,timeout:45000},async()=>{
  const peer=spawn(python,[new URL('./runtime_fixture.py',import.meta.url).pathname,runtimeRoot,product,new URL('../fixtures/counter.html',import.meta.url).pathname],{stdio:['pipe','pipe','pipe']});

@@ -1,3 +1,4 @@
+import {runtimeHost} from './hosts.mjs';
 /** Real Computers desktop MCP executor + adopter catalog/API + actual Chromium app. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,7 +14,7 @@ import {startProductAdapter} from './product-adapter.mjs';
 const require=createRequire(new URL('../../../apps/app/desktop/package.json',import.meta.url));
 const {chromium}=require('playwright');
 const python=process.env.OPENAGENT_TEST_PYTHON,repo=process.env.OPENAGENT_TEST_RUNTIME_ROOT,product=process.env.OPENAGENT_TEST_PRODUCT;
-const enabled=python&&repo&&['glasspalace','ics'].includes(product)&&process.env.OPENAGENT_TEST_COMPUTER_CLIENT_RESOURCES==='1';
+const enabled=python&&repo&&Boolean(runtimeHost()) && product !== 'standalone'&&process.env.OPENAGENT_TEST_COMPUTER_CLIENT_RESOURCES==='1';
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
 test('actual ComputerMcpTools -> facade -> two stdio peers -> adopter HTTP -> product adapter -> Chromium',{skip:!enabled,timeout:90000},async()=>{

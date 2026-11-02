@@ -2,11 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {startProductAdapter} from './product-adapter.mjs';
-const products=[
- {name:'standalone',root:new URL('../../../',import.meta.url).pathname},
- {name:'glasspalace',root:process.env.OPENAGENT_TEST_GLASSPALACE_ROOT},
- {name:'ics',root:process.env.OPENAGENT_TEST_ICS_ROOT},
-];
+import {externalHosts} from './hosts.mjs';
+const products=[{name:'standalone',root:new URL('../../../',import.meta.url).pathname},...externalHosts];
 const reference={sessionId:'session-alice',agentId:'agent-1',workspaceId:'workspace-1',toolRef:'owned-tool'};
 async function fixture(product,native={response:1}){
  let allowed=true;const calls=[];
