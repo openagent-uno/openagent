@@ -1,0 +1,134 @@
+name: Publish verified canonical desktop
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful canonical desktop migration build run
+        required: true
+        type: string
+      source_sha:
+        description: Exact reviewed build source commit
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: canonical-desktop-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      BUILD_SOURCE: ${{ inputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bind publication to the reviewed canonical build
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$BUILD_SOURCE" =~ ^[a-f0-9]{40}$ ]]
+          git merge-base --is-ancestor "$BUILD_SOURCE" HEAD
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID" > build-run.json
+          python3 - <<'PY'
+          import json,os
+          run=json.load(open('build-run.json'))
+          assert run['path']=='.github/workflows/desktop-canonical-release.yml'
+          assert run['head_sha']==os.environ['BUILD_SOURCE']
+          assert run['head_branch']=='main' and run['event']=='workflow_dispatch'
+          PY
+          gh run watch "$BUILD_RUN_ID" --exit-status --interval 30
+          test "$(git show "$BUILD_SOURCE:apps/app/desktop/package.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])')" = "$(node -p 'require("./apps/app/desktop/package.json").version')"
+          echo "APP_TAG=app-v$(node -p 'require("./apps/app/desktop/package.json").version')" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked verifier dependencies
+        run: npm --prefix apps/app/desktop ci --no-fund --no-audit
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          pattern: desktop-*
+          path: artifacts
+      - name: Verify the complete six-platform asset set and generate the canonical feed
+        run: |
+          node apps/app/desktop/scripts/merge-update-metadata.js artifacts artifacts/release-metadata
+          node apps/app/desktop/scripts/verify-release-set.mjs artifacts
+          node apps/app/desktop/scripts/canonical-update-feed.js artifacts artifacts/release-metadata canonical-feed "$APP_TAG"
+      - name: Refuse to replace an immutable App release
+        run: |
+          python3 - <<'PY'
+          import json,subprocess,os
+          pages=json.loads(subprocess.check_output(['gh','api','--paginate','--slurp','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100']))
+          assert not any(r['tag_name']==os.environ['APP_TAG'] for p in pages for r in p), 'App release already exists; use a new version'
+          PY
+      - name: Stage a private App release
+        id: draft
+        uses: softprops/action-gh-release@v2.6.2
+        with:
+          tag_name: ${{ env.APP_TAG }}
+          target_commitish: ${{ inputs.source_sha }}
+          name: OpenAgent App canonical updater migration
+          body: |
+            Manual upgrade build with the canonical App updater feed. Existing application ID, protocol, profiles and signed native B7 bundles are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode and live-provider acceptance are not claimed.
+
+            Builds using retired repository updater URLs require a manual upgrade. Replace the existing installation without erasing its profile. Historical releases are being discarded by explicit owner decision.
+          draft: true
+          prerelease: true
+          make_latest: 'false'
+          overwrite_files: false
+          fail_on_unmatched_files: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.exe
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/release-metadata/*.yml
+            artifacts/**/*.blockmap
+            artifacts/**/*.sha256
+            artifacts/**/release-manifest-*.json
+      - name: Verify uploaded hashes before publication
+        env:
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release-draft.json
+          node apps/app/desktop/scripts/verify-release-set.mjs artifacts --release-json release-draft.json --expect-draft true --expect-prerelease true
+          echo '{"draft":false,"prerelease":true,"make_latest":"false"}' > publish.json
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input publish.json > release-published.json
+          node apps/app/desktop/scripts/verify-release-set.mjs artifacts --release-json release-published.json --expect-draft false --expect-prerelease true
+      - name: Publish verified channel metadata without changing immutable installers
+        run: |
+          python3 - <<'PY'
+          import importlib.util,json,os,hashlib,subprocess
+          from pathlib import Path
+          spec=importlib.util.spec_from_file_location('migration','scripts/migrate-release-assets.py')
+          migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+          repo=os.environ['GITHUB_REPOSITORY'];client=migration.GitHub(repo,repo)
+          feed=client.destination_release('app-update-feed')
+          if feed is None:
+              feed=client.api('repos/'+repo+'/releases','POST',{'tag_name':'app-update-feed','target_commitish':os.environ['GITHUB_SHA'],'name':'App update channel metadata','body':'Mutable channel metadata only. Installers remain immutable under versioned App tags.','draft':True,'prerelease':True,'make_latest':'false'})
+              client.release_ids['app-update-feed']=feed['id']
+          for path in sorted(Path('canonical-feed').glob('*.yml')):
+              expected=(path.stat().st_size,'sha256:'+hashlib.sha256(path.read_bytes()).hexdigest())
+              old=next((a for a in feed['assets'] if a['name']==path.name),None)
+              if old and (old['size'],old.get('digest'))==expected:continue
+              if old:client.api('repos/'+repo+'/releases/assets/'+str(old['id']),'DELETE')
+              new=client.upload(feed,path)
+              assert (new['size'],new['digest'])==expected
+          feed=client.api('repos/'+repo+'/releases/'+str(feed['id']))
+          for path in Path('canonical-feed').glob('*.yml'):
+              asset=next(a for a in feed['assets'] if a['name']==path.name)
+              assert asset['digest']=='sha256:'+hashlib.sha256(path.read_bytes()).hexdigest()
+          client.finish(feed,{'draft':False,'prerelease':True})
+          print('Canonical App release and all four channel metadata assets verified and published')
+          PY
