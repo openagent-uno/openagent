@@ -1,0 +1,56 @@
+name: Preserve unpublished retirement source inputs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preserve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify unpublished inputs and keep their archive private
+        env:
+          GH_TOKEN: ${{ secrets.RETIREMENT_SOURCE_BACKUP_TOKEN }}
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import importlib.util,json,os,re,subprocess,tarfile
+          spec=importlib.util.spec_from_file_location('migration','scripts/migrate-release-assets.py')
+          m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          try:
+              client=m.GitHub('openagent-uno/openagent-app','openagent-uno/openagent')
+              backup=client.destination_release('archive-repository-app-2026-11-02')
+              assert backup and backup['draft'], 'Source archive must remain private'
+              pages=json.loads(subprocess.check_output(['gh','api','--paginate','--slurp','repos/openagent-uno/openagent-app/releases?per_page=100']))
+              selected=[]
+              for release in [r for page in pages for r in page if r['draft']]:
+                  for a in release['assets']:
+                      name=a['name'].lower()
+                      source=bool(re.search(r'source|input|provenance|staging|snapshot',name))
+                      unknown_archive=name.endswith(('.tar.gz','.tgz','.tar.zst')) and not name.startswith(('openagent-host-tools-','openagent-app-'))
+                      if source or unknown_archive or name.endswith(('.json','.txt','.yml','.yaml')):
+                          selected.append({'source_tag':release['tag_name'],**a})
+              root=Path(os.environ['RUNNER_TEMP'])/'private-unreleased-source';root.mkdir(mode=0o700)
+              for a in selected:client.download(a,root/(str(a['id'])+'.bin'))
+              (root/'inventory.json').write_text(json.dumps(selected))
+              archive=root.parent/'unreleased-source-inputs-verified.tar.gz'
+              with tarfile.open(archive,'w:gz') as tar:tar.add(root,arcname='unreleased-source-inputs')
+              a=client.upload(backup,archive)
+              assert (a['size'],a['digest'])==(archive.stat().st_size,m.digest_file(archive))
+              assert client.api('repos/openagent-uno/openagent/releases/'+str(backup['id']))['draft']
+              receipt={'backup_release_id':backup['id'],'asset_name':a['name'],'bytes':a['size'],'sha256':a['digest'],'source_assets':len(selected),'source_bytes':sum(x['size'] for x in selected),'verified':True,'private':True}
+              (root.parent/'retirement-inputs-receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
+              print(json.dumps(receipt))
+          except Exception as error:
+              raise SystemExit('Private source preservation incomplete: '+type(error).__name__) from None
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: retirement-inputs-receipt
+          path: ${{ runner.temp }}/retirement-inputs-receipt.json
+          if-no-files-found: error
+          retention-days: 14
