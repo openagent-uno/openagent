@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from unittest.mock import patch
+from types import SimpleNamespace
+import json
 
 spec = importlib.util.spec_from_file_location('release_migration', Path(__file__).parents[1] / 'migrate-release-assets.py')
 module = importlib.util.module_from_spec(spec)
@@ -89,3 +91,15 @@ def test_download_uses_endpoint_specific_accept_header(tmp_path, endpoint, binar
     with patch.object(module.subprocess, 'run', side_effect=run):
         module.GitHub('example/source', 'example/dest').download(asset, tmp_path / 'archive.zip')
     assert (tmp_path / 'archive.zip').read_bytes() == data
+
+
+def test_private_draft_resumes_without_creating_a_public_git_ref():
+    release = {'id': 12, 'tag_name': 'untagged-private', 'draft': True,
+               'body': 'Private archive' + module.distribution_marker('private-reviewed-tag')}
+    client = module.GitHub('example/source', 'example/destination')
+    with patch.object(module.subprocess, 'run', return_value=SimpleNamespace(stdout=json.dumps([[release]]))), \
+         patch.object(client, 'api', return_value=release) as api:
+        assert client.destination_release('private-reviewed-tag') == release
+        client.finish(release, {'draft': True, 'prerelease': False})
+        assert api.call_args.args[2]['tag_name'] == 'private-reviewed-tag'
+        assert api.call_args.args[2]['draft'] is True

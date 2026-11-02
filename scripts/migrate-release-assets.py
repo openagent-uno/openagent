@@ -15,6 +15,25 @@ import subprocess
 from urllib.parse import quote
 
 
+def distribution_marker(tag):
+    return '\n<!-- openagent-distribution-tag: ' + json.dumps(tag) + ' -->'
+
+
+def marked_tag(body):
+    # GitHub can expose an untagged-* name for a draft whose Git ref does not
+    # exist yet. Keep the requested locator private in its own draft body.
+    prefix = '\n<!-- openagent-distribution-tag: '
+    tail = str(body or '').rpartition(prefix)[2]
+    if tail.endswith(' -->'):
+        try:
+            value = json.loads(tail[:-4])
+            if isinstance(value, str) and value:
+                return value
+        except ValueError:
+            pass
+    return None
+
+
 class GitHub:
     def __init__(self, source: str, destination: str):
         self.source, self.destination = source, destination
@@ -44,6 +63,8 @@ class GitHub:
         for page in json.loads(result.stdout):
             for release in page:
                 self.release_ids[release['tag_name']] = release['id']
+                if marker := marked_tag(release.get('body')):
+                    self.release_ids[marker] = release['id']
         self.loaded_index = True
         if tag in self.release_ids:
             return self.api(f'repos/{self.destination}/releases/{self.release_ids[tag]}')
@@ -52,7 +73,7 @@ class GitHub:
     def create(self, tag, commit, source):
         release = self.api(f'repos/{self.destination}/releases', 'POST', {
             'tag_name': tag, 'target_commitish': commit, 'name': source['name'] or tag,
-            'body': (source.get('body') or '') + '\n\nDistribution mirror of ' + source.get('html_url', self.source) + '. Binary bytes are unchanged; the tag targets the canonical importer, not a rebuild.', 'draft': True,
+            'body': (source.get('body') or '') + '\n\nDistribution mirror of ' + source.get('html_url', self.source) + '. Binary bytes are unchanged; the distribution tag identifies the retained source/import, not a binary rebuild.' + distribution_marker(tag), 'draft': True,
             'prerelease': source['prerelease'], 'make_latest': 'false'})
         self.release_ids[tag] = release['id']
         return release
@@ -108,7 +129,7 @@ class GitHub:
                     time.sleep(1.6)
                     return json.loads(body)
                 if response.status == 422:
-                    existing = self.destination_release(release['tag_name'])
+                    existing = self.api(f'repos/{self.destination}/releases/{release["id"]}')
                     asset = next((a for a in existing['assets'] if a['name'] == path.name), None)
                     if asset and (asset['size'], asset.get('digest')) == (path.stat().st_size, digest_file(path)):
                         return asset
@@ -124,8 +145,12 @@ class GitHub:
         raise RuntimeError('GitHub upload retry limit reached')
 
     def finish(self, release, source):
+        tag = marked_tag(release.get('body')) or next(
+            (tag for tag, identifier in self.release_ids.items()
+             if identifier == release['id'] and not tag.startswith('untagged-')),
+            release['tag_name'])
         return self.api(f'repos/{self.destination}/releases/{release["id"]}', 'PATCH', {
-            'draft': source['draft'], 'prerelease': source['prerelease'], 'make_latest': 'false'})
+            'tag_name': tag, 'draft': source['draft'], 'prerelease': source['prerelease'], 'make_latest': 'false'})
 
 
 def digest_file(path):
@@ -190,6 +215,8 @@ def copy_release(client, source, tag, commit, cache):
     destination = client.finish(destination, source)
     if destination['draft'] != source['draft'] or destination['prerelease'] != source['prerelease']:
         raise ValueError('Destination visibility differs from source')
+    if not source['draft'] and destination['tag_name'] != tag:
+        raise ValueError('Published destination tag differs from requested locator')
     return {'source_release_id': source['id'], 'source_tag': source['tag_name'],
             'destination_release_id': destination['id'], 'destination_tag': tag,
             'assets': len(expected), 'bytes': sum(size for size, _ in expected.values()),
