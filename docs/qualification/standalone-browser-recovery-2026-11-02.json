@@ -19,7 +19,8 @@
     "product": "1.1.2",
     "core": "1.1.0b37",
     "channelBridges": "0.1.0b15",
-    "webSearch": "1.0.0-beta.3"
+    "webSearch": "1.0.0-beta.3",
+    "webSearchArtifactSha256": "9def83730a89a84f129cf3089828cb86a964c3fff87404d50750538a4fc5d9ce"
   },
   "installedTests": {
     "passed": 420,
@@ -50,7 +51,14 @@
     "seconds": 32.32,
     "structuredMcpContentVerified": true,
     "telegramMessagesSent": false,
-    "externalTelegramIngressAndDeliveryExercised": false
+    "externalTelegramIngressAndDeliveryExercised": false,
+    "fullWebSearch": {
+      "passed": true,
+      "seconds": 24.86,
+      "resultCount": 2,
+      "structuredMcpContentVerified": true,
+      "providerMocks": false
+    }
   },
   "telegramProvider": {
     "getMe": {
