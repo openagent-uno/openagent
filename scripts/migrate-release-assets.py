@@ -63,7 +63,11 @@ class GitHub:
             partial = destination.with_name(destination.name + '.migration-part')
             try:
                 with partial.open('wb') as stream:
-                    subprocess.run(['gh', 'api', '-H', 'Accept: application/octet-stream',
+                    # Actions archive endpoints require the JSON Accept header
+                    # before redirecting to their ZIP; release assets require
+                    # octet-stream to return bytes instead of asset metadata.
+                    headers = [] if '/actions/artifacts/' in asset['url'] else ['-H', 'Accept: application/octet-stream']
+                    subprocess.run(['gh', 'api', *headers,
                                     asset['url'] + '?migration=' + str(time.time_ns())],
                                    stdout=stream, stderr=subprocess.PIPE, check=True)
                 if (partial.stat().st_size, digest_file(partial)) != (asset['size'], asset['digest']):

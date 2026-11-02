@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('release_migration', Path(__file__).parents[1] / 'migrate-release-assets.py')
 module = importlib.util.module_from_spec(spec)
@@ -75,3 +76,16 @@ def test_conflicting_destination_and_public_draft_are_rejected(tmp_path):
     with pytest.raises(ValueError, match='conflicting'):
         module.copy_release(peer, peer.source, 'app-v1.2.3', 'a' * 40, tmp_path)
     assert peer.uploads == 0
+
+
+@pytest.mark.parametrize('endpoint,binary_header', [('releases/assets/1', True), ('actions/artifacts/1/zip', False)])
+def test_download_uses_endpoint_specific_accept_header(tmp_path, endpoint, binary_header):
+    data = b'unchanged archive bytes'
+    asset = {'url': 'https://api.github.com/repos/example/source/' + endpoint,
+             'size': len(data), 'digest': 'sha256:' + hashlib.sha256(data).hexdigest()}
+    def run(args, **kwargs):
+        assert ('Accept: application/octet-stream' in args) is binary_header
+        kwargs['stdout'].write(data)
+    with patch.object(module.subprocess, 'run', side_effect=run):
+        module.GitHub('example/source', 'example/dest').download(asset, tmp_path / 'archive.zip')
+    assert (tmp_path / 'archive.zip').read_bytes() == data
