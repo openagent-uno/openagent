@@ -1,0 +1,38 @@
+name: Public canonical updater qualification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-update-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify released installer and actual paginated updater
+        run: |
+          mkdir "$RUNNER_TEMP/public-release-proof"
+          cd "$RUNNER_TEMP/public-release-proof"
+          gh release download v1.1.8 --repo openagent-uno/openagent --pattern install.sh --pattern manifest.json --pattern 'openagent_framework-*.whl'
+          sh install.sh --check
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json,sys
+          manifest=json.loads(Path('manifest.json').read_text())
+          wheel=next(Path('.').glob('openagent_framework-*.whl'))
+          expected=next(x for x in manifest['wheels'] if x['file']==wheel.name)
+          assert hashlib.sha256(wheel.read_bytes()).hexdigest()==expected['sha256']
+          sys.path.insert(0,str(wheel.resolve()))
+          import openagent_server
+          from openagent_server import updater
+          assert openagent_server.__version__=='1.1.8'
+          releases=updater._release_pages()
+          assert len(releases)==len({r['id'] for r in releases})
+          assert any(r['tag_name']=='v1.1.8' for r in releases)
+          assert all(not r['draft'] for r in releases)
+          print('Released 1.1.8 updater verified against '+str(len(releases))+' live public releases; canonical numeric pagination works.')
+          PY
