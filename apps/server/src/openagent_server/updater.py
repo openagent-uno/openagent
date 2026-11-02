@@ -26,6 +26,7 @@ import zipfile
 from pathlib import Path
 from typing import NamedTuple
 from urllib.request import urlopen, Request
+from urllib.parse import urlsplit, parse_qs
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,27 @@ GITHUB_API = GITHUB_RELEASES_API
 
 def _release_version(tag: str) -> str:
     return tag.removeprefix("server-").removeprefix("v")
+
+
+def _canonical_release_page(url: str) -> str:
+    """Normalize GitHub's owner/name and numeric pagination to our own repo.
+
+    Never follow the numeric locator directly: only the validated page number
+    is reused, so a foreign repository cannot become the update authority.
+    """
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.netloc != "api.github.com":
+        raise ValueError("Unexpected release pagination authority")
+    own_path = f"/repos/{GITHUB_REPO}/releases"
+    if parsed.path != own_path and not re.fullmatch(r"/repositories/[0-9]+/releases", parsed.path):
+        raise ValueError("Unexpected release pagination authority")
+    query = parse_qs(parsed.query, strict_parsing=True)
+    if set(query) != {"page", "per_page"} or query["per_page"] != ["100"] or len(query["page"]) != 1:
+        raise ValueError("Unexpected release pagination query")
+    page = query["page"][0]
+    if not page.isascii() or not page.isdigit() or not 2 <= int(page) <= 20:
+        raise ValueError("Canonical release feed exceeds the pagination bound")
+    return f"{GITHUB_RELEASES_API}&page={int(page)}"
 
 
 def _release_pages():
@@ -62,9 +84,7 @@ def _release_pages():
                 next_url = match.group(1)
         if next_url is None:
             return result
-        if not next_url.startswith(f"https://api.github.com/repos/{GITHUB_REPO}/releases?"):
-            raise ValueError("Unexpected release pagination authority")
-        url = next_url
+        url = _canonical_release_page(next_url)
     raise ValueError("Canonical release feed exceeds the pagination bound")
 
 

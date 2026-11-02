@@ -50,3 +50,14 @@ def test_pagination_stays_bound_to_canonical_repository():
     with patch.object(updater, 'urlopen', return_value=Response([], '<https://other.test/release>; rel="next"')):
         with pytest.raises(ValueError, match='authority'):
             updater._release_pages()
+
+
+def test_numeric_github_links_are_normalized_without_following_other_repository_ids():
+    numeric = 'https://api.github.com/repositories/1378225036/releases?per_page=100&page=2'
+    with patch.object(updater, 'urlopen', side_effect=[Response([{'id': 1}], f'<{numeric}>; rel="next"'), Response([{'id': 2}])]) as fetch:
+        assert updater._release_pages() == [{'id': 1}, {'id': 2}]
+        assert fetch.call_args_list[1].args[0].full_url == updater.GITHUB_RELEASES_API + '&page=2'
+    assert updater._canonical_release_page(numeric.replace('1378225036','999999')) == updater.GITHUB_RELEASES_API + '&page=2'
+    for invalid in ['https://api.github.com/repos/foreign/project/releases?per_page=100&page=2', numeric+'&redirect=foreign', numeric.replace('page=2','page=0')]:
+        with pytest.raises(ValueError):
+            updater._canonical_release_page(invalid)

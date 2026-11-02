@@ -51,6 +51,8 @@ jobs:
           assert run['head_sha']==os.environ['BUILD_SOURCE']
           assert run['head_branch']=='main' and run['event']=='workflow_dispatch'
           PY
+          test ! -e .canonical-publication
+          mkdir .canonical-publication
           gh run watch "$BUILD_RUN_ID" --exit-status --interval 30
           python3 - <<'PY'
           import json,os,subprocess
@@ -90,18 +92,18 @@ jobs:
           run-id: ${{ inputs.baseline_build_run_id }}
           github-token: ${{ github.token }}
           pattern: desktop-*
-          path: artifacts
+          path: .canonical-publication/artifacts
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.build_run_id }}
           github-token: ${{ github.token }}
           pattern: desktop-*
-          path: artifacts
+          path: .canonical-publication/artifacts
       - name: Verify the complete six-platform asset set and generate the canonical feed
         run: |
-          node apps/app/desktop/scripts/merge-update-metadata.js artifacts artifacts/release-metadata
-          node apps/app/desktop/scripts/verify-release-set.mjs artifacts
-          node apps/app/desktop/scripts/canonical-update-feed.js artifacts artifacts/release-metadata canonical-feed "$APP_TAG"
+          node apps/app/desktop/scripts/merge-update-metadata.js .canonical-publication/artifacts .canonical-publication/artifacts/release-metadata
+          node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts
+          node apps/app/desktop/scripts/canonical-update-feed.js .canonical-publication/artifacts .canonical-publication/artifacts/release-metadata .canonical-publication/canonical-feed "$APP_TAG"
       - name: Refuse to replace an immutable App release
         run: |
           python3 - <<'PY'
@@ -135,24 +137,24 @@ jobs:
           overwrite_files: false
           fail_on_unmatched_files: true
           files: |
-            artifacts/**/*.dmg
-            artifacts/**/*.zip
-            artifacts/**/*.exe
-            artifacts/**/*.AppImage
-            artifacts/**/*.deb
-            artifacts/release-metadata/*.yml
-            artifacts/**/*.blockmap
-            artifacts/**/*.sha256
-            artifacts/**/release-manifest-*.json
+            .canonical-publication/artifacts/**/*.dmg
+            .canonical-publication/artifacts/**/*.zip
+            .canonical-publication/artifacts/**/*.exe
+            .canonical-publication/artifacts/**/*.AppImage
+            .canonical-publication/artifacts/**/*.deb
+            .canonical-publication/artifacts/release-metadata/*.yml
+            .canonical-publication/artifacts/**/*.blockmap
+            .canonical-publication/artifacts/**/*.sha256
+            .canonical-publication/artifacts/**/release-manifest-*.json
       - name: Verify uploaded hashes before publication
         env:
           RELEASE_ID: ${{ steps.draft.outputs.id }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release-draft.json
-          node apps/app/desktop/scripts/verify-release-set.mjs artifacts --release-json release-draft.json --expect-draft true --expect-prerelease true
+          node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts --release-json release-draft.json --expect-draft true --expect-prerelease true
           echo '{"draft":false,"prerelease":true,"make_latest":"false"}' > publish.json
           gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --input publish.json > release-published.json
-          node apps/app/desktop/scripts/verify-release-set.mjs artifacts --release-json release-published.json --expect-draft false --expect-prerelease true
+          node apps/app/desktop/scripts/verify-release-set.mjs .canonical-publication/artifacts --release-json release-published.json --expect-draft false --expect-prerelease true
       - name: Publish verified channel metadata without changing immutable installers
         run: |
           python3 - <<'PY'
@@ -168,7 +170,7 @@ jobs:
                   client.api('repos/'+repo+'/git/refs','POST',{'ref':'refs/tags/app-update-feed','sha':os.environ['GITHUB_SHA']})
               feed=client.api('repos/'+repo+'/releases','POST',{'tag_name':'app-update-feed','target_commitish':os.environ['GITHUB_SHA'],'name':'App update channel metadata','body':'Mutable channel metadata only. Installers remain immutable under versioned App tags.','draft':True,'prerelease':True,'make_latest':'false'})
               client.release_ids['app-update-feed']=feed['id']
-          for path in sorted(Path('canonical-feed').glob('*.yml')):
+          for path in sorted(Path('.canonical-publication/canonical-feed').glob('*.yml')):
               expected=(path.stat().st_size,'sha256:'+hashlib.sha256(path.read_bytes()).hexdigest())
               old=next((a for a in feed['assets'] if a['name']==path.name),None)
               if old and (old['size'],old.get('digest'))==expected:continue
@@ -176,7 +178,7 @@ jobs:
               new=client.upload(feed,path)
               assert (new['size'],new['digest'])==expected
           feed=client.api('repos/'+repo+'/releases/'+str(feed['id']))
-          for path in Path('canonical-feed').glob('*.yml'):
+          for path in Path('.canonical-publication/canonical-feed').glob('*.yml'):
               asset=next(a for a in feed['assets'] if a['name']==path.name)
               assert asset['digest']=='sha256:'+hashlib.sha256(path.read_bytes()).hexdigest()
           published=client.finish(feed,{'draft':False,'prerelease':True})
