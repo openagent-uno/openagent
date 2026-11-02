@@ -2,7 +2,7 @@
   "date": "2026-11-02",
   "scope": "Shared browser decision controller and neutral configurable acceptance targets",
   "core_version": "1.1.0b43",
-  "device_tools_version": "1.0.0b9",
+  "device_tools_version": "1.0.0b10",
   "mcp_apps_version": "0.1.2",
   "tests": {
     "mcp_protocol_browser_desktop": 53,
