@@ -1,0 +1,29 @@
+name: Consolidate historical releases
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: historical-release-consolidation
+  cancel-in-progress: false
+jobs:
+  copy:
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        component: [cli, host-tools, app, server]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Copy unchanged bytes and preserve draft visibility
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_CONSOLIDATION_TOKEN }}
+        run: |
+          python3 scripts/migrate-legacy-releases.py --component '${{ matrix.component }}' --target-commit "$GITHUB_SHA" --state-dir "$RUNNER_TEMP/private-migration-state"
+      # Deliberately no artifact upload: state contains private draft metadata.
+      # Independent authenticated API comparison is required before retirement.
