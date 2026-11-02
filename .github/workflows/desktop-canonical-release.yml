@@ -8,6 +8,13 @@ on:
         required: true
         type: string
 
+      target:
+        description: All targets or one diagnostic target
+        required: true
+        type: choice
+        options: [all, win32-arm64]
+        default: all
+
 permissions:
   contents: read
 
@@ -21,13 +28,7 @@ jobs:
       fail-fast: false
       max-parallel: 2
       matrix:
-        include:
-          - { runner: macos-15, platform: darwin-arm64, script: 'build:mac', arch: '--arm64' }
-          - { runner: macos-15-intel, platform: darwin-x64, script: 'build:mac', arch: '--x64' }
-          - { runner: ubuntu-24.04, platform: linux-x64, script: 'build:linux', arch: '--x64' }
-          - { runner: ubuntu-24.04-arm, platform: linux-arm64, script: 'build:linux', arch: '--arm64' }
-          - { runner: windows-2022, platform: win32-x64, script: 'build:win', arch: '--x64' }
-          - { runner: windows-11-arm, platform: win32-arm64, script: 'build:win', arch: '--arm64' }
+        include: ${{ fromJSON(inputs.target == 'win32-arm64' && '[{"runner":"windows-11-arm","platform":"win32-arm64","script":"build:win","arch":"--arm64"}]' || '[{"runner":"macos-15","platform":"darwin-arm64","script":"build:mac","arch":"--arm64"},{"runner":"macos-15-intel","platform":"darwin-x64","script":"build:mac","arch":"--x64"},{"runner":"ubuntu-24.04","platform":"linux-x64","script":"build:linux","arch":"--x64"},{"runner":"ubuntu-24.04-arm","platform":"linux-arm64","script":"build:linux","arch":"--arm64"},{"runner":"windows-2022","platform":"win32-x64","script":"build:win","arch":"--x64"},{"runner":"windows-11-arm","platform":"win32-arm64","script":"build:win","arch":"--arm64"}]') }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 110
     defaults:
@@ -108,3 +109,13 @@ jobs:
             apps/app/desktop/release/release-manifest-*.json
           if-no-files-found: error
           retention-days: 14
+      - name: Preserve failed-target installers for owned diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-${{ matrix.platform }}
+          path: |
+            apps/app/desktop/release/*.exe
+            apps/app/desktop/release/*.yml
+          if-no-files-found: ignore
+          retention-days: 3

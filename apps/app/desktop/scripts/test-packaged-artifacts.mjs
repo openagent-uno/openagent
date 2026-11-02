@@ -64,6 +64,7 @@ function directories(root, suffix) {
 }
 
 function run(command, args, options = {}) {
+  console.log(`Native artifact check: ${path.basename(command)}`);
   const result = spawnSync(command, args, {
     encoding: 'utf8',
     stdio: 'pipe',
