@@ -10,6 +10,11 @@ on:
         description: Exact reviewed build source commit
         required: true
         type: string
+      baseline_build_run_id:
+        description: Optional five-target baseline when only Windows ARM64 acceptance was repeated
+        required: false
+        default: ''
+        type: string
 permissions:
   actions: read
   contents: write
@@ -24,6 +29,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
       BUILD_SOURCE: ${{ inputs.source_sha }}
+      BASELINE_RUN_ID: ${{ inputs.baseline_build_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,6 +52,31 @@ jobs:
           assert run['head_branch']=='main' and run['event']=='workflow_dispatch'
           PY
           gh run watch "$BUILD_RUN_ID" --exit-status --interval 30
+          python3 - <<'PY'
+          import json,os,subprocess
+          def api(path):
+              return json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+path]))
+          jobs=api('/actions/runs/'+os.environ['BUILD_RUN_ID']+'/jobs?per_page=100')['jobs']
+          baseline=os.environ.get('BASELINE_RUN_ID','')
+          if baseline:
+              assert baseline.isdigit()
+              run=api('/actions/runs/'+baseline)
+              assert run['path']=='.github/workflows/desktop-canonical-release.yml'
+              assert run['head_branch']=='main' and run['event']=='workflow_dispatch' and run['status']=='completed'
+              source=run['head_sha']
+              subprocess.run(['git','merge-base','--is-ancestor',source,os.environ['BUILD_SOURCE']],check=True)
+              changed=subprocess.check_output(['git','diff','--name-only',source,os.environ['BUILD_SOURCE'],'--','apps/app'],text=True).splitlines()
+              allowed={'apps/app/desktop/scripts/test-packaged-artifacts.mjs','apps/app/desktop/scripts/canonical-update-feed.js','apps/app/desktop/scripts/__tests__/canonical-update-feed.test.mjs'}
+              assert set(changed)<=allowed, 'Runtime, renderer, package, lock or bundle inputs changed: rebuild all targets'
+              assert len(jobs)==1 and 'win32-arm64' in jobs[0]['name'] and jobs[0]['conclusion']=='success'
+              old=api('/actions/runs/'+baseline+'/jobs?per_page=100')['jobs']
+              for platform in ['darwin-arm64','darwin-x64','win32-x64','linux-arm64','linux-x64']:
+                  matches=[j for j in old if ', '+platform+',' in j['name']]
+                  assert len(matches)==1 and matches[0]['conclusion']=='success'
+              with open(os.environ['GITHUB_ENV'],'a') as stream:stream.write('BASELINE_SOURCE='+source+'\n')
+          else:
+              assert len(jobs)==6 and all(j['conclusion']=='success' for j in jobs)
+          PY
           test "$(git show "$BUILD_SOURCE:apps/app/desktop/package.json" | python3 -c 'import json,sys;print(json.load(sys.stdin)["version"])')" = "$(node -p 'require("./apps/app/desktop/package.json").version')"
           echo "APP_TAG=app-v$(node -p 'require("./apps/app/desktop/package.json").version')" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
@@ -53,6 +84,13 @@ jobs:
           node-version: '24'
       - name: Install locked verifier dependencies
         run: npm --prefix apps/app/desktop ci --no-fund --no-audit
+      - uses: actions/download-artifact@v4
+        if: inputs.baseline_build_run_id != ''
+        with:
+          run-id: ${{ inputs.baseline_build_run_id }}
+          github-token: ${{ github.token }}
+          pattern: desktop-*
+          path: artifacts
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.build_run_id }}
@@ -82,6 +120,8 @@ jobs:
             Manual upgrade build with the canonical App updater feed. Existing application ID, protocol, profiles and signed native B7 bundles are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode and live-provider acceptance are not claimed.
 
             Builds using retired repository updater URLs require a manual upgrade. Replace the existing installation without erasing its profile. Historical releases are being discarded by explicit owner decision.
+
+            Build source: ${{ inputs.source_sha }}; run ${{ inputs.build_run_id }}. Optional five-target baseline: ${{ env.BASELINE_SOURCE }}; run ${{ inputs.baseline_build_run_id }}. Reuse is permitted only when runtime, renderer, package, dependency lock and native bundle inputs are unchanged; the diff gate permits acceptance/publication helper changes only.
           draft: true
           prerelease: true
           make_latest: 'false'
