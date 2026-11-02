@@ -1,0 +1,112 @@
+{
+  "date": "2026-11-02",
+  "canonical_repositories": [
+    "openagent-uno/openagent",
+    "openagent-uno/openagent-core",
+    "openagent-uno/openagent-tools"
+  ],
+  "manual_migration_explicitly_selected": true,
+  "old_release_history_deletion_explicitly_selected": true,
+  "public_releases": {
+    "app-v1.1.0-beta.24": {
+      "id": 431466544,
+      "assets": 36,
+      "bytes": 2089999082,
+      "prerelease": true
+    },
+    "app-update-feed": {
+      "id": 431467367,
+      "assets": 4,
+      "bytes": 3796,
+      "prerelease": true
+    },
+    "v1.1.8": {
+      "id": 431458219,
+      "assets": 12,
+      "bytes": 1012574,
+      "prerelease": false
+    }
+  },
+  "publications": {
+    "app_build_baseline": "https://github.com/openagent-uno/openagent/actions/runs/41430583688",
+    "windows_arm64_requalification": "https://github.com/openagent-uno/openagent/actions/runs/41444127764",
+    "canonical_app_and_feed": "https://github.com/openagent-uno/openagent/actions/runs/41449051598",
+    "public_installer_and_live_pagination": "https://github.com/openagent-uno/openagent/actions/runs/41450905443",
+    "signing_settings_verification": "https://github.com/openagent-uno/openagent/actions/runs/41428714304"
+  },
+  "verification": {
+    "native_platforms": 6,
+    "app_assets": 36,
+    "feed_assets": 4,
+    "public_first_party_wheels": 39,
+    "live_public_release_pages": 2,
+    "live_public_releases": 106,
+    "installed_updater_contracts": 31,
+    "canonical_server_feed_regressions": 4,
+    "release_migration_unit_tests": 8,
+    "installer_unit_tests": 1,
+    "installer_subtests": 2,
+    "node_release_policy_and_exports_tests": 4,
+    "downstream_acquisition_python_tests": [
+      21,
+      20
+    ],
+    "downstream_lock_and_staging_node_checks": [
+      1,
+      4
+    ],
+    "actual_public_native_staging": "darwin-arm64 in two adopters",
+    "local_native_signatures_verified": 6,
+    "final_python_tests": 25,
+    "final_python_subtests": 38,
+    "final_node_tests": 4,
+    "final_site_build": "passed"
+  },
+  "private_preservation": {
+    "source_repositories": 5,
+    "app_lfs_objects": 2,
+    "unpublished_source_inputs": 27,
+    "unpublished_source_bytes": 72074629,
+    "signing_setting_value_copies_verified": 26,
+    "raw_secrets_in_public_files": false
+  },
+  "imported_history_cleanup": {
+    "reason": "Owner explicitly chose permanent deletion of historical releases, including imported copies",
+    "deleted_releases": 42,
+    "deleted_assets": 526,
+    "discarded_bytes": 44641358921,
+    "only_new_imports_deleted": true
+  },
+  "known_preexisting_downstream_checks": {
+    "failures": 2,
+    "reasons": [
+      "stale hard-coded Python test-count expectation",
+      "historical workflow file absent from the published revision"
+    ],
+    "migration_lock_and_public_download_checks_passed": true
+  },
+  "qualification_limits": [
+    "No user installed App or identity/profile was modified",
+    "No model/connector-provider acceptance or production runtime deployment is claimed",
+    "Native App B7 bundles retained unchanged; Python facade B8 adoption is separate",
+    "Windows Authenticode not claimed"
+  ],
+  "retirement": {
+    "organization_repository_names_verified": [
+      "openagent",
+      "openagent-core",
+      "openagent-tools"
+    ],
+    "retired_repositories": [
+      "openagent-app",
+      "openagent-cli",
+      "openagent-server",
+      "openagent-host-tools",
+      "openagent-mcp-template",
+      "openagent-mcp",
+      "openagent-docs"
+    ],
+    "all_four_public_feed_files_downloaded_and_verified": true,
+    "temporary_publication_and_backup_tokens_removed": true
+  }
+}

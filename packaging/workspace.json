@@ -90,7 +90,9 @@
     "desktop_protocol_scheme": "openagent",
     "client_mcp_config": "~/.openagent/user/client-mcps.toml",
     "client_consent": "~/.openagent/user/client-tools-consent.json",
-    "legacy_update_endpoints_retained": true,
-    "updater_transition_qualified": false
+    "legacy_update_endpoints_retained": false,
+    "updater_transition_qualified": false,
+    "updater_migration_mode": "manual",
+    "manual_canonical_destinations_qualified": true
   }
 }

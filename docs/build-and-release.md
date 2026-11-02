@@ -52,9 +52,19 @@ artifacts and signing identities, qualify the newly built updater, and keep user
 identity keys, application IDs, profiles and consent files at their existing paths.
 Do not uninstall or erase a profile as part of manual migration.
 
+## Current canonical publication
+
+The manual-upgrade cohort is product 1.1.8 and App beta24. Use the reviewed
+native build and canonical publisher workflows described in
+[the current migration/publication procedure](release-consolidation.md).
+Python Host Tools B8 and the unchanged signed native B7 bundles have distinct
+qualification scopes. The six-platform App and all four feed files are public;
+old distribution repositories are retired. Historical recipes below retain
+original attribution and are not current release destinations.
+
 ## Local macOS qualification reference
 
-This local developer route is separate from the current B6 remote CI release
+This local developer route is separate from the historical B6 remote CI release
 procedure recorded below; it is not required to consume the published bundles.
 
 Use the existing Developer ID identity and entitlements. The host bundle must
@@ -88,7 +98,7 @@ See [runtime qualification](runtime-and-verification.md) and
 [frozen server qualification](frozen-server-qualification.md) for evidence and
 remaining distribution gates.
 
-## Current native bundle release: Host Tools B6 (14 October 2026)
+## Historical native bundle release: Host Tools B6 (14 October 2026)
 
 [Host Tools B6](https://github.com/openagent-uno/openagent/releases/tag/v1.0.0b6)
 is published from canonical source `aa8dafb3ef14066dbdaadbbf66bc9b3a00b801e0`,

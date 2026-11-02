@@ -16,7 +16,7 @@ import time
 import urllib.request
 
 APP_SOURCE = '0b00b5bde99fbbe5685f7906a7d1596c6e0d85fb'
-APP_RELEASE = 'https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.17/'
+APP_RELEASE = 'https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.17/'
 DEB = 'openagent-app-1.1.0-beta.17-linux-amd64.deb'
 DEB_SHA = '7c62eb994b72cfdd711b391f0eb0bcf437ac00356c6d4b2bd56044763e0a59b4'
 MANIFEST_SHA = 'cbebbfbccaa2cf8bd2191dcb39b88a2b230872770333e8a35dbe36245f81fcce'
@@ -59,7 +59,7 @@ def release_contract(path=None, digest=None):
         ('1.1.0-beta.21', '1.1.0b44', '1.1.0b22', '0.1.7', '1.0.0b6'),
         ('1.1.0-beta.22', '1.1.0b45', '1.1.0b22', '0.1.8', '1.0.0b6'),
     })
-    require(value['appRelease'] == 'https://github.com/openagent-uno/openagent/releases/download/app-v' + value['appVersion'] + '/'
+    require(value['appRelease'] == 'https://github.com/openagent-uno/openagent-app/releases/download/v' + value['appVersion'] + '/'
             and value['appDEB'] == 'openagent-app-' + value['appVersion'] + '-linux-amd64.deb'
             and value['installerURL'] == 'https://openagent.uno/install.sh'
             and value['catalogURL'] == 'https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v' + value['sdkVersion'] + '/catalog.json')

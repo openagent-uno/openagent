@@ -23,5 +23,5 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 Keep this index short. Update the owning guide and a dated receipt for new evidence.
 Local tests, published packages, signed GUI acceptance and production are separate
-verification levels. Historical mirrors and updater executors are not feature repositories.
+verification levels. Retired distribution repositories are preserved as private source backups, not feature repositories.
 See [the memory audit and upstream rule](PROJECT.md) for source precedence and private-data handling.

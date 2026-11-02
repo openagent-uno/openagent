@@ -1,7 +1,8 @@
 # OpenAgent: mappa e contesto operativo
 
-Audit locale: **2 novembre 2026**. Le versioni e i risultati di produzione nelle
-ricevute sono storici; non sono stati ricontrollati in rete durante questo audit.
+Audit documentale: **2 novembre 2026**. Le ricevute storiche non certificano lo
+stato corrente della produzione. La distribuzione canonica è stata verificata
+separatamente: [ricevuta di consolidamento](qualification/release-consolidation-2026-11-02.json).
 
 ## Agnosticità obbligatoria
 
@@ -23,10 +24,11 @@ La workspace ha tre repository attivi con versionamento indipendente:
 La documentazione canonica e la visione sono in [docs/site](site/index.md) e
 [site/vision.md](site/vision.md). `openagent-docs` e il vecchio repository
 `openagent-mcp` sono stati rimossi il 2 novembre 2026 dopo backup verificati.
-I repository App/CLI/server/host-tools precedenti sono in consolidamento:
+I repository App/CLI/server/host-tools precedenti sono stati ritirati:
 l’utente ha scelto il passaggio manuale alle nuove build canoniche e la cessazione
-dei vecchi updater. La cancellazione richiede prima la verifica integrale dello
-storico, delle firme e del nuovo percorso: [procedura](release-consolidation.md).
+dei vecchi updater. Lo storico delle release non utilizzate è stato eliminato per decisione esplicita;
+sorgenti, input non pubblicati e firme sono stati preservati. Il nuovo percorso
+è verificato: [procedura](release-consolidation.md).
 
 ## Lettura per attività
 

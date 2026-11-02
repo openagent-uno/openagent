@@ -26,15 +26,14 @@ type Target = "server" | "cli" | "desktop";
 
 const props = defineProps<{ target?: Target }>();
 
-const repoPath = computed(() => props.target === "desktop"
-  ? "openagent-uno/openagent-app"
-  : "openagent-uno/openagent");
+// Select the reviewed product cohort explicitly: mixed component and historical
+// release publication order must never change the primary download offered.
+const repoPath = "openagent-uno/openagent";
+const releaseTags = {desktop: "app-v1.1.0-beta.24", server: "v1.1.8", cli: "v1.1.8"};
 const releasesUrl = computed(
-  () => `https://api.github.com/repos/${repoPath.value}/releases?per_page=30`,
+  () => `https://api.github.com/repos/${repoPath}/releases/tags/${releaseTags[props.target || "server"]}`,
 );
-const allReleasesUrl = computed(
-  () => `https://github.com/${repoPath.value}/releases`,
-);
+const allReleasesUrl = `https://github.com/${repoPath}/releases`;
 
 const loading = ref(true);
 const error = ref("");
@@ -155,7 +154,7 @@ onMounted(async () => {
       throw new Error(`GitHub API returned ${response.status}`);
     }
 
-    releases.value = (await response.json()) as Release[];
+    releases.value = [await response.json() as Release];
   } catch (err) {
     error.value =
       err instanceof Error ? err.message : "Unable to load release metadata.";

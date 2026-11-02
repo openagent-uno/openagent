@@ -1,80 +1,105 @@
-# Historical release consolidation and manual upgrade
+# Canonical distribution and manual upgrade
 
-Decision: 2 November 2026. The owner accepts retiring old updater URLs and
-**explicitly authorized deleting historical releases, including their mirrored
-copies**. The earlier full-release preservation plan is superseded. Only releases
-needed by current installers, active clients, versioned dependencies and current
-qualification remain. Keep source Git/LFS backups and signing configuration;
-do not silently treat a still-pinned dependency as disposable history.
+Decision and qualification: **2 November 2026**. The owner chose to retire old
+updater URLs and explicitly discard unused historical release assets, including
+copies imported during the initial preservation attempt. That choice supersedes
+the earlier full-release migration/transfer proposal. No personal-account
+repository transfer was performed.
 
-Only `openagent`, `openagent-core` and `openagent-tools` remain canonical. Old
-repositories are removed after their useful distributions have a verified
-canonical replacement and the new manual installation path is qualified.
+## Published cohorts and ownership
 
-## Distribution and feeds
+- [Product 1.1.8](https://github.com/openagent-uno/openagent/releases/tag/v1.1.8)
+  supplies the server/CLI manual installer and Python wheels. Seven newly
+  versioned packages share the same product version. Host Tools Python B8,
+  product-config B20 and channel-bridges B16 retain their published bytes.
+  The B8 facade inherits Device Tools B10 through a public versioned dependency;
+  the old B7 wheel is not rewritten.
+- [App beta24](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.24)
+  supplies ten installers/archives across six native targets, with 36 verified
+  release assets. macOS ARM64 and x64 are signed and notarized. The App retains
+  the exact signed native B7 bundles in its lock; this migration does not claim
+  a refreshed native tool bundle. Windows Authenticode is not claimed.
+- The mutable [App feed](https://github.com/openagent-uno/openagent/releases/tag/app-update-feed)
+  contains only four beta channel YAML files. Their absolute URLs reference
+  immutable App tag assets, with the original SHA-512 and size. Update metadata
+  is generated only after all six platform payloads pass verification.
+- Native compatibility releases `host-tools-v0.1.2` and `host-tools-v0.1.3`
+  remain because active public dependency locks use their payloads. Source Git
+  ancestry/commit identity, binaries, internal manifests and signatures remain
+  unchanged; download locator/index metadata is canonical.
+- The MCP stdio starter is `openagent-tools/examples/mcp-server`, released as
+  `mcp-template-v0.2.0`; its original source ancestry and ref aliases remain.
 
-- Product wheels, installers and historical distribution mirrors live in
-  `openagent-uno/openagent`. Historical tags gain `app-`, `cli-`, `server-` or
-  `host-tools-` prefixes to avoid tag/asset collisions. Their original binaries
-  are not rebuilt, and source drafts remain drafts.
-- The App uses a generic feed at
-  `https://github.com/openagent-uno/openagent/releases/download/app-update-feed/`.
-  Channel metadata points to immutable assets under versioned canonical tags.
-  Stable/beta selection and the prohibition on automatic downgrade are retained.
-  Feed publication must verify every referenced payload and checksum first.
-- The server reads paginated canonical releases and selects only a release with
-  the exact server archive for its platform. App, CLI, host-tools and wheel-only
-  releases cannot hide a usable server update. `server-` historical tags are
-  parsed explicitly; incompatible artifacts are never offered as server updates.
-- The standalone MCP server starter belongs to
-  `openagent-tools/examples/mcp-server`, including the original Git ancestry and
-  namespaced reference tags. It is not a fourth feature repository.
+Generic agent behavior stays in its owning Core/Tools/product component. Hosts
+inherit public versioned contracts; domain adapters do not copy or override the
+runtime. OpenAgent contains no external consuming-project branches or defaults.
 
-## Manual upgrade contract
+## Manual upgrade and updater behavior
 
-Install a new build containing the canonical updater. An older installer can
-still embed the retired feed even if downloaded from the canonical repository.
-Do not uninstall first or delete a profile. Replace the App in its existing
-location, or rerun the canonical server/CLI installer for the same installation.
-Preserve `ai.openagent.desktop`, the `openagent` URL scheme, identity keys,
-agent directories, profiles, trust and device-consent files. Windows installers
-retain application data when removed. No installed user profile is modified by
-the qualification workflow: packaged smoke tests use isolated profiles.
+Replace an existing App at the same location. Keep its profile, identity and
+agent directories; do not uninstall first or erase data. The ID
+`ai.openagent.desktop`, `openagent` protocol, updater cache and consent paths
+remain stable. New Windows installers retain application data on uninstall.
+Manually selecting beta24 opts into beta; stable/beta separation and the
+no-downgrade invariant remain enforced after the updater channel is assigned.
 
-App beta 24 and product 1.1.7 are the migration build candidates. The Python
-host-tools facade is versioned as B8 to depend on Device Tools B10 without
-rewriting the published B7 wheel. App native bundles remain the exact signed B7
-assets in its lock; this migration does not claim a rebuilt native tool bundle. They are usable
-manual upgrade destinations only after publication and artifact verification;
-the source version bump alone does not establish availability. Do not label the
-old App beta 22 mirror as a new-updater build.
+Run the immutable 1.1.8 installer for server/CLI. It verifies 39 first-party
+wheels across six manifests and acquires the pinned connector runner for the
+server. `OPENAGENT_INSTALL_ROOT` controls the command environment, not an identity
+reset. When server and CLI already share the installation root, upgrade both
+to the same product version to align their exact-version dependencies.
+The installer preserves unrelated commands; choose `--prefix` explicitly
+when selecting a different command location.
 
-## Retirement gates and explicit historical deletion
+The server accepts only an exact platform/version native server archive from the
+canonical repository. Wheel-only or unrelated releases are not offered as a
+frozen-server binary update. GitHub's numeric pagination paths are normalized
+back to the canonical owner/name URL; foreign repositories are never followed.
+This was checked against 106 actual public releases in two pages.
 
-The old inventory contains 334 releases and 3,188 assets (293,747,689,240
-bytes), including nine App drafts. The owner subsequently chose to discard this
-release history. Bulk copies were cancelled, the temporary migration credential
-was removed and incomplete/imported historical releases are eligible for
-removal. Historical CI artifacts are likewise not required distributions.
-Do not describe the discarded bytes as backed up or migrated.
+## Build and publication gates
 
-Before deletion, verify the new App installers, their embedded canonical feed,
-server/CLI wheel dependency resolution, and every retained dependency URL.
-Preserve source Git refs/LFS and signing settings separately. Private metadata
-and source backups must remain private; never publish old draft build inputs.
-`scripts/migrate-release-assets.py` remains a bounded, checksum-verifying utility
-for deliberately selected artifacts. It does not authorize bulk restoration or
-publication of historical drafts.
+`.github/workflows/desktop-canonical-release.yml` builds or requalifies reviewed
+native artifacts. Windows GUI installers are started through the native shell
+and the exact process exit is checked before the installed App smoke test.
+The temporary installer profile belongs to the CI job. Requalification of a
+frozen installer permits only acceptance/publication-helper source changes;
+package, runtime, renderer, lock and native bundle inputs must be unchanged.
 
-Existing signing configuration was transferred directly through sealed GitHub
-secret updates, without logging or local plaintext storage. The independent
+`.github/workflows/publish-canonical-desktop.yml` merges platform metadata and
+verifies the complete asset union from a fresh publication directory. It checks
+uploaded SHA-256/size before publication, then publishes the validated feed.
+A five-target baseline is reusable only when the same strict source-diff gate
+passes and every reused native job succeeded. Build provenance is recorded in
+the App release body.
+
+GitHub's default integration token can reject release creation for reviewed refs
+that include workflow history. A maintainer publication authorization can be
+provided through `CANONICAL_RELEASE_PUBLISH_TOKEN`; it is scoped to publication
+steps, never dependency installation. Temporary publication/retirement tokens
+were removed after their jobs. Signing settings remain in the repository's
+Actions secrets, not in source, logs or this documentation.
+
+## Preservation, deliberate deletion and evidence
+
+The four old distribution hosts held 334 release records and 3,188 assets
+(293,747,689,240 bytes), including nine private App drafts. The owner explicitly
+chose to discard release history. Forty-two initial imported/archive copies
+(526 assets, 44,641,358,921 bytes) were removed. Useful dependency payloads were
+retained separately; do not describe the discarded history as fully backed up.
+
+Source refs/bundles, two App LFS objects, useful repository/issue/PR metadata and
+27 unpublished source/provenance inputs were preserved in verified private
+canonical draft backups. The unpublished inputs contain 72,074,629 source bytes;
+private filenames and raw inventories are not public documentation. Existing
+signing configuration was transferred by sealed secret updates. The independent
 [verification run](https://github.com/openagent-uno/openagent/actions/runs/41428714304)
-confirmed all 26 configured value copies and the common macOS signing team.
-The original App/CLI/server configurations are retained separately as secrets;
-only names and aggregate evidence belong in documentation. Remove the temporary
-migration authorization and fingerprint secrets after their jobs finish.
+confirmed 26 configured value copies and the common signing team without exposing
+values. Temporary fingerprint secrets were removed.
 
-Tests and signing checks establish specific artifact behavior. They do not
-claim provider acceptance, installation on a user's device or a production
-deployment. Publish a final dated receipt with retained/deleted release counts,
-new build digests and verification evidence before recording retirement complete.
+The final receipt records native build/publication jobs, public installer and
+live pagination acceptance, dependency acquisition and known downstream fixture
+limitations. Package/signature/installation checks do not claim live model or
+connector-provider acceptance, a user-device upgrade or a production runtime
+deployment. Installed user profiles and original concurrent code checkouts were
+preserved.

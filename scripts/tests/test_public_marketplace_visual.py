@@ -48,7 +48,7 @@ class WorkerContracts(unittest.TestCase):
     def contract(self):
         value = qualifier.release_contract()
         value.update(appSource='1' * 40, appVersion='1.1.0-beta.18', serverVersion='1.1.0b40',
-                     sdkVersion='0.1.4', appRelease='https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.18/',
+                     sdkVersion='0.1.4', appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.18/',
                      appDEB='openagent-app-1.1.0-beta.18-linux-amd64.deb', installerBytes=1234,
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.4/catalog.json',
                      catalogSHA256='2' * 64, catalogBytes=2000)
@@ -92,7 +92,7 @@ class WorkerContracts(unittest.TestCase):
     def test_keyless_cohort_requires_matching_app_server_sdk_and_catalog(self):
         value = self.contract()
         value.update(appVersion='1.1.0-beta.19', sdkVersion='0.1.5',
-                     appRelease='https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.19/',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.19/',
                      appDEB='openagent-app-1.1.0-beta.19-linux-amd64.deb',
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.5/catalog.json')
         # App19 bytes/source stay fixed while the server-only42 installer fix
@@ -119,7 +119,7 @@ class WorkerContracts(unittest.TestCase):
     def test_next_keyless_cohort_preserves_exact_release_and_catalog_binding(self):
         value = self.contract()
         value.update(appVersion='1.1.0-beta.20', serverVersion='1.1.0b43', sdkVersion='0.1.6',
-                     appRelease='https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.20/',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.20/',
                      appDEB='openagent-app-1.1.0-beta.20-linux-amd64.deb',
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.6/catalog.json')
         self.assertEqual(self.load(value), value)
@@ -141,7 +141,7 @@ class WorkerContracts(unittest.TestCase):
     def test_reviewed_batch_cohort_requires_exact_114_ids_and_public_version_tuple(self):
         value = self.contract()
         value.update(appVersion='1.1.0-beta.22', serverVersion='1.1.0b45', sdkVersion='0.1.8',
-                     appRelease='https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.22/',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.22/',
                      appDEB='openagent-app-1.1.0-beta.22-linux-amd64.deb',
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.8/catalog.json')
         self.assertEqual(self.load(value), value)
@@ -173,7 +173,7 @@ class WorkerContracts(unittest.TestCase):
     def test_calendar_mail_cohort_requires_exact_twenty_two_ids_and_finite_versions(self):
         value = self.contract()
         value.update(appVersion='1.1.0-beta.21', serverVersion='1.1.0b44', sdkVersion='0.1.7',
-                     appRelease='https://github.com/openagent-uno/openagent/releases/download/app-v1.1.0-beta.21/',
+                     appRelease='https://github.com/openagent-uno/openagent-app/releases/download/v1.1.0-beta.21/',
                      appDEB='openagent-app-1.1.0-beta.21-linux-amd64.deb',
                      catalogURL='https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.7/catalog.json')
         self.assertEqual(self.load(value), value)
