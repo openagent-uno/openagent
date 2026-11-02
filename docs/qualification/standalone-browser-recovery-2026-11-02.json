@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-02",
+  "host": "standalone-host",
+  "passed": true,
+  "incident": {
+    "lastInteractiveRunRemainedInterrupted": true,
+    "confirmedUnitFailure": "oom-kill",
+    "oomKilledProcessKind": "browser child",
+    "previousOomPolicy": "stop",
+    "delegationDepthLimitRespected": true,
+    "globalOomFaultInjectionPerformed": false
+  },
+  "before": {
+    "product": "1.1.0b68",
+    "core": "1.1.0b33",
+    "channelBridges": "0.1.0b13"
+  },
+  "after": {
+    "product": "1.1.2",
+    "core": "1.1.0b37",
+    "channelBridges": "0.1.0b15",
+    "webSearch": "1.0.0-beta.3"
+  },
+  "installedTests": {
+    "passed": 420,
+    "subtestsPassed": 101,
+    "dependencyCheck": true,
+    "selfcheck": true
+  },
+  "webSearchInstalledRealBrowser": {
+    "package": "openagent-web-search-mcp",
+    "version": "1.0.0-beta.3",
+    "platform": "linux",
+    "passed": true,
+    "browserRssKiBBeforeClose": 648044,
+    "realBrowser": true,
+    "providerMocks": false,
+    "browserLaunches": 1,
+    "peakContexts": 2,
+    "successfulConcurrentExtractions": 10,
+    "failedNavigationsDrained": 12,
+    "contextsAfterEachBatch": 0,
+    "ownedChromeProcessesAfterClose": 0,
+    "publicHttpExtractor": true,
+    "seconds": 10.756
+  },
+  "liveRuntime": {
+    "passed": true,
+    "transport": "Existing authenticated Telegram BridgeSession -> real configured model -> published web-search package -> public web page",
+    "seconds": 32.32,
+    "structuredMcpContentVerified": true,
+    "telegramMessagesSent": false,
+    "externalTelegramIngressAndDeliveryExercised": false
+  },
+  "telegramProvider": {
+    "getMe": {
+      "ok": true
+    },
+    "getWebhookInfo": {
+      "ok": true,
+      "pendingUpdates": 0,
+      "webhookConfigured": false
+    }
+  },
+  "preservation": {
+    "backupQuickCheck": "ok",
+    "identityUnchanged": true,
+    "configurationUnchanged": true,
+    "originalVaultNotesByteIdentical": true,
+    "originalMessagesMissing": 0,
+    "originalMessageTextsChanged": 0,
+    "historicalCountsPreserved": true,
+    "exactCountsVerifiedInPrivateAudit": true
+  },
+  "service": {
+    "Result": "success",
+    "NRestarts": "0",
+    "OOMPolicy": "continue",
+    "MemoryCurrent": "1718427648",
+    "ActiveState": "active"
+  },
+  "rollback": "Previous immutable runtime, configuration, identities, complete SQLite backup and Vault archive retained in private operator storage.",
+  "rawEvidence": "Retained in existing private operator qualification storage; no conversations, account identifiers or credentials are included here."
+}

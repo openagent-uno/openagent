@@ -53,6 +53,35 @@ verification, while leaving the managed browser and profile running. Do not
 copy session or clearance cookies between machines or spoof browser and
 hardware identity as a default recovery path.
 
+## Memory pressure and browser child failures
+
+Check kernel OOM records together with the service's `Result`, `OOMPolicy`,
+`MemoryCurrent`, `MemoryPeak` and restart history. A killed browser child and a
+killed agent process are different failures. Under `OOMPolicy=stop`, even an
+ancillary browser OOM can stop the complete agent unit and interrupt every chat.
+Keep the dated raw incident evidence in the operator's private audit storage.
+
+For a host whose browser/tool failures are independently supervised, the supported
+`service.systemd` configuration can explicitly select `OOMPolicy: continue`.
+Retain appropriate machine-specific memory limits and the agent's restart policy.
+This keeps a child OOM from requesting a whole-unit stop; it does not guarantee
+that the kernel will spare the main process or replace resource lifecycle fixes.
+Apply through the existing service-manager configuration and verify the effective
+unit setting. Preserve all agent identities, state, browser profiles and rollback
+artifacts.
+
+The independent [web-search browser resource repair](https://github.com/openagent-uno/openagent-tools/blob/main/docs/web-search-browser-resources.md)
+is published as `web-search-v1.0.0-beta.3`. Install its verified archive into a new
+owned prefix and select its executable with `OPENAGENT_WEB_SEARCH_MCP_COMMAND`;
+do not patch installed JavaScript. It coalesces concurrent browser launches,
+limits extraction contexts, closes contexts after errors and waits for batch
+cleanup. Qualify the installed archive with real browser failures and concurrent
+extractions, then test the host's authenticated runtime/tool path separately.
+The [2 November installed qualification](qualification/standalone-browser-recovery-2026-11-02.json)
+records stable server 1.1.2, browser resource tests, preserved state and a real
+model/tool turn under the Telegram bridge identity. It does not claim a new
+external Telegram message round trip or a deliberately repeated global OOM.
+
 ## Dogfood installation, 2026-10-04
 
 The Chrono24 MCP on Dogfood installation reported `connection refused` at its localhost CDP
