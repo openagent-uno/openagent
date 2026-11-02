@@ -128,3 +128,7 @@ Optional external acceptance targets are supplied as JSON in
 Runtime fixtures require `OPENAGENT_TEST_RUNTIME_HOST` with identityModule,
 actorHeader and actorTokenPrefix. No consuming project is named or selected
 inside this package. Missing optional targets are not product acceptance.
+
+Version 0.1.3 exposes the browser-operator entry through the default export
+condition, matching the desktop entry. This allows CommonJS desktop bundlers
+to inline the same ESM implementation; it does not introduce a second runtime.
