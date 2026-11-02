@@ -108,6 +108,13 @@ jobs:
           import json,subprocess,os
           pages=json.loads(subprocess.check_output(['gh','api','--paginate','--slurp','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100']))
           assert not any(r['tag_name']==os.environ['APP_TAG'] for p in pages for r in p), 'App release already exists; use a new version'
+          endpoint='repos/'+os.environ['GITHUB_REPOSITORY']+'/git/'
+          tag=os.environ['APP_TAG']
+          existing=subprocess.run(['gh','api',endpoint+'ref/tags/'+tag],capture_output=True,text=True)
+          if existing.returncode:
+              subprocess.run(['gh','api','--method','POST',endpoint+'refs','--input','-'],input=json.dumps({'ref':'refs/tags/'+tag,'sha':os.environ['BUILD_SOURCE']}),text=True,check=True,capture_output=True)
+          else:
+              assert json.loads(existing.stdout)['object']['sha']==os.environ['BUILD_SOURCE']
           PY
       - name: Stage a private App release
         id: draft
@@ -156,6 +163,9 @@ jobs:
           repo=os.environ['GITHUB_REPOSITORY'];client=migration.GitHub(repo,repo)
           feed=client.destination_release('app-update-feed')
           if feed is None:
+              ref=subprocess.run(['gh','api','repos/'+repo+'/git/ref/tags/app-update-feed'],capture_output=True,text=True)
+              if ref.returncode:
+                  client.api('repos/'+repo+'/git/refs','POST',{'ref':'refs/tags/app-update-feed','sha':os.environ['GITHUB_SHA']})
               feed=client.api('repos/'+repo+'/releases','POST',{'tag_name':'app-update-feed','target_commitish':os.environ['GITHUB_SHA'],'name':'App update channel metadata','body':'Mutable channel metadata only. Installers remain immutable under versioned App tags.','draft':True,'prerelease':True,'make_latest':'false'})
               client.release_ids['app-update-feed']=feed['id']
           for path in sorted(Path('canonical-feed').glob('*.yml')):
@@ -169,6 +179,7 @@ jobs:
           for path in Path('canonical-feed').glob('*.yml'):
               asset=next(a for a in feed['assets'] if a['name']==path.name)
               assert asset['digest']=='sha256:'+hashlib.sha256(path.read_bytes()).hexdigest()
-          client.finish(feed,{'draft':False,'prerelease':True})
+          published=client.finish(feed,{'draft':False,'prerelease':True})
+          assert published['tag_name']=='app-update-feed' and not published['draft']
           print('Canonical App release and all four channel metadata assets verified and published')
           PY
