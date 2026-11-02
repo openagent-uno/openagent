@@ -84,7 +84,7 @@ Google/Microsoft acceptance was pending and common enrollment was closed. The
 later dated server45 trials in [status](./connector-status.md) establish only
 their specific account/operation scope. [Server/CLI44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 with 22 entries and [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json). The [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) passed combined server/CLI installation, dependency/version checks and the installed 22-plus-Custom catalog, with no source overlay or HOME/TMPDIR override and no server/model start or provider call.
-[App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. These versioned historical receipts remain below the current App22/server45 screenshots.
+[App21 is public](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed. These versioned historical receipts remain below the current App22/server45 screenshots.
 
 After a receiving host adopts and qualifies SDK17 and an operator configures an
 approved OAuth app, each account uses a separate connection through the same

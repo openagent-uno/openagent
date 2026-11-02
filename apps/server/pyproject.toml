@@ -169,7 +169,7 @@ dependencies = [
     "email-validator>=2.0",
     # Shared, versioned filesystem/editor implementation used by both the
     # server MCPPool adapters and client capability hosts.
-    "openagent-host-tools==1.0.0b7",
+    "openagent-host-tools==1.0.0b8",
 ]
 
 [project.optional-dependencies]

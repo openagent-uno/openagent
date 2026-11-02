@@ -17,11 +17,11 @@ Old installations must be upgraded manually to a build with the canonical
 updater; automatic bridging from the retired repositories is intentionally not
 promised. Reinstalling an older build does not change its embedded feed.
 
-Historical App/CLI/server/host-tools releases are being copied with component
-prefixes into this repository. Signed binaries remain byte-for-byte unchanged;
-drafts remain private drafts and historical imports are never marked latest.
-The original repositories remain until every asset's size and SHA-256, Git/LFS
-backup, repository metadata and signing configuration have been verified.
+The owner also explicitly authorized discarding historical releases, including
+copies already imported into this repository. Bulk preservation was cancelled.
+Keep only distributions needed by active clients and their pinned dependencies;
+retire old repositories after the new manual installation path is verified.
+Git/LFS source backups and signing configuration are preserved separately.
 See [the migration procedure and current gates](release-consolidation.md).
 
 The public site is built from `docs/site` in this repository by

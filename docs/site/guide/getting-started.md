@@ -16,7 +16,7 @@ qualification boundaries. These page updates still await site deployment.
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your operating system and CPU, launch OpenAgent, and
-connect it to an existing standalone server. [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
+connect it to an existing standalone server. [App22](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.22)
 has six qualified native targets and 36 verified assets; both macOS builds are
 signed and notarized. Its [Linux x64 App22/server45 marketplace trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 loaded 114 official connectors and 30 registry results in one grid, verified

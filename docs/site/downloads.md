@@ -48,7 +48,7 @@ Core, Tools, connector runner and auth service are independently versioned.
 
 The current desktop beta is signed and notarized for **macOS on Apple Silicon
 and Intel**. Windows and Linux installers are published for both architectures.
-The [App beta22 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
+The [App beta22 release](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.22)
 includes 36 verified assets, six provenance manifests and updater metadata.
 Native packaged checks passed on all six targets; Intel macOS ZIP and DMG
 launches also passed. The earlier [App20 native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json)

@@ -15,7 +15,7 @@ SharePoint's eligible-account acceptance remains separate. Ninety new token prof
 OneDrive/SharePoint add explicit authorized resource selection. These are
 qualified implementation/protocol fixtures, not 90 new real-account trials or
 full ChatGPT app parity. Provider token permissions and Google/Microsoft OAuth
-activation retain independent gates. [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22)
+activation retain independent gates. [App22](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.22)
 is public; its [actual server45/SDK18 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json)
 records 114 official cards, 30 registry results, 45 shared SVGs/12 bundled marks and
 ten reviewed screenshots, with zero provider/model calls. It is not a beta51 GUI or
@@ -33,7 +33,7 @@ The historical [App21/server44 Linux x64 marketplace](https://github.com/openage
 [SDK/runner 0.1.6](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.6)
 is public from source `2ec7c114a49b72460addc00fc8e8d6547a683b59`, with 19 official
 adapters plus Custom MCP. [Server/CLI beta 43](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.43)
-adopts it with Core beta 22 and Host Tools 1.0.0b6. [App beta 20](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20)
+adopts it with Core beta 22 and Host Tools 1.0.0b6. [App beta 20](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.20)
 is independently published for six native targets.
 
 | Keyless connector | Typed read tools | Actual qualification |
@@ -221,7 +221,7 @@ provider read or mutation; later dated server45/47 trials are recorded in
 
 [Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
-entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
 App20/server43 retain their historical 19-entry screenshots and receipts. Publishing a component never upgrades an installation
 or enables a provider.
 

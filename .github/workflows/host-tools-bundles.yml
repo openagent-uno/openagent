@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_sha:
-        description: Exact reviewed canonical main commit for Host Tools B7
+        description: Exact reviewed canonical main commit for the selected Host Tools version
         required: true
         type: string
       signing_mode:
@@ -83,7 +83,7 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b7
+          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b8
           git diff --quiet HEAD
       - uses: actions/setup-python@v5
         with:

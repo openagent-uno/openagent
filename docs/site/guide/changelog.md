@@ -6,11 +6,11 @@ Notable changes, newest first.
 
 - [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8) publishes 114 official connectors plus Custom MCP: 90 manual-token profiles with two specific reads each, plus read-only OneDrive/SharePoint. Token setup guidance and 45 verified shared marks are distributed by the SDK; provider permission and real-account acceptance remain separate.
 - [Server/CLI45](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.45) pins SDK18/Core22/B6. Installed qualification passed 210 tests and 15 React source scenarios. Microsoft resource selection uses fresh authorized account/site/drive discovery and local owner checks; common Google/Microsoft enrollment remains off.
-- [App22](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22) is public with six native targets and 36 verified assets. Its [actual Linux x64 App22/server45 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json) passed with 114 official cards and 30 registry results in one grid, 45 shared SVGs, 12 bundled marks and ten visually reviewed screenshots. Blank Postman setup was cancelled and one local Exa cycle completed; no provider/model call or OAuth grant occurred. Google/Microsoft remained off. Mac/Windows GUI and hosted sandbox security remain separate. The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) and historical App21/server44 receipt remain independently recorded.
+- [App22](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.22) is public with six native targets and 36 verified assets. Its [actual Linux x64 App22/server45 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json) passed with 114 official cards and 30 registry results in one grid, 45 shared SVGs, 12 bundled marks and ten visually reviewed screenshots. Blank Postman setup was cancelled and one local Exa cycle completed; no provider/model call or OAuth grant occurred. Google/Microsoft remained off. Mac/Windows GUI and hosted sandbox security remain separate. The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) and historical App21/server44 receipt remain independently recorded.
 
 ## App v1.1.0-beta.20
 
-- [Public desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.20) with 36 verified assets/six native targets; all 10 workflow jobs and mandatory Intel ZIP/DMG launches passed. [Native receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json).
+- [Public desktop release](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.20) with 36 verified assets/six native targets; all 10 workflow jobs and mandatory Intel ZIP/DMG launches passed. [Native receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-native-release-2026-10-17.json).
 - [Actual Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app20-server43-marketplace-2026-10-17.json) with server 43: 19 official entries and 30 registry results in one grid, nine marks, five keyless local control cycles and seven reviewed screenshots. Ordinary Join/SRP/device-cert/Iroh; zero provider/model calls. Owned cleanup passed. Hosted `--no-sandbox` does not qualify sandbox security or Mac/Windows GUI.
 
 ## v1.1.0-beta.43 and connector SDK 0.1.6
@@ -21,7 +21,7 @@ Notable changes, newest first.
 
 ## App v1.1.0-beta.19
 
-- [Published desktop release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
+- [Published desktop release](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.19)
   with 36 verified assets across six macOS/Windows/Linux native targets. Both
   macOS architectures are signed and notarized; Intel ZIP and DMG launches passed.
 - The [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json)

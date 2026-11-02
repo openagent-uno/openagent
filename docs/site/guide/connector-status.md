@@ -295,7 +295,7 @@ and its 114 official entries plus Custom MCP. Its public release manifest is
 `cab1b4dc4555f23fc22e5f9a9b32ba6618cebe1ada8404ebac85257b031eff3c`.
 The installed qualification passed 210 installed tests and 15 separate React component source scenarios. These are
 installed implementation fixtures, not new real-account provider trials.
-The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom installed catalog. It started no server/model and made no provider calls. [App22 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.22), with its [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-native-release-2026-10-18.json) and a separate [App22/server45 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json). The GUI trial loaded 114 official cards and 30 registry results, verified 45 shared SVGs and 12 bundled marks, and produced ten visually reviewed screenshots. Blank Postman setup was cancelled, and one Exa local cycle completed. Google/Microsoft remained unavailable by default. Provider/model calls and new OAuth grants were zero; exact owned cleanup passed.
+The [normal public installer45](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product45-public-installer-2026-10-18.json) passed separate server/CLI installs, dependency checks, ORM and the 114-plus-Custom installed catalog. It started no server/model and made no provider calls. [App22 is public](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.22), with its [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-native-release-2026-10-18.json) and a separate [App22/server45 Linux x64 GUI receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app22-server45-marketplace-2026-10-18.json). The GUI trial loaded 114 official cards and 30 registry results, verified 45 shared SVGs and 12 bundled marks, and produced ten visually reviewed screenshots. Blank Postman setup was cancelled, and one Exa local cycle completed. Google/Microsoft remained unavailable by default. Provider/model calls and new OAuth grants were zero; exact owned cleanup passed.
 
 The 90 manual-token profiles expose two compiled reads each. Vendor permissions
 remain setup requirements enforced by the provider; an API token does not
@@ -369,7 +369,7 @@ provider reads or mutations; the dated product trials record separate acceptance
 
 [Server/CLI beta44 is public](https://github.com/openagent-uno/openagent/releases/tag/v1.1.0-beta.44)
 from `162bff9696c1dbcba0e64d3fc14ee7f59343d56d`, adopting SDK17 and its 22 official
-entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
+entries. Its [installed Python qualification](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/calendar-mail-product-1.1.0b44-2026-10-17.json) passed, as did the [fresh public installer44](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/product44-public-installer-2026-10-17.json) for server/CLI, dependency/version checks and the installed 22-plus-Custom catalog. The installer trial started no server or model and made zero provider calls. [App21 is public](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.21) with six native targets and 36 verified assets; [App21/server44 Linux x64 marketplace](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app21-server44-marketplace-2026-10-17.json) passed.
 The App21/server44 GUI has 22 official entries, 30 real registry results and five local keyless control cycles. App20/server43 retain their earlier 19-entry screenshots and receipts. Publishing a component never upgrades an installation
 or enables a provider.
 
@@ -567,7 +567,7 @@ The historical SDK18/server45 and App22/server45 Linux x64 visual boundaries are
 The following detailed trials are historical; their exact versions, original
 failures, provider gates and renderer-reload limitations remain unchanged.
 
-The [App beta 19 native release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.19)
+The [App beta 19 native release](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.19)
 publishes 36 verified assets for six native targets from canonical source
 `f01b946105857c92fcf14d8f7a83bcbf2fdad11a`. The
 [native release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app19-native-release-2026-10-17.json)
@@ -587,7 +587,7 @@ with `--no-sandbox`, so sandbox security and Mac/Windows marketplace GUI are
 not qualified. Beta 41's four provider reads remain separate evidence.
 The beta 18/server beta 40 trial below remains historical evidence.
 
-The [App beta 18 release](https://github.com/openagent-uno/openagent-app/releases/tag/v1.1.0-beta.18)
+The [App beta 18 release](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.18)
 publishes 36 verified assets from canonical payload source
 `a5623534956d0ff3b1ad0f4c926d1b4cc6040a98`. Its [native qualification run](https://github.com/openagent-uno/openagent-app/actions/runs/38955525864)
 is separate from the [Linux x64 marketplace worker trial](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/app18-server40-marketplace-2026-10-16.json).
