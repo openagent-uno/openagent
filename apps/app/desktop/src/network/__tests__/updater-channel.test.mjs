@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  APP_UPDATE_FEED,
   configureAutoUpdater,
   shouldAcceptUpdate,
   updateMetadataChannel,
@@ -45,7 +46,9 @@ assert.equal(shouldAcceptUpdate('2.5.0-beta.2', '2.5.0-beta.1'), false,
 // The assignment order matters: electron-updater's real channel setter turns
 // allowDowngrade back on. This fake reproduces that behavior.
 let selectedChannel = null;
+let feed;
 const fakeUpdater = {
+  setFeedURL(value) { feed = value; },
   allowPrerelease: false,
   allowDowngrade: false,
   get channel() { return selectedChannel; },
@@ -56,6 +59,9 @@ const fakeUpdater = {
 };
 configureAutoUpdater(fakeUpdater, '2.5.0-beta.7');
 assert.equal(fakeUpdater.channel, 'beta');
+assert.deepEqual(feed, {provider:'generic',url:APP_UPDATE_FEED});
+assert.equal(packageFeed(),APP_UPDATE_FEED);
+function packageFeed(){return JSON.parse(fs.readFileSync(new URL('../../../package.json',import.meta.url),'utf8')).build.publish.url;}
 assert.equal(fakeUpdater.allowPrerelease, true);
 assert.equal(fakeUpdater.allowDowngrade, false);
 

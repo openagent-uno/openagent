@@ -29,7 +29,7 @@ they are not silently fetched as unpinned source checkouts. Packaging a wheel
 does not claim a runnable, signed desktop release.
 
 `packaging/workspace.json` preserves public distribution and command names,
-artifact prefixes, legacy update repositories, app ID, URL scheme and user
+artifact prefixes, canonical release repositories, app ID, URL scheme and user
 paths. Imported component release workflows remain under their original
 subtrees as reference. Only explicitly ported root workflows execute in the
 monorepo.
@@ -44,12 +44,13 @@ storage and signing evidence in a qualification receipt before publishing a
 coordinated `v1.1.0-beta.N` release. A development manifest is not a signature
 or a qualification claim.
 
-Never change production update endpoints solely because source moved.
-Publish a separately qualified transition release in each old repository,
-preserving historical assets and immutable tags. Verify the entire installed
-version → transition → new distribution → next update chain before retiring
-old development. User identity keys, application IDs and consent files retain
-their existing paths throughout.
+The owner explicitly chose manual migration for installations using retired
+repository feeds on 2 November 2026. New builds use the canonical repository;
+old updater URLs may stop working after retirement. Follow
+[the migration procedure](release-consolidation.md): preserve historical
+artifacts and signing identities, qualify the newly built updater, and keep user
+identity keys, application IDs, profiles and consent files at their existing paths.
+Do not uninstall or erase a profile as part of manual migration.
 
 ## Local macOS qualification reference
 
@@ -137,9 +138,9 @@ packaging those products.
 
 The CI signing mode requires `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
 `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` as Actions secrets on the
-**`openagent`** repository. These names currently exist only on the historical
-`openagent-app` repository. Configure them on the monorepo through GitHub's
-secret controls; do not paste values into chat, source files or CI logs. The
+**`openagent`** repository. The signing settings were securely migrated and independently verified on
+2 November 2026; see [the migration gates](release-consolidation.md). Manage them
+through GitHub's secret controls; do not paste values into chat, source files or CI logs. The
 CI mode fails before starting its matrix when any required secret is absent.
 This is a CI configuration gate, not a macOS signing limitation: the local
 Developer ID identity and notarization credential can qualify a macOS bundle

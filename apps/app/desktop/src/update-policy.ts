@@ -8,6 +8,8 @@
  * restores the no-downgrade invariant after selecting the feed.
  */
 
+export const APP_UPDATE_FEED = 'https://github.com/openagent-uno/openagent/releases/download/app-update-feed/';
+
 export type UpdateChannel = 'latest' | 'beta';
 
 export interface UpdatePolicy {
@@ -25,6 +27,7 @@ interface ParsedVersion {
 }
 
 export interface ConfigurableUpdater {
+  setFeedURL?(options: {provider: 'generic'; url: string}): void;
   channel: string | null;
   allowPrerelease: boolean;
   allowDowngrade: boolean;
@@ -122,6 +125,7 @@ export function configureAutoUpdater(
   installedVersion: string,
 ): UpdatePolicy {
   const policy = updatePolicyForVersion(installedVersion);
+  updater.setFeedURL?.({provider: 'generic', url: APP_UPDATE_FEED});
   updater.channel = policy.channel;
   updater.allowPrerelease = policy.allowPrerelease;
   // Must be assigned last: electron-updater's channel setter sets this true.

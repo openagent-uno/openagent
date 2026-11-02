@@ -10,14 +10,19 @@ New development and releases use exactly three repositories:
 | [`openagent-core`](https://github.com/openagent-uno/openagent-core) | Canonical runtime, contracts, SDK, storage and modules |
 | [`openagent-tools`](https://github.com/openagent-uno/openagent-tools) | Canonical autonomous and device tools |
 
-## Retained distribution repositories
+## Distribution consolidation in progress
 
-`openagent-app`, `openagent-cli`, `openagent-server` and `openagent-host-tools`
-retain historical releases, immutable downloads and update endpoints. They are
-not new feature repositories. The App publish configuration and server updater
-still name their historical repositories; an unused source tree is not evidence
-that its release host can be deleted. Preserve those repositories until an
-explicitly qualified distribution/update migration removes the dependency.
+On 2 November 2026 the owner explicitly chose to retire the old updater URLs.
+Old installations must be upgraded manually to a build with the canonical
+updater; automatic bridging from the retired repositories is intentionally not
+promised. Reinstalling an older build does not change its embedded feed.
+
+Historical App/CLI/server/host-tools releases are being copied with component
+prefixes into this repository. Signed binaries remain byte-for-byte unchanged;
+drafts remain private drafts and historical imports are never marked latest.
+The original repositories remain until every asset's size and SHA-256, Git/LFS
+backup, repository metadata and signing configuration have been verified.
+See [the migration procedure and current gates](release-consolidation.md).
 
 The public site is built from `docs/site` in this repository by
 `.github/workflows/docs-pages.yml` and deployed to GitHub Pages with the custom
@@ -36,10 +41,11 @@ the old repository does not remove that component. Documentation remains in
 `docs/site`. Original import manifests and historical receipts retain their
 source URLs as provenance, not live build or release destinations.
 
-`openagent-mcp-template` remains a maintained independent starter, with no
-current product build dependency found. It can be consolidated into a canonical
-repository in a separate change; it is not presently classified as an unused
-wrapper. See [the removal receipt](qualification/repository-removals-2026-11-02.json).
+The MCP server starter is now maintained in
+[`openagent-tools/examples/mcp-server`](https://github.com/openagent-uno/openagent-tools/tree/main/examples/mcp-server).
+Its original Git ancestry and refs are preserved there; the original release
+metadata is mirrored as `mcp-template-v0.1.0`. Retirement of the wrapper is
+recorded only after independent backup and remote verification.
 
 ## Historical qualification baseline
 

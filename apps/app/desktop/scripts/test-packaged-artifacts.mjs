@@ -86,6 +86,11 @@ function validateAsar(archive) {
   const packaged = JSON.parse(asar.extractFile(archive, 'package.json').toString('utf8'));
   assert.equal(String(packaged.version), version, `${archive} manifest version mismatch`);
   assert.equal(packaged.main, 'dist/main.js', `${archive} has the wrong main entrypoint`);
+  const updateConfig = yaml.load(fs.readFileSync(path.join(path.dirname(archive), 'app-update.yml'), 'utf8'));
+  assert.equal(updateConfig.provider, 'generic', 'Packaged updater must use the canonical feed');
+  assert.equal(updateConfig.url, 'https://github.com/openagent-uno/openagent/releases/download/app-update-feed/');
+  const main = asar.extractFile(archive, 'dist/main.js').toString('utf8');
+  assert(main.includes('openagent-uno/openagent/releases/download/app-update-feed/'), 'Compiled updater has no canonical feed');
   assert(
     fs.existsSync(path.join(path.dirname(archive), 'web-build', 'index.html')),
     `${archive} is missing the packaged web application`,

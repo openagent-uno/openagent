@@ -39,7 +39,7 @@ def main() -> None:
     parser.add_argument("--source-commit", default=os.environ.get("GITHUB_SHA", ""))
     parser.add_argument(
         "--source-repository",
-        default=os.environ.get("GITHUB_REPOSITORY", "openagent-uno/openagent-host-tools"),
+        default=os.environ.get("GITHUB_REPOSITORY", "openagent-uno/openagent"),
     )
     args = parser.parse_args()
     source_commit = args.source_commit.strip().lower()

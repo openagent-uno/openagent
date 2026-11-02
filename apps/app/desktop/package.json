@@ -1,7 +1,7 @@
 {
   "name": "openagent-desktop",
   "description": "Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.",
-  "version": "1.1.0-beta.23",
+  "version": "1.1.0-beta.24",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -32,7 +32,7 @@
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
     "@number0/iroh": "^0.35.0",
-    "@openagent/mcp-apps": "https://github.com/openagent-uno/openagent/releases/download/mcp-apps-v0.1.2/openagent-mcp-apps-0.1.2.tgz?download=1",
+    "@openagent/mcp-apps": "https://github.com/openagent-uno/openagent/releases/download/mcp-apps-v0.1.3/openagent-mcp-apps-0.1.3.tgz?download=1",
     "@windwalker-io/srp": "^1.0.1",
     "cbor2": "^2.3.0",
     "electron-store": "^8.0.0",
@@ -88,9 +88,8 @@
       }
     ],
     "publish": {
-      "provider": "github",
-      "owner": "openagent-uno",
-      "repo": "openagent-app"
+      "provider": "generic",
+      "url": "https://github.com/openagent-uno/openagent/releases/download/app-update-feed/"
     },
     "afterSign": "scripts/after-sign-host-tools.js",
     "mac": {
@@ -108,7 +107,7 @@
         "Contents/Frameworks/Electron Framework\\.framework/.*/Resources/"
       ],
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network \u2014 required when connecting to a server running on the same Mac or LAN."
+        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
       },
       "target": [
         {
@@ -147,7 +146,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "deleteAppDataOnUninstall": true
+      "deleteAppDataOnUninstall": false
     }
   }
 }

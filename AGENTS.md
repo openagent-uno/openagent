@@ -19,8 +19,8 @@ commands run from the component directory; imported `.github` workflows are
 historical reference until explicitly ported into the root `.github` directory.
 
 Preserve installed application IDs, protocol schemes, identity keys, agent
-directories and device consent. Release compatibility is a verified bridge,
-not a silent change of updater URLs. No production cutover before the tests
+directories and device consent. The owner explicitly chose manual migration from retired updater URLs on
+2 November 2026; follow `docs/release-consolidation.md` and qualify the new builds. No production cutover before the tests
 and backup/restore gates in the architecture plan pass.
 
 ## Upstream ownership

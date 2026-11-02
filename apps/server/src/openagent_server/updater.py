@@ -17,6 +17,7 @@ import hashlib
 import logging
 import os
 import platform
+import re
 import shutil
 import subprocess
 import tarfile
@@ -28,15 +29,43 @@ from urllib.request import urlopen, Request
 
 logger = logging.getLogger(__name__)
 
-# GitHub repository for release lookups. Releases are cut from
-# ``openagent-uno/openagent-server`` since the 2026-04 monorepo split;
-# the historical ``geroale/OpenAgent`` host still resolves via GitHub's
-# rename redirect but we never depend on that — a silent revocation
-# (rename loop, namespace conflict) would otherwise stop every deployed
-# agent from receiving updates with no surfaced error.
-GITHUB_REPO = "openagent-uno/openagent-server"
-GITHUB_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=30"
+# Canonical coordinated and component releases share one repository. Select
+# only a release carrying this server's exact platform artifact; an App/CLI,
+# package-only or archived source release is never a server update candidate.
+GITHUB_REPO = "openagent-uno/openagent"
+GITHUB_RELEASES_API = f"https://api.github.com/repos/{GITHUB_REPO}/releases?per_page=100"
+GITHUB_API = GITHUB_RELEASES_API
+
+
+def _release_version(tag: str) -> str:
+    return tag.removeprefix("server-").removeprefix("v")
+
+
+def _release_pages():
+    """Read a bounded canonical feed; follow only its own API pagination."""
+    import json
+    url = GITHUB_RELEASES_API
+    result = []
+    for _ in range(20):
+        req = Request(url, headers={"Accept": "application/vnd.github+json"})
+        with urlopen(req, timeout=15, context=_ssl_context()) as response:
+            payload = json.loads(response.read())
+            link = response.getheader("Link", "") or ""
+        if not isinstance(payload, list):
+            # Compatibility with a single-release response and test peers.
+            return payload
+        result.extend(payload)
+        next_url = None
+        for part in link.split(','):
+            match = re.fullmatch(r'\s*<([^>]+)>;\s*rel="next"\s*', part)
+            if match:
+                next_url = match.group(1)
+        if next_url is None:
+            return result
+        if not next_url.startswith(f"https://api.github.com/repos/{GITHUB_REPO}/releases?"):
+            raise ValueError("Unexpected release pagination authority")
+        url = next_url
+    raise ValueError("Canonical release feed exceeds the pagination bound")
 
 
 def _ssl_context():
@@ -197,7 +226,7 @@ def _select_channel_release(payload: object, *, current: str, channel: str) -> d
             continue
         tag = str(raw.get("tag_name") or "")
         try:
-            parsed = Version(tag.lstrip("v"))
+            parsed = Version(_release_version(tag))
         except InvalidVersion:
             continue
         if parsed <= current_version:
@@ -212,6 +241,8 @@ def _select_channel_release(payload: object, *, current: str, channel: str) -> d
             pre_name = str((parsed.pre or ("",))[0]).lower()
             if pre_name not in {"b", "beta"} or parsed.release[:2] != current_version.release[:2]:
                 continue
+        if not _select_release_assets(list(raw.get("assets", [])), version=_release_version(tag))[0]:
+            continue
         candidates.append((parsed, raw))
     return max(candidates, key=lambda item: item[0])[1] if candidates else None
 
@@ -232,11 +263,8 @@ def check_for_update(channel: str | None = None) -> UpdateInfo | None:
     current = getattr(openagent_server, "__version__", "0.0.0")
 
     effective_channel = _effective_update_channel(current, channel)
-    api_url = GITHUB_RELEASES_API if effective_channel == "beta" else GITHUB_API
     try:
-        req = Request(api_url, headers={"Accept": "application/vnd.github+json"})
-        with urlopen(req, timeout=15, context=_ssl_context()) as resp:
-            payload = json.loads(resp.read())
+        payload = _release_pages()
     except Exception as e:
         logger.error("Failed to check for updates: %s", e)
         _try_elog("update.check_failed", level="warning", error=str(e) or type(e).__name__)
@@ -253,7 +281,7 @@ def check_for_update(channel: str | None = None) -> UpdateInfo | None:
 
             tag = str(payload.get("tag_name") or "")
             try:
-                Version(tag.lstrip("v"))
+                Version(_release_version(tag))
             except InvalidVersion as exc:
                 logger.warning("Could not parse release tag %r: %s", tag, exc)
                 _try_elog(
@@ -263,7 +291,7 @@ def check_for_update(channel: str | None = None) -> UpdateInfo | None:
         return None
 
     tag = data.get("tag_name", "")
-    new_version = tag.lstrip("v")
+    new_version = _release_version(tag)
 
     # Never re-install a version we already proved is broken and rolled
     # back from. Without this, a bad release that stays GitHub-``latest``

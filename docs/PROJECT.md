@@ -23,9 +23,10 @@ La workspace ha tre repository attivi con versionamento indipendente:
 La documentazione canonica e la visione sono in [docs/site](site/index.md) e
 [site/vision.md](site/vision.md). `openagent-docs` e il vecchio repository
 `openagent-mcp` sono stati rimossi il 2 novembre 2026 dopo backup verificati.
-I repository App/CLI/server/host-tools precedenti conservano distribuzioni e
-ponti updater; non sono la destinazione di nuove feature. Non cancellarne release, firme o asset
-necessari agli aggiornamenti installati.
+I repository App/CLI/server/host-tools precedenti sono in consolidamento:
+l’utente ha scelto il passaggio manuale alle nuove build canoniche e la cessazione
+dei vecchi updater. La cancellazione richiede prima la verifica integrale dello
+storico, delle firme e del nuovo percorso: [procedura](release-consolidation.md).
 
 ## Lettura per attività
 
