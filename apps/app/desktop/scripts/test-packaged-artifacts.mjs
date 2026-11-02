@@ -290,7 +290,15 @@ try {
     const installers = files.filter((file) => file.endsWith('.exe'));
     assert.equal(installers.length, 1, 'Windows build must produce exactly one installer');
     const installDir = path.join(extractionRoot, 'installed');
-    run(installers[0], ['/S', `/D=${installDir}`], {stdio: 'ignore', timeout: 360_000});
+    // NSIS is a GUI installer, including when /S is selected. Launch through
+    // the Windows shell instead of inheriting Node's child-process handles.
+    // Wait for the exact owned process and preserve its exit status.
+    run('pwsh.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+      "$p = Start-Process -FilePath $env:OPENAGENT_SMOKE_INSTALLER -ArgumentList @('/S', ('/D=' + $env:OPENAGENT_SMOKE_INSTALL_DIR)) -PassThru; if (-not $p.WaitForExit(300000)) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; throw 'Owned installer deadline exceeded' }; exit $p.ExitCode"], {
+      timeout: 330_000,
+      windowsHide: false,
+      env: {...process.env, OPENAGENT_SMOKE_INSTALLER: installers[0], OPENAGENT_SMOKE_INSTALL_DIR: installDir},
+    });
     validatePayload(installDir);
     const installedExecutables = walk(installDir).filter((file) => file.toLowerCase().endsWith('.exe'));
     const executables = installedExecutables.filter(
