@@ -8,9 +8,9 @@ The approved target has three independently versioned repositories:
 | `openagent-tools` | Standalone filesystem, editor, shell, web search and native computer/browser tools |
 | `openagent` | App, CLI, server, MCP bridge, identity, dashboards, product configuration, optional integrations and distribution |
 
-An embedding host imports a pinned Core package into its own Python worker. Its Go
-control plane owns authentication, authorization, delivery, computers and
-Kubernetes infrastructure. A Core update does not require a standalone
+An embedding host imports a pinned Core package into its own worker. Its
+control plane owns authentication, authorization, delivery, resources and
+infrastructure; Core does not mandate its language or orchestration platform. A Core update does not require a standalone
 OpenAgent release. A host can instead provide its own identity and a fixed catalog.
 
 ## Runtime and capabilities

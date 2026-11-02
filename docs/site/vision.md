@@ -14,6 +14,8 @@ Both human developers and the agent itself are expected to read this document an
 
 OpenAgent is an agnostic AI agent system. It is agnostic of model, provider, framework, channel, and host: any reasoning engine can drive it, any platform can speak to it, any machine can run it.
 
+Across every OpenAgent repository, this independence also excludes references to embedding projects or external consuming clients and features or bug fixes specific to one consumer. Implement generic mechanisms and public extension contracts, including when the existing architecture must change. Consumers inherit versioned capabilities; their business data, branding, policy and deployment adapters remain outside OpenAgent. See the [mandatory agnostic architecture rules](guide/agnosticism.md).
+
 OpenAgent Core is an importable library with explicit construction, startup and shutdown. It owns reasoning, durable sessions and runs, framework rules and configured reusable modules. It does not require a server, standalone users, a network transport or tools installed on a computer. Hosts provide authenticated abstract principals, authorization, storage, model credentials and capability sources. Two runtime instances can live independently in the same process.
 
 The standalone OpenAgent product assembles the library into an app, CLI, server and MCP bridge. Independent host products assemble the same public library into their own runtime and build their own distributions. A product may expose the optional gateway or invoke the SDK directly; both paths use the same authorization and run services. Kubernetes pods, sandbox isolation, volumes and machine lifecycle belong to the host product.

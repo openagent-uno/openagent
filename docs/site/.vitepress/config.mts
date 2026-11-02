@@ -31,6 +31,8 @@ const guideSidebar = [
       { text: "Scheduler & Dream Mode", link: "/guide/scheduler" },
       { text: "Desktop App", link: "/guide/desktop-app" },
       { text: "Architecture", link: "/guide/architecture" },
+      { text: "Agnostic Architecture", link: "/guide/agnosticism" },
+      { text: "Components and Communication", link: "/guide/components" },
       { text: "Composable Applications", link: "/guide/application-composition" },
       { text: "Shared Components", link: "/guide/shared-components" },
       { text: "Deployment", link: "/guide/deployment" },

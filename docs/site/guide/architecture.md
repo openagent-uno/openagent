@@ -1,5 +1,9 @@
 # Architecture
 
+For repository ownership and concrete integration paths, read
+[components and communication](components.md), then
+[agnostic architecture](agnosticism.md).
+
 OpenAgent v1.1 separates the reusable runtime from the complete standalone
 product. Independent host products import the same public Core
 packages and select their own modules, identity adapters and capability

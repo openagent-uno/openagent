@@ -1,5 +1,8 @@
 # OpenAgent
 
+Read [agnostic architecture](docs/AGNOSTICISM.md), [components](docs/COMPONENTS.md)
+and [usage](docs/USAGE.md) before integration or development.
+
 The standalone OpenAgent product: desktop app, CLI, server and MCP bridge.
 The product consumes independently versioned OpenAgent Core and OpenAgent
 Tools packages. Independent host applications consume the same libraries
