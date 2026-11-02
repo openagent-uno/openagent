@@ -227,7 +227,7 @@ assert(
 
 validatePayload(releaseDir);
 
-const extractionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openagent-artifact-smoke-'));
+const extractionRoot = fs.mkdtempSync(path.join(fs.realpathSync(process.env.RUNNER_TEMP || os.tmpdir()), 'openagent-artifact-smoke-'));
 let acceptanceFailure;
 try {
   if (targetPlatform === 'darwin') {
@@ -290,7 +290,7 @@ try {
     const installers = files.filter((file) => file.endsWith('.exe'));
     assert.equal(installers.length, 1, 'Windows build must produce exactly one installer');
     const installDir = path.join(extractionRoot, 'installed');
-    run(installers[0], ['/S', `/D=${installDir}`]);
+    run(installers[0], ['/S', `/D=${installDir}`], {stdio: 'ignore'});
     validatePayload(installDir);
     const installedExecutables = walk(installDir).filter((file) => file.toLowerCase().endsWith('.exe'));
     const executables = installedExecutables.filter(

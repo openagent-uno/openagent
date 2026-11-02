@@ -15,6 +15,12 @@ on:
         options: [all, win32-arm64]
         default: all
 
+      existing_failed_run_id:
+        description: Optional reviewed failed Windows build whose exact installer is requalified
+        required: false
+        default: ''
+        type: string
+
 permissions:
   contents: read
 
@@ -61,17 +67,81 @@ jobs:
         with:
           node-version: '24'
           architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
+      - name: Validate the immutable Windows recovery input
+        if: inputs.existing_failed_run_id != ''
+        env:
+          FAILED_RUN: ${{ inputs.existing_failed_run_id }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          python - <<'PYTHON'
+          import subprocess,json,os
+          assert os.environ['TARGET']=='win32-arm64' and os.environ['FAILED_RUN'].isdigit()
+          run=json.loads(subprocess.check_output(['gh','api','repos/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['FAILED_RUN']]))
+          assert run['path']=='.github/workflows/desktop-canonical-release.yml' and run['head_branch']=='main' and run['event']=='workflow_dispatch'
+          assert run['status']=='completed'
+          changed=subprocess.check_output(['git','diff','--name-only',run['head_sha'],'HEAD','--','apps/app'],text=True).splitlines()
+          allowed={'apps/app/desktop/scripts/test-packaged-artifacts.mjs','apps/app/desktop/scripts/canonical-update-feed.js','apps/app/desktop/scripts/__tests__/canonical-update-feed.test.mjs'}
+          assert set(changed)<=allowed, 'Runtime inputs differ; rebuild the installer'
+          print('Recovering an unchanged reviewed installer; acceptance helper changes only')
+          PYTHON
+      - uses: actions/download-artifact@v4
+        if: inputs.existing_failed_run_id != ''
+        with:
+          run-id: ${{ inputs.existing_failed_run_id }}
+          github-token: ${{ github.token }}
+          name: diagnostic-win32-arm64
+          path: apps/app/desktop/release
+      - name: Check the installer as a GUI process with owned long-path scratch
+        if: inputs.existing_failed_run_id != ''
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = @(Get-ChildItem desktop/release/*.exe)
+          if ($installer.Count -ne 1) { throw 'Expected one reviewed installer' }
+          $target = Join-Path $env:RUNNER_TEMP 'openagent-native-installer-proof'
+          if (Test-Path $target) { throw 'Owned proof target already exists' }
+          $process = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/S', "/D=$target") -PassThru
+          $exited = $process.WaitForExit(90000)
+          Write-Host "Installer PID $($process.Id); exited=$exited; payload=$((Test-Path (Join-Path $target 'resources/app.asar')))"
+          if (-not $exited) {
+            Get-Process | Where-Object { $_.ProcessName -like '*openagent*' -or $_.ProcessName -like '*powershell*' } | Select-Object Id,ProcessName,Path,MainWindowTitle | Format-List
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw 'Reviewed GUI installer did not exit before the bounded deadline'
+          }
+          if ($process.ExitCode -ne 0) { throw "Installer exit $($process.ExitCode)" }
+          $proof = Join-Path $env:RUNNER_TEMP 'openagent-native-verifier'
+          New-Item -ItemType Directory -Path "$proof/desktop/scripts" -Force | Out-Null
+          Copy-Item desktop/package.json "$proof/desktop/package.json"
+          Copy-Item desktop/scripts/*.mjs "$proof/desktop/scripts/"
+          Copy-Item desktop/release "$proof/desktop/release" -Recurse
+          Copy-Item $target "$proof/desktop/release/win-arm64-unpacked" -Recurse
+          $lock = Get-Content desktop/package-lock.json -Raw | ConvertFrom-Json -AsHashtable
+          $helpers = @{ private=$true; dependencies=@{ '@electron/asar'=$lock.packages['node_modules/@electron/asar'].version; 'js-yaml'=$lock.packages['node_modules/js-yaml'].version; 'app-builder-bin'=$lock.packages['node_modules/app-builder-bin'].version } }
+          $helpers | ConvertTo-Json -Depth 5 | Set-Content "$proof/package.json" -Encoding utf8
+          & npm --prefix $proof install --ignore-scripts --no-fund --no-audit
+          if ($LASTEXITCODE -ne 0) { throw 'Verifier dependency installation failed' }
+          Push-Location $proof
+          $builder = & node -p "require('app-builder-bin').appBuilderPath"
+          $payload = Join-Path "$proof/desktop/release" $installer[0].Name
+          & $builder blockmap --input $payload --output "$payload.blockmap"
+          if ($LASTEXITCODE -ne 0) { throw 'Blockmap generation failed' }
+          Pop-Location
+          "ACCEPTANCE_DESKTOP=$proof/desktop" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
       - name: Install locked client dependencies
+        if: inputs.existing_failed_run_id == ''
         run: |
           npm --prefix universal ci --no-fund --no-audit
           npm --prefix desktop ci --no-fund --no-audit
       - name: Build the renderer
+        if: inputs.existing_failed_run_id == ''
         run: |
           cd universal
           npx expo export --platform web
       - name: Acquire the exact public host bundle
+        if: inputs.existing_failed_run_id == ''
         run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform }} .release-deps/host-tools-dist
       - name: Stage the renderer without changing source
+        if: inputs.existing_failed_run_id == ''
         run: |
           node - <<'NODE'
           const fs=require('node:fs');
@@ -80,6 +150,7 @@ jobs:
           fs.writeFileSync(index,fs.readFileSync(index,'utf8').replace(/(href|src)="\//g,'$1="./'));
           NODE
       - name: Package the native target without publication
+        if: inputs.existing_failed_run_id == ''
         working-directory: apps/app/desktop
         env:
           CSC_LINK: ${{ runner.os == 'macOS' && secrets.LEGACY_APP_CSC_LINK || '' }}
@@ -93,7 +164,17 @@ jobs:
         working-directory: apps/app/desktop
         env:
           REQUIRE_SIGNED: ${{ runner.os == 'macOS' && 'true' || 'false' }}
-        run: node scripts/test-packaged-artifacts.mjs ${{ matrix.platform }}
+        run: |
+          if [[ -n "${ACCEPTANCE_DESKTOP:-}" ]]; then
+            node "$ACCEPTANCE_DESKTOP/scripts/test-packaged-artifacts.mjs" ${{ matrix.platform }}
+            node - <<'NODE'
+          const fs=require('node:fs'),path=require('node:path');
+          const from=path.join(process.env.ACCEPTANCE_DESKTOP,'release');
+          for(const entry of fs.readdirSync(from,{withFileTypes:true}))if(entry.isFile())fs.copyFileSync(path.join(from,entry.name),path.join('release',entry.name));
+          NODE
+          else
+            node scripts/test-packaged-artifacts.mjs ${{ matrix.platform }}
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-${{ matrix.platform }}
