@@ -24,6 +24,12 @@ class InstallerRequirementsTests(unittest.TestCase):
                 for index, (repo, tag, manifest_name, _, selection) in enumerate(releases):
                     if selection == 'modules':
                         names = [('openagent-core','6.1.0b7'), ('openagent-modules','1.1.0b3')]
+                    elif selection == 'capability-host':
+                        names = [('openagent-core','6.1.0b7'), ('openagent-capability-host','1.0.0b3')]
+                    elif selection == 'tools-base':
+                        names = [('openagent-device-tools','1.0.0b8'), ('openagent-tool-protocol','1.0.0b2')]
+                    elif tag.startswith('device-tools-'):
+                        names = [('openagent-device-tools','1.0.0b10')]
                     elif repo == 'openagent-uno/openagent' and re.fullmatch(r'v\d+\.\d+\.\d+(?:-beta\.\d+)?', tag):
                         names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')]
                     elif repo.endswith('openagent-core'):
@@ -37,13 +43,15 @@ class InstallerRequirementsTests(unittest.TestCase):
                         with zipfile.ZipFile(buf,'w') as archive:archive.writestr(name.replace('-','_')+'-'+version+'.dist-info/METADATA','Name: '+name+'\nVersion: '+version+'\n')
                         data=buf.getvalue();url='https://github.com/'+repo+'/releases/download/'+tag+'/'+filename
                         payloads[url]=data;rows.append({'file':filename,'sha256':__import__('hashlib').sha256(data).hexdigest()});assets.append({'name':filename,'browser_download_url':url})
-                    manifest=json.dumps({'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest,selection))
+                    manifest=json.dumps({'artifacts':rows} if manifest_name=='upstream-ownership-manifest.json' else {'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest,selection))
                     url='https://github.com/'+repo+'/releases/download/'+tag+'/'+manifest_name;payloads[url]=manifest;assets.append({'name':manifest_name,'browser_download_url':url})
                     payloads['https://api.github.com/repos/'+repo+'/releases/tags/'+tag]=json.dumps({'assets':assets}).encode()
                 fixture_code=re.sub(r'releases = \(.*?\n\)', 'releases = '+repr(tuple(replaced)), code, count=1, flags=re.S)
                 def fetch(request, **kwargs):return io.BytesIO(payloads[request.full_url])
                 with patch('sys.argv',['installer',str(destination),product]),patch('urllib.request.urlopen',fetch):
                     exec(compile(fixture_code,'installer-fixture','exec'),{'__name__':'__main__'})
+                self.assertFalse((destination/'openagent_device_tools-1.0.0b8-py3-none-any.whl').exists())
+                self.assertTrue((destination/'openagent_device_tools-1.0.0b10-py3-none-any.whl').exists())
                 expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,modules]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
                 self.assertEqual((destination/'install-requirements.txt').read_text().splitlines(),expected)
         self.assertNotRegex(source,r'DIST="openagent-(?:framework|cli).*==')

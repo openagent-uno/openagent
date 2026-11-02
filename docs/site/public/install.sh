@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the current OpenAgent 1.1 stable server or CLI from four
+# Install the current OpenAgent 1.1 stable server or CLI from pinned
 # canonical, independently versioned GitHub release manifests.
 set -eu
 
@@ -63,10 +63,12 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.6', 'manifest.json', '30fbf464ddb2929bb939864ee0ba661ea2df82af2436529ba2885995d6566592', 'all'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.42', 'manifest.json', 'cc2355ef8984fc4bef75b3b7177d9c6b11aacc4df0be7dabe786e86cf86647f0', 'all'),
+    ('openagent-uno/openagent', 'v1.1.7', 'manifest.json', 'a5162d1cc2ef93db6f6f5ac6e5a077874c026fe36e2bb33d5b283bce737f6881', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.43', 'upstream-ownership-manifest.json', '942d4c64e3df813e8a02405f42c3224aaed7c80ced07a64a1c677407f3bb6b77', 'all'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'modules'),
-    ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.40', 'manifest.json', '6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3', 'capability-host'),
+    ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'tools-base'),
+    ('openagent-uno/openagent-tools', 'device-tools-v1.0.0-beta.10', 'manifest.json', '4074f04cd96c136d21e56677f675e4ea6500b498379f6536e5df4c2c29262afe', 'all'),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -103,7 +105,7 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
         raise SystemExit(f"{repository} {tag}: pinned manifest checksum mismatch")
     manifest = json.loads(manifest_bytes)
     if "artifacts" in manifest:
-        expected = {item["path"]: item["sha256"] for item in manifest["artifacts"]}
+        expected = {item.get("path", item.get("file")): item["sha256"] for item in manifest["artifacts"]}
     elif "wheels" in manifest:
         expected = {item["file"]: item["sha256"] for item in manifest["wheels"]}
     else:
@@ -117,6 +119,10 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
     if selection == "modules":
         wheel_assets = {name: url for name, url in wheel_assets.items()
                         if name.startswith(("openagent_module_", "openagent_modules-", "openagent_modules_full-"))}
+    elif selection == "capability-host":
+        wheel_assets = {name: url for name, url in wheel_assets.items() if name.startswith("openagent_capability_host-")}
+    elif selection == "tools-base":
+        wheel_assets = {name: url for name, url in wheel_assets.items() if not name.startswith("openagent_device_tools-")}
     elif selection != "all":
         raise SystemExit(f"Unsupported first-party artifact selection: {selection}")
     if not wheel_assets:
