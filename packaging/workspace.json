@@ -24,8 +24,7 @@
       "kind": "python",
       "distribution": "openagent-mcp",
       "command": "openagent-mcp",
-      "artifact_prefix": "openagent-mcp",
-      "legacy_release_repository": "openagent-uno/openagent-mcp"
+      "artifact_prefix": "openagent-mcp"
     },
     "host-tools": {
       "path": "packages/host-tools",

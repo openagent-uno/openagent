@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-02",
+  "approved_repositories": [
+    "openagent-uno/openagent-mcp",
+    "openagent-uno/openagent-docs"
+  ],
+  "backups": [
+    {
+      "repository": "openagent-uno/openagent-mcp",
+      "repository_id": 1287445825,
+      "bundle_sha256": "eeb9a6371e0fe127bec485af80285ac432a8855bec5d22b082e1a385e5b60c8a",
+      "bundle_bytes": 34215,
+      "refs": 2,
+      "backup_verified": true,
+      "deleted": true,
+      "readback_not_found": true
+    },
+    {
+      "repository": "openagent-uno/openagent-docs",
+      "repository_id": 1239865687,
+      "bundle_sha256": "5226c4286b3b6deb1f0430254f563f1d04f2b67b80bfe6091666e20cf9970ddc",
+      "bundle_bytes": 1264836,
+      "refs": 3,
+      "backup_verified": true,
+      "deleted": true,
+      "readback_not_found": true
+    }
+  ],
+  "canonical_site": {
+    "repository": "openagent-uno/openagent",
+    "source": "docs/site",
+    "domain": "openagent.uno",
+    "pages_configuration_verified_after_deletion": true
+  },
+  "retained_distribution_repositories": [
+    "openagent-app",
+    "openagent-cli",
+    "openagent-server",
+    "openagent-host-tools"
+  ],
+  "independent_template_retained": "openagent-mcp-template"
+}

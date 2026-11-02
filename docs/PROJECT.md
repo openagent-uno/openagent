@@ -21,9 +21,10 @@ La workspace ha tre repository attivi con versionamento indipendente:
 [la transizione dei repository](repository-transition.md) per gli executor legacy.
 
 La documentazione canonica e la visione sono in [docs/site](site/index.md) e
-[site/vision.md](site/vision.md). `openagent-docs` è un mirror storico; i repository
-App/CLI/server/MCP/host-tools precedenti conservano storia e ponti updater, non
-sono la destinazione di nuove feature. Non cancellarne release, firme o asset
+[site/vision.md](site/vision.md). `openagent-docs` e il vecchio repository
+`openagent-mcp` sono stati rimossi il 2 novembre 2026 dopo backup verificati.
+I repository App/CLI/server/host-tools precedenti conservano distribuzioni e
+ponti updater; non sono la destinazione di nuove feature. Non cancellarne release, firme o asset
 necessari agli aggiornamenti installati.
 
 ## Lettura per attività
