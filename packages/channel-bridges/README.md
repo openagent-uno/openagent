@@ -6,10 +6,12 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b17`. Its Telegram command-menu recovery
-qualification is recorded in the [dated source receipt](../../docs/qualification/channel-telegram-command-menu-source-2026-11-03.md).
-Source checks, closed-wheel/public artifacts, host adoption and real provider
-acceptance are separate boundaries.
+Component [`0.1.0b17`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.17)
+is published with 344 installed-wheel tests and 86 subtests passed on Core/SQLite
+beta44. All four public assets were anonymously read back byte-identical.
+See the [source receipt](../../docs/qualification/channel-telegram-command-menu-source-2026-11-03.md)
+and [public artifact receipt](../../docs/qualification/channel-telegram-command-menu-public-2026-11-03.json).
+Host adoption and real provider acceptance remain separate boundaries.
 
 Beta16 inherits the command catalogue and reset semantics from Core beta42 or
 newer. Hosts advertise `core_commands` scopes rather than duplicating command

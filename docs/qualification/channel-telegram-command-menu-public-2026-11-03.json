@@ -1,0 +1,59 @@
+{
+  "format": 1,
+  "date": "2026-11-03",
+  "source_commit": "a117768e727c9b6d44dd4201855686ea5d4614aa",
+  "bridge_version": "0.1.0b17",
+  "core_version": "1.1.0b44",
+  "sqlite_version": "1.1.0b44",
+  "installed_bridge_tests_passed": 344,
+  "subtests_passed": 86,
+  "source_overlay_imports": 0,
+  "PYTHONPATH": null,
+  "dependencies_installed_offline": true,
+  "source_tests_passed": 344,
+  "live_provider_qualified": false,
+  "deployment_performed": false,
+  "artifact": {
+    "file": "openagent_channel_bridges-0.1.0b17-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b17",
+    "sha256": "085f4c5f6613aecddcbe1214f1c346e29b1cc456e32191fa3ae882903e17965d",
+    "bytes": 121647
+  },
+  "scope": [
+    "Telegram command menu retries during healthy polling after provider/network backoff",
+    "Changed negotiated command catalogue refreshes successful registration",
+    "Numeric and timedelta RetryAfter supported",
+    "Core beta44 shared reset contract checked separately: 22 tests and 3 subtests"
+  ],
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.17",
+  "published_prerelease": true,
+  "public_assets": [
+    {
+      "file": "manifest.json",
+      "bytes": 6306,
+      "sha256": "dd20ce81ec7684cb035c1e9a9ecd3686a3c5519e5cb5797da90a3c5968efbc5b",
+      "anonymous_readback": true
+    },
+    {
+      "file": "qualification.json",
+      "bytes": 1037,
+      "sha256": "072160eef5de1160fbf421ed51cc00175cded8047d0d99e825787b2d51469bd9",
+      "anonymous_readback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "bytes": 360,
+      "sha256": "96316c775c4677e3c4ef22ca148df85070ad8e24e3cc0200757559fdd4a48584",
+      "anonymous_readback": true
+    },
+    {
+      "file": "openagent_channel_bridges-0.1.0b17-py3-none-any.whl",
+      "bytes": 121647,
+      "sha256": "085f4c5f6613aecddcbe1214f1c346e29b1cc456e32191fa3ae882903e17965d",
+      "anonymous_readback": true
+    }
+  ],
+  "public_wheel_matches_installed_qualified_wheel": true,
+  "consumer_dependency_pins_changed": false
+}
