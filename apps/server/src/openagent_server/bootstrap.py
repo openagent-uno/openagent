@@ -278,6 +278,9 @@ def standalone_spec_resolver(config, *, environment=None):
                         env["OPENAGENT_BROWSER_EXTERNAL"] = "1"
                     if browser.get("chrome_binary"):
                         env["OPENAGENT_CHROME_BINARY"] = str(Path(browser["chrome_binary"]).expanduser().resolve())
+                    if browser.get("exclusive_profile") is True:
+                        # The host guarantees one writer for profile_dir (e.g. one job per volume).
+                        env["OPENAGENT_CHROME_PROFILE_EXCLUSIVE"] = "1"
                     proxy = browser.get("proxy")
                     if proxy is not None:
                         if not isinstance(proxy, str) or not proxy.strip() or any(c.isspace() for c in proxy.strip()):

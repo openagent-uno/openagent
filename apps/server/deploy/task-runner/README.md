@@ -48,7 +48,9 @@ caller's UI. See the Agent in Chrome README for the live-view protocol.
 A disposable agent directory gives each task a fresh browser profile. To keep
 a site login between tasks, point `server_host_tools.browser.profile_dir` at
 storage owned by the caller and give it one writer at a time; a person signs in
-once inside that dedicated profile. Route page traffic with
+once inside that dedicated profile; set `server_host_tools.browser.exclusive_profile:
+true` when the caller guarantees that single writer, so a lock left by a crashed
+host does not block the profile. Route page traffic with
 `server_host_tools.browser.proxy` (a Chrome `--proxy-server` value, passed to
 the sidecar as `OPENAGENT_CHROME_PROXY`) when a task must leave through a
 specific network.

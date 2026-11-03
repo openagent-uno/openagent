@@ -189,3 +189,18 @@ def test_server_browser_proxy_reaches_only_the_browser_sidecar(tmp_path, monkeyp
         config["server_host_tools"]["browser"]["proxy"] = invalid
         with pytest.raises(ValueError):
             standalone_spec_resolver(config, environment={"PATH": "/usr/bin"})(_row("agent-in-chrome"), str(db))
+
+
+def test_exclusive_profile_reaches_only_the_browser_sidecar(tmp_path, monkeypatch) -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    monkeypatch.setenv("OPENAGENT_AGENT_IN_CHROME_COMMAND", '["/opt/verified/sidecar"]')
+    db = tmp_path / "agent" / "openagent.db"
+    db.parent.mkdir()
+    config = {"server_host_tools": {"tools": ["agent-in-chrome", "shell"],
+                                    "browser": {"profile_dir": str(tmp_path / "p"), "exclusive_profile": True}}}
+    resolver = standalone_spec_resolver(config, environment={"PATH": "/usr/bin"})
+    assert resolver(_row("agent-in-chrome"), str(db))["env"]["OPENAGENT_CHROME_PROFILE_EXCLUSIVE"] == "1"
+    assert "OPENAGENT_CHROME_PROFILE_EXCLUSIVE" not in resolver(_row("shell"), str(db))["env"]
+    config["server_host_tools"]["browser"]["exclusive_profile"] = "yes"
+    assert "OPENAGENT_CHROME_PROFILE_EXCLUSIVE" not in standalone_spec_resolver(config, environment={"PATH": "/usr/bin"})(_row("agent-in-chrome"), str(db))["env"]
