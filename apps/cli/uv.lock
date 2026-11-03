@@ -17,7 +17,7 @@ constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
     { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.43/openagent_core-1.1.0b43-py3-none-any.whl?download=1" },
-    { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.15/openagent_device_tools-1.0.0b15-py3-none-any.whl?download=1" },
+    { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.16/openagent_device_tools-1.0.0b16-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_execution-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
@@ -951,7 +951,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-cli"
-version = "1.1.9b7"
+version = "1.1.9b8"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -987,7 +987,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b7"
+version = "1.1.9b8"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -997,7 +997,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = "==1.1.0b43" },
-    { name = "openagent-identity", specifier = "==1.1.9b7" },
+    { name = "openagent-identity", specifier = "==1.1.9b8" },
 ]
 
 [[package]]
@@ -1038,13 +1038,13 @@ provides-extras = ["capabilities", "engine", "providers", "audio", "retrieval", 
 
 [[package]]
 name = "openagent-device-tools"
-version = "1.0.0b15"
-source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.15/openagent_device_tools-1.0.0b15-py3-none-any.whl?download=1" }
+version = "1.0.0b16"
+source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.16/openagent_device_tools-1.0.0b16-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-tool-protocol" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.15/openagent_device_tools-1.0.0b15-py3-none-any.whl?download=1", hash = "sha256:1c3c2246060e6f82fa27c5e2ae4f9ae87dcc0667499d7397c9460cd5b693df64" },
+    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.16/openagent_device_tools-1.0.0b16-py3-none-any.whl?download=1", hash = "sha256:9cc36c0a52ed1eded86ce29426170003ebeb7b9129ab3efb86caaed1d3bda66f" },
 ]
 
 [package.metadata]
@@ -1093,7 +1093,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.15/openagent_device_tools-1.0.0b15-py3-none-any.whl?download=1" },
+    { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.16/openagent_device_tools-1.0.0b16-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_shell-1.0.0b3-py3-none-any.whl?download=1" },
@@ -1107,7 +1107,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b7"
+version = "1.1.9b8"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
