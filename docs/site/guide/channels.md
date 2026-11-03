@@ -2,7 +2,12 @@
 
 All channels support text, images, files, voice, and video. The "is writing" indicator shows the agent is working, and — in [live mode](#live-messages) (on by default) — each tool call and each span of the answer is posted as its own chat message as the turn unfolds.
 
-All channels share the same command vocabulary: `/new`, `/stop`, `/status`, `/queue`, `/help`, `/usage`.
+Core owns the shared command catalogue and semantics. Each host advertises its
+supported scopes; instance administration commands appear only where supported.
+`/new`, `/clear` and `/reset` stop current work and queued input, then start a
+fresh conversation while keeping long-term memory and the vault. Hosts retaining
+history keep the previous conversation readable. Shared conversations cannot be
+reset by one member.
 
 Hosts embedding their own runtime use the independently versioned
 [official channel bridges](./embedded-channels.md), rather than installing the
@@ -19,6 +24,18 @@ channels:
 ```
 
 Features: inline stop button, voice transcription (faster-whisper local or OpenAI Whisper API), markdown rendering via HTML parse mode.
+
+The bridge registers the host's supported commands with Telegram's `/` picker.
+For the session scope these are `/new`, `/clear`, `/stop`, `/status`, `/context`,
+`/help`, `/compact` and `/model`; `/reset` and `/queue` are typed commands hidden
+from the picker. `/new` requests inline confirmation and reports success only
+after the host completes the reset. A host lacking command support reports that
+the conversation was not reset.
+
+From channel-bridges beta17, failed menu registration retries during healthy
+polling after the provider backoff; a successful unchanged menu is not written
+again. `RetryAfter` accepts both SDK duration representations. The menu describes
+host capabilities, and its registration does not prove live reset acceptance.
 
 ## Discord
 

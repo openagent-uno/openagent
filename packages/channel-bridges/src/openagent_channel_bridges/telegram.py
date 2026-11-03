@@ -10,6 +10,7 @@ import tempfile
 import time
 from collections import deque
 from dataclasses import dataclass, field, replace
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,7 @@ from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.formatting import markdown_to_telegram_html
 from openagent_core.media import is_blocked_attachment
-from openagent_channel_bridges.commands import BOT_COMMANDS, BRIDGE_COMMANDS, bridge_welcome_text
+from openagent_channel_bridges.commands import BRIDGE_COMMANDS, bridge_welcome_text
 from openagent_channel_bridges.media import (
     attachment_limit_bytes,
     safe_attachment_filename,
@@ -282,7 +283,7 @@ class TelegramBridge(BaseBridge):
         # Bot command menu registration is idempotent but Telegram rate-limits
         # it aggressively. A reconnect storm must not call set_my_commands on
         # every SDK rebuild; remember success and respect RetryAfter.
-        self._commands_menu_set: bool = False
+        self._commands_menu_signature: tuple[tuple[str, str], ...] | None = None
         self._commands_next_attempt_at: float = 0.0
         # Bounded set of recently-seen update_ids used by ``_is_fresh_update``
         # to reject Telegram redeliveries. The deque enforces the size cap
@@ -400,13 +401,16 @@ class TelegramBridge(BaseBridge):
         await self._app.updater.start_polling()
         while not self._should_stop and not self._gateway_lost.is_set():
             await asyncio.sleep(1)
+            if not self._should_stop and not self._gateway_lost.is_set():
+                await self._maybe_set_bot_commands_menu()
 
     async def _maybe_set_bot_commands_menu(self) -> None:
         """Best-effort Telegram "/" menu registration with rate-limit memory."""
         if self._app is None:
             return
+        commands = self.supported_commands
         now = time.monotonic()
-        if self._commands_menu_set or now < self._commands_next_attempt_at:
+        if self._commands_menu_signature == commands or now < self._commands_next_attempt_at:
             return
         from telegram import BotCommand
         try:
@@ -415,13 +419,14 @@ class TelegramBridge(BaseBridge):
             RetryAfter = ()  # type: ignore[assignment]
         try:
             await self._app.bot.set_my_commands([
-                BotCommand(cmd, desc) for cmd, desc in self.supported_commands
+                BotCommand(cmd, desc) for cmd, desc in commands
             ])
-            self._commands_menu_set = True
+            self._commands_menu_signature = commands
             self._commands_next_attempt_at = 0.0
-            logger.info("Telegram bot commands menu set (%d commands)", len(BOT_COMMANDS))
+            logger.info("Telegram bot commands menu set (%d commands)", len(commands))
         except RetryAfter as e:  # type: ignore[misc]
-            retry_after = float(getattr(e, "retry_after", 900) or 900)
+            delay = getattr(e, "retry_after", 900)
+            retry_after = delay.total_seconds() if isinstance(delay, timedelta) else float(delay or 900)
             self._commands_next_attempt_at = now + max(retry_after, 60.0)
             logger.warning("Failed to set bot commands: retry after %.0fs", retry_after)
             elog(

@@ -6,11 +6,24 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-This source targets component `0.1.0b12`. Source qualification covers 298 tests
-and 86 subcases; closed-wheel/public artifact qualification is recorded
-separately and records its normally installed Core version. These counts do not establish
-real Slack or Discord provider acceptance. Real Discord end-to-end acceptance
-is explicitly outside this delivery's scope, not inherited from Slack tests.
+This source targets component `0.1.0b17`. Its Telegram command-menu recovery
+qualification is recorded in the [dated source receipt](../../docs/qualification/channel-telegram-command-menu-source-2026-11-03.md).
+Source checks, closed-wheel/public artifacts, host adoption and real provider
+acceptance are separate boundaries.
+
+Beta16 inherits the command catalogue and reset semantics from Core beta42 or
+newer. Hosts advertise `core_commands` scopes rather than duplicating command
+names. `/new`, `/clear` and `/reset` stop current work, clear queued input and
+start a fresh conversation, keeping long-term memory and the vault. A retaining
+host also keeps the previous conversation. A host must apply every returned
+action before reporting completion; installing a bridge alone cannot rotate a
+host's session selector.
+
+Beta17 retries failed Telegram `set_my_commands` registration while healthy
+polling continues, respecting the existing five-minute network backoff and
+Telegram `RetryAfter` (numeric or `timedelta`, minimum sixty seconds). Successful
+registrations are reused until the negotiated command set changes. A transient
+menu failure therefore does not require a bridge reconnect to recover.
 
 Previous immutable released component:
 [`0.1.0b4`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4),
