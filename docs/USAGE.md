@@ -35,6 +35,17 @@ identity and channels. Do not run this example against an existing directory
 as an implicit migration. Preserve state, vault, keys, grants and single-writer
 ownership when upgrading; see the dated release/restore gates.
 
+## Ephemeral task runner
+
+For on-demand execution (one container or job per task, nothing left running),
+use [`apps/server/deploy/task-runner`](../apps/server/deploy/task-runner/README.md).
+`openagent-task-run` starts the complete standalone server in a disposable
+agent directory, joins it with the first-user invitation, applies optional
+REST setup and runs one turn with `openagent-cli ask`, then stops everything.
+The scripted building blocks are public commands: `openagent invite
+--first-user --ticket-only`, `openagent-cli connect --no-interactive`,
+`openagent-cli request [--batch-file]` and `openagent-cli ask --json`.
+
 ## CLI and App
 
 Install `openagent-cli` from the same qualified product release. Connect it using

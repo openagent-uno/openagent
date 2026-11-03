@@ -133,7 +133,7 @@ async def handle_create(request: web.Request) -> web.Response:
         admin,context=await for_request(request)
         created=await admin.create_provider(context,dict(name=name,framework=framework,
             api_key=(body.get("api_key") or None),base_url=(body.get("base_url") or None),
-            enabled=bool(body.get("enabled",True)),metadata=body.get("metadata") or None,kind=kind))
+            enabled=bool(body.get("enabled",True)),metadata=body.get("metadata") or {},kind=kind))
         pid=created['id']
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)

@@ -278,6 +278,11 @@ def standalone_spec_resolver(config, *, environment=None):
                         env["OPENAGENT_BROWSER_EXTERNAL"] = "1"
                     if browser.get("chrome_binary"):
                         env["OPENAGENT_CHROME_BINARY"] = str(Path(browser["chrome_binary"]).expanduser().resolve())
+                    proxy = browser.get("proxy")
+                    if proxy is not None:
+                        if not isinstance(proxy, str) or not proxy.strip() or any(c.isspace() for c in proxy.strip()):
+                            raise ValueError("server_host_tools.browser.proxy must be a Chrome --proxy-server value")
+                        env["OPENAGENT_CHROME_PROXY"] = proxy.strip()
                 return {"name": name, "command": command,
                         "env": env, "_cwd": str(workspace)}
             return {

@@ -505,8 +505,18 @@ async def _run_status(ctx):
     "--uses", default=1, show_default=True, type=int,
     help="Advanced: number of times the ticket can be redeemed.",
 )
+@click.option(
+    "--ticket-only", is_flag=True,
+    help="Print only the bare ticket on stdout, for scripted provisioning.",
+)
+@click.option(
+    "--first-user", is_flag=True,
+    help="Return the host's first-user invitation (claims agent ownership); "
+         "fails once any user exists.",
+)
 @click.pass_context
-def cmd_invite(ctx, handle: str | None, role: str | None, ttl: int, uses: int):
+def cmd_invite(ctx, handle: str | None, role: str | None, ttl: int, uses: int,
+               ticket_only: bool, first_user: bool):
     """Mint an invite ticket.
 
     Usage:
@@ -520,7 +530,9 @@ def cmd_invite(ctx, handle: str | None, role: str | None, ttl: int, uses: int):
     hood — pass ``--role`` only for the rare cases where you want to
     force one (e.g. federated agent registration).
     """
-    asyncio.run(_run_invite(ctx, handle, role, ttl, uses))
+    asyncio.run(_run_invite(
+        ctx, handle, role, ttl, uses, ticket_only=ticket_only, first_user=first_user,
+    ))
 
 
 async def resolve_invite_intent(
@@ -560,18 +572,47 @@ async def resolve_invite_intent(
     return role, bind_to, f"register an agent (owner={bind_to or 'system'})"
 
 
+async def _coordinator_row(config: dict) -> dict | None:
+    db = await _open_db(config)
+    try:
+        row = await CoordinatorStore(db).get_network_role()
+        return row if row is not None and row["role"] == "coordinator" else None
+    finally:
+        if db._conn is not None:
+            await db._conn.close()
+
+
 async def _run_invite(
     ctx,
     handle: str | None,
     role: str | None,
     ttl: int,
     uses: int,
+    *,
+    ticket_only: bool = False,
+    first_user: bool = False,
 ):
     from openagent_identity.coordinator_addr_cache import read_cache
     from openagent_identity.ticket import InviteTicket
 
     agent_dir = _agent_dir_or_die()
     config = ctx.obj["config"]
+    if first_user:
+        if handle is not None or role is not None:
+            raise click.UsageError("--first-user cannot be combined with HANDLE or --role")
+        row = await _coordinator_row(config)
+        bootstrap = None if row is None else await mint_first_user_invite(
+            agent_dir=agent_dir, config=config, network_row=row,
+        )
+        if bootstrap is None:
+            console.print("[red]No first-user invitation is available:[/red] the agent "
+                          "is not a coordinator or a user has already joined.")
+            raise SystemExit(1)
+        if ticket_only:
+            click.echo(bootstrap[0])
+        else:
+            console.print(f"\n  [bold cyan]{bootstrap[0]}[/bold cyan]\n")
+        return
     db = await _open_db(config)
     try:
         store = CoordinatorStore(db)
@@ -579,6 +620,8 @@ async def _run_invite(
         if row is None or row["role"] != "coordinator":
             console.print("[red]Not a coordinator-mode agent.[/red] "
                           "Run ``openagent network init`` first.")
+            if ticket_only:
+                raise SystemExit(1)
             return
 
         resolved_role, bind_to, intent_label = await resolve_invite_intent(
@@ -605,6 +648,11 @@ async def _run_invite(
             addresses=addresses or None,
         )
         ticket_str = ticket.encode()
+        if ticket_only:
+            # Bare and unwrapped: Rich would fold the long ticket at the
+            # terminal width, which breaks callers that read stdout.
+            click.echo(ticket_str)
+            return
         console.print()
         console.print(
             f"[green]Invite ticket[/green] — [dim]{intent_label}, "

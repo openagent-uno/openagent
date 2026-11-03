@@ -15,7 +15,7 @@ import logging
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Any, Callable
 
 import aiohttp
 
@@ -1118,6 +1118,20 @@ class GatewayClient:
         async with self._session.post(f"{self.base_url}{path}", json=data if data is not None else {}) as r:
             r.raise_for_status()
             return await r.json()
+
+    async def rest_request(self, method: str, path: str, data=None) -> tuple[int, Any]:
+        """Send one authenticated REST request and return ``(status, body)``.
+
+        Unlike the ``rest_*`` helpers this does not raise on HTTP errors, so
+        scripted callers can report the gateway's own validation message.
+        """
+        kwargs = {} if data is None else {"json": data}
+        async with self._session.request(method.upper(), f"{self.base_url}{path}", **kwargs) as r:
+            try:
+                body = await r.json(content_type=None)
+            except Exception:
+                body = await r.text()
+            return r.status, body
 
     async def rest_delete(self, path: str) -> dict:
         async with self._session.delete(f"{self.base_url}{path}") as r:

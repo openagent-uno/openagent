@@ -169,3 +169,23 @@ def test_legacy_web_search_row_explains_missing_independent_package(tmp_path) ->
 
     with pytest.raises(RuntimeError, match="openagent-web-search-mcp is not installed"):
         resolver(_row("web-search"), str(tmp_path / "openagent.db"))
+
+
+def test_server_browser_proxy_reaches_only_the_browser_sidecar(tmp_path, monkeypatch) -> None:
+    from openagent_server.bootstrap import standalone_spec_resolver
+
+    monkeypatch.setenv("OPENAGENT_AGENT_IN_CHROME_COMMAND", '["/opt/verified/sidecar"]')
+    db = tmp_path / "agent" / "openagent.db"
+    db.parent.mkdir()
+    config = {"server_host_tools": {
+        "tools": ["agent-in-chrome", "shell"],
+        "browser": {"proxy": " socks5://127.0.0.1:1080 "},
+    }}
+    resolver = standalone_spec_resolver(config, environment={"PATH": "/usr/bin"})
+    assert resolver(_row("agent-in-chrome"), str(db))["env"]["OPENAGENT_CHROME_PROXY"] == "socks5://127.0.0.1:1080"
+    assert "OPENAGENT_CHROME_PROXY" not in resolver(_row("shell"), str(db))["env"]
+
+    for invalid in ("", "socks5://a b", 1080):
+        config["server_host_tools"]["browser"]["proxy"] = invalid
+        with pytest.raises(ValueError):
+            standalone_spec_resolver(config, environment={"PATH": "/usr/bin"})(_row("agent-in-chrome"), str(db))

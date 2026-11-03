@@ -1119,8 +1119,17 @@ main.add_command(vault_group)
     "--uses", default=1, show_default=True, type=int,
     help="Advanced: number of times the ticket can be redeemed.",
 )
+@click.option(
+    "--ticket-only", is_flag=True,
+    help="Print only the bare ticket on stdout, for scripted provisioning.",
+)
+@click.option(
+    "--first-user", is_flag=True,
+    help="Return the host's first-user invitation (claims agent ownership); "
+         "fails once any user exists.",
+)
 @click.pass_context
-def cmd_top_level_invite(ctx, handle, role, ttl, uses):
+def cmd_top_level_invite(ctx, handle, role, ttl, uses, ticket_only, first_user):
     """Mint an invite ticket (shortcut for ``network invite``).
 
     \b
@@ -1133,7 +1142,9 @@ def cmd_top_level_invite(ctx, handle, role, ttl, uses):
     # differently from ``openagent network invite``.
     from openagent_identity.cli_commands import _run_invite
 
-    asyncio.run(_run_invite(ctx, handle, role, ttl, uses))
+    asyncio.run(_run_invite(
+        ctx, handle, role, ttl, uses, ticket_only=ticket_only, first_user=first_user,
+    ))
 
 
 @main.command()
