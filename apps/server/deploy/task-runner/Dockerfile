@@ -18,7 +18,7 @@ ARG COMPUTER_CONTROL_SHA256=1dfb5dfe17156568edc492dfba2f69b1cb6cb7611138caba3ed1
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      ca-certificates chromium xvfb xauth nodejs npm tini \
+      ca-certificates chromium xvfb xauth nodejs tini \
       fonts-liberation fonts-noto-core fonts-noto-color-emoji \
       libgbm1 libwayland-client0 libxcb1 \
  && rm -rf /var/lib/apt/lists/*
@@ -33,11 +33,16 @@ RUN sh /opt/openagent/install.sh --server --prefix /usr/local/bin \
  && sh /opt/openagent/install.sh --cli --prefix /usr/local/bin \
  && rm -rf /root/.cache
 
-# Agent in Chrome ships its locked JS source in the device-tools wheel.
-RUN cd "$(/opt/openagent/install/venv/bin/python -c \
+# Agent in Chrome ships its locked JS source in the device-tools wheel. npm is only
+# needed to install that lockfile (after the installer, which must not pick the
+# Debian Python that npm pulls in) and is removed again.
+RUN apt-get update && apt-get install -y --no-install-recommends npm \
+ && cd "$(/opt/openagent/install/venv/bin/python -c \
       'from openagent_device_tools.sources import sidecar_source; print(sidecar_source("agent-in-chrome"))')/host" \
  && npm ci --omit=dev --ignore-scripts \
- && npm cache clean --force
+ && npm cache clean --force \
+ && apt-get purge -y --auto-remove npm \
+ && rm -rf /var/lib/apt/lists/*
 
 ADD --checksum=sha256:${COMPUTER_CONTROL_SHA256} \
     https://github.com/openagent-uno/openagent-tools/releases/download/computer-control-v${COMPUTER_CONTROL_VERSION}/openagent-computer-control-${COMPUTER_CONTROL_VERSION}-linux-x64.tar.gz \
