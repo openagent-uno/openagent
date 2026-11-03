@@ -11,17 +11,18 @@
 ARG PYTHON_IMAGE=python:3.12-slim-trixie
 FROM ${PYTHON_IMAGE}
 
-ARG OPENAGENT_RELEASE
-ARG OPENAGENT_INSTALLER_SHA256
-ARG COMPUTER_CONTROL_VERSION=0.1.3
-ARG COMPUTER_CONTROL_SHA256=1dfb5dfe17156568edc492dfba2f69b1cb6cb7611138caba3ed10685baea942d
-
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       ca-certificates chromium xvfb xauth nodejs tini \
       fonts-liberation fonts-noto-core fonts-noto-color-emoji \
       libgbm1 libwayland-client0 libxcb1 \
  && rm -rf /var/lib/apt/lists/*
+
+# Declared after the system layer so a new release reuses the cached Chromium/Xvfb layer.
+ARG OPENAGENT_RELEASE
+ARG OPENAGENT_INSTALLER_SHA256
+ARG COMPUTER_CONTROL_VERSION=0.1.3
+ARG COMPUTER_CONTROL_SHA256=1dfb5dfe17156568edc492dfba2f69b1cb6cb7611138caba3ed10685baea942d
 
 # The release installer verifies every first-party wheel against its pinned
 # manifests; the installer itself is pinned by digest here.
