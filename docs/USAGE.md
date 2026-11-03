@@ -46,6 +46,19 @@ The scripted building blocks are public commands: `openagent invite
 --first-user --ticket-only`, `openagent-cli connect --no-interactive`,
 `openagent-cli request [--batch-file]` and `openagent-cli ask --json`.
 
+The runner consumes its inputs: configuration, setup batch and message are
+read into memory and unlinked before the server starts, and setup and message
+reach the CLI on stdin. An input it cannot remove (a read-only Secret volume)
+fails the run before any agent turn, so hand inputs over through a private
+writable directory; on Kubernetes, an init container copies the Secret into
+an `emptyDir` with `medium: Memory` that only the runner mounts.
+`--keep-inputs` is for inputs without secrets. The agent's host tools still
+run as the server's account and can read what the server holds (agent
+configuration, database, sidecar environment): disable `shell`, `filesystem`
+and `editor` when a task does not need them and give each run scoped,
+short-lived credentials. The runner README has the Job layout and the full
+boundary.
+
 ## CLI and App
 
 Install `openagent-cli` from the same qualified product release. Connect it using

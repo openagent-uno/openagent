@@ -15,6 +15,14 @@ configuration, used for one task and discarded by the caller (for example an
 ephemeral container). Persistent state that should survive the task, such as
 a browser profile, is selected through the configuration and owned by the
 caller's storage.
+
+Inputs are consumed: the runner reads the configuration, setup batch and
+message into memory and unlinks them before the server starts, so no tool the
+agent runs can read the files that carried them. Setup and message reach the
+CLI on stdin, never through a file or argv. A read-only input (for example a
+Kubernetes Secret volume) fails the run before any agent turn; copy it into a
+private writable directory first, or pass ``--keep-inputs`` when the inputs
+hold no secrets.
 """
 from __future__ import annotations
 
@@ -49,6 +57,38 @@ def _write_result(path: Path | None, payload: dict) -> None:
     temporary.replace(path)
 
 
+def _consume(paths: list[Path], keep: bool) -> list[bytes] | str:
+    """Read every input, then unlink it, before anything the agent runs exists.
+
+    All reads happen first, so a failed unlink never leaves a half-consumed
+    set behind a running agent: the caller aborts before ``serve`` starts.
+    """
+    contents = []
+    for path in paths:
+        # Unlinking a symbolic link would leave its target readable.
+        if not keep and path.is_symlink():
+            return (f"input {path} is a symbolic link; copy the inputs into a private "
+                    "writable directory as regular files")
+        try:
+            fd = os.open(path, os.O_RDONLY | (0 if keep else getattr(os, "O_NOFOLLOW", 0)))
+        except OSError as exc:
+            return f"cannot read {path}: {exc.strerror}"
+        with os.fdopen(fd, "rb") as handle:
+            contents.append(handle.read())
+    if keep:
+        return contents
+    for path in paths:
+        try:
+            path.unlink()
+        except OSError as exc:
+            return (f"cannot remove input {path} ({exc.strerror}); copy the inputs into a "
+                    "private writable directory the runner can empty, or pass --keep-inputs "
+                    "when they hold no secrets")
+        if os.path.lexists(path):
+            return f"input {path} is still present after removal"
+    return contents
+
+
 def _stop(server: subprocess.Popen, grace: float) -> None:
     if server.poll() is not None:
         return
@@ -78,6 +118,8 @@ def main() -> int:
     parser.add_argument("--session", default=None, help="Session id for the turn")
     parser.add_argument("--setup-file", type=Path, default=None,
                         help="JSON batch for `openagent-cli request --batch-file`, applied before the turn")
+    parser.add_argument("--keep-inputs", action="store_true",
+                        help="Leave the input files in place (only for inputs without secrets)")
     args = parser.parse_args()
 
     for command in ("openagent", "openagent-cli"):
@@ -91,8 +133,20 @@ def main() -> int:
     agent_dir = args.agent_dir.expanduser().resolve()
     if agent_dir.exists() and any(agent_dir.iterdir()):
         return _fail(f"{agent_dir} is not empty; the runner only uses disposable directories")
+    inputs = [args.config, args.message_file] + ([args.setup_file] if args.setup_file else [])
+    consumed = _consume(inputs, args.keep_inputs)
+    if isinstance(consumed, str):
+        return _fail(consumed)
+    config = consumed[0]
+    try:
+        message = consumed[1].decode("utf-8")
+        setup_batch = consumed[2].decode("utf-8") if args.setup_file else None
+    except UnicodeDecodeError:
+        return _fail("--message-file and --setup-file must be UTF-8")
     agent_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    shutil.copyfile(args.config, agent_dir / "openagent.yaml")
+    config_path = agent_dir / "openagent.yaml"
+    config_path.write_bytes(config)
+    os.chmod(config_path, 0o600)
 
     # The client store is separate from the agent directory and from the
     # caller's home, so one task never reuses another task's membership.
@@ -135,12 +189,11 @@ def main() -> int:
         if joined.returncode != 0:
             return _fail("the runner client could not join the disposable agent")
 
-        if args.setup_file is not None:
+        if setup_batch is not None:
             setup = subprocess.run(
-                ["openagent-cli", "request", "--batch-file", str(args.setup_file),
-                 "--handle", RUNNER_HANDLE],
-                env=client_env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                timeout=args.startup_timeout,
+                ["openagent-cli", "request", "--batch-file", "-", "--handle", RUNNER_HANDLE],
+                env=client_env, input=setup_batch, capture_output=True,
+                text=True, timeout=args.startup_timeout,
             )
             if setup.returncode != 0:
                 # Report status codes and gateway errors, never the request bodies.
@@ -155,11 +208,11 @@ def main() -> int:
                                             "setup": summary})
                 return setup.returncode or EXIT_SETUP
 
-        command = ["openagent-cli", "ask", "--message-file", str(args.message_file),
+        command = ["openagent-cli", "ask", "--message-file", "-",
                    "--timeout", str(args.timeout), "--handle", RUNNER_HANDLE, "--json"]
         if args.session:
             command += ["--session", args.session]
-        ask = subprocess.run(command, env=client_env, stdin=subprocess.DEVNULL,
+        ask = subprocess.run(command, env=client_env, input=message,
                              capture_output=True, text=True, timeout=args.timeout + 120)
         try:
             payload = json.loads(ask.stdout) if ask.stdout.strip() else {}

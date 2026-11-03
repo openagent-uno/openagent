@@ -54,6 +54,11 @@ RUN mkdir -p /opt/openagent/computer-control \
  && ln -s /opt/openagent/computer-control/openagent-computer-control /usr/local/bin/openagent-computer-control \
  && ln -s /opt/openagent/install/venv/bin/openagent-browser-session /usr/local/bin/openagent-browser-session
 
+# The browser runs as the agent account: never let it load local files
+# (agent configuration, task inputs), whatever a page or tool asks for.
+RUN mkdir -p /etc/chromium/policies/managed \
+ && printf '{"URLBlocklist": ["file://*"]}\n' > /etc/chromium/policies/managed/openagent-no-local-files.json
+
 COPY --chmod=0755 openagent-task-run /usr/local/bin/openagent-task-run
 
 RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin openagent
