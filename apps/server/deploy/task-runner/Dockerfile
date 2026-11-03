@@ -51,7 +51,8 @@ ADD --checksum=sha256:${COMPUTER_CONTROL_SHA256} \
 RUN mkdir -p /opt/openagent/computer-control \
  && tar -xzf /tmp/computer-control.tar.gz -C /opt/openagent/computer-control \
  && rm /tmp/computer-control.tar.gz \
- && ln -s /opt/openagent/computer-control/openagent-computer-control /usr/local/bin/openagent-computer-control
+ && ln -s /opt/openagent/computer-control/openagent-computer-control /usr/local/bin/openagent-computer-control \
+ && ln -s /opt/openagent/install/venv/bin/openagent-browser-session /usr/local/bin/openagent-browser-session
 
 COPY --chmod=0755 openagent-task-run /usr/local/bin/openagent-task-run
 

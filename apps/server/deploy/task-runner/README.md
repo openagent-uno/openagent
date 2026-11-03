@@ -36,6 +36,13 @@ display when no `DISPLAY` is set) and the qualified Linux x64 computer-control
 bundle. Build for `linux/amd64` with `OPENAGENT_RELEASE` and the installer's
 SHA-256. Run as UID 10001 with a writable `TMPDIR` (for example an `emptyDir`).
 
+## Interactive browser sessions
+
+The image also ships `openagent-browser-session` (device tools ≥ 1.0.0b12): run it
+as the container command, instead of `openagent-task-run`, to open the profile's
+browser with an authenticated live view so a person can sign in once through the
+caller's UI. See the Agent in Chrome README for the live-view protocol.
+
 ## Browser state and site access
 
 A disposable agent directory gives each task a fresh browser profile. To keep
