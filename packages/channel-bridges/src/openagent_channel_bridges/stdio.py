@@ -29,7 +29,7 @@ from . import __version__
 from .contracts import BridgeContext, BridgeMessage, MAX_CONTEXT_MESSAGES
 from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
     WireError, decode_line, encode_line, identifier, object_fields,
-    progress, result_dto, to_wire)
+    context_dto, progress, result_dto, to_wire)
 
 MAX_PENDING = 64
 PROVIDERS = ("slack", "discord", "telegram", "whatsapp")
@@ -81,6 +81,8 @@ class StdioBridgeTransport:
         self._history_max_files = 16
         self._history_max_bytes = 65536
         self.artifacts = ArtifactStore()
+        self.attest_context = None
+        self._host_requests = {}
 
     async def emit(self, value):
         line = encode_line({"protocol": PROTOCOL, **value})
@@ -221,6 +223,24 @@ class StdioBridgeTransport:
                 pending.event_tail = task
                 task.add_done_callback(delivered)
             return
+        if kind == "request" and frame.get("method") == "attest_context":
+            object_fields(frame, {"protocol", "type", "request_id", "method", "params"},
+                          {"protocol", "type", "request_id", "method", "params"})
+            host_id = identifier(frame["request_id"])
+            if self._closed:
+                raise HostClosed()
+            if host_id in self._host_requests or len(self._host_requests) >= MAX_PENDING:
+                raise WireError("pending_limit")
+            # Never await provider IO in the ingress reader: the provider uses
+            # nested authorize_context RPCs whose responses need this reader.
+            task = asyncio.create_task(self._attest(host_id, frame["params"]))
+            self._host_requests[host_id] = task
+            def completed(done):
+                self._host_requests.pop(host_id, None)
+                if not done.cancelled():
+                    done.exception()  # Consume transport shutdown/write failures.
+            task.add_done_callback(completed)
+            return
         object_fields(frame, {"protocol", "type", "request_id", "method", "parent_request_id", "params"},
                       {"protocol", "type", "request_id", "method", "parent_request_id", "params"})
         if kind != "request":
@@ -242,8 +262,28 @@ class StdioBridgeTransport:
         except (WireError, ValueError, TypeError, OSError):
             await self.emit({"type": "error", "request_id": host_id, "error": {"code": "artifact_rejected"}})
 
+    async def _attest(self, request_id, params):
+        try:
+            object_fields(params, {"context"}, {"context"})
+            context = context_dto(params["context"])
+            self._context(context)
+            if not callable(self.attest_context):
+                raise WireError("unsupported_method")
+            fresh = await asyncio.wait_for(self.attest_context(context), 30)
+            self._context(fresh)
+            await self.emit({"type": "result", "request_id": request_id,
+                             "result": to_wire(fresh, self.artifacts, request_id)})
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if not self._closed:
+                await self.emit({"type": "error", "request_id": request_id,
+                                 "error": {"code": "context_rejected"}})
+
     def eof(self):
         self._closed = True
+        for task in self._host_requests.values():
+            task.cancel()
         for pending in self._pending.values():
             if not pending.future.done():
                 pending.future.set_exception(HostClosed())
@@ -295,6 +335,7 @@ def describe():
             "max_line_bytes": MAX_LINE, "max_pending": MAX_PENDING,
             "max_chunk_bytes": MAX_CHUNK, "max_artifact_bytes": MAX_ARTIFACT,
             "methods": ["start", "authorize_context", "authorize_delivery", "send", "command", "transcribe", "synthesize", "stop"],
+            "host_methods": ["attest_context"], "context_attestation": True,
             "artifact_methods": ["read_artifact", "upload_begin", "upload_chunk", "upload_finish"],
             "core_commands": sorted(COMMAND_SCOPES)}
 
@@ -310,9 +351,10 @@ async def serve(read_line, write_line, *, factory=configure):
         first = decode_line(await read_line())
         transport = StdioBridgeTransport(write_line, binding_id=first.get("binding_id"), provider=first.get("provider"))
         bridge = factory(first, transport)
+        transport.attest_context = getattr(bridge, "attest_context", None)
         await transport.emit({"type": "configured", "request_id": identifier(first["request_id"]),
                               "provider": transport.provider, "binding_id": transport.binding_id,
-                              "providers": list(PROVIDERS)})
+                              "providers": list(PROVIDERS), "context_attestation": callable(transport.attest_context)})
         task = asyncio.create_task(bridge.start())
         while True:
             line = await read_line()
@@ -327,6 +369,8 @@ async def serve(read_line, write_line, *, factory=configure):
     finally:
         if transport is not None:
             transport.eof()
+            if transport._host_requests:
+                await asyncio.gather(*tuple(transport._host_requests.values()), return_exceptions=True)
         if task is not None:
             task.cancel()
             await asyncio.gather(task, return_exceptions=True)

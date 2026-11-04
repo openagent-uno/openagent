@@ -67,6 +67,45 @@ its usual run/session/identity APIs and current capabilities. `send` returns
 `BridgeReply` with opaque host `session_ref` and `run_ref`; these are results,
 not sender-selected routing authority.
 
+## Independent provider context attestation (beta 18)
+
+`--describe` advertises `context_attestation: true` and
+`host_methods: ["attest_context"]`. The `configured` reply also advertises
+`context_attestation: true` when the bridge implements the method. This is a
+runner capability; the host-owned `start` capabilities are unchanged. An older
+runner lacks it and hosts requiring current membership must fail closed.
+
+The authenticated parent may independently request fresh provider membership:
+
+```json
+{"protocol":"channel-bridge-ipc/v1","type":"request","request_id":"host-attest-1","method":"attest_context","params":{"context":{"binding_id":"binding-id","provider":"slack","account_id":"TACCOUNT","actor_id":"UMEMBER","conversation_id":"CCHANNEL","event_id":"event-id","conversation_kind":"channel"}}}
+```
+
+This method accepts **no** `parent_request_id`: it can recheck an admitted run
+while a message RPC is pending or after that RPC ends. Other host requests
+still require an active parent and retain their request-local artifact scope.
+The result is a `BridgeContext` directly, with current `audience_ids`,
+`audience_complete: true` and a fresh finite `audience_verified_at`.
+Unknown context/parameter fields, wrong binding/provider/account, removed
+actor, incomplete audience and unavailable provider proof are denied with
+`error: {"code":"context_rejected"}`. Caller-supplied audience evidence is
+cleared before the provider refresh; a provider without refresh support cannot
+echo a host assertion as proof. Identity fields cannot change. Provider IO
+uses existing SDK binding checks and membership readers; no message, history,
+media, run, host principal or execution grant is created.
+
+`BaseBridge.attest_context(context)` exposes the same in-process operation.
+It calls basic host `authorize_context` before/during provider reads and after
+the refreshed proof, but never calls `authorize_delivery`. The host's basic
+binding/actor check **must not** recursively require `attest_context`.
+The stdio ingress reader stays free to process these nested authorization
+responses while the attestation task waits. At most 64 independent attestation
+requests can be pending; each times out after 30 seconds and all are cancelled
+on transport shutdown. Provider membership is still evidence, not authority:
+the host compares the returned exact binding/account/actor/conversation/thread
+and audience epoch with durable admitted provenance, and rechecks its current
+grant before allowing an execution or publication operation.
+
 ## Actor admission and audience authorization
 
 Beta 2 extends the same protocol and `api_version: 1` context with:

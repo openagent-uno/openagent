@@ -298,3 +298,15 @@ Slack main-channel/top-level DM replies keep their placement and have no typing
 fallback. No message, reaction, permission or new thread is added for typing.
 See [capabilities and lifecycle limits](../../docs/site/guide/channel-native-typing.md).
 Component fixtures do not establish live delivery in provider accounts.
+
+## Current membership during an admitted execution
+
+Beta 18 adds public `BaseBridge.attest_context` and the independent stdio
+`attest_context` host method. Hosts can recheck the provider's current complete
+audience without sending a message or granting host identity. The operation
+reuses each provider's authenticated SDK membership reader and rejects missing
+or stale proof. See [the protocol](PROTOCOL.md#independent-provider-context-attestation-beta-18)
+for capability negotiation, strict DTOs and nested authorization. Deterministic
+SDK/stdio tests do not qualify a live provider, deployment or published wheel.
+
+[Local beta18 source evidence](../../docs/qualification/channel-context-attestation-2026-11-04.json).

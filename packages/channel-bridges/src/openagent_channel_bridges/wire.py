@@ -16,7 +16,7 @@ import stat
 import tempfile
 
 from .contracts import (BridgeAttachment, BridgeCapabilities, BridgeCommandDefinition,
-    BridgeCommandResult, BridgeEvent, BridgePart, BridgePickerOption, BridgeReply)
+    BridgeCommandResult, BridgeContext, BridgeEvent, BridgePart, BridgePickerOption, BridgeReply)
 
 from openagent_core.chat_commands import COMMAND_SCOPES
 
@@ -316,6 +316,17 @@ def to_wire(value, store: ArtifactStore, request_id):
     if value is None or type(value) in (str, int, bool, float):
         return value
     raise WireError("unsupported_dto")
+
+
+def context_dto(value):
+    """Decode only the bounded public context; no event payload or host claims."""
+    allowed = {field.name for field in fields(BridgeContext)}
+    object_fields(value, allowed, {"binding_id", "provider", "account_id", "actor_id",
+                                  "conversation_id", "event_id"})
+    try:
+        return BridgeContext(**value)
+    except (TypeError, ValueError) as exc:
+        raise WireError("invalid_context") from exc
 
 
 def _parts(value, store, request_id):

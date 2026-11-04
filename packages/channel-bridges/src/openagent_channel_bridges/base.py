@@ -287,6 +287,33 @@ class BaseBridge:
             raise PermissionError("bridge is stopped")
         _active_context.set(value)
 
+    async def attest_context(self, context: BridgeContext) -> BridgeContext:
+        """Read a fresh provider audience without publishing or granting authority.
+
+        The authenticated host may recheck an admitted execution independently
+        of an active message RPC. Actor/binding admission remains the host's
+        responsibility; it must not recursively require this attestation.
+        """
+        from dataclasses import replace
+        current = self._resolve_context(context)
+        generation = self._generation
+        # Caller-supplied audience evidence is never a provider attestation.
+        current = replace(current, audience_ids=(), audience_complete=False,
+                          audience_verified_at=None)
+        await self._authorize_generation(current, generation)
+        fresh = await self._delivery_context(current)
+        if (self._should_stop or generation != self._generation or
+                not isinstance(fresh, BridgeContext) or
+                not self._same_delivery_identity(current, fresh)):
+            raise PermissionError("context attestation identity changed")
+        if (fresh.audience_complete is not True or not fresh.audience_ids or
+                fresh.actor_id not in fresh.audience_ids or
+                fresh.audience_verified_at is None or
+                not -5 <= time.time() - fresh.audience_verified_at <= 30):
+            raise PermissionError("current provider audience is unavailable")
+        await self._authorize_generation(fresh, generation)
+        return fresh
+
     async def _delivery_context(self, context: BridgeContext) -> BridgeContext:
         """Providers may refresh SDK-attested audience fields before egress."""
         return context
