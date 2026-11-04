@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "date": "2026-11-04",
+  "source_commit": "fb16a5d9f0817d27493ed8ebbe448e285a0e9f44",
+  "bridge_version": "0.1.0b18",
+  "core_version": "1.1.0b42",
+  "sqlite_version": "1.1.0b42",
+  "python_version": "3.11.6",
+  "installed_bridge_tests_passed": 351,
+  "subtests_passed": 86,
+  "source_focused_tests_passed": 44,
+  "source_overlay_imports": 0,
+  "PYTHONPATH": null,
+  "dependencies_installed_offline": true,
+  "installed_files_match_wheel": true,
+  "live_provider_qualified": false,
+  "deployment_performed": false,
+  "published": true,
+  "artifact": {
+    "file": "openagent_channel_bridges-0.1.0b18-py3-none-any.whl",
+    "name": "openagent-channel-bridges",
+    "version": "0.1.0b18",
+    "sha256": "85d523df29d43969c389ac81a801ef7506cf34d2ae7dbfc9c766c499dbe966cc",
+    "bytes": 122838
+  },
+  "scope": [
+    "Public in-process context attestation reuses authenticated provider membership readers",
+    "Independent bounded stdio host request preserves nested authorization reentrancy",
+    "Removed member, wrong account, incomplete audience and host evidence echo are denied",
+    "Transport shutdown cancels independent attestation tasks"
+  ],
+  "baseline": {
+    "release": "channel-bridges-v0.1.0-beta.17",
+    "source_commit": "a117768e727c9b6d44dd4201855686ea5d4614aa",
+    "manifest_sha256": "dd20ce81ec7684cb035c1e9a9ecd3686a3c5519e5cb5797da90a3c5968efbc5b"
+  },
+  "published_prerelease": true,
+  "release_url": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.18",
+  "public_assets": [
+    {
+      "file": "openagent_channel_bridges-0.1.0b18-py3-none-any.whl",
+      "bytes": 122838,
+      "sha256": "85d523df29d43969c389ac81a801ef7506cf34d2ae7dbfc9c766c499dbe966cc",
+      "anonymous_readback": true
+    },
+    {
+      "file": "manifest.json",
+      "bytes": 6525,
+      "sha256": "d1b55be28e84c0abb20ba08fceccc06861dddafe1d9f62f5a92db83885826ec0",
+      "anonymous_readback": true
+    },
+    {
+      "file": "qualification.json",
+      "bytes": 1394,
+      "sha256": "59bba01d34e4e7f18465d8b82ba95309e9e54b0b7d429819920738013aebaef5",
+      "anonymous_readback": true
+    },
+    {
+      "file": "SHA256SUMS",
+      "bytes": 283,
+      "sha256": "462a0c3adbdba6d7e1d6d6fedf69e337d5956163125281bc834ed8d3f62f231f",
+      "anonymous_readback": true
+    }
+  ],
+  "public_wheel_matches_installed_qualified_wheel": true,
+  "merge_commit": "e0690f953cdc5a6ad9a96fa3854066c8a8075f34"
+}
