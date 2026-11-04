@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-04",
+  "component": "openagent-channel-bridges",
+  "source_version": "0.1.0b18",
+  "base_commit": "e4cd90b8bc53c4ef67e6f003bb26a6b93b28d40b",
+  "verification_level": "local source regression",
+  "public_contract": [
+    "BaseBridge.attest_context(BridgeContext)",
+    "channel-bridge-ipc/v1 independent host attest_context"
+  ],
+  "evidence": [
+    "Real SlackBridge membership reader with deterministic SDK responses: member added, member removed, wrong account, incomplete pagination",
+    "Independent stdio request processes nested actor authorization without blocking its ingress reader",
+    "Caller audience assertions, unknown context fields and scoped artifact parents are rejected",
+    "Independent attestation tasks are cancelled at transport EOF"
+  ],
+  "checks": {
+    "focused_context_and_stdio": "44 passed",
+    "full_sdk_before_final_lifecycle_test": "350 passed, 86 subtests passed",
+    "git_diff_check": "passed"
+  },
+  "environment": "Existing Python 3.11 development environment, current Core source contract and existing optional provider SDK dependencies; no dependency installation",
+  "limitations": [
+    "No live provider calls or credentials",
+    "No wheel build, publication, deployment or consumer acceptance",
+    "Host must validate exact current grant and compare provider attestation against durable admitted provenance"
+  ]
+}
