@@ -104,7 +104,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByRole('button',{name:'Select bob',exact:true}).click();
     await expect(page.getByLabel('Collaborator username',{exact:true})).toHaveValue('bob');
     await expect(page.getByRole('button',{name:'Select suspended-user',exact:true})).toHaveCount(0);
-    await page.getByRole('button',{name:'SHARE',exact:true}).click();
+    await page.getByRole('button',{name:'Share with user',exact:true}).click();
     await expect(page.getByText('Can collaborate',{exact:true})).toBeVisible();
     expect(gateway.members).toEqual([{handle:'bob',permission:'admin'}]);
     await page.setViewportSize({width:390,height:844});

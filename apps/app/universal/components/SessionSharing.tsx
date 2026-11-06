@@ -92,7 +92,7 @@ export default function SessionSharing({ sessionId }: { sessionId: string }) {
                 <Text style={{ color: colors.text, flex: 1 }}>{user.handle}</Text>
                 {handle === user.handle && <Feather name="check" size={15} color={colors.accent} />}
               </Pressable>)}
-              <Button label={busy ? 'Saving…' : 'Share'} icon="share-2" disabled={busy || !handle.trim()} onPress={() => void save(handle.trim(), 'admin')} />
+              <Button accessibilityLabel="Share with user" label={busy ? 'Saving…' : 'Share'} icon="share-2" disabled={busy || !handle.trim()} onPress={() => void save(handle.trim(), 'admin')} />
             </>}
             {data && <Text style={{ color: colors.textSecondary, fontSize: 12, marginTop: 4 }}>People with access</Text>}
             {data?.members.map(member => <View key={member.handle} style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
