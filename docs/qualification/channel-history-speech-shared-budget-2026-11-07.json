@@ -1,0 +1,21 @@
+{
+  "status": "source-qualified; installed wheel and publication pending",
+  "component": "0.1.0b21",
+  "previousPublished": "0.1.0b20 remains immutable; its budget was per file",
+  "scope": "one shared 30-second transcription budget across the selected historical audio",
+  "focusedTests": {
+    "passed": 55,
+    "newRegression": "four stalled audio; one speech callback; all original media and text retained"
+  },
+  "sharedSpeechBudgetSeconds": 30,
+  "completeHistoryBudgetSeconds": 120,
+  "preserved": [
+    "author/event attribution",
+    "original audio",
+    "explicit neutral unavailable notice",
+    "revocation, audience generation and task cancellation"
+  ],
+  "hostWorkAfterLocalCancellation": "no replay; host retains its own ordinary timeout",
+  "liveProviderAcceptance": false,
+  "consumerDeployment": false
+}

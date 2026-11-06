@@ -6,8 +6,8 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-Beta20 is a source candidate. Historical transcriptions have a 30-second
-per-file budget inside the complete history budget. On expiry the original
+Beta21 is a source candidate. Historical transcriptions share a 30-second
+budget across all selected audio, inside the complete history budget. On expiry the original
 audio remains attributed and an explicit unavailable-transcription notice is
 included; text and other records are preserved. Revocation and cancellation
 still deny submission. Current-turn speech retains its existing host budget.

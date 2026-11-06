@@ -184,7 +184,7 @@ async def test_slack_historical_media_only_message_roundtrips_and_cleans_request
 @pytest.mark.parametrize("revoked", [False, True])
 async def test_slow_historical_audio_keeps_original_and_cannot_block_text_or_ignore_revocation(monkeypatch, revoked):
     from openagent_channel_bridges import history_media
-    monkeypatch.setattr(history_media, "HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(history_media, "HISTORY_TRANSCRIPTION_BUDGET_SECONDS", 0.01)
     host = Host()
 
     async def slow_transcribe(context, attachment):
@@ -211,6 +211,34 @@ async def test_slow_historical_audio_keeps_original_and_cannot_block_text_or_ign
         assert len(host.inputs) == 1 and host.inputs[0].provider_attachment_id == "Fvoice"
         assert any(history_media.HISTORY_TRANSCRIPTION_UNAVAILABLE in (part.text or "") for part in request.history[0].parts)
         assert len(client.posts) == 2
+
+
+@pytest.mark.asyncio
+async def test_all_historical_audio_share_one_speech_budget_and_preserve_each_author_and_file(monkeypatch):
+    from openagent_channel_bridges import history_media
+    monkeypatch.setattr(history_media, "HISTORY_TRANSCRIPTION_BUDGET_SECONDS", 0.01)
+    host = Host()
+    calls = []
+
+    async def slow_transcribe(context, attachment):
+        calls.append(attachment.provider_attachment_id)
+        await asyncio.Future()
+
+    host.transcribe = slow_transcribe
+    files = [{**media_files()[2], "id": f"voice-{i}", "name": f"voice-{i}.ogg",
+              "url_private_download": f"https://files.slack.com/voice-{i}"} for i in range(4)]
+    client = SlackClient(files)
+    bridge = slack(host, client, [])
+    await asyncio.wait_for(bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> answer the current text question", "ts": "50.0"}, client,
+        account_id="T", event_id="50.0"), 2)
+    assert len(calls) == 1
+    assert len(host.requests) == 1 and len(host.inputs) == 4
+    record = host.requests[0].history[0]
+    assert record.actor_id == "bob" and record.event_id == "10.0"
+    assert {a.provider_attachment_id for a in host.inputs} == {f"voice-{i}" for i in range(4)}
+    assert sum(history_media.HISTORY_TRANSCRIPTION_UNAVAILABLE in (p.text or "") for p in record.parts) == 4
+    assert len(client.posts) == 2
 
 
 @pytest.mark.asyncio

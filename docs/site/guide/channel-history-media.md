@@ -51,8 +51,10 @@ fresh audience, mapped host permissions and revocation checks precede downloads,
 transcription, ingestion and delivery. Historical audio uses the same configured
 speech callback and keeps its original media beside the attributed transcript.
 
-Beta20 gives each historical transcription a 30-second budget within the
-existing 120-second complete-history budget. If speech processing times out,
+Beta21 gives all historical transcriptions a shared 30-second budget within the
+existing 120-second complete-history budget. After exhaustion, subsequent audio
+keeps its original bytes and notice without issuing another speech callback.
+Beta20 used a per-file budget, which did not bound the total speech delay. If speech processing times out,
 the original audio and its author/event attribution remain in the selected
 history, beside an explicit transcription-unavailable notice. Text and other
 records are preserved. Fresh authorization and audience/generation checks

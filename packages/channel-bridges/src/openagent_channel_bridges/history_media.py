@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import time
 from .contracts import BridgeAttachment, BridgeAttachmentNotice, BridgePart
 from .media import media_file_snapshot
 from .diagnostics import emit_diagnostic
@@ -13,7 +14,7 @@ from .history import HistoryUnavailable
 MAX_HISTORY_FILES = 16
 MAX_HISTORY_INPUT_BYTES = 64 << 20
 MAX_HISTORY_FILE_BYTES = 32 << 20
-HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS = 30
+HISTORY_TRANSCRIPTION_BUDGET_SECONDS = 30
 HISTORY_TRANSCRIPTION_UNAVAILABLE = "[Historical audio transcription unavailable; the original audio is retained with this message.]"
 
 
@@ -37,6 +38,7 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
         part_count += added
     result = []
     transcriptions = 0
+    speech_remaining = HISTORY_TRANSCRIPTION_BUDGET_SECONDS
     for record in selected:
         parts, omitted = [], list(record.omitted_attachments)
         for part in record.parts:
@@ -75,12 +77,18 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                 except (OSError, ValueError, RuntimeError):
                     reason = "unavailable"
                 if reason is None and loaded.kind in ("voice", "audio"):
-                    transcript = await bridge.transcribe_with_fallback(
-                        loaded.local_path, context=context, attachment=loaded,
-                        timeout_seconds=HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS)
-                    from .base import VOICE_FALLBACK
-                    if transcript == VOICE_FALLBACK:
-                        transcript = HISTORY_TRANSCRIPTION_UNAVAILABLE
+                    transcript = HISTORY_TRANSCRIPTION_UNAVAILABLE
+                    if speech_remaining > 0:
+                        started = time.monotonic()
+                        try:
+                            transcript = await bridge.transcribe_with_fallback(
+                                loaded.local_path, context=context, attachment=loaded,
+                                timeout_seconds=speech_remaining)
+                        finally:
+                            speech_remaining = max(0, speech_remaining - (time.monotonic() - started))
+                        from .base import VOICE_FALLBACK
+                        if transcript == VOICE_FALLBACK:
+                            transcript = HISTORY_TRANSCRIPTION_UNAVAILABLE
                     context = await bridge._prepare_delivery_context(context)
                     transcriptions += 1
                     if part_count >= 256:
