@@ -367,7 +367,7 @@ function SessionDetailsContent({
   const session = useChat((state) =>
     state.sessions.find((candidate) => candidate.id === state.activeSessionId),
   );
-  const isDraft = session?.localDraft === true && !session.messages.length && !session.isProcessing;
+  const isDraft = session?.localDraft === true;
   const relatedRunsAvailable = useSearch((state) => {
     const version = state.capabilities?.features.session_related_runs?.version;
     return version === 1 || version === 2;
