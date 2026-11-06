@@ -322,7 +322,7 @@ async def test_channel_send_attaches_exact_host_leases_and_child_keeps_them(tmp_
         source = FunctionSource((ToolDefinition('host-tool', 'Owned laptop', {}),), {'host-tool': leased_tool})
         catalog.register(lease.source_id, source, source, target_label='Owned laptop', lease=lease)
         reply = await host.send(BridgeMessage(context, (BridgePart(text='spawn child'),)))
-        assert reply.status == 'success'
+        assert reply.status == 'completed'
         assert [kind for kind, _ in seen] == ['user', 'agent']
         assert len({session for _, session in seen}) == 2
     finally:

@@ -167,7 +167,7 @@ class NativeRuntimeService:
             gateway.runtime_audience_resolver = self.directory.audience
         if not getattr(gateway, "runtime_principal_active", None):
             gateway.runtime_principal_active = self.directory.principal_active
-        self._interactive_sources: dict[str, str] = {}
+        self._interactive_sources: dict[str, tuple[Any, Any]] = {}
         self._interactive_leases: dict[str, tuple] = {}
         self._interactive_origins: dict[str, tuple] = {}
         self.authorizer = NativeRuntimeAuthorizer(
@@ -599,6 +599,29 @@ class NativeRuntimeService:
         # coordinator from valid single-installation native ingress.
         return principal
 
+    async def _device_grant_route(self, context, granted):
+        if context.deferred:
+            return False
+        if context.session_id == granted.session_id:
+            return True
+        if context.author.kind != "agent" or not context.parent_run_id:
+            return False
+        parent_id, seen = context.parent_run_id, set()
+        while parent_id is not None and len(seen) < 32 and parent_id not in seen:
+            seen.add(parent_id)
+            try:
+                parent = await self.runtime.services.store.accepted_request(parent_id)
+            except LookupError:
+                return False
+            if (parent.initiator != granted.initiator or parent.authority != granted.authority
+                    or parent.audience != granted.audience or parent.ingress_id != granted.ingress_id
+                    or parent.deferred):
+                return False
+            if parent.request.session_id == granted.session_id:
+                return True
+            parent_id = parent.parent_run_id
+        return False
+
     async def _capability_context(self, context):
         from openagent_core.core.execution_origin import current_execution_origin
         from openagent_core.mcp.catalog import register_interactive_capabilities
@@ -630,7 +653,7 @@ class NativeRuntimeService:
             # reuse the first sender's cached authorization callback.
             import hashlib
             route = hashlib.sha256(f"{context.ingress_id}:{context.session_id}".encode()).hexdigest()
-            namespace = (f"interactive/{route}/{target.device_id}/"
+            namespace = (f"app/{route}/{target.device_id}/"
                          f"{target.client_instance_id}/{target.generation}/{target.auth_epoch}")
             leases = self._interactive_leases.get(namespace)
             if leases is None:
@@ -748,6 +771,7 @@ class NativeRuntimeService:
                     and context.authority == granted_context.authority
                     and context.ingress_id == granted_context.ingress_id
                     and context.audience == granted_context.audience
+                    and await self._device_grant_route(context, granted_context)
                     and await self._device_owner(granted_context) == granted_owner)
         if context.delegation_id and f"capability:{source}" not in context.scopes:
             return False

@@ -184,6 +184,47 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises((PermissionError, CapabilityUnavailable)):
                     await self.catalog.call_tool(targets[0].tool_ref, {'action':'get_screenshot'}, context)
 
+    async def test_cached_bridge_leases_do_not_cross_private_sender_routes(self):
+        await self.connect()
+        a, b = '155490357', '155490358'
+        config = {'channels':{'telegram':{'allowed_users':[a,b]}},
+                  'runtime_tool_audiences':{'vault_owner_channels':{'telegram':[a,b]},
+                                          'device_owner_channels':{'telegram':{a:'alice',b:'alice'}}}}
+        self.service.agent.config = config
+        identity = await self.service.authorizer.bind_request(Request(self.service.gateway, '__bridge_telegram'))
+        p = PrincipalRef('openagent', 'network', identity.handle)
+        base = ExecutionContext(p,p,p,'tg:'+a,'agent',(p,),
+            ingress_id=self.service.authorizer._identity_bindings[self.service.authorizer.binding_id(identity)])
+        first = replace(base, capabilities=await self.service._capability_context(base))
+        second = replace(base, session_id='tg:'+b)
+        second = replace(second, capabilities=await self.service._capability_context(second))
+        self.assertNotEqual(first.capabilities, second.capabilities)
+        self.assertTrue(await self.catalog.discover(first))
+        self.assertTrue(await self.catalog.discover(second))
+        stolen = replace(second, capabilities=first.capabilities)
+        self.assertFalse(await self.catalog.discover(stolen))
+        del config['runtime_tool_audiences']['device_owner_channels']['telegram'][b]
+        self.assertFalse(await self.catalog.discover(second))
+        self.assertTrue(await self.catalog.discover(first))
+
+    async def test_device_lease_inheritance_requires_a_verified_parent_chain(self):
+        await self.connect()
+        context = replace(self.context, capabilities=await self.service._capability_context(self.context))
+        agent = PrincipalRef('openagent','network','worker','agent')
+        child = replace(context, author=agent, session_id='child', parent_run_id='parent')
+        parent = SimpleNamespace(initiator=context.initiator, authority=context.authority,
+            audience=context.audience, ingress_id=context.ingress_id, deferred=False,
+            request=SimpleNamespace(session_id=context.session_id), parent_run_id=None)
+        async def accepted(identifier):
+            if identifier != 'parent': raise LookupError(identifier)
+            return parent
+        self.service.runtime.services = SimpleNamespace(store=SimpleNamespace(accepted_request=accepted))
+        self.assertTrue(await self.catalog.discover(child))
+        self.assertFalse(await self.catalog.discover(replace(child, parent_run_id='invented')))
+        self.assertFalse(await self.catalog.discover(replace(child, author=context.author)))
+        self.binding_valid = False
+        self.assertFalse(await self.catalog.discover(child))
+
     def test_desktop_api_rejects_injected_tools_paths_recordings_and_invalid_coordinates(self):
         for body in ({'tool_ref': 'x', 'action': 'start_screen_recording'},
                      {'tool_ref': 'x', 'action': 'get_screenshot', 'server': 'shell'},
