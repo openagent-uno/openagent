@@ -92,6 +92,23 @@ explicit. Reading additional history requires a separately supported,
 normally authorized capability; no broader search, channel fallback or token
 alias is introduced by this contract.
 
+Additional Slack/Discord history preparation has one aggregate 120-second
+deadline, exposed as `history.HISTORY_PREPARATION_TIMEOUT_SECONDS`. It includes
+host authorization, provider pagination, historical downloads and transcription;
+it is not a per-file budget that restarts after each record. Expiry cancels the
+pending read and raises `HistoryUnavailable` before submission. The bridge emits
+the existing content-free `history/unavailable` diagnostic and uses fresh normal
+authorization for any error reply. It neither sends partial history nor retries
+an accepted execution. External cancellation and permission revocation keep their
+original semantics. Current-message media and execution timeouts are separate.
+
+The provider-free NDJSON socket regressions exercise successful 20-record windows,
+historical speech readers, concurrent current-membership attestation, expired
+reader references, stalled host/provider IO, cancellation and revocation for both
+providers. They establish this protocol boundary, not the cause of an unobserved
+production wait or live provider acceptance. Immutable beta18 artifacts are
+unchanged; adopting this source change requires a subsequent qualified release.
+
 
 ## Beta9 admission and streaming authorization
 

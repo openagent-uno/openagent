@@ -1,6 +1,8 @@
 """Bounded provider history carried as attributed untrusted context data."""
 from __future__ import annotations
 
+import asyncio
+import functools
 import json
 from dataclasses import asdict
 from collections.abc import Iterable
@@ -13,6 +15,35 @@ from .contracts import (
 
 class HistoryUnavailable(RuntimeError):
     """Requested history is unavailable or cannot be represented completely."""
+
+
+HISTORY_PREPARATION_TIMEOUT_SECONDS = 120
+
+
+def bounded_history_preparation(read):
+    """Bound the complete additional-history read, including authorization/media.
+
+    A stopped provider or host must not leave an acknowledged turn waiting
+    forever before submission. Cancellation still propagates, and no partial
+    history is substituted on expiry. The caller owns ordinary error delivery.
+    """
+    @functools.wraps(read)
+    async def bounded(bridge, *args, **kwargs):
+        from .diagnostics import emit_diagnostic
+        if not bridge.context_messages:
+            return await read(bridge, *args, **kwargs)
+        context = args[1] if len(args) > 1 else kwargs["context"]
+        emit_diagnostic(context, "history", "started")
+        deadline = asyncio.timeout(HISTORY_PREPARATION_TIMEOUT_SECONDS)
+        try:
+            async with deadline:
+                return await read(bridge, *args, **kwargs)
+        except TimeoutError:
+            if not deadline.expired():
+                raise
+            emit_diagnostic(context, "history", "unavailable")
+            raise HistoryUnavailable("Requested channel history preparation timed out") from None
+    return bounded
 
 
 def validate_context_messages(value: int) -> int:

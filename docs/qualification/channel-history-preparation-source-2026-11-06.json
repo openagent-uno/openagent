@@ -1,0 +1,54 @@
+{
+  "status": "source-tested-not-released-not-live-accepted",
+  "component": "openagent-channel-bridges",
+  "sourceBaseCommit": "13a1d504408caf8a4df2552bf5179e847996fdf9",
+  "immutablePublishedVersion": "0.1.0b18",
+  "change": "Aggregate 120-second additional-history preparation deadline for Slack and Discord",
+  "ownership": "Provider bridges and public host IPC; no host identity or permission policy changes",
+  "evidence": {
+    "python": "3.13.12",
+    "core": "1.1.0b45",
+    "sqliteStorage": "1.1.0b45",
+    "command": "PYTHONPATH=src python -m pytest tests/test_history_stdio.py tests/test_stdio.py tests/test_context_attestation.py tests/test_quiet_history_media.py tests/test_provider_context.py tests/test_history_byte_budget.py -q -rs",
+    "workingDirectory": "packages/channel-bridges",
+    "result": "154 passed, 60 subtests passed",
+    "execution": "one local process; no provider requests, model calls, builds, CI or deployment"
+  },
+  "completeMinimumDependencySuite": {
+    "environment": "Existing beta18 qualification environment; dependencies unchanged",
+    "python": "3.11.6",
+    "core": "1.1.0b42",
+    "sqliteStorage": "1.1.0b42",
+    "discordPy": "2.7.1",
+    "command": "PYTHONPATH=src python -m pytest tests -q -rs",
+    "workingDirectory": "packages/channel-bridges",
+    "result": "363 passed, 86 subtests passed; zero skips; 4 dependency deprecation warnings"
+  },
+  "completeTargetDependencyAttempt": {
+    "python": "3.13.12",
+    "core": "1.1.0b45",
+    "sqliteStorage": "1.1.0b45",
+    "discordPy": "2.7.1",
+    "audioopLts": "0.2.2",
+    "dependencyChanges": "Normal wheel installation of manifest-pinned discord.py and its declared Python 3.13 audioop-lts dependency; no source overlays",
+    "command": "PYTHONPATH=src python -m pytest tests -q -rs",
+    "workingDirectory": "packages/channel-bridges",
+    "result": "354 passed, 86 subtests passed; 6 skips for the absent optional Telegram SDK",
+    "slackDiscordTestsSkipped": 0
+  },
+  "regressions": [
+    "Successful 20-record Slack and Discord history with historical speech over real NDJSON socket IO",
+    "Concurrent current-provider attestation retains exact original author, conversation and request correlation",
+    "Speech and send readers are parent scoped and expire on request completion",
+    "Stalled host admission, provider history and speech cancel before partial submission",
+    "The deadline is aggregate even when individual authorizations complete",
+    "External cancellation and permission revocation retain their distinct semantics",
+    "Late responses to canceled requests do not grant authority or terminate subsequent IPC"
+  ],
+  "limits": [
+    "The tests reproduce an unbounded pre-submission wait under a nonresponding dependency; they do not attribute an unobserved production wait to a particular dependency",
+    "The complete suite passes without skips on the declared Core/SQLite beta42 minimum; the beta45 environment lacks only the unrelated optional Telegram SDK",
+    "No public package version, immutable artifact, host dependency or provider configuration changed"
+  ],
+  "candidateVersion": "0.1.0b19"
+}
