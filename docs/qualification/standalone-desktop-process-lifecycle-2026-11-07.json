@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "product_version": "1.1.9b15",
+  "core_version": "1.1.0b51",
+  "installer_first_party_wheels_verified": 39,
+  "isolated_public_installation": true,
+  "dependency_check": "passed",
+  "database_integrity": "ok",
+  "critical_counts_and_identities_preserved": true,
+  "configuration_preserved": true,
+  "compressed_stopped_snapshot_verified": true,
+  "installed_duplicate_serve_rejected": true,
+  "desktop_and_browser_pids_preserved_during_version_cutover": true,
+  "separate_browser_profiles_share_one_persistent_display": true,
+  "both_cdp_endpoints_healthy": true,
+  "desktop_and_both_browser_pids_preserved_across_second_restart": true,
+  "private_telegram_bridge_exact_client_screenshot": {
+    "execution_host_kind": "client",
+    "verified_device_selected": true,
+    "external_message_sent": false
+  },
+  "runtime_source_overlay": false,
+  "local_mac_build": false,
+  "raw_installation_records": "kept in protected operator storage",
+  "normal_authenticated_app_run": {
+    "status": "success",
+    "wall_seconds": 4.662,
+    "exact_expected_reply_verified_in_native_ui": true
+  }
+}

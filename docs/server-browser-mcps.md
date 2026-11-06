@@ -65,6 +65,12 @@ lock is released by the OS; the separate lock file is not the
 database itself. Its presence alone never proves ownership. Core's historical process-termination helpers are deprecated
 no-ops starting with 1.1.0b51; lifecycle policy belongs to the application host.
 
+The [installed lifecycle acceptance](qualification/standalone-desktop-process-lifecycle-2026-11-07.json)
+records the public 1.1.9b15/1.1.0b51 installation, duplicate-host rejection,
+preserved desktop/browser processes across two restarts, and an exact client
+screenshot through an authenticated private channel. Provider message delivery
+is separate from this local bridge acceptance.
+
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its
 port stable for the MCP configuration, and run the browser under a service
