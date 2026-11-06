@@ -1,0 +1,106 @@
+name: Channel bridge wheel
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact reviewed public source commit (40 lowercase hex characters)
+        required: true
+        type: string
+      expected_version:
+        description: Expected channel bridge package version
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: channel-bridge-wheel
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONDONTWRITEBYTECODE: '1'
+  UV_CONCURRENT_BUILDS: '1'
+  UV_CONCURRENT_DOWNLOADS: '1'
+  UV_HTTP_TIMEOUT: '30'
+  UV_NO_CACHE: '1'
+
+jobs:
+  wheel:
+    if: github.repository == 'openagent-uno/openagent' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      payload_0: ${{ steps.handoff.outputs.payload_0 }}
+      payload_1: ${{ steps.handoff.outputs.payload_1 }}
+      payload_2: ${{ steps.handoff.outputs.payload_2 }}
+      payload_3: ${{ steps.handoff.outputs.payload_3 }}
+      payload_sha256: ${{ steps.handoff.outputs.payload_sha256 }}
+    steps:
+      - name: Validate reviewed inputs
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: |
+          python3 - <<'PY'
+          import os,re
+          assert re.fullmatch(r'[a-f0-9]{40}',os.environ['SOURCE_SHA'])
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:a[0-9]+|b[0-9]+|rc[0-9]+)?',os.environ['EXPECTED_VERSION'])
+          PY
+      - name: Reviewed build recipe
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: recipe
+          persist-credentials: false
+          sparse-checkout: scripts/qualify_channel_bridge_wheel.py
+          sparse-checkout-cone-mode: false
+      - name: Exact public component source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: source
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            scripts
+            packaging
+            packages/channel-bridges
+      - name: Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Build, install and qualify the canonical component wheel
+        id: handoff
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: python recipe/scripts/qualify_channel_bridge_wheel.py --source source --output "$RUNNER_TEMP/channel-bridge-wheel"
+  publish:
+    needs: wheel
+    if: github.repository == 'openagent-uno/openagent' && github.event.repository.private == false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Reviewed publisher
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: recipe
+          persist-credentials: false
+          sparse-checkout: scripts/publish_channel_bridge_wheel.py
+          sparse-checkout-cone-mode: false
+      - name: Publish the exact qualified public wheel without Actions artifact storage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: openagent-uno/openagent
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+          WHEEL_PAYLOAD_0: ${{ needs.wheel.outputs.payload_0 }}
+          WHEEL_PAYLOAD_1: ${{ needs.wheel.outputs.payload_1 }}
+          WHEEL_PAYLOAD_2: ${{ needs.wheel.outputs.payload_2 }}
+          WHEEL_PAYLOAD_3: ${{ needs.wheel.outputs.payload_3 }}
+          WHEEL_PAYLOAD_SHA256: ${{ needs.wheel.outputs.payload_sha256 }}
+        run: python3 recipe/scripts/publish_channel_bridge_wheel.py

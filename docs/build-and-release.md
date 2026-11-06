@@ -173,3 +173,20 @@ with the release index SHA-256
 The App and CLI beta 10 locks consume that published index. Qualification of
 their distributable artifacts and updater paths is recorded separately in the
 product release receipt.
+
+## Manual channel component workflow
+
+`Channel bridge wheel` is a manually dispatched component-only producer. Select
+an exact reviewed public source SHA and expected package version. The read-only
+builder uses the canonical wheel command on a standard public Linux runner,
+checks tracked source hashes and wheel bytes, and qualifies the normally installed
+wheel with the full provider-free suite on the pinned Core/SQLite beta45 pair.
+It neither builds a native application nor calls a real messaging provider.
+
+The builder passes only the small public wheel and provenance through bounded job
+outputs; it does not create an Actions artifact or cache. A separate publisher job
+has ephemeral `contents: write` authority, atomically creates a previously absent
+component tag, uploads a draft prerelease, downloads and compares all uploaded
+bytes, and then publishes. It refuses an existing tag and never replaces assets
+or retries a failed publication. A failed draft/tag remains for explicit review.
+Anonymous public download verification and consumer adoption are separate gates.
