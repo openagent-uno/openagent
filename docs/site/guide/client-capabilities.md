@@ -264,6 +264,11 @@ Older hosts use a screenshot fallback every 500 milliseconds, with at most one
 request in flight; its polling stops on close, hidden page or error. Streaming
 hosts issue no screenshot polling. Input is
 ordered, bounded, and never automatically retried after an uncertain failure.
+Consecutive text still waiting behind an in-flight input is coalesced without
+changing pointer/shortcut order, so fast typing does not fill the input queue
+with one request per character. Ctrl/Command+V uses the viewer's normal paste
+event and sends its text to the exact computer, independently of the remote
+computer's clipboard.
 Closing the view cancels pending reads best-effort; a sent input may have already
 executed. An offline/revoked desktop is never replaced by another destination.
 OS screen-capture/input permission failures are displayed by the view.

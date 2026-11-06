@@ -18,7 +18,7 @@ function fixturePng() {
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 class DeviceGateway extends DeterministicGateway {
-  calls=[]; offline=false; live=false; streamCloses=0; members=[];
+  calls=[]; offline=false; live=false; streamCloses=0; members=[]; inputDelay=0;
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
@@ -58,6 +58,7 @@ class DeviceGateway extends DeterministicGateway {
     if(path==='/api/sessions/e2e-session/computer') {
       let body='';for await(const chunk of request)body+=chunk;
       const call=JSON.parse(body);this.calls.push(call);
+      if(this.inputDelay && call.action!=='get_screenshot')await new Promise(resolve=>setTimeout(resolve,this.inputDelay));
       if(this.offline)return reply({error:'The exact computer is unavailable'},409);
       if(call.tool_ref!=='exact-agent-desktop')return reply({error:'wrong destination'},403);
       return reply({content:call.action==='get_screenshot'?[{type:'text',text:JSON.stringify({image_width:800,image_height:450})},{type:'image',mimeType:'image/png',data:fixturePng()}]:[]});
@@ -146,6 +147,27 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByLabel('Remote keyboard capture',{exact:true})).toBeFocused();
     await page.keyboard.type('Hello from the viewer');
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='type').map(c=>c.text).join('')).toBe('Hello from the viewer');
+    const burstStart=gateway.calls.length;
+    const burst='Fast exact desktop input '.repeat(9);
+    gateway.inputDelay=150;
+    await page.keyboard.type(burst);
+    await page.keyboard.press('ArrowLeft');
+    await expect.poll(()=>gateway.calls.slice(burstStart).filter(c=>c.action==='type').map(c=>c.text).join('')).toBe(burst);
+    await expect.poll(()=>gateway.calls.slice(burstStart).some(c=>c.action==='key'&&c.text==='Left')).toBe(true);
+    const burstCalls=gateway.calls.slice(burstStart);
+    expect(burstCalls.filter(c=>c.action==='type').length).toBeLessThan(32);
+    expect(burstCalls.findIndex(c=>c.action==='key'&&c.text==='Left')).toBeGreaterThan(burstCalls.map(c=>c.action).lastIndexOf('type'));
+    gateway.inputDelay=0;
+    const clipboardText='Clipboard text Ω\nSecond line';
+    await app.evaluate(({clipboard},text)=>clipboard.writeText(text),clipboardText);
+    const pasteStart=gateway.calls.length;
+    await page.keyboard.press(process.platform==='darwin'?'Meta+v':'Control+v');
+    await expect.poll(()=>gateway.calls.slice(pasteStart).filter(c=>c.action==='type').map(c=>c.text).join('')).toBe(clipboardText);
+    expect(gateway.calls.slice(pasteStart).some(c=>c.action==='key'&&/^(?:ctrl|super)\+v$/i.test(c.text))).toBe(false);
+    for(const modifier of ['ctrlKey','metaKey'])expect(await screen.evaluate((element,modifier)=>{
+      const event=new KeyboardEvent('keydown',{key:'v',[modifier]:true,bubbles:true,cancelable:true});
+      element.dispatchEvent(event);return event.defaultPrevented;
+    },modifier)).toBe(false);
     await screen.click({position:{x:100,y:50}});
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='left_click').length).toBe(2);
     await screen.click({button:'right',position:{x:120,y:70}});
@@ -157,7 +179,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     const area=await screen.boundingBox();await page.mouse.move(area.x+30,area.y+30);await page.mouse.down();await page.mouse.move(area.x+90,area.y+80,{steps:4});await page.mouse.up();
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='left_click_drag').length).toBe(1);
     await screen.press('ArrowRight');
-    await expect.poll(()=>gateway.calls.find(c=>c.action==='key')?.text).toBe('Right');
+    await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='Right')).toBe(true);
     await page.screenshot({path:join(temporary,'computer-wide.png')});
     await page.setViewportSize({width:390,height:844});
     await expect(screen).toBeVisible();

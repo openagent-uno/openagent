@@ -29,6 +29,12 @@ keyboard interaction through the authenticated App desktop view. This is
 optional host infrastructure, not a Core requirement: clientless/headless agents
 without desktop tools remain valid.
 
+When several supervised browsers/displays coexist, first compare the native
+computer tool's effective `DISPLAY`/Xauthority with the browser unit being
+selected. Attaching a shell to another healthy browser's display will not add
+window controls to the computer the App is actually showing. Follow the exact
+matching unit; verify its PID/profile remain unchanged when attaching the shell.
+
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its
 port stable for the MCP configuration, and run the browser under a service

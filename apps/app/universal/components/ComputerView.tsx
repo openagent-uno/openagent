@@ -8,6 +8,13 @@ import { computerFrame } from '../../common/devices';
 import { interactWithComputer } from '../services/api';
 import { colors, radius } from '../theme';
 
+type QueuedInput = {
+  action: ComputerAction;
+  input: { coordinate?: [number, number]; text?: string };
+  started: boolean;
+  promise: Promise<boolean>;
+};
+
 /** One exact computer per mounted view. Closing aborts reads and stops polling. */
 export default function ComputerView({ sessionId, target, onClose }: { sessionId: string; target: ComputerTarget; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
@@ -18,6 +25,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
   const [paused, setPaused] = useState(false);
   const lock = useRef(false);
   const queue = useRef(Promise.resolve());
+  const lastQueuedInput = useRef<QueuedInput | null>(null);
   const pending = useRef(0);
   const failed = useRef(false);
   const alive = useRef(true);
@@ -25,13 +33,24 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
   const pausedRef = useRef(false);
   const perform = useCallback((action: ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}): Promise<boolean> => {
     if (!alive.current || (action === 'get_screenshot' && (lock.current || pending.current > 0))) return Promise.resolve(false);
+    const previous = lastQueuedInput.current;
+    // Preserve every character while a slow exact-device call is in flight.
+    // Merge only consecutive, not-yet-started text operations; pointer/key
+    // operations keep their ordering and dispatched mutations are never replayed.
+    if (action === 'type' && typeof input.text === 'string' && previous?.action === 'type'
+        && !previous.started && (previous.input.text?.length || 0) + input.text.length <= 16384) {
+      previous.input.text = (previous.input.text || '') + input.text;
+      return previous.promise;
+    }
     if (pending.current >= 64) return Promise.resolve(false);
+    const task: QueuedInput = { action, input: { ...input }, started: false, promise: Promise.resolve(false) };
     pending.current++;
     const operation = async () => {
+      task.started = true;
       if (!alive.current || (failed.current && action !== 'get_screenshot')) { pending.current--; return false; }
       lock.current = true; setBusy(true);
       try {
-        const result = await interactWithComputer(sessionId, target.tool_ref, action, input, controller.current.signal);
+        const result = await interactWithComputer(sessionId, target.tool_ref, action, task.input, controller.current.signal);
         if (!alive.current) return false;
         const next = computerFrame(result);
         if (next) setFrame(next);
@@ -53,6 +72,8 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
       } finally { pending.current--; lock.current = false; if (alive.current) setBusy(false); }
     };
     const result = queue.current.then(operation);
+    task.promise = result;
+    lastQueuedInput.current = task;
     queue.current = result.then(() => {}, () => {});
     return result;
   }, [sessionId, target.tool_ref, live]);

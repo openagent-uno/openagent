@@ -113,6 +113,12 @@ export default function ComputerSurface({ frame, width, label, send, children }:
     onKeyDown={event => {
       if (event.nativeEvent.isComposing || ['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) return;
       flushClick();
+      // Let the local browser produce its paste event with clipboard text.
+      // Sending Ctrl/Command+V to the remote OS uses that OS's unrelated clipboard.
+      if (((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'v')
+          || (event.shiftKey && event.key === 'Insert')) {
+        event.stopPropagation(); return;
+      }
       if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
         if (event.target !== keyboard.current) { event.preventDefault(); void send('type', { text: event.key }); }
         event.stopPropagation(); return;
