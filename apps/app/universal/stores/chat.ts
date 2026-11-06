@@ -105,9 +105,10 @@ function transcriptPatch(
   loaded: LoadedTranscript,
   previous: readonly ChatMessage[],
   sharedSnapshot?: ChatSession['sharedSnapshot'],
-): Pick<ChatSession, 'messages' | 'messageWindow'> {
+): Pick<ChatSession, 'messages' | 'messageWindow' | 'localDraft'> {
   if (loaded.kind === 'legacy') {
     return {
+      ...(loaded.messages.length ? { localDraft: false } : {}),
       messages: sharedSnapshot ? mergeSharedTranscript(loaded.messages, sharedSnapshot)
         : preserveToolMetadataAcrossReplay([...previous], loaded.messages),
       messageWindow: undefined,
@@ -127,6 +128,7 @@ function transcriptPatch(
   // user just observed it on the live frame.
   const messages = preserveToolMetadataAcrossReplay([...previous], projected);
   return {
+    localDraft: false,
     messages: sharedSnapshot ? mergeSharedTranscript(messages, sharedSnapshot) : messages,
     messageWindow: {
       revision: loaded.page.revision,
@@ -1222,6 +1224,7 @@ export const useChat = create<ChatState>((set, get) => ({
       return {
         sessions: baseSessions.map((ses) => {
           if (ses.id !== sessionId) return ses;
+          if (live.messages.length) ses = { ...ses, localDraft: false };
           if (
             !active
             || !liveSnapshotHasReplayContent(frames)

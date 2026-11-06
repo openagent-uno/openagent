@@ -1,0 +1,37 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.30",
+  "source_commit": "fbb08872f8e854905545f257ad4f06bd468d7bfe",
+  "source_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42308939354",
+  "desktop_tests_passed": 136,
+  "shared_tests_passed": 150,
+  "responsive_ui_scenarios_passed": 4,
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42308940883",
+  "build_attempt": 2,
+  "qualified_targets": 6,
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42311761533",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.30",
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "70437f2bf46028fa19227ffea822bfb81138ab627e4a91b44c3fe73b71284023",
+  "host_tools_version": "1.0.0b15",
+  "desktop_sdk_version": "0.1.0",
+  "tested_desktop_contracts": [
+    "modified letter shortcuts apply Shift once",
+    "healthy viewing stream renews the same exact reference before producer expiry",
+    "renewal and overload recovery never replay mutations",
+    "empty local drafts defer durable session detail requests",
+    "real decoder overload recovers at a lower frame rate",
+    "input remains ordered through burst typing and multiline Unicode paste"
+  ],
+  "local_mac_build_performed": false,
+  "physical_acceptance": "separate protected receipt",
+  "physical_mac_acceptance": {
+    "saved_connection_resumed": true,
+    "new_empty_draft_placeholder_correct": true,
+    "agent_typed_unique_marker_in_native_text_editor": true,
+    "native_accessibility_value_verified": true,
+    "draft_retires_after_shared_response": false
+  },
+  "known_issue": "A local draft flag remains set on the shared transcript path after its first run; the follow-up App beta31 covers that transition."
+}

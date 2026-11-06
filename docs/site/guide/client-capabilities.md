@@ -287,7 +287,11 @@ OS screen-capture/input permission failures are displayed by the view.
 A new local chat has no durable session authorization yet. Its details explain
 that the first message starts the session, and defer participant, sharing,
 device and related-run requests until then. A server-confirmed history entry or
-live run clears this local UI hint; it never grants access by itself.
+live run clears this local UI hint; it never grants access by itself. Shared
+HTTP-run snapshots clear it only when they contain an accepted run. An empty
+observation is not a run acknowledgement. Native live frames and authorized
+canonical history use the same transition, so a started chat exposes its
+participants, sharing and authorized computers without reopening the App.
 
 ## Cold desktop helper startup
 

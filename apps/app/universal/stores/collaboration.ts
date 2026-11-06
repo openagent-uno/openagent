@@ -73,7 +73,8 @@ export function bindShared(next: CollaborationClient | null) {
       let status = last?.status;
       try { const tool = JSON.parse(status || ''); if (tool.tool_name) status = `Using ${tool.tool_name}`; } catch { /* plain status */ }
       useChat.setState(s => ({ sessions: (s.sessions.some(se => se.id === id) ? s.sessions : [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false, origin: 'delegation' as const }]).map(se => se.id === id ? {
-        ...se, accessRevoked: false, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
+        ...se, localDraft: snapshot.turns.length ? false : se.localDraft,
+        accessRevoked: false, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
         sharedSnapshot: snapshot,
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));

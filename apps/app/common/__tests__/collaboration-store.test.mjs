@@ -52,6 +52,27 @@ function setup(t) {
 }
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
 
+test('a shared run acknowledgement retires a local draft, but an empty observation does not', async t => {
+  const { sockets } = setup(t);
+  useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true })) }));
+  sockets[0].receive({ type: 'shared_state', session_id: 'chat', revision: 0, turns: [] });
+  await flush();
+  assert.equal(useChat.getState().sessions[0].localDraft, true);
+  sockets[0].receive(snapshot(1, true, 'Accepted run'));
+  assert.equal(useChat.getState().sessions[0].localDraft, false);
+});
+
+test('native live frames and canonical history also retire the local draft', async t => {
+  setup(t);
+  useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true })) }));
+  useChat.getState().applyLiveState('chat', [{ type: 'delta', session_id: 'chat', text: 'Native reply' }], true);
+  assert.equal(useChat.getState().sessions[0].localDraft, false);
+  useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true })) }));
+  globalThis.__sharedHistory = async () => [message('Durable reply')];
+  await useChat.getState().reconcileSession('chat');
+  assert.equal(useChat.getState().sessions[0].localDraft, false);
+});
+
 test('revocation after a disconnect clears the retained transcript', t => {
   const { sockets, texts } = setup(t);
   sockets[0].receive(snapshot(1));

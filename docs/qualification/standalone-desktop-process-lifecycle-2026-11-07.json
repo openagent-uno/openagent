@@ -26,5 +26,6 @@
     "status": "success",
     "wall_seconds": 4.662,
     "exact_expected_reply_verified_in_native_ui": true
-  }
+  },
+  "custom_view_loaded_in_native_app_after_cutover": true
 }

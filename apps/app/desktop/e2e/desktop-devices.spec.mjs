@@ -19,13 +19,18 @@ function fixturePng() {
 }
 class DeviceGateway extends DeterministicGateway {
   calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0; draftRequests=[];
+  acceptedSessions=new Set();
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
     this.collaborationServer=new WebSocketServer({noServer:true});
     this.server.on('upgrade',(request,socket,head)=>{
       if(new URL(request.url,this.baseUrl).pathname==='/ws/collaboration'){
-        this.collaborationServer.handleUpgrade(request,socket,head,ws=>ws.send(JSON.stringify({type:'auth_ok',shared:true})));return;
+        this.collaborationServer.handleUpgrade(request,socket,head,ws=>{
+          ws.send(JSON.stringify({type:'auth_ok',shared:true}));
+          ws.on('message',raw=>{const observation=JSON.parse(raw);for(const id of observation.sessions||[])
+            if(id.startsWith('session-')&&!this.acceptedSessions.has(id))ws.send(JSON.stringify({type:'shared_state',session_id:id,revision:0,turns:[]}));});
+        });return;
       }
       if(new URL(request.url,this.baseUrl).pathname==='/api/sessions/e2e-session/computer-stream'){
         this.videoServer.handleUpgrade(request,socket,head,ws=>{
@@ -39,11 +44,23 @@ class DeviceGateway extends DeterministicGateway {
   }
   async close(){for(const server of [this.videoServer,this.collaborationServer]){for(const socket of server?.clients||[])socket.terminate();server?.close();}await super.close();}
   async handleHttp(request,response) {
-    const path=new URL(request.url,'http://fixture').pathname;
+    const incomingPath=new URL(request.url,'http://fixture').pathname;
+    const sessionId=incomingPath.split('/')[3];
+    const path=this.acceptedSessions.has(sessionId)?incomingPath.replace('/'+sessionId+'/', '/e2e-session/'):incomingPath;
     if (/^\/api\/sessions\/session-[^/]+\/(?:devices|computer-targets|participants|descendants|related-runs)(?:\/|$)/.test(path)
         || /^\/api\/collaboration\/session-[^/]+\/members$/.test(path)) this.draftRequests.push(path);
     const reply=(value,status=200)=>{response.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));};
     if(path==='/api/collaboration')return reply({version:1});
+    if(path==='/api/collaboration/turns'&&request.method==='POST'){
+      let body='';for await(const chunk of request)body+=chunk;
+      const turn=JSON.parse(body);this.acceptedSessions.add(turn.session_id);
+      const now=Date.now();const snapshot={type:'shared_state',session_id:turn.session_id,revision:1,turns:[{id:turn.request_id,runId:'accepted-run',active:false,startedAt:now,finishedAt:now,messages:[
+        {id:'accepted-user',role:'user',text:turn.message,timestamp:now,author:{kind:'human',handle:'alice',display:'Alice'}},
+        {id:'accepted-assistant',role:'assistant',text:'Session started',timestamp:now,author:{kind:'agent'}},
+      ]}]};
+      for(const socket of this.collaborationServer.clients)if(socket.readyState===1)socket.send(JSON.stringify(snapshot));
+      return reply({session_id:turn.session_id,request_id:turn.request_id,response:'Session started'});
+    }
     if(path==='/api/network/users')return reply({users:[{handle:'bob',status:'active'},{handle:'suspended-user',status:'suspended'}]});
     if(path==='/api/collaboration/e2e-session/members'){
       if(request.method==='PUT'){
@@ -230,6 +247,12 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await expect(page.getByText('Update the agent server to use connected computers.',{exact:true})).toHaveCount(0);
     expect(gateway.draftRequests).toEqual([]);
+    await page.getByPlaceholder('Message OpenAgent...').fill('Start this session');
+    await page.getByLabel('Send message',{exact:true}).click();
+    await expect(page.getByText('Session started',{exact:true})).toBeVisible();
+    await expect(page.getByText('Send the first message to start this session.',{exact:true})).toHaveCount(0);
+    await expect(page.getByRole('button',{name:'Share session',exact:true})).toBeVisible();
+    await expect(page.getByLabel('Open computer Agent environment',{exact:true})).toBeVisible();
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;
