@@ -67,7 +67,7 @@ test('native live frames and canonical history also retire the local draft', asy
   useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true })) }));
   useChat.getState().applyLiveState('chat', [{ type: 'delta', session_id: 'chat', text: 'Native reply' }], true);
   assert.equal(useChat.getState().sessions[0].localDraft, false);
-  useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true })) }));
+  useChat.setState(s => ({ sessions: s.sessions.map(session => ({ ...session, localDraft: true, isProcessing: false })) }));
   globalThis.__sharedHistory = async () => [message('Durable reply')];
   await useChat.getState().reconcileSession('chat');
   assert.equal(useChat.getState().sessions[0].localDraft, false);
