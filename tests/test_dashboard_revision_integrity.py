@@ -67,7 +67,9 @@ class RevisionIntegrityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_damaged_bundle_has_safe_recovery_error(self):
         folder=self.repo.bundles.revision_path(self.view['id'],1)
-        (folder/'compiled.json').write_text('PRIVATE-SERVER-PATH')
+        damaged = folder/'compiled.json'
+        damaged.chmod(0o600)  # Explicit fixture tampering; bundles are immutable by default.
+        damaged.write_text('PRIVATE-SERVER-PATH')
         with self.assertRaises(CustomViewRevisionUnavailable) as raised:
             await self.repo.get(self.view['id'],self.access)
         response=_map_error(raised.exception)
