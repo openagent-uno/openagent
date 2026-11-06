@@ -130,6 +130,9 @@ The next source revision bounds complete additional-history preparation to
 reports explicit authorized unavailability before submission; it never silently
 submits partial context. See [history bounds and source tests](../../docs/site/guide/channel-history-media.md).
 This does not modify the immutable beta18 wheel or claim live provider acceptance.
+The [source qualification receipt](../../docs/qualification/channel-history-preparation-source-2026-11-06.json)
+records 363 tests and 86 subtests passed on the declared minimum, plus separate
+Core/SQLite beta45 results and optional-dependency limits.
 
 Host integrations must revalidate output audience for shared channels, including
 tool results and memory reads. Sharing an agent's memory does not make all of its

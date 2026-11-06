@@ -14,6 +14,28 @@
     "result": "154 passed, 60 subtests passed",
     "execution": "one local process; no provider requests, model calls, builds, CI or deployment"
   },
+  "completeMinimumDependencySuite": {
+    "environment": "Existing beta18 qualification environment; dependencies unchanged",
+    "python": "3.11.6",
+    "core": "1.1.0b42",
+    "sqliteStorage": "1.1.0b42",
+    "discordPy": "2.7.1",
+    "command": "PYTHONPATH=src python -m pytest tests -q -rs",
+    "workingDirectory": "packages/channel-bridges",
+    "result": "363 passed, 86 subtests passed; zero skips; 4 dependency deprecation warnings"
+  },
+  "completeTargetDependencyAttempt": {
+    "python": "3.13.12",
+    "core": "1.1.0b45",
+    "sqliteStorage": "1.1.0b45",
+    "discordPy": "2.7.1",
+    "audioopLts": "0.2.2",
+    "dependencyChanges": "Normal wheel installation of manifest-pinned discord.py and its declared Python 3.13 audioop-lts dependency; no source overlays",
+    "command": "PYTHONPATH=src python -m pytest tests -q -rs",
+    "workingDirectory": "packages/channel-bridges",
+    "result": "354 passed, 86 subtests passed; 6 skips for the absent optional Telegram SDK",
+    "slackDiscordTestsSkipped": 0
+  },
   "regressions": [
     "Successful 20-record Slack and Discord history with historical speech over real NDJSON socket IO",
     "Concurrent current-provider attestation retains exact original author, conversation and request correlation",
@@ -25,7 +47,7 @@
   ],
   "limits": [
     "The tests reproduce an unbounded pre-submission wait under a nonresponding dependency; they do not attribute an unobserved production wait to a particular dependency",
-    "The existing optional Discord SDK event-loop tests cannot run in this environment because discord.py is absent; provider-free Discord history and IPC tests pass",
+    "The complete suite passes without skips on the declared Core/SQLite beta42 minimum; the beta45 environment lacks only the unrelated optional Telegram SDK",
     "No public package version, immutable artifact, host dependency or provider configuration changed"
   ]
 }
