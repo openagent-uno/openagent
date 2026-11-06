@@ -1,0 +1,16 @@
+{
+  "scope": "server and CLI maintenance cohort; desktop feed unchanged",
+  "product_version": "1.1.8.post1",
+  "core_version": "1.1.0b43.post1",
+  "source_tests": {
+    "passed": 443,
+    "subtests_passed": 72
+  },
+  "core_source_tests": {
+    "passed": 698,
+    "subtests_passed": 97
+  },
+  "installed_artifact_qualification": "recorded in release asset qualification.json",
+  "canonical_schema_migration": false,
+  "source_overlays": false
+}
