@@ -665,7 +665,8 @@ class BaseBridge:
             _active_context.reset(token)
 
     async def transcribe_with_fallback(self, file_path: str, *, context: BridgeContext | None = None,
-                                       attachment: BridgeAttachment | None = None) -> str:
+                                       attachment: BridgeAttachment | None = None,
+                                       timeout_seconds: float | None = None) -> str:
         """Use the host speech callback, preserving supplied provider metadata."""
         generation = self._generation
         current = self._resolve_context(context)
@@ -688,7 +689,8 @@ class BaseBridge:
         current = await self._prepare_delivery_context(current)
         emit_diagnostic(current, "transcription", "started")
         try:
-            text = await self.transport.transcribe(current, attachment)
+            async with asyncio.timeout(timeout_seconds):
+                text = await self.transport.transcribe(current, attachment)
         except (TimeoutError, RuntimeError):
             await self._authorize_generation(current, generation)
             current = await self._prepare_delivery_context(current)

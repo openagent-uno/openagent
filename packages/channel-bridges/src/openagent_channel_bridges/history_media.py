@@ -13,6 +13,7 @@ from .history import HistoryUnavailable
 MAX_HISTORY_FILES = 16
 MAX_HISTORY_INPUT_BYTES = 64 << 20
 MAX_HISTORY_FILE_BYTES = 32 << 20
+HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS = 30
 
 
 async def prepare_history_media(bridge, history, context, load, *, current_attachments=()):
@@ -74,7 +75,8 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                     reason = "unavailable"
                 if reason is None and loaded.kind in ("voice", "audio"):
                     transcript = await bridge.transcribe_with_fallback(
-                        loaded.local_path, context=context, attachment=loaded)
+                        loaded.local_path, context=context, attachment=loaded,
+                        timeout_seconds=HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS)
                     context = await bridge._prepare_delivery_context(context)
                     transcriptions += 1
                     if part_count >= 256:

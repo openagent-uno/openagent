@@ -6,6 +6,13 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
+Beta20 is a source candidate. Historical transcriptions have a 30-second
+per-file budget inside the complete history budget. On expiry the original
+audio remains attributed and an explicit unavailable-transcription notice is
+included; text and other records are preserved. Revocation and cancellation
+still deny submission. Current-turn speech retains its existing host budget.
+See the [history contract](../../docs/site/guide/channel-history-media.md).
+
 Component [`0.1.0b18`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.18)
 is published with 351 installed-wheel tests and 86 subtests passed on the declared
 Core/SQLite beta42 minimum. All four public assets were anonymously read back

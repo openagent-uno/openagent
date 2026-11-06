@@ -2,6 +2,7 @@
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
+import asyncio
 import time
 
 import pytest
@@ -177,6 +178,40 @@ async def test_slack_historical_media_only_message_roundtrips_and_cleans_request
     assert len(client.posts) == 2 and all(value["channel"] == "C" for value in client.posts)
     assert all("thread_ts" not in value for value in client.posts)
     assert history_size_bytes(request.history) <= 65536
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("revoked", [False, True])
+async def test_slow_historical_audio_keeps_original_and_cannot_block_text_or_ignore_revocation(monkeypatch, revoked):
+    from openagent_channel_bridges import history_media
+    from openagent_channel_bridges.base import VOICE_FALLBACK
+    monkeypatch.setattr(history_media, "HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS", 0.01)
+    host = Host()
+
+    async def slow_transcribe(context, attachment):
+        try:
+            await asyncio.Future()
+        finally:
+            if revoked:
+                host.allowed = False
+
+    host.transcribe = slow_transcribe
+    client = SlackClient([media_files()[2]])
+    bridge = slack(host, client, [])
+    await asyncio.wait_for(bridge.handle_event({"type": "app_mention", "channel": "C", "user": "alice",
+        "text": "<@BOT> answer the current text question", "ts": "50.0"}, client,
+        account_id="T", event_id="50.0"), 2)
+    if revoked:
+        assert host.requests == []
+        assert len(client.posts) == 1
+    else:
+        assert len(host.requests) == 1
+        request = host.requests[0]
+        assert "answer the current text question" in str(request.parts)
+        assert request.history[0].actor_id == "bob"
+        assert len(host.inputs) == 1 and host.inputs[0].provider_attachment_id == "Fvoice"
+        assert any(VOICE_FALLBACK in (part.text or "") for part in request.history[0].parts)
+        assert len(client.posts) == 2
 
 
 @pytest.mark.asyncio

@@ -51,6 +51,15 @@ fresh audience, mapped host permissions and revocation checks precede downloads,
 transcription, ingestion and delivery. Historical audio uses the same configured
 speech callback and keeps its original media beside the attributed transcript.
 
+Beta20 gives each historical transcription a 30-second budget within the
+existing 120-second complete-history budget. If speech processing times out,
+the original audio and its author/event attribution remain in the selected
+history, beside an explicit transcription-unavailable notice. Text and other
+records are preserved. Fresh authorization and audience/generation checks
+still precede submission; revocation and task cancellation never become a
+fallback. Current-turn speech keeps its existing host budget. This prevents
+an unrelated old voice message from exhausting the whole history budget.
+
 An optional `omitted_attachments` list contains safe metadata for unavailable
 media: `kind`, `filename`, `mime_type`, `size_bytes`, `provider_attachment_id`
 and `reason` (`unsupported`, `limit`, `unavailable` or `blocked`). Such a notice

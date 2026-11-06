@@ -1,0 +1,21 @@
+{
+  "status": "source-qualified; installed-wheel qualification and publication pending",
+  "component": "0.1.0b20",
+  "scope": "bounded historical transcription without dropping original media or text",
+  "focusedTests": {
+    "passed": 54,
+    "command": "pytest packages/channel-bridges/tests/test_quiet_history_media.py packages/channel-bridges/tests/test_history_stdio.py"
+  },
+  "localBroaderAttempt": {
+    "passed": 354,
+    "failed": 8,
+    "skipped": 6,
+    "subtestsPassed": 80,
+    "limitation": "Discord and Telegram provider extras missing in local environment; not complete qualification"
+  },
+  "speechBudgetSeconds": 30,
+  "wholeHistoryBudgetSeconds": 120,
+  "revocationAndCancellation": "preserved; never converted into fallback",
+  "liveSlackAcceptance": false,
+  "liveDiscordAcceptance": false
+}
