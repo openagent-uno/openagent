@@ -1,5 +1,10 @@
 # Client Computer Capabilities
 
+The Python identity transport supplies the pinned Iroh binding with an event-loop
+adapter that schedules foreign callback cleanup through the owner loop's
+thread-safe API. Native callback release preserves normal task cancellation,
+context propagation and asyncio debug checks without patching the binding.
+
 OpenAgent can execute machine-bound capabilities on the computer running an
 authenticated Desktop or CLI client. The agent itself, its sessions and enabled
 modules continue to run on the OpenAgent server; the client is a temporary

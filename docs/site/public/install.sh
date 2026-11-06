@@ -123,6 +123,11 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
         wheel_assets = {name: url for name, url in wheel_assets.items() if name.startswith("openagent_capability_host-")}
     elif selection == "tools-base":
         wheel_assets = {name: url for name, url in wheel_assets.items() if not name.startswith("openagent_device_tools-")}
+    elif selection == "kernel":
+        wheel_assets = {name: url for name, url in wheel_assets.items()
+                        if name.startswith(("openagent_core-", "openagent_storage_sqlite-", "openagent_gateway-", "openagent_sdk-"))}
+    elif selection == "config":
+        wheel_assets = {name: url for name, url in wheel_assets.items() if name.startswith("openagent_product_config-")}
     elif selection != "all":
         raise SystemExit(f"Unsupported first-party artifact selection: {selection}")
     if not wheel_assets:
@@ -131,7 +136,7 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
     for name, url in wheel_assets.items():
         digest = expected.get(name)
         if not digest:
-            raise SystemExit(f"{repository} {tag}: {name} is absent from the signed manifest")
+            raise SystemExit(f"{repository} {tag}: {name} is absent from the pinned manifest")
         payload = fetch(url)
         actual = hashlib.sha256(payload).hexdigest()
         if actual != digest:
@@ -146,6 +151,7 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
 # A separately maintained version literal can silently select an older release
 # or a package from an index instead of the manifest-qualified wheelhouse.
 versions = {}
+first_party = []
 for wheel in destination.glob("*.whl"):
     with zipfile.ZipFile(wheel) as archive:
         entries = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
@@ -156,6 +162,7 @@ for wheel in destination.glob("*.whl"):
     if not name or not version or name in versions:
         raise SystemExit(f"Missing or duplicate distribution metadata: {wheel.name}")
     versions[name] = version
+    first_party.append(name + " @ " + wheel.resolve().as_uri())
 product = sys.argv[2]
 if product == "server":
     requirements = [
@@ -164,6 +171,9 @@ if product == "server":
     ]
 else:
     requirements = ["openagent-cli==" + versions["openagent-cli"]]
+# Direct constraints bind each selected first-party distribution to verified
+# local bytes without installing unrelated products from the wheelhouse.
+(destination / "first-party-constraints.txt").write_text("\n".join(sorted(first_party)) + "\n")
 (destination / "install-requirements.txt").write_text("\n".join(requirements) + "\n")
 print(f"Verified {verified} first-party wheels from the canonical releases.")
 PY
@@ -211,7 +221,7 @@ EOF
 
 "$VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip
 "$VENV/bin/python" -m pip install --disable-pip-version-check \
-    --constraint "$CONSTRAINTS" --find-links "$WHEELHOUSE" \
+    --constraint "$CONSTRAINTS" --constraint "$WHEELHOUSE/first-party-constraints.txt" --find-links "$WHEELHOUSE" \
     --requirement "$WHEELHOUSE/install-requirements.txt"
 
 if [ "$PRODUCT" = "server" ]; then

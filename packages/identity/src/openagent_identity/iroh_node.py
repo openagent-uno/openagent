@@ -40,6 +40,25 @@ logger = logging.getLogger(__name__)
 IROH_VERSION = "0.35"
 
 
+class _IrohEventLoop:
+    """Delegate to the owner loop with thread-safe foreign callback delivery.
+
+    The pinned UniFFI binding releases foreign futures on Rust threads through
+    ``call_soon``. Its configurable event-loop surface must marshal that call
+    just like the binding's other continuation callbacks. Keep the real loop's
+    futures, tasks, context and debug checks intact.
+    """
+
+    def __init__(self, loop: asyncio.AbstractEventLoop) -> None:
+        self._loop = loop
+
+    def call_soon(self, callback, *args, context=None):
+        return self._loop.call_soon_threadsafe(callback, *args, context=context)
+
+    def __getattr__(self, name):
+        return getattr(self._loop, name)
+
+
 def _discovery_config() -> "iroh.NodeDiscoveryConfig":
     """Resolve the Iroh discovery policy.
 
@@ -174,7 +193,7 @@ class IrohNode:
         # ``uniffi_set_event_loop`` is exposed on the FFI submodule, not
         # the package root.
         from iroh.iroh_ffi import uniffi_set_event_loop
-        uniffi_set_event_loop(asyncio.get_running_loop())
+        uniffi_set_event_loop(_IrohEventLoop(asyncio.get_running_loop()))
 
         # Wrap each registered handler in a ProtocolCreator. iroh's
         # NodeOptions.protocols is the canonical way to register a

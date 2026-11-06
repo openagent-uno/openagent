@@ -9,9 +9,23 @@ drops the auth middleware's events (``agent.contact``, ``peer.denied``,
 import asyncio
 import contextvars
 
-from openagent_identity.iroh_node import _PythonProtocolCreator
+from openagent_identity.iroh_node import _IrohEventLoop, _PythonProtocolCreator
 
 marker: contextvars.ContextVar[str | None] = contextvars.ContextVar("marker", default=None)
+
+
+async def test_foreign_future_cleanup_wakes_the_owner_debug_loop():
+    loop = asyncio.get_running_loop()
+    previous_debug = loop.get_debug()
+    loop.set_debug(True)
+    delivered = asyncio.Event()
+    owner = _IrohEventLoop(loop)
+    try:
+        assert owner.create_future().get_loop() is loop
+        await asyncio.to_thread(owner.call_soon, delivered.set)
+        await asyncio.wait_for(delivered.wait(), 1)
+    finally:
+        loop.set_debug(previous_debug)
 
 
 async def test_accept_runs_the_handler_in_the_registration_context():
