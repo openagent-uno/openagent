@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
-from openagent_channel_bridges.history import bound_history, validate_context_messages
+from openagent_channel_bridges.history import bound_history, bounded_history_preparation, validate_context_messages
 from openagent_channel_bridges.history_media import prepare_history_media, HistoryUnavailable
 from openagent_channel_bridges.diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
@@ -256,6 +256,7 @@ class SlackBridge(BaseBridge):
             logger.warning("Slack audience unavailable: %s", type(exc).__name__)
             return deny_audience()
 
+    @bounded_history_preparation
     async def _history(self, client, context: BridgeContext, *, is_dm: bool, trigger_ts: str,
                        media_directory: str | None = None, current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
@@ -559,7 +560,6 @@ class SlackBridge(BaseBridge):
                 user=user_id,
                 thread_ts=reply_thread,
             )
-            emit_diagnostic(bridge_context, "history", "started")
             history = await self._history(client, bridge_context, is_dm=is_dm, trigger_ts=str(event.get("ts") or ""),
                                           media_directory=tmp, current_attachments=attachments)
             emit_diagnostic(bridge_context, "submission", "started")

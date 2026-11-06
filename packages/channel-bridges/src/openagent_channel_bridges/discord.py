@@ -18,7 +18,7 @@ from pathlib import Path
 
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeAttachment, BridgeContext, BridgeHistoryMessage, BridgePart
-from openagent_channel_bridges.history import bound_history, validate_context_messages
+from openagent_channel_bridges.history import bound_history, bounded_history_preparation, validate_context_messages
 from openagent_channel_bridges.history_media import prepare_history_media, HistoryUnavailable
 from openagent_channel_bridges.diagnostics import emit_diagnostic
 from openagent_core.media import is_blocked_attachment
@@ -503,6 +503,7 @@ class DiscordBridge(BaseBridge):
             logger.warning("Discord audience unavailable: %s", type(exc).__name__)
             return deny_audience()
 
+    @bounded_history_preparation
     async def _history(self, message, context: BridgeContext, *, media_directory=None,
                        current_attachments=()) -> tuple[BridgeHistoryMessage, ...]:
         if not self.context_messages:
