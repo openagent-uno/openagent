@@ -74,11 +74,26 @@ service:
 
 Environment variables are substituted using `${VAR_NAME}` syntax.
 
-The Claude Agent SDK is always invoked with `permission_mode =
-"bypassPermissions"` so scheduled and background turns never stall on
-an approval prompt. Long tool calls (gradle, Electron builds, Maestro
-suites) run to completion — the only per-turn ceiling is
-`BRIDGE_RESPONSE_TIMEOUT` (65 min).
+Model execution follows the enabled model catalog and host execution policy.
+Provider transport timeouts, run deadlines and channel deadlines are separate
+budgets. See [models](models.md) for routing and fallback behavior.
+
+## Optional work and provider fallback latency
+
+Core bounds optional asynchronous session-summary provider calls to ten seconds
+by default, retains the previous summary on expiry and propagates caller
+cancellation. Library hosts may configure
+`SessionSummaryManager.async_timeout_seconds`; see the
+[Core session-history contract](https://github.com/openagent-uno/openagent-core/blob/main/docs/session-history.md).
+This budget does not truncate the user's model response or tool execution.
+
+When a provider gateway also retries internally, its queue and backoff delays
+are added before OpenAgent can try the next configured model. For interactive
+cross-provider failover, use that gateway's supported configuration to bound
+queue admission and avoid duplicate retry/backoff layers. Keep account cooldowns,
+provider pacing, authentication and model permissions intact. This is an
+operator-owned infrastructure policy, independent of Core and client topology;
+products with a single provider may choose a different retry policy.
 
 ## CLI Reference
 
