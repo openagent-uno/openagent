@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.28",
+  "source_commit": "95e79c3928a82b499940010ae59c67382478018a",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42295679377",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42296859561",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.28",
+  "native_targets": [
+    "darwin-arm64",
+    "darwin-x64",
+    "linux-arm64",
+    "linux-x64",
+    "win32-arm64",
+    "win32-x64"
+  ],
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "windows_authenticode_claimed": false,
+  "host_tools_version": "1.0.0b15",
+  "mac_arm64_zip_sha256": "884b1f727edaf385bee541540096706bfc25e36d60aa9d3d4fdef3544e557b09",
+  "local_mac_build_performed": false,
+  "installed_acceptance": "separate private receipt"
+}

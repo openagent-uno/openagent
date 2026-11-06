@@ -255,6 +255,11 @@ every request. Interaction is deterministic and does not start a model turn.
 Qualified desktop hosts advertise optional `openagent-video/1` support. Their
 view receives continuous H.264 video over the authenticated session connection,
 with bounded encoding/decoding queues and current authorization on every packet.
+Local playback overload can restart only that exact stream at a lower frame
+rate (20 to 10 to 5 fps), with at most three recoveries in 30 seconds. This never
+replays input; access failures, malformed packets and unsupported decoders remain
+explicit errors. A renewed stream revalidates the same tool reference and owns a
+new encoder; its previous encoder and decoder are closed first.
 Closing, disconnecting, revoking access or a slow viewer stops its owned producer;
 no video recording is persisted. Core owns generic stream authorization, Tools
 owns capture/encoding/decoding, and the standalone owns identity and transport.

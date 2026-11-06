@@ -18,7 +18,7 @@ function fixturePng() {
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 class DeviceGateway extends DeterministicGateway {
-  calls=[]; offline=false; live=false; streamCloses=0; members=[]; inputDelay=0;
+  calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0;
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
@@ -29,7 +29,7 @@ class DeviceGateway extends DeterministicGateway {
       }
       if(new URL(request.url,this.baseUrl).pathname==='/api/sessions/e2e-session/computer-stream'){
         this.videoServer.handleUpgrade(request,socket,head,ws=>{
-          let timer;ws.once('message',raw=>{const hello=JSON.parse(raw);if(hello.tool_ref!=='exact-agent-desktop'){ws.close();return;}
+          let timer;ws.once('message',raw=>{const hello=JSON.parse(raw);this.streamHellos.push(hello);if(hello.tool_ref!=='exact-agent-desktop'){ws.close();return;}
             ws.send(JSON.stringify(VIDEO.config));let seq=0;timer=setInterval(()=>{if(ws.readyState===1)ws.send(JSON.stringify({type:'frame',seq:seq++,timestamp_us:seq*50000,key:true,data:VIDEO.data}));},50);});
           ws.on('close',()=>{clearInterval(timer);this.streamCloses++;});
         });return;
@@ -128,6 +128,12 @@ for(const live of [false,true])test(`device directory, session inspector and res
     })).toBe(true);
     await page.getByPlaceholder('Message OpenAgent...').fill('');
     await page.setViewportSize({width:1440,height:960});
+    if(live)await page.evaluate(()=>{
+      const Native=globalThis.VideoDecoder;
+      globalThis.VideoDecoder=class extends Native {
+        get decodeQueueSize(){if(globalThis.__forceDesktopDecoderOverload){globalThis.__forceDesktopDecoderOverload=false;return 17;}return super.decodeQueueSize;}
+      };
+    });
     await page.getByLabel('Open computer Agent environment',{exact:true}).click();
     const screen=page.getByLabel('Control Agent environment. Click and type on the desktop.',{exact:true});
     await expect(screen).toBeVisible();
@@ -185,6 +191,16 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(screen).toBeVisible();
     await expect.poll(async()=>{const bounds=await screen.boundingBox();return bounds.x>=0&&bounds.x+bounds.width<=390;}).toBe(true);
     await page.screenshot({path:join(temporary,'computer-narrow.png')});
+    if(live){
+      const mutations=gateway.calls.filter(call=>!['get_screenshot','mouse_move'].includes(call.action)).length;
+      await page.evaluate(()=>{globalThis.__forceDesktopDecoderOverload=true;});
+      await expect.poll(()=>gateway.streamHellos.length).toBe(2);
+      expect(gateway.streamHellos.map(hello=>hello.tool_ref)).toEqual(['exact-agent-desktop','exact-agent-desktop']);
+      expect(gateway.streamHellos.map(hello=>hello.options.fps)).toEqual([20,10]);
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect.poll(()=>page.locator('canvas').evaluate(canvas=>canvas.getContext('2d').getImageData(10,10,1,1).data[3])).toBe(255);
+      expect(gateway.calls.filter(call=>!['get_screenshot','mouse_move'].includes(call.action)).length).toBe(mutations);
+    }
     gateway.offline=true;
     await screen.press('Enter');
     await expect(page.getByRole('alert')).toContainText('unavailable');
@@ -194,7 +210,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByRole('button',{name:'Close',exact:true}).click();
     await expect(screen).not.toBeVisible();
     expect(gateway.calls.every(c=>c.tool_ref==='exact-agent-desktop')).toBe(true);
-    if(live){await expect.poll(()=>gateway.streamCloses).toBe(1);expect(gateway.calls.some(c=>c.action==='get_screenshot')).toBe(false);}
+    if(live){await expect.poll(()=>gateway.streamCloses).toBe(2);expect(gateway.calls.some(c=>c.action==='get_screenshot')).toBe(false);}
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;
