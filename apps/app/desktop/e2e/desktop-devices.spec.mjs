@@ -40,7 +40,8 @@ class DeviceGateway extends DeterministicGateway {
   async close(){for(const server of [this.videoServer,this.collaborationServer]){for(const socket of server?.clients||[])socket.terminate();server?.close();}await super.close();}
   async handleHttp(request,response) {
     const path=new URL(request.url,'http://fixture').pathname;
-    if (/^\/api\/sessions\/session-/.test(path)) this.draftRequests.push(path);
+    if (/^\/api\/sessions\/session-[^/]+\/(?:devices|computer-targets|participants|descendants|related-runs)(?:\/|$)/.test(path)
+        || /^\/api\/collaboration\/session-[^/]+\/members$/.test(path)) this.draftRequests.push(path);
     const reply=(value,status=200)=>{response.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));};
     if(path==='/api/collaboration')return reply({version:1});
     if(path==='/api/network/users')return reply({users:[{handle:'bob',status:'active'},{handle:'suspended-user',status:'suspended'}]});
