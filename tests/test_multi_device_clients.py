@@ -218,13 +218,13 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         context = ExecutionContext(p,p,p,'tg:'+sender,'agent',(p,),
             ingress_id=self.service.authorizer._identity_bindings[self.service.authorizer.binding_id(identity)])
         context = replace(context, capabilities=await self.service._capability_context(context))
-        self.assertTrue(await self.catalog.discover(context))
+        targets = await self.catalog.discover(context)
+        self.assertTrue(targets)
         self.assertFalse(owner_bridge_vault_turn(context, self.service.agent.config))
         self.service.agent.config['channels']['telegram']['allowed_users'] = []
         self.assertFalse(await self.catalog.discover(context))
         with self.assertRaises((PermissionError, CapabilityUnavailable)):
-            target = next(iter(self.service._interactive_sources))
-            await self.catalog.call_tool(target+'/invented', {}, context)
+            await self.catalog.call_tool(targets[0].tool_ref, {'action':'get_screenshot'}, context)
 
     async def test_device_lease_inheritance_requires_a_verified_parent_chain(self):
         await self.connect()
