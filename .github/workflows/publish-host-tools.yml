@@ -1,0 +1,73 @@
+name: Publish qualified Host Tools
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful signed six-platform Host Tools build
+        required: true
+        type: string
+      source_sha:
+        description: Exact qualified source commit
+        required: true
+        type: string
+      version:
+        description: Qualified Host Tools version with an existing reviewed tag
+        required: true
+        type: string
+      manifest_sha256:
+        description: Reviewed manifest digest pinned by the installation cohort
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: host-tools-publication
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN: ${{ inputs.build_run_id }}
+      BUILD_SOURCE: ${{ inputs.source_sha }}
+      HOST_VERSION: ${{ inputs.version }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify the signed native qualification run
+        run: |
+          python - <<'PY'
+          import json,os,re,subprocess
+          assert os.environ['BUILD_RUN'].isdigit()
+          assert re.fullmatch('[a-f0-9]{40}',os.environ['BUILD_SOURCE'])
+          assert re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+b[0-9]+',os.environ['HOST_VERSION'])
+          assert re.fullmatch('[a-f0-9]{64}',os.environ['MANIFEST_SHA256'])
+          repo=os.environ['GITHUB_REPOSITORY']
+          def api(path):return json.loads(subprocess.check_output(['gh','api','repos/'+repo+path]))
+          run=api('/actions/runs/'+os.environ['BUILD_RUN'])
+          assert run['path']=='.github/workflows/host-tools-bundles.yml'
+          assert run['head_branch']=='main' and run['event']=='workflow_dispatch'
+          assert run['head_sha']==os.environ['BUILD_SOURCE'] and run['conclusion']=='success'
+          jobs=api('/actions/runs/'+os.environ['BUILD_RUN']+'/jobs?per_page=100')['jobs']
+          assert len(jobs)==8 and all(j['conclusion']=='success' for j in jobs)
+          assert {j['name'] for j in jobs if not j['name'].startswith('bundle (')}=={'signing-inputs','assemble'}
+          ref=api('/git/ref/tags/v'+os.environ['HOST_VERSION'])
+          assert ref['object']['type']=='commit' and ref['object']['sha']==os.environ['BUILD_SOURCE']
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: qualification-source
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          name: host-tools-ci-candidate
+          path: candidate
+      - name: Publish the exact verified archives and wheel
+        run: python scripts/publish_host_tools.py candidate qualification-source

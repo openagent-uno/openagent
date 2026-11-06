@@ -191,6 +191,14 @@ This includes the browser's Node runtime and dependencies without installing
 dependencies into a source checkout or changing runtime code. Existing
 independently managed discovery directories are preserved.
 
+`publish-host-tools.yml` reuses the successful signed producer's exact artifact
+on a GitHub runner. A maintainer first creates the reviewed immutable version
+tag and draft. The publisher binds the eight successful jobs, producer commit,
+version, tag and installation-cohort manifest digest. It resumes only matching
+private draft assets, never overwrites uploaded bytes, and verifies every
+published asset through anonymous HTTPS before completing. Native build and
+signing are not repeated during publication.
+
 Product packaging tests qualify these delivery contracts and standalone
 workspace/environment policy. Former tests of private Core browser and native
 implementations were replaced by host composition contracts; those
