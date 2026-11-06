@@ -31,7 +31,8 @@
     "new_empty_draft_placeholder_correct": true,
     "agent_typed_unique_marker_in_native_text_editor": true,
     "native_accessibility_value_verified": true,
-    "draft_retires_after_shared_response": false
+    "draft_retires_after_shared_response": false,
+    "escape_keeps_remote_view_open": false
   },
-  "known_issue": "A local draft flag remains set on the shared transcript path after its first run; the follow-up App beta31 covers that transition."
+  "known_issue": "The shared transcript path leaves a local draft flag set after its first run. Escape also reaches the modal keyup dismissal listener while the desktop is focused. Both are covered by the follow-up App beta31."
 }

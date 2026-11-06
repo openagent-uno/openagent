@@ -280,6 +280,7 @@ event and sends its text to the exact computer, independently of the remote
 computer's clipboard.
 Modified letter shortcuts send the base lowercase key plus explicit modifiers;
 Shift is applied once. Ordinary text input keeps its original case and Unicode.
+Escape stays in the focused desktop; it does not dismiss the computer view.
 Closing the view cancels pending reads best-effort; a sent input may have already
 executed. An offline/revoked desktop is never replaced by another destination.
 OS screen-capture/input permission failures are displayed by the view.

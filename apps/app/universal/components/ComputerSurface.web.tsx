@@ -130,6 +130,11 @@ export default function ComputerSurface({ frame, width, label, send, children }:
       const key = /^[A-Z]$/.test(event.key) ? event.key.toLowerCase() : keys[event.key] || event.key;
       void send('key', { text: [event.ctrlKey && 'ctrl', event.metaKey && 'super', event.altKey && 'alt', event.shiftKey && 'shift', key].filter(Boolean).join('+') });
     }}
+    onKeyUp={event => {
+      // React Native Web dismisses Modals from a document keyup listener.
+      // Escape belongs to the focused remote desktop, just like keydown.
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
+    }}
     onPaste={event => { event.preventDefault(); flushClick(); const text = event.clipboardData.getData('text/plain'); if (text) void send('type', { text }); }}>
     {children || <img src={frame.uri} alt="" draggable={false} style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'none' }} />}
     <textarea ref={keyboard} tabIndex={-1} aria-label="Remote keyboard capture" autoCapitalize="off" autoCorrect="off" spellCheck={false}

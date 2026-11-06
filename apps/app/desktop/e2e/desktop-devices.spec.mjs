@@ -206,6 +206,9 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='left_click_drag').length).toBe(1);
     await screen.press('ArrowRight');
     await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='Right')).toBe(true);
+    await screen.press('Escape');
+    await expect(screen).toBeVisible();
+    await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='Escape')).toBe(true);
     await page.keyboard.press('Control+Shift+t');
     await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='ctrl+shift+t')).toBe(true);
     expect(gateway.calls.some(c=>c.action==='key'&&c.text==='ctrl+shift+T')).toBe(false);
