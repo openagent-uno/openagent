@@ -31,13 +31,11 @@ interactive grants. An authorized synchronous child can inherit the parent's
 exact leases; it cannot discover additional destinations.
 
 Legacy private Telegram/WhatsApp bridges keep their own principal. To grant one
-verified owner sender access to a native user's devices, configure both the
-existing `vault_owner_channels` owner policy and the explicit mapping below:
+verified sender access to a native user's devices, configure the explicit
+mapping below. Device access is independent of vault/catalog owner trust:
 
 ```yaml
 runtime_tool_audiences:
-  vault_owner_channels:
-    telegram: ["155490357"]
   device_owner_channels:
     telegram:
       "155490357": alice

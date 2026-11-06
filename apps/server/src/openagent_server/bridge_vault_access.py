@@ -41,66 +41,72 @@ def bridge_owner_principal_active(principal, config: Mapping) -> bool:
         owner_bridge_senders(config, _OWNER_BRIDGES[principal.subject_id]))
 
 
-def owner_bridge_vault_turn(context, config: Mapping) -> bool:
-    """Recognize only configured owner senders on the exact bot's private route.
-
-    The historical policy name is retained for installed configuration. It
-    already gates vault, catalog and automation management. No allowlisted
-    contact, group, other bot account or model-authored display name becomes
-    the owner. Mapped channels use the host directory instead of this bridge.
-    """
+def _private_bridge_sender(context, config: Mapping, senders: frozenset[str]) -> str | None:
+    """Match one exact private route; each permission supplies its own senders."""
     if getattr(context, "deferred", False):
-        return False
+        return None
     principal = context.initiator
     if (not is_owner_bridge_principal(principal) or context.author != principal
             or context.authority != principal or context.audience != (principal,)):
-        return False
+        return None
     provider = _OWNER_BRIDGES[principal.subject_id]
-    senders = owner_bridge_senders(config, provider)
     channel = (config.get("channels") or {}).get(provider) or {}
+    if channel.get("enabled") is False:
+        return None
+    allowed = {str(value) for value in channel.get("allowed_users") or []}
+    senders = senders & allowed
     session_id = str(context.session_id or "")
     prefix = "tg:" if provider == "telegram" else "wa:"
     if session_id.startswith(prefix):
         sender = session_id.removeprefix(prefix)
-        return sender.isdecimal() and sender in senders
+        return sender if sender.isdecimal() and sender in senders else None
     if provider == "telegram":
         token = channel.get("token") or os.environ.get("TELEGRAM_BOT_TOKEN", "")
         if not isinstance(token, str):
-            return False
+            return None
         account, separator, secret = token.partition(":")
         if not separator or not account.isdecimal() or not secret:
-            return False
+            return None
     else:
         account = str(channel.get("green_api_id") or os.environ.get("GREEN_API_ID", ""))
         if not account.isdecimal():
-            return False
+            return None
     from openagent_server.bridges.session_identity import gateway_bridge_session_id
-    return any(sender.isdecimal() and session_id == gateway_bridge_session_id(
+    return next((sender for sender in senders if sender.isdecimal() and session_id == gateway_bridge_session_id(
         provider, provider, account, sender,
         sender if provider == "telegram" else sender + "@c.us", None, prefix + sender,
-    ) for sender in senders)
+    )), None)
+
+
+def owner_bridge_vault_turn(context, config: Mapping) -> bool:
+    """Retain explicit owner trust on the exact configured bot/private route.
+
+    The historical policy name also gates owner catalog/automation management;
+    native device ownership is independently and explicitly configured.
+    """
+    principal = context.initiator
+    if not is_owner_bridge_principal(principal):
+        return False
+    provider = _OWNER_BRIDGES[principal.subject_id]
+    return _private_bridge_sender(context, config, owner_bridge_senders(config, provider)) is not None
 
 
 def bridge_device_owner(context, config: Mapping) -> str | None:
-    """Explicit sender-to-native-owner grant, additionally gated by owner trust.
+    """Resolve an explicit sender-to-native-device-owner permission only.
 
-    This maps access to a device owner, never changes the channel's principal,
-    session ownership, history, certificate or other permissions.
+    This never aliases the channel principal or grants vault, catalog, session
+    ownership or automation permissions. The host validates the certificate and
+    current native owner separately before issuing or using any device lease.
     """
-    if not owner_bridge_vault_turn(context, config):
+    if not is_owner_bridge_principal(context.initiator):
         return None
     provider = _OWNER_BRIDGES[context.initiator.subject_id]
     grants = (config.get("runtime_tool_audiences") or {}).get("device_owner_channels") or {}
+    if not isinstance(grants, Mapping):
+        return None
     mappings = grants.get(provider) or {}
     if not isinstance(mappings, Mapping):
         return None
-    for sender in owner_bridge_senders(config, provider):
-        # Reuse the exact bot/private-route validation, restricted to one sender.
-        policy = dict(config)
-        audiences = dict(config.get("runtime_tool_audiences") or {})
-        audiences["vault_owner_channels"] = {provider: [sender]}
-        policy["runtime_tool_audiences"] = audiences
-        if owner_bridge_vault_turn(context, policy):
-            handle = mappings.get(sender)
-            return handle if isinstance(handle, str) and handle and not handle.startswith("__bridge_") else None
-    return None
+    sender = _private_bridge_sender(context, config, frozenset(key for key in mappings if isinstance(key, str)))
+    handle = mappings.get(sender) if sender is not None else None
+    return handle if isinstance(handle, str) and handle and not handle.startswith("__bridge_") else None

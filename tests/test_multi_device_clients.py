@@ -207,6 +207,25 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(await self.catalog.discover(second))
         self.assertTrue(await self.catalog.discover(first))
 
+    async def test_device_only_bridge_grant_does_not_require_or_create_vault_owner_trust(self):
+        from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+        await self.connect()
+        sender = '155490357'
+        self.service.agent.config = {'channels':{'telegram':{'allowed_users':[sender]}},
+            'runtime_tool_audiences':{'device_owner_channels':{'telegram':{sender:'alice'}}}}
+        identity = await self.service.authorizer.bind_request(Request(self.service.gateway, '__bridge_telegram'))
+        p = PrincipalRef('openagent','network',identity.handle)
+        context = ExecutionContext(p,p,p,'tg:'+sender,'agent',(p,),
+            ingress_id=self.service.authorizer._identity_bindings[self.service.authorizer.binding_id(identity)])
+        context = replace(context, capabilities=await self.service._capability_context(context))
+        self.assertTrue(await self.catalog.discover(context))
+        self.assertFalse(owner_bridge_vault_turn(context, self.service.agent.config))
+        self.service.agent.config['channels']['telegram']['allowed_users'] = []
+        self.assertFalse(await self.catalog.discover(context))
+        with self.assertRaises((PermissionError, CapabilityUnavailable)):
+            target = next(iter(self.service._interactive_sources))
+            await self.catalog.call_tool(target+'/invented', {}, context)
+
     async def test_device_lease_inheritance_requires_a_verified_parent_chain(self):
         await self.connect()
         context = replace(self.context, capabilities=await self.service._capability_context(self.context))
