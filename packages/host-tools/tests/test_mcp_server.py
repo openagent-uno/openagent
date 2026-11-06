@@ -126,6 +126,7 @@ async def test_official_mcp_client_session_calls_standalone_filesystem(tmp_path:
         command=sys.executable,
         args=["-m", "openagent_host_tools.mcp_server", "filesystem"],
         cwd=str(tmp_path),
+        env={**os.environ,"PYTHONPATH":os.pathsep.join(str(Path(part).absolute()) for part in os.environ.get("PYTHONPATH", "").split(os.pathsep) if part)},
     )
     async with stdio_client(params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
@@ -165,6 +166,7 @@ async def test_official_mcp_client_validates_empty_and_nonempty_shell_lists(
         command=sys.executable,
         args=["-m", "openagent_host_tools.mcp_server", "shell"],
         cwd=str(tmp_path),
+        env={**os.environ,"PYTHONPATH":os.pathsep.join(str(Path(part).absolute()) for part in os.environ.get("PYTHONPATH", "").split(os.pathsep) if part)},
     )
     async with stdio_client(params) as (reader, writer):
         async with ClientSession(reader, writer) as session:
@@ -218,6 +220,7 @@ async def test_standalone_shell_completion_notification_matches_embedded_contrac
         command=sys.executable,
         args=["-m", "openagent_host_tools.mcp_server", "shell"],
         cwd=str(tmp_path),
+        env={**os.environ,"PYTHONPATH":os.pathsep.join(str(Path(part).absolute()) for part in os.environ.get("PYTHONPATH", "").split(os.pathsep) if part)},
     )
     async with stdio_client(params) as (reader, writer):
         async with ClientSession(

@@ -56,7 +56,7 @@ jobs:
     if: ${{ !cancelled() && (inputs.signing_mode == 'local' || needs.signing-inputs.result == 'success') }}
     strategy:
       fail-fast: false
-      max-parallel: 1
+      max-parallel: 6
       matrix:
         include:
           # Windows keeps open SQLite handles visible; qualify it before
@@ -83,7 +83,7 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b8
+          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b15
           git diff --quiet HEAD
       - uses: actions/setup-python@v5
         with:
@@ -92,20 +92,6 @@ jobs:
         with:
           node-version: "22"
           architecture: ${{ endsWith(matrix.platform, 'arm64') && 'arm64' || 'x64' }}
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Provision pinned OpenSSL for Windows ARM64
-        if: matrix.platform == 'win32-arm64'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $vcpkgRoot = Join-Path $env:RUNNER_TEMP 'openagent-vcpkg'
-          git clone --filter=blob:none --no-checkout https://github.com/microsoft/vcpkg.git $vcpkgRoot
-          git -C $vcpkgRoot checkout 114d9fe62faf35856b45cf55cb93b57028a45d63
-          & (Join-Path $vcpkgRoot 'bootstrap-vcpkg.bat') -disableMetrics
-          & (Join-Path $vcpkgRoot 'vcpkg.exe') install openssl:arm64-windows-static-md
-          "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "OPENSSL_DIR=$(Join-Path $vcpkgRoot 'installed\arm64-windows-static-md')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "OPENSSL_STATIC=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Install Linux desktop build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -114,17 +100,6 @@ jobs:
             libwayland-dev libxkbcommon-dev libpipewire-0.3-dev libdbus-1-dev \
             libegl1-mesa-dev libgl1-mesa-dev libgbm-dev pkg-config xvfb xauth openbox x11-apps \
             x11-utils x11-xserver-utils
-      - name: Keep macOS native dependencies portable and statically bind OpenSSL
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          openssl_root="$(brew --prefix openssl@3)"
-          test -f "$openssl_root/lib/libcrypto.a"
-          test -f "$openssl_root/lib/libssl.a"
-          echo "MACOSX_DEPLOYMENT_TARGET=12.0" >> "$GITHUB_ENV"
-          echo "OPENSSL_DIR=$openssl_root" >> "$GITHUB_ENV"
-          echo "OPENSSL_STATIC=1" >> "$GITHUB_ENV"
       - name: Install verified public dependencies and the fresh canonical wheel
         shell: bash
         run: |

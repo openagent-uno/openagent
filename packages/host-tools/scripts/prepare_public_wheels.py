@@ -10,7 +10,7 @@ import urllib.request
 
 def release_inputs():
     lock = json.loads((Path(__file__).resolve().parents[1] / "public-dependencies.lock.json").read_text())
-    if lock.get("schema") != 1 or set(lock.get("releases", {})) != {"core", "tools"}:
+    if lock.get("schema") != 1 or set(lock.get("releases", {})) != {"core", "tools", "device"}:
         raise ValueError("Expected the sealed Core and Tools public dependency lock")
     result = []
     for label, spec in lock["releases"].items():

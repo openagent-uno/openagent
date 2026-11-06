@@ -18,7 +18,7 @@ a = Analysis(
             str(ROOT / "src" / "openagent_host_tools" / "sidecar-manifests.json"),
             "openagent_host_tools",
         ),
-    ] + collect_data_files("openagent_device_tools"),
+    ] + collect_data_files("openagent_device_tools", excludes=["native/**"]),
     hiddenimports=sum((collect_submodules(name) for name in ("openagent_host_tools", "openagent_capability_host", "openagent_tool_protocol", "openagent_filesystem", "openagent_editor", "openagent_shell", "openagent_device_tools")), []),
     hookspath=[],
     hooksconfig={},

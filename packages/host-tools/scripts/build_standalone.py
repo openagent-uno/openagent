@@ -42,88 +42,25 @@ def checked_clean(path: Path, parent: Path) -> None:
         shutil.rmtree(resolved)
 
 
-def _computer_cargo_environment() -> dict[str, str]:
-    env = dict(os.environ)
-    if sys.platform == "darwin":
-        raw = env.get("MACOSX_DEPLOYMENT_TARGET") or "12.0"
-        tokens = raw.split(".")
-        if not 1 <= len(tokens) <= 3 or any(not token.isascii() or not token.isdigit() for token in tokens):
-            raise SystemExit("MACOSX_DEPLOYMENT_TARGET must be a numeric macOS version")
-        parts = tuple(int(token) for token in tokens)
-        # Apply the native floor to Rust and dependency C/C++ build scripts as
-        # well as our Objective-C bridge; preserve a higher caller target.
-        padded = parts + (0,) * (3 - len(parts))
-        env["MACOSX_DEPLOYMENT_TARGET"] = raw if padded >= (12, 0, 0) else "12.0"
-    return env
-
-
-def _build_computer_control(source: Path) -> Path:
-    cargo = shutil.which("cargo")
-    if cargo is None:
-        raise SystemExit("Rust/cargo is required to build computer-control")
-    target = ROOT / "build" / "computer-control"
-    subprocess.run(
-        [cargo, "build", "--release", "--locked", "--target-dir", str(target), "--manifest-path", str(source / "Cargo.toml")],
-        cwd=ROOT,
-        check=True,
-        env=_computer_cargo_environment(),
-    )
-    return target / "release" / ("openagent-computer-control.exe" if sys.platform == "win32" else "openagent-computer-control")
-
-
 def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
-    """Build and stage the host-owned optional MCP sidecars.
+    """Stage qualified immutable Tools artifacts; never compile a native fork."""
 
-    Source comes from the pinned openagent-device-tools distribution. Cargo
-    outputs stay in the product build directory; installed packages are read-only.
-    """
-
-    suffix = ".exe" if key.startswith("win32-") else ""
-    computer_name = f"openagent-computer-control{suffix}"
-    computer_root = sidecar_source("computer-control")
-    candidates = [
-        computer_root / "bin" / key / computer_name,
-        computer_root / "target" / "release" / computer_name,
-    ]
-    computer = next((path for path in candidates if path.is_file()), None)
-    if computer is None and not args_no_build_sidecars():
-        computer = _build_computer_control(computer_root)
-        if not computer.is_file():
-            computer = None
-    if computer is not None:
-        if key.startswith("darwin-"):
-            app = bundle / "openagent-computer-control.app"
-            executable_dir = app / "Contents" / "MacOS"
-            executable_dir.mkdir(parents=True)
-            target = executable_dir / computer_name
-            shutil.copy2(computer, target)
-            target.chmod(0o755)
-            resources = app / "Contents" / "Resources"
-            resources.mkdir()
-            with (app / "Contents" / "Info.plist").open("wb") as handle:
-                plistlib.dump(
-                    {
-                        "CFBundleDevelopmentRegion": "en",
-                        "CFBundleExecutable": computer_name,
-                        "CFBundleIdentifier": "com.openagent.computer-control",
-                        "CFBundleInfoDictionaryVersion": "6.0",
-                        "CFBundleName": "OpenAgent Computer Control",
-                        "CFBundlePackageType": "APPL",
-                        "CFBundleShortVersionString": PROJECT_VERSION,
-                        "CFBundleVersion": "1",
-                        "LSBackgroundOnly": True,
-                        "NSAudioCaptureUsageDescription": (
-                            "OpenAgent captures audio from an explicitly authorized application "
-                            "when you enable its computer audio capability."
-                        ),
-                    },
-                    handle,
-                )
-        else:
-            shutil.copy2(computer, bundle / computer_name)
-            (bundle / computer_name).chmod(0o755)
-    elif required:
-        raise SystemExit(f"computer-control binary missing for {key}; checked {candidates}")
+    from openagent_device_tools.media import native_desktop_command
+    command=native_desktop_command()
+    if command is None:
+        raise SystemExit(f"No qualified upstream native artifact for {key}")
+    import openagent_device_tools.media as native_media
+    notices=Path(native_media.__file__).parent/"native/THIRD_PARTY_NOTICES.txt"
+    shutil.copy2(notices,bundle/"COMPUTER_CONTROL_THIRD_PARTY_NOTICES.txt")
+    computer=Path(command[0])
+    if key.startswith("darwin-"):
+        source_app=computer.parents[2]
+        if source_app.suffix != ".app":
+            raise SystemExit("The macOS native helper must retain its application bundle")
+        shutil.copytree(source_app,bundle/source_app.name)
+    else:
+        shutil.copy2(computer,bundle/computer.name)
+        (bundle/computer.name).chmod(0o755)
 
     chrome_source = sidecar_source("agent-in-chrome")
     chrome_target = bundle / "agent-in-chrome"
@@ -153,12 +90,6 @@ def stage_sidecars(bundle: Path, key: str, *, required: bool) -> None:
             raise SystemExit("Node.js/npm are required to stage agent-in-chrome")
     elif required:
         raise SystemExit(f"agent-in-chrome source missing at {chrome_source}")
-
-
-def args_no_build_sidecars() -> bool:
-    """Test seam for source bundles that intentionally pre-stage binaries."""
-
-    return os.environ.get("OPENAGENT_HOST_TOOLS_SKIP_SIDECAR_BUILD") == "1"
 
 
 def write_bundle_manifest(bundle: Path, key: str) -> None:

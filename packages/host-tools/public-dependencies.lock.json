@@ -10,6 +10,11 @@
       "base": "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/",
       "manifest_sha256": "f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd",
       "source_commit": "6b5b8a0424b935b3644f4ebadb57e7f2f73d2553"
+    },
+    "device": {
+      "base": "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/",
+      "source_commit": "b1f60eaf29f90acd552deebed42cc9cd93b6171a",
+      "manifest_sha256": "34a56c6adaaf4c84ad5da82b5bedb034e7a5facdb22fc098c3b8c3db55f6b7ea"
     }
   }
 }
