@@ -15,7 +15,7 @@ jobs:
   native:
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 6
       matrix:
         include:
           - { runner: macos-15, platform: darwin-arm64 }
@@ -109,6 +109,16 @@ jobs:
         shell: bash
         working-directory: packages/desktop-tools
         run: node -e "const h=require('./dist').nativeHelper(); if(!h.command||h.version!=='0.1.7')throw Error('unqualified');"
+      - name: Probe the actual native executable without capturing user data
+        shell: bash
+        working-directory: packages/desktop-tools
+        run: |
+          node - <<'JS'
+          const {spawnSync}=require('node:child_process');
+          const launch=require('./dist').nativeHelper();
+          const result=spawnSync(launch.command,['--desktop-stdio'],{input:'{"id":1,"action":"hello"}\n',encoding:'utf8',timeout:10000});
+          if(result.status!==0||JSON.parse(result.stdout).result?.protocol!=='openagent-desktop/1')throw Error('native protocol probe failed');
+          JS
       - uses: actions/upload-artifact@v4
         with:
           name: shared-desktop-native-${{ matrix.platform }}
