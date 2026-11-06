@@ -19,17 +19,11 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-import aiosqlite
 from aiohttp import web
 
 from openagent_identity.runtime_access import AccessContext
 
 from openagent_core.memory.operational.access import resource_is_visible
-from openagent_core.memory.operational.repository import (
-    backfill_batch_async,
-    projection_coverage_async,
-    reconcile_pending_async,
-)
 
 from ._common import gateway_db
 
@@ -167,107 +161,26 @@ async def _bounded_prepare(request: web.Request):
 
 
 async def _background_bootstrap(gateway: Any, db: Any) -> None:
-    shared_conn = await db._ensure_connected()
-    raw_path = str(db.db_path)
-    owns_conn = raw_path != ":memory:" and not raw_path.startswith("file::memory:")
-    if owns_conn:
-        conn = await aiosqlite.connect(raw_path, timeout=60.0)
-        conn.row_factory = aiosqlite.Row
-        await conn.execute("PRAGMA busy_timeout=60000")
-        await conn.execute("PRAGMA journal_mode=WAL")
-        await conn.execute("PRAGMA synchronous=FULL")
-        await conn.execute("PRAGMA foreign_keys=ON")
-    else:
-        conn = shared_conn
+    from openagent_core.memory.operational.maintenance import (
+        OperationalMaintenanceStatus,
+        maintain_operational_storage,
+    )
+
     ready_event = getattr(gateway, "_operational_ready_event", None)
     if ready_event is None:
         ready_event = asyncio.Event()
         setattr(gateway, "_operational_ready_event", ready_event)
-    backoff_s = 1.0
-    try:
-        while True:
-            try:
-                while True:
-                    writes = await reconcile_pending_async(
-                        conn, limit=100, worker_id="gateway-background-bootstrap"
-                    )
-                    await conn.commit()
-                    coverage = await projection_coverage_async(conn)
-                    if int(coverage["pending_sessions"]) == 0:
-                        break
-                    if not writes:
-                        raise RuntimeError("session reconciliation made no progress")
-                    await asyncio.sleep(0)
-                while True:
-                    _writes, complete = await backfill_batch_async(conn, limit=100)
-                    await conn.commit()
-                    if complete:
-                        break
-                    await asyncio.sleep(0)
-                from openagent_core.memory.operational.automation import project_automation_pending
-                from openagent_core.memory.operational.search import operational_search_status, sync_operational_search
 
-                while True:
-                    _changed, complete = await project_automation_pending(conn, limit=100)
-                    await conn.commit()
-                    if complete:
-                        break
-                    await asyncio.sleep(0)
-                coverage = await projection_coverage_async(conn)
-                setattr(gateway, "_operational_history_ready", bool(coverage["complete"]))
-                final_search_status: dict[str, Any] = {}
-                while True:
-                    raw_search = await operational_search_status(db)
-                    outbox_head = int(
-                        (
-                            await (
-                                await conn.execute(
-                                    "SELECT COALESCE(MAX(seq), 0) FROM search_outbox"
-                                )
-                            ).fetchone()
-                        )[0]
-                    )
-                    if bool(raw_search.get("ready")) and int(raw_search.get("seq") or 0) >= outbox_head:
-                        final_search_status = dict(raw_search)
-                        break
-                    search_status = await sync_operational_search(
-                        db, limit=1000, source_conn=conn
-                    )
-                    final_search_status = dict(search_status.__dict__)
-                    if search_status.ready and search_status.seq >= outbox_head:
-                        break
-                    await asyncio.sleep(0)
-                setattr(gateway, "_operational_search_status", final_search_status)
-                setattr(gateway, "_operational_bootstrap_error", False)
-                ready_event.set()
-                backoff_s = 1.0
-                # Stay alive as the single outbox consumer. New session writers
-                # and automation triggers become searchable without requiring a
-                # capability/search request to perform maintenance.
-                await asyncio.sleep(0.5)
-            except asyncio.CancelledError:
-                raise
-            except Exception:
-                try:
-                    await conn.rollback()
-                except Exception:
-                    pass
-                ready_event.clear()
-                setattr(gateway, "_operational_search_status", {
-                    "ready": False, "state": "degraded", "generation": "unavailable",
-                    "seq": 0, "documents": 0, "pending": 0,
-                    "indexed_through_ms": None,
-                })
-                already_failed = bool(getattr(gateway, "_operational_bootstrap_error", False))
-                setattr(gateway, "_operational_bootstrap_error", True)
-                if not already_failed:
-                    # Do not format exceptions: source rows may contain private content.
-                    logger.error("operational background bootstrap failed (details suppressed)")
-                await asyncio.sleep(backoff_s)
-                backoff_s = min(30.0, backoff_s * 2.0)
-    finally:
-        if owns_conn:
-            await conn.close()
+    def update(status: OperationalMaintenanceStatus) -> None:
+        setattr(gateway, "_operational_history_ready", status.history_ready)
+        setattr(gateway, "_operational_search_status", dict(status.search))
+        setattr(gateway, "_operational_bootstrap_error", status.failed)
+        if status.failed:
+            ready_event.clear()
+        else:
+            ready_event.set()
+
+    await maintain_operational_storage(db, update)
 
 
 def start_background_maintenance(gateway: Any, db: Any | None = None) -> asyncio.Task | None:
