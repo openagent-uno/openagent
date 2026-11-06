@@ -262,3 +262,25 @@ test('operator provider control has fixed browser server and explicit main-owned
   const rejection=assert.rejects(held,error=>error.code==='cancelled');abort.abort();await rejection;
  }finally{await bridge.stop()}
 });
+
+
+test('slow helper initialization has a separate bounded startup budget and retires on expiry', async () => {
+  for (const [budget, succeeds] of [[30, false], [3000, true]]) {
+    const bridge = new LocalHostBridge({
+      launch: { command: process.execPath, args: [path.join(here, 'host-bridge-peer.mjs')],
+        source: 'development', env: { OPENAGENT_TEST_INITIALIZE_DELAY_MS: '150' } },
+      principal: { kind: 'desktop', client_instance_id: 'cold-start' }, initializeTimeoutMs: budget,
+    });
+    try {
+      if (succeeds) { await bridge.start(); assert.equal(bridge.running, true); }
+      else { await assert.rejects(bridge.start(), { code: 'host_timeout' }); assert.equal(bridge.running, false); }
+    } finally { await bridge.stop(); }
+  }
+});
+
+test('invalid helper initialization budgets are rejected before spawning', () => {
+  for (const budget of [0, -1, NaN, Infinity, 300001]) assert.throws(() => new LocalHostBridge({
+    launch: { command: 'must-not-spawn', args: [], source: 'development' },
+    principal: { kind: 'desktop' }, initializeTimeoutMs: budget,
+  }), RangeError);
+});

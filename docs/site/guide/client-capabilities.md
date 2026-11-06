@@ -267,3 +267,14 @@ ordered, bounded, and never automatically retried after an uncertain failure.
 Closing the view cancels pending reads best-effort; a sent input may have already
 executed. An offline/revoked desktop is never replaced by another destination.
 OS screen-capture/input permission failures are displayed by the view.
+
+## Cold desktop helper startup
+
+The App gives its signed, frozen local helper a separate bounded 60-second
+initialization budget (routine control replies remain bounded to 10 seconds).
+It reports **Starting** while initialization is pending, reads canonical consent
+before advertising tools, and retires a helper whose startup deadline expires.
+This accommodates cold OS signature checks/imports without repeatedly killing
+a still-starting helper. The consent description covers authorized private
+sessions/channels and does not imply automatic sharing with group recipients or
+background work. Native releases and physical acceptance are recorded separately.

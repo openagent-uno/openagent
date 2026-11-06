@@ -1,12 +1,18 @@
 name: Qualify and release immutable Python product wheels
 on:
   workflow_dispatch:
+    inputs:
+      app_only:
+        description: Qualify independently versioned App source without rebuilding Python wheels
+        type: boolean
+        default: false
   push:
     tags: ['v1.1.9-beta.*']
 permissions:
   contents: read
 jobs:
   qualify:
+    if: github.event_name != 'workflow_dispatch' || !inputs.app_only
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

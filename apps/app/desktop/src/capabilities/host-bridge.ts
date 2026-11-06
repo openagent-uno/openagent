@@ -12,6 +12,8 @@ import {
 } from './protocol';
 
 const CONTROL_TIMEOUT_MS = 10_000;
+// Frozen helpers may need OS signature checks and a cold Python startup.
+const INITIALIZE_TIMEOUT_MS = 60_000;
 const GRACEFUL_EXIT_TIMEOUT_MS = 1_500;
 const TERMINATE_EXIT_TIMEOUT_MS = 1_500;
 const FORCE_EXIT_TIMEOUT_MS = 1_000;
@@ -145,6 +147,7 @@ interface PendingRequest {
 export interface LocalHostBridgeOptions {
   launch: HostToolsLaunch;
   principal: Record<string, unknown>;
+  initializeTimeoutMs?: number;
   env?: NodeJS.ProcessEnv;
 }
 
@@ -164,6 +167,9 @@ export class LocalHostBridge extends EventEmitter {
 
   constructor(private readonly options: LocalHostBridgeOptions) {
     super();
+    const timeout = options.initializeTimeoutMs ?? INITIALIZE_TIMEOUT_MS;
+    if (!Number.isFinite(timeout) || timeout <= 0 || timeout > 300_000)
+      throw new RangeError('Host initialization timeout must be finite, positive and at most five minutes');
   }
 
   get running(): boolean {
@@ -230,7 +236,7 @@ export class LocalHostBridge extends EventEmitter {
         type: 'initialize',
         protocol: HOST_TOOLS_PROTOCOL,
         principal: this.options.principal,
-      });
+      }, this.options.initializeTimeoutMs ?? INITIALIZE_TIMEOUT_MS);
       this.supportsResources = !!initialized && typeof initialized === 'object' && (initialized as {features?:{mcp_app_resources?:unknown}}).features?.mcp_app_resources === 1;
       return initialized;
     } catch (error) {

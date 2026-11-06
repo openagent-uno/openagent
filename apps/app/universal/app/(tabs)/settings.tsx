@@ -751,9 +751,10 @@ export default function SettingsScreen() {
 
         <Card style={{ marginTop: 14 }}>
           <Text style={styles.channelHint}>
-            Local tools are offered only to interactive chats opened by this exact app instance.
-            Webhooks, schedules, automatic workflows, events, and other server-started turns never
-            receive them, and the server never falls back to another or previously used device.
+            Connected agents may use this computer in private sessions and channels authorized
+            for your account. Shared conversations and background work receive no automatic access.
+            Disconnect this app or disable access to stop new operations. An unavailable computer
+            is never replaced by another device.
           </Text>
           <Text style={[styles.channelHint, { marginTop: 10 }]}>
             Full access can include reading and changing files, running commands, controlling

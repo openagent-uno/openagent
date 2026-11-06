@@ -20,7 +20,7 @@ lines.on('line', (line) => {
         error: { code: 'initialize_rejected', message: 'test handshake failed' },
       })}\n`);
     } else {
-      setTimeout(() => respond({ pid: process.pid }), 20);
+      setTimeout(() => respond({ pid: process.pid }), Number(process.env.OPENAGENT_TEST_INITIALIZE_DELAY_MS || 20));
     }
   } else if (request.type === 'provider_control') {
     if (!request.args.hold) respond({ request });

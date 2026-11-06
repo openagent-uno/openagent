@@ -62,7 +62,9 @@ test('manager advertises a broker-owned persisted grant on a fresh Desktop boot'
   );
 
   try {
-    await manager.start();
+    const startup = manager.start();
+    assert.equal(manager.getStatus().phase, 'starting');
+    await startup;
     await waitUntil(() => manager.getStatus().phase === 'connected');
     assert.equal(manager.getStatus().consent.enabled, true);
     assert.equal(manager.getStatus().connectedAccounts, 1);

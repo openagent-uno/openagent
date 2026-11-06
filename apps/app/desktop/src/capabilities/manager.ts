@@ -358,7 +358,6 @@ export class CapabilityManager {
     let shouldRetry = false;
     this.hostStarting = (async () => {
       this.lastError = null;
-      this.emitStatus();
       try {
         const initialized = await this.host.start();
         this.hostReady = true;
@@ -409,6 +408,9 @@ export class CapabilityManager {
         this.emitStatus();
       }
     })();
+    // Publish only after the pending startup is installed, so the UI reports
+    // Starting throughout cold initialization instead of a false Unavailable.
+    this.emitStatus();
     return this.hostStarting;
   }
 
