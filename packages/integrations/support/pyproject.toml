@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-support-integration"
-version = "1.1.9b11"
+version = "1.1.9b12"
 description = "Optional host-configured support integration boundary"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openagent-core[engine]==1.1.0b48"]
+dependencies = ["openagent-core[engine]==1.1.0b50"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

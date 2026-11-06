@@ -38,7 +38,7 @@ def qualify(wheels: Path) -> None:
             target.write_bytes(payload)
             paths.append(str(target))
         paths.extend(str(wheels/row['file']) for row in manifest['wheels'])
-        subprocess.run([sys.executable,'-m','pip','install','--no-deps','--force-reinstall',*paths],check=True)
+        subprocess.run([sys.executable,'-m','pip','install','--upgrade',*paths],check=True)
     subprocess.run([sys.executable,'-m','pip','check'],check=True)
     import importlib
     import importlib.metadata
