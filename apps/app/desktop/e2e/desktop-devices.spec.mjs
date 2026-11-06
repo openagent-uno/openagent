@@ -222,6 +222,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(screen).not.toBeVisible();
     expect(gateway.calls.every(c=>c.tool_ref==='exact-agent-desktop')).toBe(true);
     if(live){await expect.poll(()=>gateway.streamCloses).toBe(3);expect(gateway.calls.some(c=>c.action==='get_screenshot')).toBe(false);}
+    await page.setViewportSize({width:1440,height:960});
     await page.getByRole('button',{name:'New session',exact:true}).click();
     await expect(page.getByText('Send the first message to start this session.',{exact:true})).toBeVisible();
     await expect(page.getByText('Computers and device history are available after this session starts.',{exact:true})).toBeVisible();
