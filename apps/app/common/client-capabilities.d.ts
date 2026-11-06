@@ -34,6 +34,7 @@ export interface CapabilityHello {
   /** Certified network expected on this already-authenticated channel. */
   network_id?: string;
   servers: ClientCapabilityServer[];
+  media_protocols?: string[];
 }
 
 export interface CapabilityHelloAck {
@@ -153,6 +154,8 @@ export interface ClientToolEventAck {
 }
 
 export type CapabilityClientFrame =
+  | { type:'client_media_packet'; stream_id:string; generation:number; packet:Record<string,unknown> }
+  | { type:'client_media_end'; stream_id:string; generation:number; error?:string }
   | CapabilityHello
   | CapabilityCatalogUpdate
   | CapabilityHeartbeat
@@ -161,6 +164,8 @@ export type CapabilityClientFrame =
   | ClientToolEvent;
 
 export type CapabilityServerFrame =
+  | ClientMediaOpen
+  | ClientMediaClose
   | CapabilityHelloAck
   | CapabilityHeartbeatAck
   | ClientToolCall
@@ -210,3 +215,11 @@ export interface DesktopCapabilityStatus {
   servers: Array<{ name: string; tools: number }>;
   error: string | null;
 }
+
+
+export interface ClientMediaOpen {
+  type:'client_media_open'; stream_id:string; generation:number; server:string; tool:string;
+  options:{ display_id?:number;fps?:number;max_duration_seconds?:number };
+  session_id:string; account_id:string; network_id?:string;
+}
+export interface ClientMediaClose { type:'client_media_close'; stream_id:string; generation:number; }

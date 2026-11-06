@@ -256,6 +256,11 @@ def standalone_spec_resolver(config, *, environment=None):
                         command = None
                 else:
                     command = list(candidate.command) if candidate.command else None
+                if name == "computer-control" and not (environment or os.environ).get("OPENAGENT_COMPUTER_CONTROL_COMMAND"):
+                    from openagent_device_tools.media import native_desktop_command
+                    qualified = native_desktop_command()
+                    if qualified:
+                        command = list(qualified)
                 if command is None:
                     raise RuntimeError(f"{name} is enabled but unavailable: {candidate.reason}")
                 env = server_tool_environment()

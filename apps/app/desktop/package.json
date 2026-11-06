@@ -1,7 +1,7 @@
 {
   "name": "openagent-desktop",
   "description": "Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.",
-  "version": "1.1.0-beta.24",
+  "version": "1.1.0-beta.25",
   "private": true,
   "engines": {
     "node": ">=22.12.0"
@@ -40,7 +40,8 @@
     "rfc4648": "^1.5.4",
     "smol-toml": "^1.6.1",
     "tar": "^7.4.3",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "@openagent/desktop-tools": "https://github.com/openagent-uno/openagent-tools/releases/download/desktop-tools-v0.1.0/openagent-desktop-tools-0.1.0.tgz?download=1"
   },
   "devDependencies": {
     "@electron/asar": "^4.3.0",
@@ -104,10 +105,11 @@
       "signIgnore": [
         "Contents/Resources/host-tools/",
         "Contents/Resources/web-build/",
-        "Contents/Frameworks/Electron Framework\\.framework/.*/Resources/"
+        "Contents/Frameworks/Electron Framework\\.framework/.*/Resources/",
+        "node_modules/@openagent/desktop-tools/native/"
       ],
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network — required when connecting to a server running on the same Mac or LAN."
+        "NSLocalNetworkUsageDescription": "OpenAgent needs to find OpenAgent servers on your local network \u2014 required when connecting to a server running on the same Mac or LAN."
       },
       "target": [
         {
@@ -147,6 +149,9 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "asarUnpack": [
+      "node_modules/@openagent/desktop-tools/native/**/*"
+    ]
   }
 }

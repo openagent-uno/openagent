@@ -74,6 +74,7 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
+  { href: '/devices', match: 'devices', label: 'Devices', icon: 'monitor' },
   { href: '/memory', match: 'memory', label: 'Memory', icon: 'book-open' },
   { href: '/mcps', match: 'mcps', label: 'Connectors', icon: 'grid' },
   { href: '/skills', match: 'skills', label: 'Skills', icon: 'book' },
@@ -127,7 +128,7 @@ export default function Sidebar({
   const isMac = typeof window !== 'undefined' && (window as any).desktop?.platform === 'darwin';
 
   const activeSeg = useMemo(() => {
-    const known = ['memory', 'mcps', 'skills', 'tasks', 'workflows', 'events', 'views', 'settings', 'system', 'logs', 'chat'];
+    const known = ['devices', 'memory', 'mcps', 'skills', 'tasks', 'workflows', 'events', 'views', 'settings', 'system', 'logs', 'chat'];
     for (let i = segments.length - 1; i >= 0; i--) {
       if (known.includes(segments[i])) return segments[i];
     }

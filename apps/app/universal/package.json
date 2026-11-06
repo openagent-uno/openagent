@@ -1,6 +1,6 @@
 {
   "name": "openagent-app",
-  "version": "1.1.0-beta.24",
+  "version": "1.1.0-beta.25",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -11,6 +11,7 @@
     "build:web": "expo export --platform web"
   },
   "dependencies": {
+    "@openagent/desktop-tools": "https://github.com/openagent-uno/openagent-tools/releases/download/desktop-tools-v0.1.0/openagent-desktop-tools-0.1.0.tgz?download=1",
     "@react-navigation/drawer": "^7.0.0",
     "@types/dagre": "^0.7.54",
     "@types/katex": "^0.16.8",

@@ -50,6 +50,14 @@ module.exports = async function afterSignHostTools(context) {
     verifySignature(node, 'com.openagent.host-tools.node', outer.team, false);
     verifySignature(helper, 'com.openagent.computer-control', outer.team, false);
     verifySignature(helperApp, 'com.openagent.computer-control', outer.team, true);
+    const arch=key.slice('darwin-'.length);
+    const {verifyNativeHelper}=require('@openagent/desktop-tools');
+    const sharedApp=path.join(app,'Contents','Resources','app.asar.unpacked','node_modules','@openagent','desktop-tools','native',key,'openagent-computer-control.app');
+    const shared=path.join(sharedApp,'Contents','MacOS','openagent-computer-control');
+    verifyNativeHelper(shared,'darwin',arch);
+    verifySignature(shared,'com.openagent.computer-control',outer.team,false);
+    verifySignature(sharedApp,'com.openagent.computer-control',outer.team,true);
+
   }
 };
 

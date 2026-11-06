@@ -225,6 +225,7 @@ class LocalBrokerServer:
                 pass
 
     async def _run_windows(self) -> None:  # pragma: no cover - exercised on Windows CI
+        from multiprocessing import AuthenticationError
         from multiprocessing.connection import Listener
 
         loop = asyncio.get_running_loop()
@@ -238,6 +239,10 @@ class LocalBrokerServer:
             while not self._windows_stop.is_set():
                 try:
                     conn = self._windows_listener.accept()
+                except AuthenticationError:
+                    # One rejected peer must not stop accepting the owner's
+                    # subsequent authenticated connections.
+                    continue
                 except (OSError, EOFError):
                     break
                 threading.Thread(
@@ -901,7 +906,7 @@ def _load_or_create_authkey(paths: HostPaths) -> bytes:
     paths.ensure()
     path = paths.broker_authkey
     try:
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0), 0o600)
     except FileExistsError:
         data = path.read_bytes()
         if len(data) < 32:

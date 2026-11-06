@@ -13,6 +13,7 @@ const fs = require('node:fs');
 //   @number0/iroh     native .node binary, can't be bundled
 const externals = [
   'electron',
+  '@openagent/desktop-tools',
   'electron-updater',
   'electron-store',
   '@number0/iroh',

@@ -399,6 +399,10 @@ class CapabilityConnection:
     ws: Any
     send_json: Callable[[Any, dict[str, Any]], Awaitable[bool]]
     catalog: dict[str, dict[str, Any]]
+    media_protocols: tuple[str, ...] = ()
+    media: dict[str, asyncio.Queue] = field(default_factory=dict)
+    owner_handle: str = ""
+    owner_kind: str = "user"
     network_id: str | None = None
     # Snapshot from NetworkAuthState.  A disconnect advances the epoch before
     # its async close callback, making late WebSocket registration detectable.
@@ -465,6 +469,17 @@ class CapabilityRegistry:
         conn = self.connection(device_id, client_instance_id)
         return conn.origin(self) if conn is not None else None
 
+    def owned_connections(self, identity) -> tuple[CapabilityConnection, ...]:
+        """Only certificate-owned, consented and live devices of this human."""
+        if identity.auth_kind != "device_cert" or identity.principal_type != "user":
+            return ()
+        return tuple(conn for conn in self._connections.values()
+                     if conn.network_id == identity.tenant_id
+                     and conn.owner_handle == identity.handle
+                     and conn.owner_kind == "user"
+                     and not getattr(conn.ws, "closed", False)
+                     and time.time() - conn.last_seen_at < CAPABILITY_HEARTBEAT_TIMEOUT_S)
+
     async def register(
         self,
         *,
@@ -479,6 +494,9 @@ class CapabilityRegistry:
         network_id: str | None = None,
         auth_epoch: int = 0,
         auth_epoch_reader: Callable[[], int] | None = None,
+        media_protocols: Any = None,
+        owner_handle: str = "",
+        owner_kind: str = "user",
     ) -> CapabilityConnection:
         client_instance_id = str(client_instance_id or "").strip()
         device_label = str(device_label or "").strip() or "Client device"
@@ -499,7 +517,17 @@ class CapabilityRegistry:
         if auth_epoch < 0:
             raise ClientCapabilityError("INVALID_HELLO", "auth_epoch must be non-negative")
         catalog = normalise_catalog(servers)
+        if media_protocols not in (None, [], ["openagent-video/1"]):
+            raise ClientCapabilityError("INVALID_HELLO", "Unsupported live media protocol")
+        if media_protocols:
+            for server in catalog.values():
+                for tool in server["tools"]:
+                    if server["name"] == "computer-control" and tool["name"] == "computer":
+                        tool["_meta"] = {**tool.get("_meta", {}), "openagent/liveMedia": "openagent-video/1"}
         conn = CapabilityConnection(
+            media_protocols=tuple(media_protocols or ()),
+            owner_handle=owner_handle,
+            owner_kind=owner_kind,
             device_id=device_id,
             account_id=str(account_id or ""),
             client_instance_id=client_instance_id,
@@ -617,6 +645,11 @@ class CapabilityRegistry:
         if int(generation or 0) != conn.generation:
             raise ClientCapabilityError("STALE_GENERATION", "catalog generation does not match connection")
         catalog = normalise_catalog(servers)
+        if conn.media_protocols:
+            for server in catalog.values():
+                for tool in server["tools"]:
+                    if server["name"] == "computer-control" and tool["name"] == "computer":
+                        tool["_meta"] = {**tool.get("_meta", {}), "openagent/liveMedia": "openagent-video/1"}
         key = (conn.device_id, conn.client_instance_id)
         async with self._lock:
             if self._connections.get(key) is not conn:
@@ -804,6 +837,10 @@ class CapabilityRegistry:
     def _fail_pending(
         cls, conn: CapabilityConnection, code: str, message: str,
     ) -> None:
+        for queue in conn.media.values():
+            while not queue.empty():
+                queue.get_nowait()
+            queue.put_nowait(ClientCapabilityError("CLIENT_OFFLINE", "Exact media host disconnected"))
         for pending in list(conn.pending.values()):
             if not pending.future.done():
                 if pending.result_may_be_indeterminate:
@@ -872,6 +909,56 @@ class CapabilityRegistry:
             **tool,
             "execution_host": conn.origin(self).execution_host,
         }
+
+    async def stream_tool(self, origin, server_name, tool_name, options, *, execution_context, source_id):
+        conn, _ = self._require_server(origin, server_name)
+        self.describe_tool(origin, server_name, tool_name)
+        if (server_name != "computer-control" or tool_name != "computer" or "openagent-video/1" not in conn.media_protocols or execution_context.deferred
+                or not any(lease.source_id == source_id and lease.instance_id == conn.client_instance_id
+                           and lease.generation == f"{conn.generation}:{conn.auth_epoch}"
+                           for lease in execution_context.capabilities)):
+            raise ClientCapabilityError("MEDIA_UNAVAILABLE", "Exact client media grant unavailable")
+        if len(conn.media) >= 4:
+            raise ClientCapabilityError("MEDIA_QUOTA", "Too many live views for this client")
+        stream_id = uuid.uuid4().hex
+        queue = conn.media[stream_id] = asyncio.Queue(maxsize=4)
+        try:
+            recorder = getattr(self, "record_device_use", None)
+            if recorder is not None:
+                await recorder(conn, execution_context.session_id)
+            sent = await conn.send_json(conn.ws, {"type":"client_media_open", "stream_id":stream_id,
+                "generation":conn.generation, "server":server_name, "tool":tool_name, "options":options,
+                "session_id":execution_context.session_id, "account_id":conn.account_id, "network_id":conn.network_id})
+            if not sent:
+                raise ClientCapabilityError("CLIENT_OFFLINE", "Exact media host unavailable")
+            while True:
+                packet = await asyncio.wait_for(queue.get(), timeout=20)
+                self._require_origin(origin)
+                if packet is None:
+                    break
+                if isinstance(packet, Exception):
+                    raise packet
+                yield packet
+        finally:
+            conn.media.pop(stream_id, None)
+            await conn.send_json(conn.ws, {"type":"client_media_close", "stream_id":stream_id, "generation":conn.generation})
+
+    def receive_media(self, conn, frame):
+        if self.connection(conn.device_id, conn.client_instance_id) is not conn or frame.get("generation") != conn.generation:
+            return
+        queue = conn.media.get(frame.get("stream_id"))
+        if queue is None:
+            return
+        packet = frame.get("packet") if frame.get("type") == "client_media_packet" else None
+        if frame.get("error"):
+            packet = ClientCapabilityError("MEDIA_UNAVAILABLE", "Desktop encoder unavailable")
+        if packet is not None and not isinstance(packet, Exception) and (not isinstance(packet, dict) or len(json.dumps(packet).encode()) > 2*1024*1024):
+            packet = ClientCapabilityError("MEDIA_LIMIT", "Live media packet exceeds its bound")
+        if queue.full():
+            while not queue.empty():
+                queue.get_nowait()
+            packet = ClientCapabilityError("MEDIA_BACKPRESSURE", "Live media viewer is too slow")
+        queue.put_nowait(packet)
 
     async def read_resource(self, origin: TurnExecutionOrigin, server_name: str, uri: str, *,
                             session_id: str | None = None, execution_context: ExecutionContext | None = None,
@@ -1088,6 +1175,9 @@ class CapabilityRegistry:
                 # Once dispatch begins a mutating effect may have happened even
                 # if the socket fails before send_json confirms success. Such a
                 # call is never admitted to the retry path below.
+                recorder = getattr(self, "record_device_use", None)
+                if recorder is not None and session_id:
+                    await recorder(conn, session_id)
                 pending.dispatch_started = True
                 sent = await conn.send_json(conn.ws, {
                     "type": "client_tool_call",

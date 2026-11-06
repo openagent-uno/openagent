@@ -29,7 +29,7 @@ import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
 import MessageComposer, { type PendingFile, type SlashCommand } from '../../components/MessageComposer';
 import MessageList from '../../components/MessageList';
-import SharedPresence, { useSharedView } from '../../components/SharedPresence';
+import { useSharedView } from '../../components/SharedPresence';
 import SessionSharing from '../../components/SessionSharing';
 import SessionDetailsDrawerShell from '../../components/SessionDetailsDrawer';
 import BrandLogo from '../../components/BrandLogo';
@@ -1704,7 +1704,6 @@ export default function ChatScreen() {
               </Notice>
             )}
 
-            <SharedPresence id={activeSessionId || undefined} />
             {activeSessionId && <SessionSharing sessionId={activeSessionId} />}
             <McpAppDraftReview scope={{accountId:draftAccountId??undefined,sessionId:activeSessionId??undefined}} scopeKey={`${draftAccountId}:${activeSessionId}`} onInsert={text=>setInput(current=>`${current}${current?'\n\n':''}${text}`)} />
             <MessageComposer

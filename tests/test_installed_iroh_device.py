@@ -63,7 +63,11 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                 local = [source for source in sources if source['source_ref'].startswith('app/')]
                 self.discoveries[scenario] = local
                 device = self.devices.get(specification.get('device'))
-                if specification['mode'] in {'absent','stale'}:
+                if specification['mode']=='owned-inventory':
+                    self.assertEqual({source['source_ref'].rsplit('/',1)[-1] for source in local}, {'shell','editor','filesystem'})
+                    self.assertTrue(all('/'+device.client_instance_id+'/' in source['source_ref'] for source in local),local)
+                    final = 'Fixture owned devices available.'
+                elif specification['mode'] in {'absent','stale'}:
                     self.assertEqual(local, [], sources)
                     if specification['mode']=='stale' and step==1:
                         call = ('tool_search_call_tool', {'tool_ref':self.references[specification['device']], 'args':device.shell_arguments})
@@ -187,11 +191,11 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                             workspace=root/('device-'+handle),device_id=identity.public_bytes.hex(),network_id='test-network',
                             client_instance_id='fixture-'+handle,generation=1))
 
-                    async def turn(scenario, *, handle='alice', mode='full', device='alice', instance=True):
+                    async def turn(scenario, *, handle='alice', mode='full', device='alice', instance=True, claimed_instance=None):
                         self.scenarios[scenario] = {'mode':mode,'device':device}
                         body = {'session_id':handle+'-session','request_id':scenario,'message':'Fixture device scenario: '+scenario}
                         if instance:
-                            body['client_instance_id'] = self.devices[device].client_instance_id
+                            body['client_instance_id'] = claimed_instance or self.devices[device].client_instance_id
                         async with http.post(urls[handle]+'/api/collaboration/turns',json=body) as response:
                             value = await response.json()
                             self.assertEqual(response.status,200,value)
@@ -203,13 +207,13 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                         self.devices[handle].verify_shell_effect()
                         self.devices[handle].verify_file_effect()
                     self.assertNotEqual(self.references['alice'],self.references['bob'])
-                    await turn('no-client-origin',mode='absent',instance=False)
-                    await turn('other-device-selected',mode='absent',device='bob')
+                    await turn('no-client-origin',mode='owned-inventory',instance=False)
+                    await turn('other-device-selected',mode='owned-inventory',claimed_instance=self.devices['bob'].client_instance_id)
                     await turn('revoked-after-discovery',mode='revoke')
                     await turn('revoked-tool-reference',mode='stale')
                     await self.devices['alice'].close()
                     await turn('disconnected-old-device',mode='stale')
-                    await turn('ordinary-bob-ingress',handle='bob',device='bob',mode='absent',instance=False)
+                    await turn('ordinary-bob-ingress',handle='bob',device='bob',mode='owned-inventory',instance=False)
                     for device in self.devices.values():
                         device.verify_shell_effect()
                         device.verify_file_effect()

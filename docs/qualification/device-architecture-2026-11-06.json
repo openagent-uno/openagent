@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-06",
+  "core": "1.1.0b48",
+  "device_tools": "1.0.0b18",
+  "desktop_sdk": "0.1.0",
+  "scope": [
+    "private same-owner multi-device grants",
+    "offline inventory without authority",
+    "complete participants in session details",
+    "session device usage",
+    "direct responsive remote desktop input and optional live video"
+  ],
+  "tests": {
+    "core": 720,
+    "core_subtests": 97,
+    "desktop": 134,
+    "ui_e2e": 4,
+    "host_tools": 127,
+    "real_installed_device_media": 6,
+    "authenticated_iroh_device_scenario": 1
+  },
+  "windows_broker": "Authentication secrets are opened in binary mode so CR/LF and control bytes survive storage; rejected peers do not terminate the accept loop. Binary roundtrip and broker/provider tests: 31 passed locally; Windows distribution qualification is recorded separately.",
+  "verification_limits": [
+    "UI E2E uses synthetic desktop frames and an exact target fixture",
+    "Authenticated Iroh scenario uses two real local hosts on one physical Mac and a deterministic model provider",
+    "No physical two-machine or mobile-device acceptance is claimed"
+  ],
+  "distribution": "independent public Core/Tools artifacts; standalone and consumer publication recorded separately"
+}

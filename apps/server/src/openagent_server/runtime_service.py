@@ -399,6 +399,18 @@ class NativeRuntimeService:
                 ),
             )
             pool.bind_agent_runtime(self.agent)
+            # Host opt-in and canonical row ownership are resolved through the
+            # same public resolver as ordinary tool calls, never from viewer data.
+            resolver = standalone_spec_resolver(self.agent.config, environment=environment)
+            for row in await self.agent.memory_db.list_mcps():
+                if row.get("name") != "computer-control" or not row.get("enabled", True):
+                    continue
+                spec = resolver(row, self.agent.memory_db.db_path)
+                if spec and spec.get("command"):
+                    from openagent_device_tools.media import NativeDesktopMedia
+                    media = NativeDesktopMedia(spec["command"], environment=spec.get("env"), cwd=spec.get("_cwd"))
+                    if await media.qualify():
+                        pool.register_media_executor("computer-control", media)
             return pool
 
         memory_config = self.agent.config.get("memory") or {}
@@ -566,33 +578,40 @@ class NativeRuntimeService:
             if self.dashboards is not None
             else ()
         )
-        origin = current_execution_origin()
-        if origin is None:
-            return dashboard_leases
         identity = current_on_behalf_identity()
-        if identity is None or identity.device_id != origin.device_id:
-            raise PermissionError(
-                "Capability origin differs from the authenticated device"
-            )
-        namespace = f"app/{context.ingress_id}/{origin.client_instance_id}/{origin.generation}/{origin.auth_epoch}"
-        existing = self._interactive_leases.get(namespace)
-        if existing is not None:
-            return (*dashboard_leases, *existing)
-        leases = register_interactive_capabilities(
-            self.runtime.capabilities, origin, source_namespace=namespace
-        )
-        if hasattr(leases, "__await__"):
-            leases = await leases
-        for lease in leases:
-            self._interactive_sources[lease.source_id] = context.initiator.key
-        self._interactive_leases[namespace] = tuple(leases)
-        self._interactive_origins[namespace] = (
-            origin.device_id,
-            origin.client_instance_id,
-            origin.generation,
-            origin.auth_epoch,
-        )
-        return (*dashboard_leases, *leases)
+        registry = getattr(self.gateway, "capabilities", None)
+        if (identity is None or registry is None or context.deferred or not context.ingress_id
+                or context.ingress_id.startswith("channel:")
+                or identity.auth_kind != "device_cert" or identity.principal_type != "user"):
+            return dashboard_leases
+        origin = current_execution_origin()
+        if origin is not None and (identity.device_id != origin.device_id or origin.registry is not registry):
+            raise PermissionError("Capability origin differs from the authenticated device")
+        connections = registry.owned_connections(identity)
+        # Old explicitly bound clients remain compatible; unknown owners never
+        # become candidates for cross-device use.
+        origins = [connection.origin(registry) for connection in connections]
+        if origin is not None and origin not in origins:
+            origins.append(origin)
+        granted = []
+        for target in origins:
+            namespace = (f"app/{context.ingress_id}/{target.device_id}/"
+                         f"{target.client_instance_id}/{target.generation}/{target.auth_epoch}")
+            leases = self._interactive_leases.get(namespace)
+            if leases is None:
+                leases = register_interactive_capabilities(
+                    self.runtime.capabilities, target, source_namespace=namespace,
+                    interaction_context=context,
+                )
+                if hasattr(leases, "__await__"):
+                    leases = await leases
+                for lease in leases:
+                    self._interactive_sources[lease.source_id] = context.initiator.key
+                self._interactive_leases[namespace] = tuple(leases)
+                self._interactive_origins[namespace] = (
+                    target.device_id, target.client_instance_id, target.generation, target.auth_epoch)
+            granted.extend(leases)
+        return (*dashboard_leases, *granted)
 
     async def authorize_agent_identity(self, actor):
         """Authorize editable persona management with the host's actual ingress.

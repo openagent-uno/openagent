@@ -3,7 +3,7 @@
 OpenAgent can execute machine-bound capabilities on the computer running an
 authenticated Desktop or CLI client. The agent itself, its sessions and enabled
 modules continue to run on the OpenAgent server; the client is a temporary
-capability host for the interactive turn it sends.
+capability host while it is connected and has consented to local access.
 
 ## Execution locations
 
@@ -13,9 +13,19 @@ source prefixes are not part of the model-facing contract. Resolution never
 crosses destinations: an unavailable client call fails instead of falling back
 to the server or another online device.
 
-The client target belongs to one turn, not to the durable session. If a session
-is resumed from another device, its next turn uses that new device. Tool results,
-status events and audit entries always include the execution host.
+For a private authenticated human ingress, the standalone grants current access
+to every consented connected device owned by that same verified human in the
+same network. Selecting a tool reference always selects one exact device,
+process and generation. Another user's devices are never inherited. Resume
+recomputes the grant set from current ownership and connections; a saved session
+or offline inventory confers no access. Channels, deferred work and agent
+certificates inherit no interactive device grants. Tool results, status events
+and audit entries include the exact execution host.
+
+Core exposes optional interaction grants and generic sources. It imposes no
+client/user count, enrollment scheme or sharing policy: hosts can use zero, one
+or many clients and supply different authorized topologies through public
+contracts. The standalone's same-owner policy is product composition.
 
 ## What is local
 
@@ -177,3 +187,42 @@ press across an idempotent replay. This is source qualification; published
 host-tools dependencies, release locks, installed applications and other native
 platforms are unchanged. Rebuild and verify the release artifacts before
 claiming installed-product adoption.
+
+## Devices and session details
+
+The App sidebar includes **Devices**, a responsive grid of known computers with
+online/offline status and the modules each host advertises. Restarting a client
+process does not create a second card for the same certified device. A device
+is online here while its consented capability connection is live; opening an
+App without enabling its local tools does not grant the agent those tools.
+Offline inventory is descriptive and cannot authorize execution.
+
+Session details contain **Participants** (current presence and authors retained
+across the authorized session, independently of loaded transcript pages) and **Devices** used by client-tool invocations.
+Device-use metadata starts with this feature; it does not claim to reconstruct
+older history. The standalone keeps this metadata beside its main database in
+`<database path>.devices.sqlite3`; include it in installation backup/retention.
+It contains device identities, labels, module names and timestamps, never tool
+arguments, file contents or screenshots.
+
+**Open a computer** lists currently authorized `computer` capabilities, including
+the agent environment when its configured tool source provides a real desktop.
+It opens a responsive modal with screen refresh, pointer actions, scrolling,
+keyboard shortcuts and direct typing. It uses the same public capability catalog
+and exact references as agent execution, with current session/device checks on
+every request. Interaction is deterministic and does not start a model turn.
+Qualified desktop hosts advertise optional `openagent-video/1` support. Their
+view receives continuous H.264 video over the authenticated session connection,
+with bounded encoding/decoding queues and current authorization on every packet.
+Closing, disconnecting, revoking access or a slow viewer stops its owned producer;
+no video recording is persisted. Core owns generic stream authorization, Tools
+owns capture/encoding/decoding, and the standalone owns identity and transport.
+Server-host desktops use the same optional public adapter when their configured
+native source passes protocol qualification. No virtual desktop is provisioned.
+Older hosts use a screenshot fallback every 500 milliseconds, with at most one
+request in flight; its polling stops on close, hidden page or error. Streaming
+hosts issue no screenshot polling. Input is
+ordered, bounded, and never automatically retried after an uncertain failure.
+Closing the view cancels pending reads best-effort; a sent input may have already
+executed. An offline/revoked desktop is never replaced by another destination.
+OS screen-capture/input permission failures are displayed by the view.

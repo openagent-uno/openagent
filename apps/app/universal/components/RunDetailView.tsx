@@ -44,7 +44,7 @@ import { useConnection } from '../stores/connection';
 import { useAutoScroll } from '../hooks/useAutoScroll';
 import Markdown from './Markdown';
 import MessageList from './MessageList';
-import SharedPresence, { useSharedView } from './SharedPresence';
+import { useSharedView } from './SharedPresence';
 import MessageComposer from './MessageComposer';
 import type {
   BlockType,
@@ -210,7 +210,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
       : <EmptyNote text="This run produced no transcript." />;
   }
   return (
-    <><SharedPresence kind="session" id={sessionId} /><MessageList
+    <MessageList
       sessionId={sessionId}
       messages={display}
       isProcessing={streaming}
@@ -221,7 +221,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
         const path = runRoutePath(target);
         if (path) openDetached(router, path);
       }}
-    /></>
+    />
   );
 }
 

@@ -1038,6 +1038,8 @@ class Gateway:
             ],
         )
         app["gateway"] = self  # accessible in handlers via request.app["gateway"]
+        from openagent_server.device_directory import directory_for
+        self.capabilities.record_device_use = directory_for(self).used
         self.sessions.set_db(self.agent.memory_db)
         self._register_routes(app)
         # Operational migration/backfill/search warming is lifecycle-owned.
@@ -1365,6 +1367,13 @@ class Gateway:
     def _register_routes(self, app) -> None:
         """Register the gateway WebSocket endpoint and REST API routes."""
         from openagent_server import runtime_service as runtime_api
+        from .api import devices as devices_api
+        app.router.add_get("/api/devices", devices_api.handle_devices)
+        app.router.add_get("/api/sessions/{session_id}/computer-stream", devices_api.handle_stream)
+        app.router.add_get("/api/sessions/{session_id}/participants", devices_api.handle_participants)
+        app.router.add_get("/api/sessions/{session_id}/devices", devices_api.handle_session_devices)
+        app.router.add_get("/api/sessions/{session_id}/computer-targets", devices_api.handle_targets)
+        app.router.add_post("/api/sessions/{session_id}/computer", devices_api.handle_computer)
         from .api import mcp_apps as mcp_apps_api
         app.router.add_post("/api/sessions/{session_id}/mcp-apps/{operation:.+}", mcp_apps_api.handle)
         from openagent_server.automation_management import handle_authorize, handle_authorization
@@ -2079,6 +2088,9 @@ class Gateway:
             conn = await self.capabilities.register(
                 device_id=cert.device_pubkey_hex,
                 account_id=cert.network_id,
+                media_protocols=hello.get("media_protocols"),
+                owner_handle=cert.handle,
+                owner_kind="agent" if "agent" in cert.capabilities else "user",
                 client_instance_id=hello.get("client_instance_id"),
                 generation=hello.get("generation"),
                 device_label=hello.get("device_label"),
@@ -2089,6 +2101,8 @@ class Gateway:
                 auth_epoch=auth_epoch,
                 auth_epoch_reader=lambda: auth_state.device_epoch(cert.device_pubkey),
             )
+            from openagent_server.device_directory import directory_for
+            await directory_for(self).remember(conn)
             await self._safe_ws_send_json(ws, {
                 "type": P.CAPABILITY_HELLO_ACK,
                 "protocol": CAPABILITY_PROTOCOL,
@@ -2123,6 +2137,11 @@ class Gateway:
                             generation=frame.get("generation"),
                             servers=frame.get("servers"),
                         )
+                        if getattr(self, "runtime_service", None) is not None:
+                            self.runtime_service.revoke_device_origin(conn)
+                        await directory_for(self).remember(conn)
+                    elif t in {"client_media_packet", "client_media_end"}:
+                        self.capabilities.receive_media(conn, frame)
                     elif t == P.CLIENT_TOOL_RESULT:
                         self.capabilities.resolve_result(conn, frame)
                     elif t == P.CLIENT_TOOL_EVENT:
@@ -2146,6 +2165,7 @@ class Gateway:
                         ):
                             break
                         conn.last_seen_at = time.time()
+                        await directory_for(self).remember(conn)
                         await self._safe_ws_send_json(ws, {
                             "type": P.CAPABILITY_HEARTBEAT_ACK,
                             "generation": conn.generation,
@@ -2176,7 +2196,11 @@ class Gateway:
             if conn is not None:
                 if getattr(self, "runtime_service", None) is not None:
                     self.runtime_service.revoke_device_origin(conn)
-                await self.capabilities.unregister(conn)
+                from openagent_server.device_directory import directory_for
+                try:
+                    await directory_for(self).remember(conn)
+                finally:
+                    await self.capabilities.unregister(conn)
                 elog(
                     "gateway.capability_disconnect",
                     client_id=conn.device_id,

@@ -1,3 +1,4 @@
+import type { ClientMediaOpen } from '../../../common/client-capabilities';
 import WebSocket, { type RawData } from 'ws';
 import { createHash } from 'crypto';
 import {
@@ -49,6 +50,7 @@ export interface CapabilitySocketOptions {
   deviceLabel: string;
   getOffer: () => CapabilityOffer;
   invoke: (call: ClientToolCall, signal: AbortSignal) => Promise<unknown>;
+  openMedia?: (call:ClientMediaOpen, signal:AbortSignal, onPacket:(packet:Record<string,unknown>)=>void)=>Promise<void>;
   readResource?: (call: ClientResourceRead, signal: AbortSignal) => Promise<unknown>;
   onPhase?: (phase: CapabilityConnectionPhase, error?: string) => void;
   onActivity?: (activeCalls: number) => void;
@@ -64,6 +66,7 @@ export interface CapabilitySocketOptions {
  * after this exact instance reconnects in the same generation.
  */
 export class CapabilitySocket {
+  private media = new Map<string,AbortController>();
   private socket: WebSocket | null = null;
   private stopped = true;
   private acknowledged = false;
@@ -167,6 +170,7 @@ export class CapabilitySocket {
         device_label: this.options.deviceLabel,
         network_id: this.options.trustedAccountId,
         servers: offer.servers,
+        media_protocols: this.options.openMedia ? ['openagent-video/1'] : [],
       });
     });
 
@@ -271,6 +275,12 @@ export class CapabilitySocket {
         this.active.get(frame.call_id)?.abort(frame.reason || 'Cancelled by server');
         return;
       }
+      case 'client_media_close':
+        if(frame.generation===this.options.getOffer().generation)this.media.get(frame.stream_id)?.abort();
+        return;
+      case 'client_media_open':
+        void this.handleMedia(frame);
+        return;
       case 'client_resource_read':
         await this.handleResourceRead(frame);
         return;
@@ -306,6 +316,25 @@ export class CapabilitySocket {
       if(!controller.signal.aborted)await this.sendError(call,error);
     }
     finally{clearTimeout(timer);this.active.delete(call.call_id);this.options.onActivity?.(this.active.size)}
+  }
+
+  private async handleMedia(frame:ClientMediaOpen):Promise<void> {
+    if(!this.acknowledged||typeof frame.stream_id!=='string'||!frame.stream_id||frame.stream_id.length>128||frame.generation!==this.options.getOffer().generation||frame.account_id!==this.options.trustedAccountId
+      ||frame.network_id!==undefined&&frame.network_id!==this.options.trustedAccountId||this.media.has(frame.stream_id))return;
+    const abort=new AbortController();this.media.set(frame.stream_id,abort);let queued=0,failed=false;const pending=new Set<Promise<void>>();
+    try {
+      if(!this.options.openMedia||this.media.size>4)throw new Error('media_unavailable');
+      await this.options.openMedia(frame,abort.signal,packet=>{
+        if(abort.signal.aborted)return;
+        if(++queued>4){failed=true;abort.abort();return;}
+        const task=this.send({type:'client_media_packet',stream_id:frame.stream_id,generation:frame.generation,packet},abort.signal)
+          .catch(()=>{failed=true;abort.abort();}).finally(()=>{queued--;pending.delete(task);});pending.add(task);
+      });
+    } catch {failed=true;} finally {
+      await Promise.allSettled(pending);
+      await this.send({type:'client_media_end',stream_id:frame.stream_id,generation:frame.generation,...(failed?{error:'encoder_unavailable'}:{})}).catch(()=>{});
+      abort.abort();this.media.delete(frame.stream_id);
+    }
   }
 
   private async handleToolCall(call: ClientToolCall): Promise<void> {
@@ -509,6 +538,8 @@ export class CapabilitySocket {
   }
 
   private abortAll(reason: string): void {
+    for(const media of this.media.values())media.abort(reason);
+    this.media.clear();
     for (const controller of this.active.values()) controller.abort(reason);
     this.active.clear();
     this.options.onActivity?.(0);

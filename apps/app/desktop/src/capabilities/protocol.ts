@@ -131,6 +131,14 @@ export function parseCapabilityServerFrame(raw: string): CapabilityServerFrame {
         invalid('duplicate must be a boolean');
       }
       return frame as unknown as CapabilityServerFrame;
+    case 'client_media_close':
+      requireString(frame, 'stream_id'); requireGeneration(frame);
+      return frame as unknown as CapabilityServerFrame;
+    case 'client_media_open':
+      for (const key of ['stream_id','server','tool','session_id','account_id']) requireString(frame,key);
+      requireGeneration(frame);
+      if (!frame.options || typeof frame.options !== 'object' || Array.isArray(frame.options) || JSON.stringify(frame.options).length>8192) invalid('invalid media options');
+      return frame as unknown as CapabilityServerFrame;
     case 'client_resource_read':
       for (const key of ['call_id', 'server', 'uri', 'session_id', 'account_id']) requireString(frame, key);
       requireGeneration(frame);

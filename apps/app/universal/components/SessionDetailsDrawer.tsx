@@ -10,6 +10,8 @@
  */
 
 import Feather from '@expo/vector-icons/Feather';
+import SessionDevices from './SessionDevices';
+import SharedPresence from './SharedPresence';
 import {
   createDrawerNavigator,
   useDrawerStatus,
@@ -620,6 +622,12 @@ function SessionDetailsContent({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        <Section title="Participants">
+          <SharedPresence id={session.id} detailed />
+        </Section>
+        <Section title="Devices">
+          <SessionDevices sessionId={session.id} />
+        </Section>
         <Section title="Current context">
           {session.contextUsage?.context_window ? (
             <ContextPanel

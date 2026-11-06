@@ -47,6 +47,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     return { type: 'empty' };
   }
   if (
+    moduleName.startsWith('@openagent/desktop-tools/') ||
     moduleName === 'shiki' ||
     moduleName.startsWith('shiki/') ||
     moduleName.startsWith('@shikijs/')

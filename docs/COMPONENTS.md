@@ -54,7 +54,10 @@ Iroh transport; do not substitute one protocol for the other by path guessing.
 4. Results and progress return through current audience authorization and replay;
    the UI does not infer success from an acknowledged transport request.
 
-App dashboard/local-device sources belong to the authenticated originating turn.
+App dashboards belong to their authenticated originating turn. For a private
+human ingress the standalone can grant all currently consented devices owned by
+that verified human in the same network. Core does not infer this ownership
+policy or require clients.
 CLI local tools require its own consent. Channels and unattended tasks do not
 inherit a connected client's device merely because it is online. The server may
 register its own explicit durable tools with different source references.

@@ -255,6 +255,8 @@ async def _teardown_session(gateway, db, sid: str) -> None:
     # Announce so every connected client drops the row from its sidebar live
     # (a session deleted on one device vanishes on the others).
     if gateway is not None:
+        from openagent_server.device_directory import directory_for
+        await directory_for(gateway).forget_session(sid)
         try:
             gateway.broadcast_session("deleted", sid)
         except Exception:

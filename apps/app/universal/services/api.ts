@@ -1937,3 +1937,15 @@ export const officialConnectorsAPI = {
  selectMicrosoftDrive: (id: string, body: { drive_id: string; page_token?: string }) => put<MicrosoftConnectorSelection>(`/api/connectors/${encodeURIComponent(id)}/microsoft-drive`, body),
  disconnect: (id: string) => del(`/api/connectors/${encodeURIComponent(id)}`),
 };
+
+// ── Connected computers ──────────────────────────────────────────────
+export const listDevices = (signal?: AbortSignal) => get<{ devices: import('../../common/devices').ConnectedDevice[] }>('/api/devices', signal);
+export const listSessionDevices = (sessionId: string, signal?: AbortSignal) => get<{ devices: import('../../common/devices').SessionDevice[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/devices`, signal);
+export const listComputerTargets = (sessionId: string, signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/computer-targets`, signal);
+export const interactWithComputer = (sessionId: string, toolRef: string, action: import('../../common/devices').ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}, signal?: AbortSignal) => post<unknown>(`/api/sessions/${encodeURIComponent(sessionId)}/computer`, { tool_ref: toolRef, action, ...input }, signal);
+
+export interface SessionParticipant { id:string; handle:string; display:string }
+export async function getSessionParticipants(sessionId:string):Promise<SessionParticipant[]> {
+  const result=await get<{participants:SessionParticipant[]}>(`/api/sessions/${encodeURIComponent(sessionId)}/participants`);
+  return result.participants;
+}

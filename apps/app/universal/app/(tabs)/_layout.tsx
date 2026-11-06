@@ -17,7 +17,7 @@
 
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { usePathname, useRouter, withLayoutContext } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Platform, View } from 'react-native';
 import Sidebar from '../../components/Sidebar';
 import DrawerResizeHandle from '../../components/DrawerResizeHandle';
@@ -50,6 +50,23 @@ import {
 
 const { Navigator } = createDrawerNavigator();
 const Drawer = withLayoutContext(Navigator);
+
+function DrawerBreakpoint({ navigation, permanent, children }: {
+  navigation: { openDrawer: () => void; closeDrawer: () => void };
+  permanent: boolean;
+  children: ReactNode;
+}) {
+  const previous = useRef(permanent);
+  useEffect(() => {
+    if (previous.current === permanent) return;
+    previous.current = permanent;
+    // A permanent drawer's open state must not slide a phone-sized scene
+    // offscreen after a window resize. Keep the navigator and drafts mounted.
+    if (permanent) navigation.openDrawer();
+    else navigation.closeDrawer();
+  }, [navigation, permanent]);
+  return <>{children}</>;
+}
 
 async function initializeAccountSearch(accountId: string, force = false): Promise<void> {
   await useSearch.getState().initialize(accountId, force);
@@ -174,7 +191,8 @@ export default function AppDrawerLayout() {
           backBehavior="history"
           defaultStatus={permanent ? 'open' : 'closed'}
           drawerContent={(props: any) => (
-            permanent
+            <DrawerBreakpoint navigation={props.navigation} permanent={permanent}>
+            {permanent
               ? (
                   <View
                     ref={sidebarInertRef}
@@ -204,7 +222,8 @@ export default function AppDrawerLayout() {
                   <Sidebar
                     onNavigate={() => props.navigation.closeDrawer()}
                   />
-                )
+                )}
+            </DrawerBreakpoint>
           )}
           screenOptions={{
             headerShown: false,
@@ -243,6 +262,7 @@ export default function AppDrawerLayout() {
         {/* Leaf screens render the drawer header directly. */}
         <Drawer.Screen name="chat" options={leaf('Chat')} />
         <Drawer.Screen name="model" options={leaf('Model')} />
+        <Drawer.Screen name="devices" options={leaf('Devices')} />
         <Drawer.Screen name="system" options={leaf('System')} />
         <Drawer.Screen name="logs" options={leaf('Logs')} />
         <Drawer.Screen name="settings" options={leaf('Settings')} />

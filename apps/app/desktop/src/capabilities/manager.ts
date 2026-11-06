@@ -1,3 +1,5 @@
+import { NativeScreenStream, nativeHelper } from '@openagent/desktop-tools';
+import type { ClientMediaOpen } from '../../../common/client-capabilities';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   CapabilityProtocolError,
@@ -53,6 +55,7 @@ export class CapabilityManager {
   private pendingToolEvents = new Map<string, PendingToolEvent>();
   private stalePrincipals = new Map<string, Record<string, unknown>>();
   private host: LocalHostBridge;
+  private mediaLaunch: {command:string;args:string[]} | null = null;
   private hostReady = false;
   private consentVerified = false;
   private hostStarting: Promise<void> | null = null;
@@ -70,6 +73,7 @@ export class CapabilityManager {
   private consentWriteInProgress = false;
 
   constructor(private readonly options: CapabilityManagerOptions) {
+    try { this.mediaLaunch = nativeHelper(process.platform,process.arch,"view"); } catch { /* Unqualified platforms advertise no stream. */ }
     this.consent = options.consentStore.get();
     this.emergencyRevokePending =
       options.consentStore.getEmergencyRevokePending?.() ?? false;
@@ -452,6 +456,7 @@ export class CapabilityManager {
       deviceLabel: this.options.deviceLabel,
       getOffer: () => ({ generation: this.generation, servers: this.servers }),
       invoke: (call, signal) => this.invoke(accountId, call, signal),
+      ...(this.mediaLaunch ? {openMedia:(call:ClientMediaOpen,signal:AbortSignal,onPacket:(packet:Record<string,unknown>)=>void)=>this.openMedia(accountId,call,signal,onPacket)} : {}),
       readResource: (call, signal) => this.readResource(accountId, call, signal),
       onPhase: (phase, error) => {
         this.socketPhases.set(channelKey, phase);
@@ -470,6 +475,23 @@ export class CapabilityManager {
     this.drainPendingToolEvents(accountId, socket);
     socket.start();
     this.emitStatus();
+  }
+
+  private async openMedia(accountId:string,call:ClientMediaOpen,signal:AbortSignal,onPacket:(packet:Record<string,unknown>)=>void):Promise<void> {
+    const target=this.targets.get(accountId),server=this.servers.find(source=>source.name===call.server);
+    if(!this.mediaLaunch||this.emergencyBlocked||!this.consent.enabled||!this.consentVerified||!this.hostReady||!this.host.running||!target
+      ||call.account_id!==target.networkId||call.generation!==this.generation||call.server!=='computer-control'||call.tool!=='computer'
+      ||!server?.tools.some(tool=>tool.name===call.tool)||signal.aborted)throw new Error('media_unavailable');
+    do {
+    if(this.emergencyBlocked||!this.consent.enabled||!this.consentVerified||!this.hostReady||!this.host.running||call.generation!==this.generation||this.targets.get(accountId)!==target)throw new Error('media_revoked');
+    const stream=new NativeScreenStream(this.mediaLaunch);
+    await new Promise<void>((resolve,reject)=>{
+      const stop=()=>{stream.stop();resolve();};signal.addEventListener('abort',stop,{once:true});if(signal.aborted){stop();return;}
+      void stream.start(call.options,packet=>onPacket(packet as unknown as Record<string,unknown>),error=>{
+        signal.removeEventListener('abort',stop);if(error)reject(error);else resolve();
+      }).catch(error=>{signal.removeEventListener('abort',stop);reject(error);});
+    });
+    } while(!signal.aborted);
   }
 
   private async readResource(accountId:string,call:ClientResourceRead,signal:AbortSignal):Promise<unknown> {
