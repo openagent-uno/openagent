@@ -45,7 +45,7 @@ from openagent_core.core import paths
 from openagent_product_config.paths import ensure_agent_dir
 from openagent_core.core.config import load_config
 from openagent_core.core.logging import setup_logging
-from openagent_core.core.serve_singleton import kill_stale_serve_processes
+from openagent_server.serve_instance import exclusive_server_instance, ServerInstanceInUse
 from openagent_server.server import AgentServer
 from openagent_identity.auth.peer_policy import PeerPolicyError
 from openagent_identity.cli_commands import network_group
@@ -727,8 +727,10 @@ def serve(
         _reload_context_config(ctx, str(paths.default_config_path()))
 
     active_dir = paths.get_agent_dir()
-    if active_dir is not None:
-        kill_stale_serve_processes(active_dir)
+    try:
+        ctx.with_resource(exclusive_server_instance(active_dir))
+    except ServerInstanceInUse as error:
+        raise click.ClickException(str(error)) from None
 
     # Igiene del disco, accanto a quella dei processi. Ogni invocazione del
     # binario si estrae in /tmp/_MEI* e ripulisce uscendo; una uccisa prima

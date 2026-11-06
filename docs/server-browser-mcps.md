@@ -48,6 +48,15 @@ window decorations in place. The desktop must not depend on a browser unit: clos
 must leave the desktop and taskbar usable. A browser exit can end its CDP tools
 until reopened; it must not terminate the computer or agent service.
 
+Use `Restart=always` with a bounded `RestartSec` for the persistent desktop;
+an explicit operator stop still stops it. The standalone holds a nonblocking
+kernel-backed installation lock for the lifetime of `serve`. A competing start
+fails without terminating an existing server, browser, desktop or unrelated
+process. It never infers ownership from command-line words. A crashed owner's
+lock is released by the OS; the separate lock file is not the
+database itself. Its presence alone never proves ownership. Core's historical process-termination helpers are deprecated
+no-ops starting with 1.1.0b51; lifecycle policy belongs to the application host.
+
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its
 port stable for the MCP configuration, and run the browser under a service
