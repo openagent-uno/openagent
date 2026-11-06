@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-06",
+  "product": {
+    "version": "1.1.9b9",
+    "tag": "v1.1.9-beta.9",
+    "source_commit": "12887706bd6e61930f04295e1ccaa9ee1ed8d330",
+    "published_wheels": 7,
+    "anonymous_https_wheel_and_manifest_checks": 8,
+    "installer_verified_first_party_wheels": 39,
+    "installer_release_manifests": 9
+  },
+  "dependencies": {
+    "core": "1.1.0b48",
+    "device_tools": "1.0.0b18",
+    "desktop_tools": "0.1.0",
+    "host_tools": "1.0.0b15",
+    "product_config": "1.1.0b20",
+    "channel_bridges": "0.1.0b19"
+  },
+  "native_host": {
+    "source_commit": "57addfae2ca7dfc24148e0f93e515a01bc17e0ab",
+    "qualification_run": 42219813682,
+    "publication_and_anonymous_https_verification_run": 42225469729,
+    "qualified_platforms": 6,
+    "verified_public_assets": 16,
+    "native_macos_helper_preserved": true,
+    "macos_signed_notarized_stapled": true,
+    "windows_authenticode_claimed": false
+  },
+  "app": {
+    "version": "1.1.0-beta.25",
+    "source_commit": "842a236b62afb71afb3402043ef050a69a30a20c",
+    "build_run": 42225770140,
+    "state": "qualification-running-not-published"
+  },
+  "limits": [
+    "Device and authenticated transport acceptance uses local hosts on one physical computer",
+    "UI acceptance uses deterministic desktop fixtures",
+    "No physical two-machine or live-provider acceptance is claimed"
+  ]
+}

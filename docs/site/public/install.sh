@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install the current OpenAgent 1.1 stable server or CLI from pinned
+# Install the qualified OpenAgent 1.1 server or CLI from pinned
 # canonical, independently versioned GitHub release manifests.
 set -eu
 
@@ -16,7 +16,7 @@ while [ "$#" -gt 0 ]; do
         --check) CHECK_ONLY="1"; shift ;;
         -h|--help)
             cat <<'EOF'
-OpenAgent 1.1 stable installer
+OpenAgent 1.1 installer
 
 Flags:
   --server       Install the standalone server (default)
