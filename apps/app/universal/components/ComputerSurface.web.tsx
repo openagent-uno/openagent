@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { ComputerAction, ComputerFrame } from '../../common/devices';
 import { screenCoordinate } from '../../common/devices';
 
@@ -10,6 +10,30 @@ export interface ComputerSurfaceProps { children?: ReactNode; frame: ComputerFra
 export default function ComputerSurface({ frame, width, label, send, children }: ComputerSurfaceProps) {
   const surface = useRef<HTMLDivElement>(null);
   const keyboard = useRef<HTMLTextAreaElement>(null);
+  const focusClaimUntil = useRef(0);
+  useLayoutEffect(() => {
+    const element = surface.current;
+    // A newly opened Modal may complete its initial focus restoration just
+    // after the user's first click. Keep that click's keyboard claim through
+    // the opening transition, without trapping deliberate outside interaction.
+    const reclaim = (event: FocusEvent) => {
+      if (performance.now() < focusClaimUntil.current && !element?.contains(event.target as Node))
+        keyboard.current?.focus({ preventScroll: true });
+    };
+    const outside = (event: PointerEvent) => {
+      if (!element?.contains(event.target as Node)) focusClaimUntil.current = 0;
+    };
+    const release = () => { focusClaimUntil.current = 0; };
+    document.addEventListener('focusin', reclaim);
+    document.addEventListener('pointerdown', outside, true);
+    window.addEventListener('blur', release);
+    return () => {
+      focusClaimUntil.current = 0;
+      document.removeEventListener('focusin', reclaim);
+      document.removeEventListener('pointerdown', outside, true);
+      window.removeEventListener('blur', release);
+    };
+  }, []);
   const down = useRef<{ x: number; y: number; at: number; button: number } | null>(null);
   const click = useRef<{ timer: ReturnType<typeof setTimeout>; xy: [number, number]; at: number } | null>(null);
   const hover = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -51,6 +75,7 @@ export default function ComputerSurface({ frame, width, label, send, children }:
     onContextMenu={event => event.preventDefault()}
     onPointerDown={event => {
       clearTimeout(hover.current); hover.current = undefined;
+      focusClaimUntil.current = performance.now() + 500;
       event.preventDefault(); keyboard.current?.focus({ preventScroll: true });
       const [x, y] = coordinate(event);
       down.current = { x, y, at: Date.now(), button: event.button };

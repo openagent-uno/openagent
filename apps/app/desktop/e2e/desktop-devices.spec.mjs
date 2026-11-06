@@ -140,6 +140,10 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Send text',exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Right click',exact:true})).toHaveCount(0);
     await screen.click({position:{x:70,y:40}});
+    // Reproduce an opening Modal restoring focus after the first pointer
+    // event. The user's first characters must still reach the exact computer.
+    await page.getByRole('button',{name:'Close',exact:true}).evaluate(element=>element.focus());
+    await expect(page.getByLabel('Remote keyboard capture',{exact:true})).toBeFocused();
     await page.keyboard.type('Hello from the viewer');
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='type').map(c=>c.text).join('')).toBe('Hello from the viewer');
     await screen.click({position:{x:100,y:50}});
