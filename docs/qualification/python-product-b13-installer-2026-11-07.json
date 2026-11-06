@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "product_source_commit": "1a3dd5f2f3b98d4e901731aeb0cffdcb47876a27",
+  "product_manifest_sha256": "13904abed7f03aebc02d5bd84dc1a43673ab0f8eaf873abc4899b558ec53a273",
+  "installer_sha256": "da3fdb59cd59fb6a58a878e4fc55d03227647621791dbb07a7d2b774ee45ff85",
+  "verified_first_party_wheels": 39,
+  "public_manifests": 8,
+  "core_version": "1.1.0b50",
+  "product_config_version": "1.1.0b21",
+  "remote_wheelhouse_check": "passed",
+  "native_app_release": "separate qualification",
+  "host_rollout": "separate private receipt"
+}
