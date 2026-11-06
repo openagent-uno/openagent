@@ -38,8 +38,44 @@ jobs:
           path: ${{ runner.temp }}/product-wheels/*
           if-no-files-found: error
           retention-days: 5
+  qualify-session-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked App dependencies
+        run: |
+          npm --prefix apps/app/universal ci --no-fund --no-audit
+          npm --prefix apps/app/desktop ci --no-fund --no-audit
+      - name: Check types and shared interaction policies
+        working-directory: apps/app
+        run: |
+          (cd universal && npx tsc --noEmit)
+          npm --prefix desktop test
+          node --experimental-strip-types --test common/__tests__/*.test.mjs
+      - name: Build and verify responsive sharing and desktop input twice
+        working-directory: apps/app
+        env:
+          OPENAGENT_DEVICE_UI_EVIDENCE: ${{ runner.temp }}/session-ui-evidence
+        run: |
+          npm --prefix universal run build:web
+          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs --repeat-each=2 --workers=1)
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: session-ui-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/session-ui-evidence
+            apps/app/desktop/test-results
+          if-no-files-found: ignore
+          retention-days: 5
   publish:
-    needs: qualify
+    needs: [qualify, qualify-session-ui]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v1.1.9-beta.') && github.repository == 'openagent-uno/openagent'
     runs-on: ubuntu-24.04
     permissions:
