@@ -212,3 +212,78 @@ async def t_handle_normalisation(ctx: TestContext) -> None:
     assert inv["role"] == "device", \
         f"case/whitespace-bearing handle must still match: {inv}"
     assert inv["bind_to_handle"] == "alessandro"
+
+
+@test("invite_smart", "--ticket-only prints one bare decodable ticket line")
+async def t_ticket_only(ctx: TestContext) -> None:
+    """Scripted provisioning reads the ticket from stdout. Rich folds long
+    tokens at the console width, so the bare mode must bypass it entirely."""
+    import contextlib
+    import io
+
+    from openagent_identity.cli_commands import _run_invite
+    from openagent_identity.ticket import InviteTicket
+
+    agent_dir = ctx.test_dir / f"invsmart-bare-{uuid.uuid4().hex[:6]}"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    db_path = agent_dir / "agent.db"
+    await _seed_network_and_user(db_path)
+
+    cli_ctx = _make_ctx(db_path, agent_dir)
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        await _run_invite(
+            cli_ctx, handle="worker", role=None, ttl=600, uses=1, ticket_only=True,
+        )
+
+    lines = output.getvalue().splitlines()
+    assert len(lines) == 1, f"expected exactly one stdout line, got {lines!r}"
+    ticket = InviteTicket.decode(lines[0])
+    inv = await _read_last_invite(db_path)
+    assert inv is not None and ticket.code == inv["code"]
+    assert ticket.role == "user"
+
+
+@test("invite_smart", "--first-user reuses the host bootstrap invite until a user exists")
+async def t_first_user(ctx: TestContext) -> None:
+    """Unattended provisioning must redeem the host-created first-user
+    invitation: only that invitation claims the agent's ``system`` owner."""
+    import contextlib
+    import io
+
+    from openagent_identity.cli_commands import _run_invite
+    from openagent_identity.ticket import InviteTicket
+
+    agent_dir = ctx.test_dir / f"invsmart-first-{uuid.uuid4().hex[:6]}"
+    agent_dir.mkdir(parents=True, exist_ok=True)
+    db_path = agent_dir / "agent.db"
+    await _seed_network_and_user(db_path)
+    cli_ctx = _make_ctx(db_path, agent_dir)
+
+    tickets = []
+    for _ in range(2):
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            await _run_invite(cli_ctx, None, None, 600, 1, ticket_only=True, first_user=True)
+        tickets.append(InviteTicket.decode(output.getvalue().strip()))
+    assert tickets[0].code == tickets[1].code, "an unspent bootstrap invite must be reused"
+    assert tickets[0].role == "user" and not tickets[0].bind_to
+
+    from openagent_core.memory.db import MemoryDB
+    from openagent_identity.coordinator.store import CoordinatorStore
+
+    db = MemoryDB(str(db_path))
+    await db.connect()
+    try:
+        await CoordinatorStore(db).create_user(
+            handle="owner", pake_record=b"\x00" * 64, pake_algo="srp6a",
+        )
+    finally:
+        await db.close()
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            await _run_invite(cli_ctx, None, None, 600, 1, ticket_only=True, first_user=True)
+    except SystemExit as exc:
+        assert exc.code == 1
+    else:
+        raise AssertionError("--first-user must fail once a user exists")

@@ -686,13 +686,16 @@ async def _show_local_tools_status() -> None:
 
 @cli.command()
 @click.argument("target")
-@click.option("--password", default=None, help="Password (omit to be prompted securely)")
+@click.option("--password", default=None, envvar="OPENAGENT_CLI_PASSWORD",
+              help="Password (omit to be prompted securely; also read from OPENAGENT_CLI_PASSWORD)")
 @click.option("--handle", "handle_override", default=None,
               help="When redeeming a user-role ticket, the handle to register as.")
 @click.option("--agent", "agent_handle", default=None,
               help="Specific agent handle to connect to (default: last used or first available)")
+@click.option("--no-interactive", "no_interactive", is_flag=True,
+              help="Join or refresh the membership, then exit without starting the REPL.")
 def connect(target: str, password: str | None, handle_override: str | None,
-            agent_handle: str | None):
+            agent_handle: str | None, no_interactive: bool):
     """Connect to an OpenAgent network and start interactive session.
 
     \b
@@ -700,12 +703,15 @@ def connect(target: str, password: str | None, handle_override: str | None,
       openagent-cli connect oa1abcdef…       # invite ticket — first time / new device
       openagent-cli connect alice@homelab    # existing membership — just need password
     """
-    asyncio.run(_run_connect(
+    joined = asyncio.run(_run_connect(
         target=target,
         password=password,
         handle_override=handle_override,
         target_agent_handle=agent_handle,
+        interactive=not no_interactive,
     ))
+    if no_interactive and not joined:
+        raise click.exceptions.Exit(EXIT_AUTH)
 
 
 async def _run_connect(
@@ -714,7 +720,8 @@ async def _run_connect(
     password: str | None,
     handle_override: str | None,
     target_agent_handle: str | None,
-):
+    interactive: bool = True,
+) -> bool:
     from .network.helpers import parse_handle_at_network
     from .network import user_store
     from .network.client.login import (
@@ -741,7 +748,7 @@ async def _run_connect(
             ticket = InviteTicket.decode(target)
         except TicketError as e:
             console.print(f"[red]Invalid ticket:[/red] {e}")
-            return
+            return False
         coordinator_node_id = ticket.coordinator_node_id
         invite_code = ticket.code
         ticket_role = ticket.role
@@ -760,14 +767,14 @@ async def _run_connect(
             ).strip().lower()
             if not handle:
                 console.print("[red]Handle required.[/red]")
-                return
+                return False
     else:
         try:
             handle, network_name = parse_handle_at_network(target)
         except ValueError as e:
             console.print(f"[red]{e}[/red]")
             console.print("[dim]Tip: paste an invite ticket (oa1…) for first-time connects.[/dim]")
-            return
+            return False
 
     store = user_store.load()
     existing = user_store.find(store, network_name, handle)
@@ -777,7 +784,7 @@ async def _run_connect(
         password = getpass.getpass(f"Password for {handle}@{network_name}: ")
     if not password:
         console.print("[red]Password is required.[/red]")
-        return
+        return False
 
     from .network.helpers import coordinator_node_id_to_pubkey_bytes
 
@@ -797,7 +804,7 @@ async def _run_connect(
                     "Paste an invite ticket (starts with [cyan]oa1[/cyan]) instead "
                     "of [cyan]handle@network[/cyan] for first-time connects.",
                 )
-                return
+                return False
             coord_pubkey = coordinator_node_id_to_pubkey_bytes(coordinator_node_id)
             # First-contact addressing hints from the ticket. The
             # coordinator's NodeId may not yet be in our local iroh
@@ -837,7 +844,7 @@ async def _run_connect(
                     )
             except LoginError as e:
                 console.print(f"[red]Login failed:[/red] {e}")
-                return
+                return False
             # The cert tells us the canonical network_id — verify and store.
             from .network.auth.device_cert import verify_cert
             from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
@@ -880,7 +887,7 @@ async def _run_connect(
                 )
             except LoginError as e:
                 console.print(f"[red]Login failed:[/red] {e}")
-                return
+                return False
             user_store.write_cert(existing, cert_wire)
             # If the user pasted a fresh ticket, persist the new
             # hints — coordinators rotate ports across restarts and the
@@ -906,6 +913,11 @@ async def _run_connect(
         await node.stop()
         raise
 
+    if not interactive:
+        # Scripted provisioning: the membership and certificate are stored;
+        # later non-interactive commands (for example ``ask``) reuse them.
+        return True
+
     try:
         from .client import GatewayClient
         client = await GatewayClient.from_network(
@@ -916,14 +928,14 @@ async def _run_connect(
         )
     except Exception as e:
         console.print(f"[red]Could not open gateway connection:[/red] {e}")
-        return
+        return False
 
     try:
         await client.connect()
     except Exception as e:
         console.print(f"[red]Connection failed:[/red] {e}")
         await client.disconnect()
-        return
+        return False
 
     # Persist the chosen agent so subsequent connects pick the same one.
     if client.target_handle:
@@ -933,6 +945,7 @@ async def _run_connect(
         user_store.save(store2)
 
     await _interactive_loop(client, network_name=network_name, handle=handle)
+    return True
 
 
 @cli.command("logout")
@@ -1192,6 +1205,228 @@ async def _run_server_info_cli(
         return 0
     except Exception as exc:  # errors are classified without echoing server/query text
         return _emit_remote_error(exc, as_json=as_json)
+    finally:
+        if client is not None:
+            await _disconnect_remote(client)
+
+
+@cli.command("ask")
+@click.option("--message", "message", default=None,
+              help="Message text for one agent turn.")
+@click.option("--message-file", "message_file", type=click.File("r", encoding="utf-8"),
+              default=None, help="Read the message from a UTF-8 file ('-' for stdin).")
+@click.option("--session", "session_id", default=None,
+              help="Session id to continue (default: a new unique session).")
+@click.option("--timeout", "timeout_seconds", type=click.FloatRange(min=1), default=3600,
+              show_default=True, help="Seconds to wait for the turn before interrupting it.")
+@click.option("--network", "network_name", default=None,
+              help="Which joined network to use (default: active).")
+@click.option("--agent", "agent_handle", default=None,
+              help="Specific agent handle on the network.")
+@click.option("--handle", "principal_handle", default=None,
+              help="Account handle on that network (required when ambiguous).")
+@click.option("--password", default=None, envvar="OPENAGENT_CLI_PASSWORD",
+              help="Only needed when the cached device certificate is stale.")
+@click.option("--json", "as_json", is_flag=True,
+              help="Emit stable machine-readable JSON.")
+def ask_cmd(message: str | None, message_file, session_id: str | None,
+            timeout_seconds: float, network_name: str | None, agent_handle: str | None,
+            principal_handle: str | None, password: str | None, as_json: bool):
+    """Send one message, wait for the complete agent turn and exit.
+
+    The turn runs with the same session, tools and policies as an interactive
+    chat. Use it from scripts and unattended jobs; it never opens the REPL.
+    """
+    if (message is None) == (message_file is None):
+        raise click.UsageError("Provide exactly one of --message or --message-file")
+    text = message if message is not None else message_file.read()
+    if not text.strip():
+        raise click.UsageError("The message is empty")
+    _finish_remote_command(asyncio.run(_run_ask_cli(
+        text, session_id or f"cli-ask-{uuid.uuid4().hex}", timeout_seconds,
+        network_name, agent_handle, principal_handle, password, as_json,
+    )))
+
+
+async def _run_ask_cli(
+    text: str,
+    session_id: str,
+    timeout_seconds: float,
+    network_name: str | None,
+    agent_handle: str | None,
+    principal_handle: str | None,
+    password: str | None,
+    as_json: bool,
+) -> int:
+    client = None
+    try:
+        client, _net = await _open_gateway_for_rest(
+            network_name, password, agent_handle,
+            principal_handle=principal_handle, quiet=True,
+        )
+        if client is None:
+            raise ConnectionError("no active OpenAgent network")
+        try:
+            reply = await asyncio.wait_for(
+                client.send_message(text, session_id), timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError:
+            try:
+                await client.send_interrupt(session_id, reason="timeout")
+            except Exception:
+                pass
+            payload = {"session_id": session_id, "status": "timed_out"}
+            if as_json:
+                _json_output(payload)
+            else:
+                console.print(Text("The agent turn exceeded --timeout and was interrupted.", style="red"))
+            return EXIT_UNAVAILABLE
+        failed = reply.get("type") == "error"
+        payload = {
+            "session_id": session_id,
+            "status": "error" if failed else "completed",
+            "text": reply.get("text") or "",
+            "model": reply.get("model"),
+            "attachments": reply.get("attachments") or [],
+            "agent_handle": client.target_handle,
+        }
+        if as_json:
+            _json_output(payload)
+        elif failed:
+            console.print(Text(payload["text"], style="red"))
+        else:
+            click.echo(payload["text"])
+        return EXIT_SERVER if failed else 0
+    except Exception as exc:
+        return _emit_remote_error(exc, as_json=as_json)
+    finally:
+        if client is not None:
+            await _disconnect_remote(client)
+
+
+_REFERENCE = re.compile(r"^\$\{(\d+)((?:\.[A-Za-z0-9_-]+)*)\}$")
+
+
+def _resolve_references(value: Any, results: list[Any]) -> Any:
+    """Replace an exact ``${N.key.key}`` string with a prior response value."""
+    if isinstance(value, dict):
+        return {key: _resolve_references(item, results) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_resolve_references(item, results) for item in value]
+    if isinstance(value, str):
+        match = _REFERENCE.match(value)
+        if match:
+            index = int(match.group(1))
+            if index >= len(results):
+                raise ValueError(f"reference {value} points to a later request")
+            current = results[index]
+            for key in filter(None, match.group(2).split(".")):
+                if isinstance(current, list) and key.isdigit():
+                    current = current[int(key)]
+                elif isinstance(current, dict) and key in current:
+                    current = current[key]
+                else:
+                    raise ValueError(f"reference {value} is not present in the response")
+            return current
+    return value
+
+
+@cli.command("request")
+@click.argument("method", required=False)
+@click.argument("path", required=False)
+@click.option("--data-file", type=click.File("r", encoding="utf-8"), default=None,
+              help="JSON request body ('-' for stdin).")
+@click.option("--batch-file", type=click.File("r", encoding="utf-8"), default=None,
+              help="JSON list of {method, path, body}; '${N.key}' reuses response N.")
+@click.option("--network", "network_name", default=None,
+              help="Which joined network to use (default: active).")
+@click.option("--agent", "agent_handle", default=None,
+              help="Specific agent handle on the network.")
+@click.option("--handle", "principal_handle", default=None,
+              help="Account handle on that network (required when ambiguous).")
+@click.option("--password", default=None, envvar="OPENAGENT_CLI_PASSWORD",
+              help="Only needed when the cached device certificate is stale.")
+def request_cmd(method: str | None, path: str | None, data_file, batch_file,
+                network_name: str | None, agent_handle: str | None,
+                principal_handle: str | None, password: str | None):
+    """Call the authenticated gateway REST API and print JSON results.
+
+    \b
+      openagent-cli request GET /api/models
+      openagent-cli request POST /api/providers --data-file provider.json
+      openagent-cli request --batch-file setup.json
+
+    Requests run in order over one connection and stop at the first HTTP
+    error. The gateway applies the account's normal authorization.
+    """
+    if batch_file is not None:
+        if method or path or data_file is not None:
+            raise click.UsageError("--batch-file cannot be combined with METHOD, PATH or --data-file")
+        try:
+            steps = json.load(batch_file)
+        except json.JSONDecodeError as exc:
+            raise click.UsageError(f"--batch-file is not JSON: {exc}")
+        if not isinstance(steps, list) or not all(
+            isinstance(step, dict) and isinstance(step.get("method"), str)
+            and isinstance(step.get("path"), str) for step in steps
+        ):
+            raise click.UsageError("--batch-file must be a list of {method, path, body}")
+    else:
+        if not method or not path:
+            raise click.UsageError("Provide METHOD and PATH, or --batch-file")
+        try:
+            body = json.load(data_file) if data_file is not None else None
+        except json.JSONDecodeError as exc:
+            raise click.UsageError(f"--data-file is not JSON: {exc}")
+        steps = [{"method": method, "path": path, "body": body}]
+    for step in steps:
+        if step["method"].upper() not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:
+            raise click.UsageError(f"Unsupported method {step['method']}")
+        if not step["path"].startswith("/api/"):
+            raise click.UsageError("Paths must start with /api/")
+    _finish_remote_command(asyncio.run(_run_request_cli(
+        steps, batch_file is not None, network_name, agent_handle, principal_handle, password,
+    )))
+
+
+async def _run_request_cli(
+    steps: list[dict],
+    batch: bool,
+    network_name: str | None,
+    agent_handle: str | None,
+    principal_handle: str | None,
+    password: str | None,
+) -> int:
+    client = None
+    try:
+        client, _net = await _open_gateway_for_rest(
+            network_name, password, agent_handle,
+            principal_handle=principal_handle, quiet=True,
+        )
+        if client is None:
+            raise ConnectionError("no active OpenAgent network")
+        bodies: list[Any] = []
+        results: list[dict] = []
+        exit_code = 0
+        for step in steps:
+            try:
+                data = _resolve_references(step.get("body"), bodies)
+            except (ValueError, IndexError) as exc:
+                results.append({"error": str(exc)})
+                exit_code = EXIT_INVALID_REQUEST
+                break
+            status, body = await client.rest_request(step["method"], step["path"], data)
+            bodies.append(body)
+            results.append({"method": step["method"].upper(), "path": step["path"],
+                            "status": status, "body": body})
+            if status >= 400:
+                exit_code = (EXIT_AUTH if status in {401, 403}
+                             else EXIT_INVALID_REQUEST if status < 500 else EXIT_SERVER)
+                break
+        _json_output({"results": results} if batch else results[0])
+        return exit_code
+    except Exception as exc:
+        return _emit_remote_error(exc, as_json=True)
     finally:
         if client is not None:
             await _disconnect_remote(client)

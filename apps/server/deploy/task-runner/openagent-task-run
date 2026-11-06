@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+"""Run exactly one OpenAgent task in a disposable agent directory, then exit.
+
+The runner composes only public product commands: ``openagent serve`` hosts
+the complete standalone agent (modules, sessions, delegation and the opted-in
+server host tools), ``openagent invite --ticket-only`` mints a single-use
+ticket, and ``openagent-cli connect --no-interactive`` joins as the first (owner) account,
+``openagent-cli request --batch-file`` applies optional setup through the
+public REST API (providers, models, MCP servers) and ``openagent-cli ask``
+submits one turn through the normal authenticated client path. Nothing here
+reimplements the agent loop or bypasses authorization.
+
+The agent directory must be new or empty: it is created from the supplied
+configuration, used for one task and discarded by the caller (for example an
+ephemeral container). Persistent state that should survive the task, such as
+a browser profile, is selected through the configuration and owned by the
+caller's storage.
+
+Inputs are consumed: the runner reads the configuration, setup batch and
+message into memory and unlinks them before the server starts, so no tool the
+agent runs can read the files that carried them. Setup and message reach the
+CLI on stdin, never through a file or argv. A read-only input (for example a
+Kubernetes Secret volume) fails the run before any agent turn; copy it into a
+private writable directory first, or pass ``--keep-inputs`` when the inputs
+hold no secrets.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import secrets
+import shutil
+import signal
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+RUNNER_HANDLE = "task-runner"
+EXIT_SETUP = 10
+
+
+def _fail(message: str, code: int = EXIT_SETUP) -> int:
+    print(f"openagent-task-run: {message}", file=sys.stderr)
+    return code
+
+
+def _write_result(path: Path | None, payload: dict) -> None:
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    if path is None:
+        print(text)
+        return
+    temporary = path.with_name(path.name + ".pending")
+    temporary.write_text(text, encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    temporary.replace(path)
+
+
+def _consume(paths: list[Path], keep: bool) -> list[bytes] | str:
+    """Read every input, then unlink it, before anything the agent runs exists.
+
+    All reads happen first, so a failed unlink never leaves a half-consumed
+    set behind a running agent: the caller aborts before ``serve`` starts.
+    """
+    contents = []
+    for path in paths:
+        # Unlinking a symbolic link would leave its target readable.
+        if not keep and path.is_symlink():
+            return (f"input {path} is a symbolic link; copy the inputs into a private "
+                    "writable directory as regular files")
+        try:
+            fd = os.open(path, os.O_RDONLY | (0 if keep else getattr(os, "O_NOFOLLOW", 0)))
+        except OSError as exc:
+            return f"cannot read {path}: {exc.strerror}"
+        with os.fdopen(fd, "rb") as handle:
+            contents.append(handle.read())
+    if keep:
+        return contents
+    for path in paths:
+        try:
+            path.unlink()
+        except OSError as exc:
+            return (f"cannot remove input {path} ({exc.strerror}); copy the inputs into a "
+                    "private writable directory the runner can empty, or pass --keep-inputs "
+                    "when they hold no secrets")
+        if os.path.lexists(path):
+            return f"input {path} is still present after removal"
+    return contents
+
+
+def _stop(server: subprocess.Popen, grace: float) -> None:
+    if server.poll() is not None:
+        return
+    # serve runs in its own process group: stop MCP children and browsers too.
+    os.killpg(server.pid, signal.SIGTERM)
+    try:
+        server.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        os.killpg(server.pid, signal.SIGKILL)
+        server.wait()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--config", required=True, type=Path,
+                        help="openagent.yaml copied into the disposable agent directory")
+    parser.add_argument("--message-file", required=True, type=Path,
+                        help="UTF-8 file with the task message")
+    parser.add_argument("--output", type=Path, default=None,
+                        help="Write the JSON result here (default: stdout)")
+    parser.add_argument("--agent-dir", type=Path,
+                        default=Path(os.environ.get("TMPDIR", "/tmp")) / "openagent-task" / "agent")
+    parser.add_argument("--timeout", type=float, default=3600,
+                        help="Seconds allowed for the agent turn")
+    parser.add_argument("--startup-timeout", type=float, default=180,
+                        help="Seconds allowed for the server to become reachable")
+    parser.add_argument("--session", default=None, help="Session id for the turn")
+    parser.add_argument("--setup-file", type=Path, default=None,
+                        help="JSON batch for `openagent-cli request --batch-file`, applied before the turn")
+    parser.add_argument("--keep-inputs", action="store_true",
+                        help="Leave the input files in place (only for inputs without secrets)")
+    args = parser.parse_args()
+
+    for command in ("openagent", "openagent-cli"):
+        if shutil.which(command) is None:
+            return _fail(f"{command} is not installed")
+    if not args.config.is_file() or not args.message_file.is_file():
+        return _fail("--config and --message-file must be regular files")
+    if args.setup_file is not None and not args.setup_file.is_file():
+        return _fail("--setup-file must be a regular file")
+
+    agent_dir = args.agent_dir.expanduser().resolve()
+    if agent_dir.exists() and any(agent_dir.iterdir()):
+        return _fail(f"{agent_dir} is not empty; the runner only uses disposable directories")
+    inputs = [args.config, args.message_file] + ([args.setup_file] if args.setup_file else [])
+    consumed = _consume(inputs, args.keep_inputs)
+    if isinstance(consumed, str):
+        return _fail(consumed)
+    config = consumed[0]
+    try:
+        message = consumed[1].decode("utf-8")
+        setup_batch = consumed[2].decode("utf-8") if args.setup_file else None
+    except UnicodeDecodeError:
+        return _fail("--message-file and --setup-file must be UTF-8")
+    agent_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    config_path = agent_dir / "openagent.yaml"
+    config_path.write_bytes(config)
+    os.chmod(config_path, 0o600)
+
+    # The client store is separate from the agent directory and from the
+    # caller's home, so one task never reuses another task's membership.
+    client_home = agent_dir.parent / "client-home"
+    client_home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    client_env = {**os.environ, "HOME": str(client_home),
+                  "OPENAGENT_CLI_PASSWORD": secrets.token_urlsafe(32)}
+
+    log_path = agent_dir.parent / "serve.log"
+    started = time.monotonic()
+    with open(log_path, "ab") as log:
+        server = subprocess.Popen(
+            ["openagent", "--agent-dir", str(agent_dir), "serve", str(agent_dir)],
+            stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    try:
+        cache = agent_dir / "coordinator_addr.json"
+        while not cache.is_file():
+            if server.poll() is not None:
+                return _fail(f"openagent serve exited with {server.returncode}; see {log_path}")
+            if time.monotonic() - started > args.startup_timeout:
+                return _fail("openagent serve did not become reachable in time")
+            time.sleep(0.5)
+
+        invite = subprocess.run(
+            ["openagent", "--agent-dir", str(agent_dir), "invite", "--first-user",
+             "--ticket-only"],
+            capture_output=True, text=True, timeout=60,
+        )
+        ticket = invite.stdout.strip()
+        if invite.returncode != 0 or not ticket.startswith("oa1"):
+            return _fail("could not obtain the first-user ticket")
+
+        joined = subprocess.run(
+            ["openagent-cli", "connect", ticket, "--handle", RUNNER_HANDLE, "--no-interactive"],
+            env=client_env, stdin=subprocess.DEVNULL, capture_output=True, text=True,
+            timeout=args.startup_timeout,
+        )
+        if joined.returncode != 0:
+            return _fail("the runner client could not join the disposable agent")
+
+        if setup_batch is not None:
+            setup = subprocess.run(
+                ["openagent-cli", "request", "--batch-file", "-", "--handle", RUNNER_HANDLE],
+                env=client_env, input=setup_batch, capture_output=True,
+                text=True, timeout=args.startup_timeout,
+            )
+            if setup.returncode != 0:
+                # Report status codes and gateway errors, never the request bodies.
+                try:
+                    results = json.loads(setup.stdout).get("results", [])
+                except (json.JSONDecodeError, AttributeError):
+                    results = []
+                summary = [{"path": r.get("path"), "status": r.get("status"),
+                            "error": (r.get("body") or {}).get("error") if isinstance(r.get("body"), dict) else r.get("error")}
+                           for r in results]
+                _write_result(args.output, {"status": "setup_failed", "exit_code": setup.returncode,
+                                            "setup": summary})
+                return setup.returncode or EXIT_SETUP
+
+        command = ["openagent-cli", "ask", "--message-file", "-",
+                   "--timeout", str(args.timeout), "--handle", RUNNER_HANDLE, "--json"]
+        if args.session:
+            command += ["--session", args.session]
+        ask = subprocess.run(command, env=client_env, input=message,
+                             capture_output=True, text=True, timeout=args.timeout + 120)
+        try:
+            payload = json.loads(ask.stdout) if ask.stdout.strip() else {}
+        except json.JSONDecodeError:
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        payload.setdefault("status", "error")
+        payload["exit_code"] = ask.returncode
+        payload["duration_seconds"] = round(time.monotonic() - started, 3)
+        _write_result(args.output, payload)
+        return ask.returncode
+    finally:
+        _stop(server, grace=30)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

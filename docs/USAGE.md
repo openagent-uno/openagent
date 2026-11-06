@@ -35,6 +35,30 @@ identity and channels. Do not run this example against an existing directory
 as an implicit migration. Preserve state, vault, keys, grants and single-writer
 ownership when upgrading; see the dated release/restore gates.
 
+## Ephemeral task runner
+
+For on-demand execution (one container or job per task, nothing left running),
+use [`apps/server/deploy/task-runner`](../apps/server/deploy/task-runner/README.md).
+`openagent-task-run` starts the complete standalone server in a disposable
+agent directory, joins it with the first-user invitation, applies optional
+REST setup and runs one turn with `openagent-cli ask`, then stops everything.
+The scripted building blocks are public commands: `openagent invite
+--first-user --ticket-only`, `openagent-cli connect --no-interactive`,
+`openagent-cli request [--batch-file]` and `openagent-cli ask --json`.
+
+The runner consumes its inputs: configuration, setup batch and message are
+read into memory and unlinked before the server starts, and setup and message
+reach the CLI on stdin. An input it cannot remove (a read-only Secret volume)
+fails the run before any agent turn, so hand inputs over through a private
+writable directory; on Kubernetes, an init container copies the Secret into
+an `emptyDir` with `medium: Memory` that only the runner mounts.
+`--keep-inputs` is for inputs without secrets. The agent's host tools still
+run as the server's account and can read what the server holds (agent
+configuration, database, sidecar environment): disable `shell`, `filesystem`
+and `editor` when a task does not need them and give each run scoped,
+short-lived credentials. The runner README has the Job layout and the full
+boundary.
+
 ## CLI and App
 
 Install `openagent-cli` from the same qualified product release. Connect it using
