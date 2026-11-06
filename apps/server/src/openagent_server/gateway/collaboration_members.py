@@ -61,6 +61,15 @@ async def handle_members(request):
                     {"error": "Expected handle and view/admin/null permission"},
                     status=400,
                 )
+            if permission is not None:
+                from openagent_core.contracts import PrincipalRef
+                directory = getattr(getattr(gateway, "runtime_service", None), "directory", None)
+                if directory is None:
+                    return web.json_response({"error": "User directory unavailable"}, status=503)
+                if not await directory.principal_active(
+                    PrincipalRef("openagent", access.tenant_id, handle, "user")
+                ):
+                    return web.json_response({"error": "User unavailable"}, status=404)
             if not await gateway._request_device_still_authorized(request, cert):
                 return web.json_response(
                     {"error": "Authentication changed"}, status=401

@@ -18,10 +18,7 @@ def qualify(wheels: Path) -> None:
     sha = subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()
     assert manifest['repository_commit'] == sha and not manifest['dirty_snapshot']
     version = json.loads((ROOT/'packaging/workspace.json').read_text())['product_version']
-    assert len(manifest['wheels']) == 8
-    config_version = tomllib.loads((ROOT/'packages/product-config/pyproject.toml').read_text())['project']['version']
-    assert all(row['version'] == (config_version if row['name'] == 'openagent-product-config' else version)
-               for row in manifest['wheels'])
+    assert len(manifest['wheels']) == 7 and all(row['version'] == version for row in manifest['wheels'])
     config = tomllib.loads((ROOT/'apps/server/pyproject.toml').read_text())
     # The source manifest is pinned by the maintained installer/pyproject cohort.
     # Direct URL wheel hashes are checked before installing any candidate.

@@ -23,11 +23,11 @@ jobs:
           uv lock --check --project apps/cli
           uv lock --check --project packages/host-tools
       - name: Build the product and independently versioned configuration packages from one clean source
-        run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport product-config
+        run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport
       - name: Install the pinned public dependency closure and candidate wheels
         run: |
-          curl --fail --location --retry 3 https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh -o "$RUNNER_TEMP/bootstrap.sh"
-          echo "4b765f994e365fc0cc9c7a4a645b8862b60fb3559e121462ac070672e55947b9  $RUNNER_TEMP/bootstrap.sh" | sha256sum --check
+          curl --fail --location --retry 3 https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.13/install.sh -o "$RUNNER_TEMP/bootstrap.sh"
+          echo "da3fdb59cd59fb6a58a878e4fc55d03227647621791dbb07a7d2b774ee45ff85  $RUNNER_TEMP/bootstrap.sh" | sha256sum --check
           OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/qualified-base" sh "$RUNNER_TEMP/bootstrap.sh" --server --prefix "$RUNNER_TEMP/qualified-bin"
           PYTHON="$RUNNER_TEMP/qualified-base/venv/bin/python"
           "$PYTHON" -m pip install pytest pytest-asyncio pytest-subtests

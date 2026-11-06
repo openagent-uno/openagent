@@ -221,7 +221,10 @@ claiming installed-product adoption.
 Session sharing opens from the share icon beside **Participants** in session
 details. Its modal supports choosing an active network user or entering an exact
 username, granting collaboration and removing existing grants. Session ACLs
-remain authoritative; sharing a conversation never shares a personal computer.
+remain authoritative; the server checks the current tenant's active native
+user directory before granting access. Unknown/suspended users are rejected
+without advancing the ACL; stale grants can still be removed. Sharing a
+conversation never shares a personal computer.
 
 The agent's own desktop is named **<Agent name>'s Computer**, distinct from
 connected-device labels. A headless server needs a complete graphical session;
