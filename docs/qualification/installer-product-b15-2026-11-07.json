@@ -1,0 +1,11 @@
+{
+  "format": 1,
+  "product_version": "1.1.9b15",
+  "core_version": "1.1.0b51",
+  "installer_sha256": "b19ce88b2942227620d293e036a09bb2e9df25dbfd22c8aeb76efc38bf54d593",
+  "qualification": "official installer --server --check on remote Linux",
+  "verified_first_party_wheels": 39,
+  "pinned_release_manifests": 9,
+  "installation_or_database_modified": false,
+  "local_mac_build_performed": false
+}

@@ -63,8 +63,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.9-beta.14', 'manifest.json', 'c1d90df9cc1137f5e7236021d5b61dda4cc276ef538f90701ddd9b22ec949d2c', 'all'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.50', 'manifest.json', '524877e376087bc0deb9ef3b46206929502cd645ec3930fb1878f0f298edbc8d', 'kernel'),
+    ('openagent-uno/openagent', 'v1.1.9-beta.15', 'manifest.json', '5f69f4b6f4f68e370e7e2a2b90ea99b1ae5e1727b781e157981280b26d9e9ea5', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.51', 'manifest.json', 'b58d62c15eca7a2ab2f97bd5d2ccf28a94bca5a63fa77e89eea0d77baff2351b', 'kernel'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'modules'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.40', 'manifest.json', '6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3', 'capability-host'),
     ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'tools-base'),

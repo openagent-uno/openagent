@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.29",
+  "source_commit": "e4bcf64ab984315f8aabc2014c04bb06c5a4189e",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42300765324",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42301194300",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.29",
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "host_tools_version": "1.0.0b15",
+  "mac_arm64_zip_sha256": "19a0456952c3b3fcc2d1eb2e109ab0b2d93cd0417e85691649ef006c8056105d",
+  "source_types_and_unit_tests": "passed",
+  "responsive_ui_scenarios": 4,
+  "real_video_decoder_overload_recovery": "passed in remote packaged qualification; exact tool only, frame rate reduced, no input replay",
+  "local_mac_build_performed": false,
+  "physical_acceptance": "separate private receipt",
+  "physical_mac_acceptance": {
+    "saved_connection_resumed": true,
+    "session_sidebar_participants_share_and_used_device": true,
+    "full_desktop_taskbar_and_window_controls": true,
+    "direct_text_and_multiline_unicode_paste": true,
+    "automatic_video_recovery_without_manual_resume": true,
+    "owned_qa_window_closed": true
+  }
+}

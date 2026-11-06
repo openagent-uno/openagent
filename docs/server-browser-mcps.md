@@ -48,6 +48,14 @@ window decorations in place. The desktop must not depend on a browser unit: clos
 must leave the desktop and taskbar usable. A browser exit can end its CDP tools
 until reopened; it must not terminate the computer or agent service.
 
+Multiple supervised browser profiles can share that same persistent desktop.
+Keep each profile directory, CDP port and ownership marker separate, while
+selecting the same DISPLAY/XAUTHORITY and desktop mount namespace for every
+browser. Otherwise browser tools may operate in a different display from the
+computer view. Verify both CDP endpoints and visible windows after moving a
+browser, and prove that restarting the agent preserves the desktop and every
+independently supervised browser PID.
+
 Use `Restart=always` with a bounded `RestartSec` for the persistent desktop;
 an explicit operator stop still stops it. The standalone holds a nonblocking
 kernel-backed installation lock for the lifetime of `serve`. A competing start
