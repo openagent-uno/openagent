@@ -182,6 +182,20 @@ stapled ticket without signing or stapling it again. Only the host facade and
 its Node runtime are signed by this packaging workflow; the assembled bundle
 still passes notarization. This preserves the upstream native artifact bytes.
 
+Run `42219813682` qualified all six native Host Tools B15 archives and their
+consumer index from source `57addfae2ca7dfc24148e0f93e515a01bc17e0ab`.
+The installer consumes the public wheel, checksum-pinned acquisition helper and
+native index. It installs the complete native bundle in a versioned directory
+and links the installed Device Tools discovery directory to that verified root.
+This includes the browser's Node runtime and dependencies without installing
+dependencies into a source checkout or changing runtime code. Existing
+independently managed discovery directories are preserved.
+
+Product packaging tests qualify these delivery contracts and standalone
+workspace/environment policy. Former tests of private Core browser and native
+implementations were replaced by host composition contracts; those
+implementations and their native acceptance now belong to Tools qualification.
+
 `Channel bridge wheel` is a manually dispatched component-only producer. Select
 an exact reviewed public source SHA and expected package version. The read-only
 builder uses the canonical wheel command on a standard public Linux runner,

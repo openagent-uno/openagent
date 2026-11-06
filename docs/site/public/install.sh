@@ -104,6 +104,16 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
     if hashlib.sha256(manifest_bytes).hexdigest() != manifest_digest:
         raise SystemExit(f"{repository} {tag}: pinned manifest checksum mismatch")
     manifest = json.loads(manifest_bytes)
+    for local_name, receipt in manifest.get("installation_files", {}).items():
+        if local_name not in {"acquire-host-tools.py", "host-tools.lock.json"}:
+            raise SystemExit("Unsupported installation helper")
+        asset = receipt.get("asset", local_name)
+        if asset not in assets:
+            raise SystemExit(f"Missing installation helper: {asset}")
+        payload = fetch(assets[asset], max_bytes=1 << 20)
+        if hashlib.sha256(payload).hexdigest() != receipt["sha256"]:
+            raise SystemExit(f"Installation helper checksum mismatch: {asset}")
+        (destination / local_name).write_bytes(payload)
     if "artifacts" in manifest:
         expected = {item.get("path", item.get("file")): item["sha256"] for item in manifest["artifacts"]}
     elif "wheels" in manifest:
@@ -223,6 +233,46 @@ EOF
 "$VENV/bin/python" -m pip install --disable-pip-version-check \
     --constraint "$CONSTRAINTS" --constraint "$WHEELHOUSE/first-party-constraints.txt" --find-links "$WHEELHOUSE" \
     --requirement "$WHEELHOUSE/install-requirements.txt"
+
+# The public Python facade needs the complete native distribution for browser
+# tools (including its Node runtime and dependencies), even in a wheel install.
+"$VENV/bin/python" - "$INSTALL_ROOT" "$WHEELHOUSE" <<'PY'
+import importlib.util
+import json
+import os
+from pathlib import Path
+import platform
+import sys
+import openagent_device_tools
+
+root = Path(sys.argv[1]).resolve()
+wheels = Path(sys.argv[2])
+spec = importlib.util.spec_from_file_location("verified_host_acquisition", wheels / "acquire-host-tools.py")
+acquisition = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(acquisition)
+lock_path = wheels / "host-tools.lock.json"
+lock = json.loads(lock_path.read_text())
+machine = platform.machine().lower()
+architecture = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64"}.get(machine)
+target = f"{sys.platform}-{architecture}"
+parent = root / "native-host-tools"
+output = parent / lock["version"]
+bundle = output / target
+if bundle.exists():
+    acquisition.verify_bundle(bundle, lock["platforms"][target]["bundle_manifest_sha256"], lock["version"])
+else:
+    bundle = acquisition.acquire(lock_path=lock_path, platform_key=target, output=output)
+link = Path(openagent_device_tools.__file__).parent / "bin"
+if link.exists() or link.is_symlink():
+    if not link.is_symlink() or parent not in link.resolve().parents:
+        raise SystemExit("Refusing to replace an independently managed tool directory")
+temporary = link.with_name("bin.installing")
+if temporary.exists() or temporary.is_symlink():
+    raise SystemExit("An unfinished native tool link already exists")
+temporary.symlink_to(bundle, target_is_directory=True)
+os.replace(temporary, link)
+print(f"Installed verified Host Tools {lock['version']} ({target}).")
+PY
 
 if [ "$PRODUCT" = "server" ]; then
     # Reuse the same manifest/archive verifier used by frozen server builds.

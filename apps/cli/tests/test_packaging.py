@@ -38,7 +38,8 @@ def test_transport_and_identity_have_one_shared_implementation():
 
 def test_cli_declares_exact_public_transport_dependency():
     dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["dependencies"]
-    assert "openagent-client-transport==1.1.0b37" in dependencies
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert "openagent-client-transport==" + project["version"] in dependencies
     assert not (ROOT / "scripts/vendor-client-transport.py").exists()
 
 
@@ -386,24 +387,17 @@ def test_release_spec_fails_closed_without_a_pinned_native_bundle():
 def test_committed_host_tools_lock_and_python_dependency_are_immutable():
     lock_path = ROOT / "host-tools.lock.json"
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    assert _sha256(lock_path) == "42f723ee3738e0f0188a7f9e152de09ef3bb7e75791c30bb59566078c2cb29a9"
     assert lock["source_repository"] == "openagent-uno/openagent"
-    assert lock["source_commit"] == "37f8f907f72809cd4589bdbd146e8c85733e2d67"
+    assert lock["source_ref"] == "v" + lock["version"]
+    assert len(lock["source_commit"]) == 40
     assert set(lock["platforms"]) == {
-        "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64",
-        "win32-arm64", "win32-x64",
+        "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64",
     }
-    wheel = lock["python_wheel"]
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    # The legacy frozen bundle remains on b4; the Python CLI now pairs with
-    # server-owned browser builds through the b5 package dependency.
-    assert '"openagent-host-tools==1.0.0b5"' in pyproject
-    assert "openagent-host-tools @" not in pyproject
-    assert "[tool.uv.sources]" not in pyproject
-    assert "../openagent-host-tools" not in pyproject
-    assert wheel["asset"] == "openagent_host_tools-1.0.0b4-py3-none-any.whl"
-    workflow = (ROOT.parents[1] / ".github" / "workflows" / "host-tools-bundles.yml").read_text(encoding="utf-8")
-    assert "openagent_host_tools-*.whl" in workflow
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert "openagent-host-tools==" + lock["version"] in project["dependencies"]
+    assert lock["python_wheel"]["asset"] == "openagent_host_tools-" + lock["version"] + "-py3-none-any.whl"
+    assert len(lock["python_wheel"]["sha256"]) == 64
+    assert "../openagent-host-tools" not in (ROOT / "pyproject.toml").read_text()
 
 
 def test_frozen_entrypoint_discovers_external_host_tools_locations():

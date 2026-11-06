@@ -13,13 +13,18 @@
   "tests": {
     "core": 720,
     "core_subtests": 97,
+    "standalone": 459,
+    "standalone_subtests": 72,
+    "installed_device_and_iroh_contracts": 15,
+    "cli_and_product_packaging": 177,
     "desktop": 134,
     "ui_e2e": 4,
-    "host_tools": 127,
+    "host_tools": 128,
     "real_installed_device_media": 6,
     "authenticated_iroh_device_scenario": 1
   },
-  "windows_broker": "Authentication secrets are opened in binary mode so CR/LF and control bytes survive storage; rejected peers do not terminate the accept loop. Binary roundtrip and broker/provider tests: 31 passed locally; Windows distribution qualification is recorded separately.",
+  "windows_broker": "Authentication secrets are opened in binary mode so CR/LF and control bytes survive storage; rejected peers do not terminate the accept loop. Binary roundtrip and broker/provider tests: 31 passed locally; all six Host Tools distribution targets passed run 42219813682.",
+  "iroh_cleanup": "The configured event-loop adapter marshals UniFFI foreign cleanup through call_soon_threadsafe. The installed Iroh scenario passes with unraisable callbacks treated as errors.",
   "verification_limits": [
     "UI E2E uses synthetic desktop frames and an exact target fixture",
     "Authenticated Iroh scenario uses two real local hosts on one physical Mac and a deterministic model provider",

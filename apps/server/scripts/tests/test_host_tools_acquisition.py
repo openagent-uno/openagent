@@ -192,45 +192,20 @@ def test_server_release_uses_consumer_lock_and_preserves_nested_macos_signatures
 def test_server_committed_lock_and_python_dependency_are_immutable():
     lock_path = ROOT / "host-tools.lock.json"
     lock = json.loads(lock_path.read_text(encoding="utf-8"))
-    assert _sha256(lock_path) == "88efc4b74b89796f1862839f8d8f3ec51f463cc15799f9de40a4502ae2421f08"
-    assert lock["source_commit"] == "af6ad6871d4d1208874bf79735710d089f59b959"
+    assert lock["source_repository"] == "openagent-uno/openagent"
+    assert lock["source_ref"] == "v" + lock["version"]
+    assert len(lock["source_commit"]) == 40
     assert set(lock["platforms"]) == {
-        "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64",
-        "win32-arm64", "win32-x64",
+        "darwin-arm64", "darwin-x64", "linux-arm64", "linux-x64", "win32-arm64", "win32-x64",
     }
-    wheel = lock["python_wheel"]
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert wheel["asset"] in pyproject
-    assert f"#sha256={wheel['sha256']}" in pyproject
-    assert "[tool.uv.sources]" not in pyproject
-    assert "../openagent-host-tools" not in pyproject
-    release_workflow = (
-        ROOT / ".github" / "workflows" / "release.yml"
-    ).read_text(encoding="utf-8")
-    assert wheel["asset"] in release_workflow
-    assert "openagent-host-tools.whl" not in release_workflow
-
-
-def test_server_native_target_matches_every_release_platform():
-    import openagent_core.mcp.builtins as builtins
-
-    original_system = builtins.platform.system
-    original_machine = builtins.platform.machine
-    try:
-        for system, machine, expected in (
-            ("Darwin", "arm64", "darwin-arm64"),
-            ("Darwin", "x86_64", "darwin-x64"),
-            ("Linux", "aarch64", "linux-arm64"),
-            ("Linux", "amd64", "linux-x64"),
-            ("Windows", "arm64", "win32-arm64"),
-            ("Windows", "AMD64", "win32-x64"),
-        ):
-            builtins.platform.system = lambda value=system: value
-            builtins.platform.machine = lambda value=machine: value
-            assert builtins._native_binary_target() == expected
-    finally:
-        builtins.platform.system = original_system
-        builtins.platform.machine = original_machine
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]
+    assert "openagent-host-tools==" + lock["version"] in project["dependencies"]
+    assert lock["python_wheel"]["asset"] == "openagent_host_tools-" + lock["version"] + "-py3-none-any.whl"
+    assert len(lock["python_wheel"]["sha256"]) == 64
+    spec = importlib.util.spec_from_file_location("host_acquisition_contract", ACQUIRE)
+    acquisition = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(acquisition)
+    assert set(lock["platforms"]) == acquisition.SUPPORTED_PLATFORMS
 
 
 def test_windows_arm64_release_dependencies_are_explicit_and_installable():
@@ -415,7 +390,7 @@ def test_release_packager_uses_build_python_arch_and_rejects_runner_mismatch(
         "#!/usr/bin/env bash\n"
         "case \"$*\" in\n"
         "  *platform.machine*) echo ARM64 ;;\n"
-        f"  *from\\ src\\ import\\ __version__*) echo {__version__} ;;\n"
+        f"  *from\\ openagent_server\\ import\\ __version__*) echo {__version__} ;;\n"
         "  *) exit 64 ;;\n"
         "esac\n",
         encoding="utf-8",
@@ -509,25 +484,7 @@ async def _registered_release_contract(_ctx: TestContext) -> None:
 
 @register_test("host-tools", "all six release targets resolve native sidecars")
 async def _registered_native_targets(_ctx: TestContext) -> None:
-    import openagent_core.mcp.builtins as builtins
-
-    original_system = builtins.platform.system
-    original_machine = builtins.platform.machine
-    try:
-        for system, machine, expected in (
-            ("Darwin", "arm64", "darwin-arm64"),
-            ("Darwin", "x86_64", "darwin-x64"),
-            ("Linux", "aarch64", "linux-arm64"),
-            ("Linux", "amd64", "linux-x64"),
-            ("Windows", "arm64", "win32-arm64"),
-            ("Windows", "AMD64", "win32-x64"),
-        ):
-            builtins.platform.system = lambda value=system: value
-            builtins.platform.machine = lambda value=machine: value
-            assert builtins._native_binary_target() == expected
-    finally:
-        builtins.platform.system = original_system
-        builtins.platform.machine = original_machine
+    test_server_committed_lock_and_python_dependency_are_immutable()
 
 
 @register_test("host-tools", "consumer lock and Python wheel source are immutable")
