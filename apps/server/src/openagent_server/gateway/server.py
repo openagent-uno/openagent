@@ -2338,9 +2338,12 @@ class Gateway:
                             CustomViewInputError,
                             CustomViewNotFound,
                             CustomViewRateLimited,
+                            CustomViewRevisionUnavailable,
                         )
 
-                        if isinstance(exc, CustomViewRateLimited):
+                        if isinstance(exc, CustomViewRevisionUnavailable):
+                            code, message = "ui_revision_unavailable", CustomViewRevisionUnavailable.public_message
+                        elif isinstance(exc, CustomViewRateLimited):
                             code, message = "rate_limited", str(exc)
                         elif isinstance(exc, CustomViewConflict):
                             code, message = "revision_conflict", str(exc)

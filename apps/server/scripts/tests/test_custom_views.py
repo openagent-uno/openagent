@@ -1357,7 +1357,9 @@ async def t_ui_manager_bundle_preflight(ctx: TestContext) -> None:
         adapters.MAX_BUNDLE_BYTES = 8
         adapters.MAX_SCRIPT_BYTES = 8
         try:
-            toolkit = adapters.build_runtime_toolkit(pool)
+            async def authenticated_access():
+                return _access("tenant-toolkit", "alice")
+            toolkit = adapters.build_runtime_toolkit(pool, access_provider=authenticated_access)
             create = toolkit.async_functions["ui_create_view"].entrypoint
             assert create is not None
             decode_calls = 0
@@ -1439,6 +1441,7 @@ async def t_custom_view_rest(ctx: TestContext) -> None:
                 device_pubkey_hex=f"device-{handle}",
                 capabilities=[],
             )
+            request["auth_kind"] = "device_cert"
             request["device_cert"] = cert
             request["network_id"] = tenant
             request["user_handle"] = handle
@@ -1567,6 +1570,7 @@ async def t_custom_view_rest(ctx: TestContext) -> None:
                 device_pubkey_hex="device-alice",
                 capabilities=[],
             )
+            direct_request["auth_kind"] = "device_cert"
             direct_request["device_cert"] = direct_cert
             direct_request["network_id"] = tenant
             direct_request["user_handle"] = "alice"

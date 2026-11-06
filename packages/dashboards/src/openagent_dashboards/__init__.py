@@ -12,6 +12,7 @@ from .repository import (
     CustomViewNotFound,
     CustomViewRateLimited,
     CustomViewRepository,
+    CustomViewRevisionUnavailable,
 )
 from .service import CustomViewService, service_for_db, service_for_gateway
 
@@ -20,6 +21,7 @@ __all__ = [
     "CustomViewNotFound",
     "CustomViewRateLimited",
     "CustomViewRepository",
+    "CustomViewRevisionUnavailable",
     "CustomViewService",
     "OAUIValidationError",
     "compile_oaui",

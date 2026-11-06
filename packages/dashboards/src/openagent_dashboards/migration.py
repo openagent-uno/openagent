@@ -76,6 +76,7 @@ async def ensure_custom_views_storage(conn: Any, *, app_version: str) -> bool:
         raise CustomViewMigrationError("custom-views-v1 checksum differs from the migration ledger")
     if existing is not None and str(existing[1]) == "complete":
         await _verify(conn)
+        await ensure_revision_head_guard(conn, app_version=app_version)
         return False
 
     now_ms = int(time.time() * 1000)
@@ -114,6 +115,7 @@ async def ensure_custom_views_storage(conn: Any, *, app_version: str) -> bool:
             (done_ms, done_ms, MIGRATION_ID),
         )
         await conn.commit()
+        await ensure_revision_head_guard(conn, app_version=app_version)
         return True
     except Exception as exc:
         await conn.rollback()
@@ -128,3 +130,41 @@ async def ensure_custom_views_storage(conn: Any, *, app_version: str) -> bool:
         except Exception:
             await conn.rollback()
         raise
+
+
+_HEAD_GUARD_ID = "custom-views-revision-head-v1"
+_HEAD_GUARD_SQL = """CREATE TRIGGER IF NOT EXISTS ui_views_revision_head_guard
+BEFORE UPDATE OF latest_revision ON ui_views
+WHEN NEW.latest_revision != OLD.latest_revision AND NOT EXISTS (
+    SELECT 1 FROM ui_view_revisions r
+    WHERE r.view_id=NEW.id AND r.tenant_id=NEW.tenant_id AND r.revision=NEW.latest_revision
+)
+BEGIN
+    SELECT RAISE(ABORT, 'Custom View head requires a persisted revision');
+END"""
+
+
+async def ensure_revision_head_guard(conn: Any, *, app_version: str) -> None:
+    """Add a separate immutable ledger entry; never rewrite the v1 migration.
+
+    Does not repair historical data or change a view's selected revision. A
+    damaged legacy view remains diagnosable without preventing unrelated chat
+    or views from starting.
+    """
+    checksum = hashlib.sha256(_HEAD_GUARD_SQL.encode()).hexdigest()
+    existing = await (await conn.execute(
+        "SELECT checksum FROM schema_migrations WHERE migration_id=?", (_HEAD_GUARD_ID,),
+    )).fetchone()
+    if existing is not None and str(existing[0]) != checksum:
+        raise CustomViewMigrationError("Custom View revision guard checksum differs from the ledger")
+    await conn.execute(_HEAD_GUARD_SQL)
+    now = int(time.time() * 1000)
+    await conn.execute(
+        "INSERT OR IGNORE INTO schema_migrations "
+        "(migration_id,checksum,description,status,started_at_ms,completed_at_ms,"
+        "app_version,runner_id,error_class,created_at_ms,updated_at_ms) "
+        "VALUES (?,?,?,'complete',?,?,?, ?,NULL,?,?)",
+        (_HEAD_GUARD_ID, checksum, 'require a persisted revision before publishing a view head',
+         now, now, app_version, f'pid:{os.getpid()}', now, now),
+    )
+    await conn.commit()

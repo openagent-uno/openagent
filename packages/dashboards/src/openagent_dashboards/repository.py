@@ -46,6 +46,12 @@ class CustomViewError(RuntimeError):
     pass
 
 
+class CustomViewRevisionUnavailable(CustomViewError):
+    """The exact persisted revision is missing or failed integrity checks."""
+
+    public_message = "This Custom View revision is unavailable. Ask the owner to restore it from a verified backup."
+
+
 class CustomViewNotFound(CustomViewError):
     pass
 
@@ -884,15 +890,18 @@ class CustomViewRepository:
             )
         ).fetchone()
         if revision is None:
-            raise CustomViewError("Custom View revision is missing")
+            raise CustomViewRevisionUnavailable("Custom View revision is missing")
         evidence = await self._revision_evidence(conn, str(row["id"]), selected_revision)
-        bundle = self.bundles.read_revision(
-            evidence, view_id=str(row["id"]), revision=selected_revision,
-        )
+        try:
+            bundle = self.bundles.read_revision(
+                evidence, view_id=str(row["id"]), revision=selected_revision,
+            )
+        except (OSError, ValueError) as exc:
+            raise CustomViewRevisionUnavailable("Custom View revision failed integrity verification") from exc
         try:
             compiled = compile_oaui(spec=bundle.get("spec"))
         except OAUIValidationError as exc:
-            raise CustomViewError("Custom View bundle contains an invalid compiled definition") from exc
+            raise CustomViewRevisionUnavailable("Custom View bundle contains an invalid compiled definition") from exc
         output = self._summary(row)
         # ``revision`` is the immutable definition selected by the caller;
         # ``latestRevision`` lets subscribers decide whether they are viewing
@@ -1542,23 +1551,6 @@ class CustomViewRepository:
             status = "expired" if new_expires is not None and new_expires <= now_ms else "active"
             await conn.execute("BEGIN IMMEDIATE")
             try:
-                cursor = await conn.execute(
-                    "UPDATE ui_views SET title=?, description=?, icon=?, visibility=?, status=?, "
-                    "latest_revision=?, search_text=?, sidebar_order=?, sidebar_group=?, frozen=?, "
-                    "frozen_at_ms=?, expires_at_ms=?, updated_at_ms=?, deleted_at_ms=NULL "
-                    "WHERE id=? AND latest_revision=? AND status<>'deleted'",
-                    (
-                        new_title, new_description, new_icon, new_visibility, status,
-                        next_revision,
-                        _view_search_text(new_title, new_description, new_spec),
-                        new_sidebar_order,
-                        new_sidebar_group, int(new_frozen),
-                        (now_ms if new_frozen else None), new_expires, now_ms,
-                        view_id, expected_revision,
-                    ),
-                )
-                if cursor.rowcount != 1:
-                    raise CustomViewConflict("Custom View revision changed")
                 await conn.execute(
                     "INSERT INTO ui_view_revisions "
                     "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -1578,6 +1570,23 @@ class CustomViewRepository:
                     conn, view_id=view_id, tenant_id=access.tenant_id,
                     revision=next_revision, actions=new_actions, now_ms=now_ms,
                 )
+                cursor = await conn.execute(
+                    "UPDATE ui_views SET title=?, description=?, icon=?, visibility=?, status=?, "
+                    "latest_revision=?, search_text=?, sidebar_order=?, sidebar_group=?, frozen=?, "
+                    "frozen_at_ms=?, expires_at_ms=?, updated_at_ms=?, deleted_at_ms=NULL "
+                    "WHERE id=? AND latest_revision=? AND status<>'deleted'",
+                    (
+                        new_title, new_description, new_icon, new_visibility, status,
+                        next_revision,
+                        _view_search_text(new_title, new_description, new_spec),
+                        new_sidebar_order,
+                        new_sidebar_group, int(new_frozen),
+                        (now_ms if new_frozen else None), new_expires, now_ms,
+                        view_id, expected_revision,
+                    ),
+                )
+                if cursor.rowcount != 1:
+                    raise CustomViewConflict("Custom View revision changed")
                 await conn.commit()
             except BaseException:
                 try:
@@ -1671,13 +1680,6 @@ class CustomViewRepository:
             status = "expired" if expires_at is not None and expires_at <= now_ms else "active"
             await conn.execute("BEGIN IMMEDIATE")
             try:
-                cursor = await conn.execute(
-                    "UPDATE ui_views SET status=?, latest_revision=?, expires_at_ms=?, "
-                    "deleted_at_ms=NULL, updated_at_ms=? WHERE id=? AND latest_revision=?",
-                    (status, next_revision, expires_at, now_ms, view_id, expected_revision),
-                )
-                if cursor.rowcount != 1:
-                    raise CustomViewConflict("Custom View revision changed")
                 await conn.execute(
                     "INSERT INTO ui_view_revisions "
                     "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -1697,6 +1699,13 @@ class CustomViewRepository:
                     conn, view_id=view_id, tenant_id=access.tenant_id,
                     revision=next_revision, actions=current["actions"], now_ms=now_ms,
                 )
+                cursor = await conn.execute(
+                    "UPDATE ui_views SET status=?, latest_revision=?, expires_at_ms=?, "
+                    "deleted_at_ms=NULL, updated_at_ms=? WHERE id=? AND latest_revision=?",
+                    (status, next_revision, expires_at, now_ms, view_id, expected_revision),
+                )
+                if cursor.rowcount != 1:
+                    raise CustomViewConflict("Custom View revision changed")
                 await conn.commit()
             except BaseException:
                 try:
@@ -1846,13 +1855,6 @@ class CustomViewRepository:
         now_ms = _now_ms()
         await conn.execute("BEGIN IMMEDIATE")
         try:
-            cursor = await conn.execute(
-                "UPDATE ui_views SET latest_revision=?, updated_at_ms=? "
-                "WHERE id=? AND latest_revision=? AND status<>'deleted'",
-                (next_revision, now_ms, row["id"], expected_revision),
-            )
-            if cursor.rowcount != 1:
-                raise CustomViewConflict("Custom View revision changed")
             await conn.execute(
                 "INSERT INTO ui_view_revisions "
                 "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -1872,6 +1874,13 @@ class CustomViewRepository:
                 conn, view_id=str(row["id"]), tenant_id=str(row["tenant_id"]),
                 revision=next_revision, actions=current["actions"], now_ms=now_ms,
             )
+            cursor = await conn.execute(
+                "UPDATE ui_views SET latest_revision=?, updated_at_ms=? "
+                "WHERE id=? AND latest_revision=? AND status<>'deleted'",
+                (next_revision, now_ms, row["id"], expected_revision),
+            )
+            if cursor.rowcount != 1:
+                raise CustomViewConflict("Custom View revision changed")
             await conn.commit()
         except BaseException:
             try:

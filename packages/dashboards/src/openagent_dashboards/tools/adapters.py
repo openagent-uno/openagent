@@ -34,6 +34,7 @@ from openagent_dashboards.repository import (
     CustomViewImmutable,
     CustomViewInputError,
     CustomViewNotFound,
+    CustomViewRevisionUnavailable,
 )
 from openagent_dashboards.service import service_for_db
 from openagent_identity.runtime_access import AccessContext
@@ -65,6 +66,8 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
         )
 
     def safe_error(exc: Exception) -> dict[str, Any]:
+        if isinstance(exc, CustomViewRevisionUnavailable):
+            return {"ok": False, "error": "revision_unavailable", "message": exc.public_message}
         if isinstance(exc, CustomViewConflict):
             return {"ok": False, "error": "revision_conflict", "message": str(exc)}
         if isinstance(exc, CustomViewNotFound):

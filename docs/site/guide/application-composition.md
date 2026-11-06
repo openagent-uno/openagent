@@ -235,3 +235,21 @@ provider acceptance. It must establish:
 
 These are architecture acceptance gates. They do not assert that a calendar,
 task tracking system or document editor has been implemented or qualified.
+
+
+### Custom View revision integrity
+
+Definition updates persist the immutable revision, sources and actions before
+publishing its head in the same SQL transaction. The additive
+`custom-views-revision-head-v1` ledger entry installs a database guard rejecting
+head changes to absent revision rows, including writes outside the repository.
+The original `custom-views-v1` migration checksum stays unchanged.
+
+Reads always verify the exact selected revision and its bundle checksum. Missing
+or damaged definitions return `ui_revision_unavailable` (REST 503, or the same
+WebSocket error code), with a diagnostic-free recovery message. They never
+silently display an older definition or execute its actions. ACL checks still
+precede revision reads. This additive guard does not automatically change
+historical data or prevent unrelated chat from starting. A host repairing old
+heads must first back up affected rows, verify the replacement bundle and
+preserve live data, ownership, grants and revision history.

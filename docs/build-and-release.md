@@ -218,3 +218,19 @@ component tag, uploads a draft prerelease, downloads and compares all uploaded
 bytes, and then publishes. It refuses an existing tag and never replaces assets
 or retries a failed publication. A failed draft/tag remains for explicit review.
 Anonymous public download verification and consumer adoption are separate gates.
+
+## Python product cohorts
+
+`.github/workflows/product-python-release.yml` builds the seven product wheels
+on a hosted Linux runner from a clean source commit, installs the public pinned
+Core cohort and runs both root tests and the deterministic Custom Views protocol
+suite. Tag publication consumes those qualified exact wheel artifacts and refuses
+to overwrite an existing release. `scripts/qualify_python_product.py` verifies
+source provenance, versions, direct URL digests and installed import ownership.
+Native App and Host Tools releases stay independent for server-only changes.
+
+The installer is bound after the wheel manifest digest is known: update its
+product/Core manifest pins, qualify the complete installed closure, then upload
+the exact installer and provenance receipt to that same immutable release.
+Verify every public asset's digest and size before host rollout. A wheel-only
+release does not by itself prove the installer, native App or deployed host.
