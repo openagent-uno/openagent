@@ -176,6 +176,12 @@ product release receipt.
 
 ## Manual channel component workflow
 
+Host Tools B15 copies the complete qualified helper from the pinned public
+Device Tools wheel. macOS packaging verifies its signature, team and existing
+stapled ticket without signing or stapling it again. Only the host facade and
+its Node runtime are signed by this packaging workflow; the assembled bundle
+still passes notarization. This preserves the upstream native artifact bytes.
+
 `Channel bridge wheel` is a manually dispatched component-only producer. Select
 an exact reviewed public source SHA and expected package version. The read-only
 builder uses the canonical wheel command on a standard public Linux runner,

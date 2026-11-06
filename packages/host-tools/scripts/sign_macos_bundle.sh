@@ -65,10 +65,8 @@ codesign --force --sign "$identity" --identifier com.openagent.host-tools.node \
   --options runtime --timestamp --entitlements "$repo_root/scripts/entitlements-node.plist" "$bundle/node"
 codesign --force --sign "$identity" --identifier com.openagent.host-tools \
   --options runtime --timestamp --entitlements "$repo_root/scripts/entitlements-host.plist" "$bundle/openagent-host-tools"
-codesign --force --sign "$identity" --identifier com.openagent.computer-control \
-  --options runtime --timestamp "$helper/Contents/MacOS/openagent-computer-control"
-codesign --force --sign "$identity" --identifier com.openagent.computer-control \
-  --options runtime --timestamp "$helper"
+# Device Tools supplies an already signed, notarized and stapled helper.
+# Preserve those qualified bytes and their stable application identity.
 
 codesign --verify --deep --strict --verbose=2 "$helper"
 codesign --verify --strict --verbose=2 "$bundle/node"
@@ -91,6 +89,5 @@ else
     --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" \
     --team-id "$APPLE_TEAM_ID" --wait
 fi
-xcrun stapler staple "$helper"
 xcrun stapler validate "$helper"
 spctl --assess --type execute --verbose=4 "$helper"
