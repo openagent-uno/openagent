@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "1.1.9b12",
+  "source_commit": "d9aaef6e7f3219bc4bd20a807e00f9a748f0074e",
+  "manifest_sha256": "3887560430147d3063424e54bf3a693a6ff9b3078d79cb8800bdc33883773a42",
+  "core_version": "1.1.0b50",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42255962437",
+  "root_tests_passed": 465,
+  "root_tests_skipped": 1,
+  "subtests_passed": 72,
+  "custom_view_protocol_scenarios_passed": 20,
+  "source_lock_checks": [
+    "server",
+    "cli",
+    "host-tools"
+  ],
+  "installed_dependency_check": "passed",
+  "native_app_version": "1.1.0-beta.26",
+  "host_tools_version": "1.0.0b15",
+  "native_build_performed": false,
+  "host_acceptance": "separate_private_rollout_receipt",
+  "installer_sha256": "5489c0e0480aa4c185b84bc68afa6a928958f483539e400403af1f281fe2ca11",
+  "public_installer_wheelhouse_verified": true,
+  "verified_first_party_wheels": 39
+}

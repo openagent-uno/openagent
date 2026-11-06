@@ -234,3 +234,10 @@ product/Core manifest pins, qualify the complete installed closure, then upload
 the exact installer and provenance receipt to that same immutable release.
 Verify every public asset's digest and size before host rollout. A wheel-only
 release does not by itself prove the installer, native App or deployed host.
+
+A maintainer may also promote the unchanged artifact of a successful manual
+candidate run: verify its source commit, clean manifest, installed tests and
+wheel digests, create the immutable tag at that exact commit, and publish those
+same artifacts. Cancel a redundant tag-triggered build rather than replacing
+the qualified wheels with a rebuild. Keep the qualification run in the public
+receipt and never overwrite a published asset.
