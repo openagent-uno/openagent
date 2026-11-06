@@ -49,5 +49,6 @@
     "The tests reproduce an unbounded pre-submission wait under a nonresponding dependency; they do not attribute an unobserved production wait to a particular dependency",
     "The complete suite passes without skips on the declared Core/SQLite beta42 minimum; the beta45 environment lacks only the unrelated optional Telegram SDK",
     "No public package version, immutable artifact, host dependency or provider configuration changed"
-  ]
+  ],
+  "candidateVersion": "0.1.0b19"
 }

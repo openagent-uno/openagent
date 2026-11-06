@@ -15,6 +15,15 @@ Host adoption and real provider acceptance remain separate boundaries.
 The preceding beta17 [public receipt](../../docs/qualification/channel-telegram-command-menu-public-2026-11-03.json)
 retains its separate Core/SQLite beta44 qualification.
 
+Beta19 is a source candidate. It bounds the complete additional-history
+preparation for Slack and Discord to 120 seconds, including host authorization,
+provider pagination, downloads and transcription. Expiry reports unavailable
+history before submission; it does not silently submit a partial context.
+Cancellation and revocation retain their existing semantics. The
+[source qualification](../../docs/qualification/channel-history-preparation-source-2026-11-06.json)
+uses provider-free NDJSON socket tests; this is not a published wheel or live
+provider acceptance.
+
 Beta16 inherits the command catalogue and reset semantics from Core beta42 or
 newer. Hosts advertise `core_commands` scopes rather than duplicating command
 names. `/new`, `/clear` and `/reset` stop current work, clear queued input and
