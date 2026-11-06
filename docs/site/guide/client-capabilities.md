@@ -260,6 +260,10 @@ rate (20 to 10 to 5 fps), with at most three recoveries in 30 seconds. This neve
 replays input; access failures, malformed packets and unsupported decoders remain
 explicit errors. A renewed stream revalidates the same tool reference and owns a
 new encoder; its previous encoder and decoder are closed first.
+The App renews a healthy viewing stream after 270 seconds, before the public
+300-second producer limit. Renewal reauthorizes the same exact tool and never
+replays pointer or keyboard operations. Pause and close cancel renewal; a
+revoked or unavailable destination remains an explicit failure.
 Closing, disconnecting, revoking access or a slow viewer stops its owned producer;
 no video recording is persisted. Core owns generic stream authorization, Tools
 owns capture/encoding/decoding, and the standalone owns identity and transport.
@@ -274,9 +278,16 @@ changing pointer/shortcut order, so fast typing does not fill the input queue
 with one request per character. Ctrl/Command+V uses the viewer's normal paste
 event and sends its text to the exact computer, independently of the remote
 computer's clipboard.
+Modified letter shortcuts send the base lowercase key plus explicit modifiers;
+Shift is applied once. Ordinary text input keeps its original case and Unicode.
 Closing the view cancels pending reads best-effort; a sent input may have already
 executed. An offline/revoked desktop is never replaced by another destination.
 OS screen-capture/input permission failures are displayed by the view.
+
+A new local chat has no durable session authorization yet. Its details explain
+that the first message starts the session, and defer participant, sharing,
+device and related-run requests until then. A server-confirmed history entry or
+live run clears this local UI hint; it never grants access by itself.
 
 ## Cold desktop helper startup
 

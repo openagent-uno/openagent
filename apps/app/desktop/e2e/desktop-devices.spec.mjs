@@ -18,7 +18,7 @@ function fixturePng() {
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 class DeviceGateway extends DeterministicGateway {
-  calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0;
+  calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0; draftRequests=[];
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
@@ -40,6 +40,7 @@ class DeviceGateway extends DeterministicGateway {
   async close(){for(const server of [this.videoServer,this.collaborationServer]){for(const socket of server?.clients||[])socket.terminate();server?.close();}await super.close();}
   async handleHttp(request,response) {
     const path=new URL(request.url,'http://fixture').pathname;
+    if (/^\/api\/sessions\/session-/.test(path)) this.draftRequests.push(path);
     const reply=(value,status=200)=>{response.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));};
     if(path==='/api/collaboration')return reply({version:1});
     if(path==='/api/network/users')return reply({users:[{handle:'bob',status:'active'},{handle:'suspended-user',status:'suspended'}]});
@@ -77,6 +78,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
   try {
     app=await electron.launch({...(process.env.OPENAGENT_E2E_ELECTRON_PATH ? {executablePath:process.env.OPENAGENT_E2E_ELECTRON_PATH} : {}),args:[ROOT,`--user-data-dir=${userData}`],cwd:ROOT,env:{...process.env,NODE_ENV:'test',OPENAGENT_DESKTOP_E2E:'1',OPENAGENT_DESKTOP_E2E_RENDERER_URL:`${gateway.baseUrl}/devices`,OPENAGENT_DESKTOP_E2E_LOOPBACK:JSON.stringify(gateway.loopbackConfig()),ELECTRON_DISABLE_SECURITY_WARNINGS:'true'}});
     const page=await app.firstWindow();
+    if(live)await page.clock.install();
     await page.setViewportSize({width:1440,height:960});
     await page.evaluate(async({port})=>{
       const account={id:'devices-test',name:'Device Test',network:'device-network',handle:'alice',agentHandle:'agent',isLocal:true,createdAt:Date.now()};
@@ -186,6 +188,9 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect.poll(()=>gateway.calls.filter(c=>c.action==='left_click_drag').length).toBe(1);
     await screen.press('ArrowRight');
     await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='Right')).toBe(true);
+    await page.keyboard.press('Control+Shift+t');
+    await expect.poll(()=>gateway.calls.some(c=>c.action==='key'&&c.text==='ctrl+shift+t')).toBe(true);
+    expect(gateway.calls.some(c=>c.action==='key'&&c.text==='ctrl+shift+T')).toBe(false);
     await page.screenshot({path:join(temporary,'computer-wide.png')});
     await page.setViewportSize({width:390,height:844});
     await expect(screen).toBeVisible();
@@ -200,6 +205,12 @@ for(const live of [false,true])test(`device directory, session inspector and res
       await expect(page.getByRole('alert')).toHaveCount(0);
       await expect.poll(()=>page.locator('canvas').evaluate(canvas=>canvas.getContext('2d').getImageData(10,10,1,1).data[3])).toBe(255);
       expect(gateway.calls.filter(call=>!['get_screenshot','mouse_move'].includes(call.action)).length).toBe(mutations);
+      await page.clock.fastForward(270_001);
+      await expect.poll(()=>gateway.streamHellos.length).toBe(3);
+      expect(gateway.streamHellos[2]).toEqual({tool_ref:'exact-agent-desktop',options:{fps:10,max_duration_seconds:300}});
+      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect.poll(()=>page.locator('canvas').evaluate(canvas=>canvas.getContext('2d').getImageData(10,10,1,1).data[3])).toBe(255);
+      expect(gateway.calls.filter(call=>!['get_screenshot','mouse_move'].includes(call.action)).length).toBe(mutations);
     }
     gateway.offline=true;
     await screen.press('Enter');
@@ -210,7 +221,13 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByRole('button',{name:'Close',exact:true}).click();
     await expect(screen).not.toBeVisible();
     expect(gateway.calls.every(c=>c.tool_ref==='exact-agent-desktop')).toBe(true);
-    if(live){await expect.poll(()=>gateway.streamCloses).toBe(2);expect(gateway.calls.some(c=>c.action==='get_screenshot')).toBe(false);}
+    if(live){await expect.poll(()=>gateway.streamCloses).toBe(3);expect(gateway.calls.some(c=>c.action==='get_screenshot')).toBe(false);}
+    await page.getByRole('button',{name:'New session',exact:true}).click();
+    await expect(page.getByText('Send the first message to start this session.',{exact:true})).toBeVisible();
+    await expect(page.getByText('Computers and device history are available after this session starts.',{exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
+    await expect(page.getByText('Update the agent server to use connected computers.',{exact:true})).toHaveCount(0);
+    expect(gateway.draftRequests).toEqual([]);
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;

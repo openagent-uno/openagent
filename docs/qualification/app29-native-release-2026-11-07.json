@@ -21,6 +21,11 @@
     "full_desktop_taskbar_and_window_controls": true,
     "direct_text_and_multiline_unicode_paste": true,
     "automatic_video_recovery_without_manual_resume": true,
-    "owned_qa_window_closed": true
+    "owned_qa_window_closed": true,
+    "agent_selected_exact_client_computer_tool": true,
+    "agent_typed_unique_marker_into_owned_native_text_editor": true,
+    "native_accessibility_text_verified_once": true,
+    "agent_gui_test_completed_successfully": true,
+    "agent_used_shell_or_ssh_for_gui_test": false
   }
 }

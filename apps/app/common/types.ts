@@ -1007,6 +1007,8 @@ export interface ChatMessage {
 }
 
 export interface ChatSession {
+  /** Created locally and not yet acknowledged by the server. UI hint only. */
+  localDraft?: boolean;
   /** An explicit access withdrawal clears every transcript projection. */
   accessRevoked?: boolean;
   sharedSnapshot?: import('./collaboration').SharedSnapshot;

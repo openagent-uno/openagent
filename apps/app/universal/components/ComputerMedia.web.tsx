@@ -16,12 +16,13 @@ export default function ComputerMedia({sessionId,target,width,paused,send,onFram
   useEffect(()=>{
     if(paused)return;
     let alive=true,queued=0,tail=Promise.resolve();
+    let renewal: ReturnType<typeof setTimeout>;
     const url=new URL(apiUrl(`/api/sessions/${encodeURIComponent(sessionId)}/computer-stream`),window.location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
     const ws=new WebSocket(url.href);
     let decoder:VideoCanvasDecoder;
     const fail=(message:string)=>{
       if(!alive)return;
-      alive=false;ws.close();decoder?.close();
+      alive=false;clearTimeout(renewal);ws.close();decoder?.close();
       const next=recoverDesktopMedia(recovery.current,performance.now(),message);
       if(next){recovery.current=next;setGeneration(next.generation);}
       else onError(message);
@@ -29,6 +30,15 @@ export default function ComputerMedia({sessionId,target,width,paused,send,onFram
     decoder=new VideoCanvasDecoder(()=>canvas.current,packet=>{
       const frame={uri:'',width:packet.width,height:packet.height,input_width:packet.input_width,input_height:packet.input_height};
       setGeometry(frame);onFrame(frame);
+      // The public stream has a bounded lifetime. Renew the viewing transport
+      // before it expires, reauthorizing the same exact tool each time.
+      clearTimeout(renewal);
+      renewal=setTimeout(()=>{
+        if(!alive)return;
+        alive=false;ws.close();decoder.close();
+        recovery.current={...recovery.current,generation:recovery.current.generation+1};
+        setGeneration(recovery.current.generation);
+      },270_000);
     },fail);
     ws.onopen=()=>{if(alive)ws.send(JSON.stringify({tool_ref:target.tool_ref,options:{fps:recovery.current.fps,max_duration_seconds:300}}));};
     ws.onmessage=event=>{
@@ -43,7 +53,7 @@ export default function ComputerMedia({sessionId,target,width,paused,send,onFram
     };
     ws.onerror=()=>fail('Desktop connection unavailable.');
     ws.onclose=()=>{if(alive)onError('Desktop disconnected. Reopen or resume the view.');};
-    return()=>{alive=false;ws.close();decoder.close();};
+    return()=>{alive=false;clearTimeout(renewal);ws.close();decoder.close();};
   },[sessionId,target.tool_ref,paused,onFrame,onError,generation]);
   if(!geometry)return <Text style={{color:colors.textMuted,padding:32}}>Connecting to desktop…</Text>;
   return <ComputerSurface frame={geometry} width={width} label={target.label} send={send}>

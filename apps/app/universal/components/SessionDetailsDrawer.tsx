@@ -367,6 +367,7 @@ function SessionDetailsContent({
   const session = useChat((state) =>
     state.sessions.find((candidate) => candidate.id === state.activeSessionId),
   );
+  const isDraft = session?.localDraft === true && !session.messages.length && !session.isProcessing;
   const relatedRunsAvailable = useSearch((state) => {
     const version = state.capabilities?.features.session_related_runs?.version;
     return version === 1 || version === 2;
@@ -386,7 +387,7 @@ function SessionDetailsContent({
   const [refreshGeneration, setRefreshGeneration] = useState(0);
 
   useEffect(() => {
-    if (!activeSessionId) {
+    if (!activeSessionId || isDraft) {
       setRelated(EMPTY_RELATED);
       setLoading(false);
       return;
@@ -442,6 +443,7 @@ function SessionDetailsContent({
   }, [
     accountId,
     activeSessionId,
+    isDraft,
     descendantsAvailable,
     historyRevision,
     recursiveRunsAvailable,
@@ -626,11 +628,11 @@ function SessionDetailsContent({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Section title="Participants" action={<SessionSharing key={`${accountId}:${session.id}`} sessionId={session.id} />}>
-          <SharedPresence id={session.id} detailed />
+        <Section title="Participants" action={!isDraft && <SessionSharing key={`${accountId}:${session.id}`} sessionId={session.id} />}>
+          {isDraft ? <Text style={styles.emptyText}>Send the first message to start this session.</Text> : <SharedPresence id={session.id} detailed />}
         </Section>
         <Section title="Devices">
-          <SessionDevices sessionId={session.id} />
+          {isDraft ? <Text style={styles.emptyText}>Computers and device history are available after this session starts.</Text> : <SessionDevices sessionId={session.id} />}
         </Section>
         <Section title="Current context">
           {session.contextUsage?.context_window ? (

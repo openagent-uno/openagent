@@ -231,6 +231,7 @@ function linkRunNowChip(sessions: ChatSession[], childSid: string): ChatSession[
 function sessionMetaFromEntry(e: SessionEntry): Partial<ChatSession> {
   const origin = (e.origin || 'chat') as ChatSession['origin'];
   return {
+    localDraft: false,
     parentSessionId: e.parent_session_id || undefined,
     origin,
     originLabel: e.kind || undefined,
@@ -787,6 +788,7 @@ export const useChat = create<ChatState>((set, get) => ({
       id,
       title: 'New Chat',
       messages: [],
+      localDraft: true,
       isProcessing: false,
       // An empty local session is not in durable history yet. Give it real
       // recency immediately so the v2 Sidebar overlay keeps it visible at the
@@ -1269,6 +1271,11 @@ export const useChat = create<ChatState>((set, get) => ({
   handleServerMessage: (msg) => set((s) => {
     const sessionId = (msg as { session_id?: string }).session_id;
     if (sessionId && sessionIsRevoked(sessionId)) return {};
+    if (sessionId && ['status', 'reasoning', 'delta', 'response', 'seed', 'text_final'].includes(msg.type)
+        && s.sessions.some(session => session.id === sessionId && session.localDraft)) {
+      s = { ...s, sessions: s.sessions.map(session => session.id === sessionId
+        ? { ...session, localDraft: false } : session) };
+    }
     noteFrame((msg as { session_id?: string }).session_id);
     // A streaming frame may arrive for a freshly-spawned child session (a
     // delegated sub-agent streaming live) a beat before the sidebar's

@@ -125,7 +125,10 @@ export default function ComputerSurface({ frame, width, label, send, children }:
       }
       event.preventDefault(); event.stopPropagation();
       const keys: Record<string, string> = { Enter: 'Return', Backspace: 'BackSpace', ArrowUp: 'Up', ArrowDown: 'Down', ArrowLeft: 'Left', ArrowRight: 'Right', ' ': 'space' };
-      void send('key', { text: [event.ctrlKey && 'ctrl', event.metaKey && 'super', event.altKey && 'alt', event.shiftKey && 'shift', keys[event.key] || event.key].filter(Boolean).join('+') });
+      // The modifier already carries Shift. Sending an uppercase Unicode key
+      // as well can make the remote keyboard synthesize a different chord.
+      const key = /^[A-Z]$/.test(event.key) ? event.key.toLowerCase() : keys[event.key] || event.key;
+      void send('key', { text: [event.ctrlKey && 'ctrl', event.metaKey && 'super', event.altKey && 'alt', event.shiftKey && 'shift', key].filter(Boolean).join('+') });
     }}
     onPaste={event => { event.preventDefault(); flushClick(); const text = event.clipboardData.getData('text/plain'); if (text) void send('type', { text }); }}>
     {children || <img src={frame.uri} alt="" draggable={false} style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'none' }} />}
