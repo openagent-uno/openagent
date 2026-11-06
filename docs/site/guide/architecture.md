@@ -138,7 +138,9 @@ turns and delayed automation do not inherit temporary device capabilities.
 The desktop selector checks the supported invocation schema: a browser-tab
 `computer` tool is not a desktop target. Live desktop media may remain idle
 without emitting frames. Capability heartbeats still check the exact connection;
-absence of screen changes does not itself disconnect the view.
+absence of screen changes does not itself disconnect the view. On narrow
+windows the composer wraps its controls while both sidebars are open, keeping
+the send action inside the available workspace.
 
 ## Identity and multiuser sessions
 

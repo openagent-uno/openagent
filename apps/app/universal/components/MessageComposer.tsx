@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 4,
   },
-  composerLeft: { flexDirection: 'row', gap: 4, alignItems: 'center' },
+  composerLeft: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center', minWidth: 0 },
   modelChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 7, paddingVertical: 3,

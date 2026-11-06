@@ -28,6 +28,8 @@ class InstallerRequirementsTests(unittest.TestCase):
                         names = [('openagent-core','6.1.0b7'), ('openagent-capability-host','1.0.0b3')]
                     elif selection == 'tools-base':
                         names = [('openagent-device-tools','1.0.0b8'), ('openagent-tool-protocol','1.0.0b2')]
+                    elif selection == 'config':
+                        names = [('openagent-framework','7.2.0b1'), ('openagent-product-config','1.1.0b20')]
                     elif tag.startswith('device-tools-'):
                         names = [('openagent-device-tools','1.0.0b10')]
                     elif repo == 'openagent-uno/openagent' and re.fullmatch(r'v\d+\.\d+\.\d+(?:-beta\.\d+)?', tag):

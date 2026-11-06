@@ -85,6 +85,16 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByLabel('Toggle session details',{exact:true}).click();
     await expect(page.getByText('Participants',{exact:true})).toBeVisible();
     await expect(page.getByText('Participated',{exact:true})).toBeVisible();
+    await page.setViewportSize({width:800,height:600});
+    await page.getByPlaceholder('Message OpenAgent...').fill('Responsive composer');
+    const send=page.getByLabel('Send message',{exact:true});
+    await expect.poll(async()=>send.evaluate(element=>{
+      const rect=element.getBoundingClientRect();
+      const hit=document.elementFromPoint(rect.x+rect.width/2,rect.y+rect.height/2);
+      return !!hit && (hit===element || element.contains(hit));
+    })).toBe(true);
+    await page.getByPlaceholder('Message OpenAgent...').fill('');
+    await page.setViewportSize({width:1440,height:960});
     await page.getByLabel('Open computer Agent environment',{exact:true}).click();
     const screen=page.getByLabel('Control Agent environment. Click and type on the desktop.',{exact:true});
     await expect(screen).toBeVisible();
