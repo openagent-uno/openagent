@@ -14,6 +14,7 @@ MAX_HISTORY_FILES = 16
 MAX_HISTORY_INPUT_BYTES = 64 << 20
 MAX_HISTORY_FILE_BYTES = 32 << 20
 HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS = 30
+HISTORY_TRANSCRIPTION_UNAVAILABLE = "[Historical audio transcription unavailable; the original audio is retained with this message.]"
 
 
 async def prepare_history_media(bridge, history, context, load, *, current_attachments=()):
@@ -77,6 +78,9 @@ async def prepare_history_media(bridge, history, context, load, *, current_attac
                     transcript = await bridge.transcribe_with_fallback(
                         loaded.local_path, context=context, attachment=loaded,
                         timeout_seconds=HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS)
+                    from .base import VOICE_FALLBACK
+                    if transcript == VOICE_FALLBACK:
+                        transcript = HISTORY_TRANSCRIPTION_UNAVAILABLE
                     context = await bridge._prepare_delivery_context(context)
                     transcriptions += 1
                     if part_count >= 256:

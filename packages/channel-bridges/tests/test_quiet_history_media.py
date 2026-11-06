@@ -184,7 +184,6 @@ async def test_slack_historical_media_only_message_roundtrips_and_cleans_request
 @pytest.mark.parametrize("revoked", [False, True])
 async def test_slow_historical_audio_keeps_original_and_cannot_block_text_or_ignore_revocation(monkeypatch, revoked):
     from openagent_channel_bridges import history_media
-    from openagent_channel_bridges.base import VOICE_FALLBACK
     monkeypatch.setattr(history_media, "HISTORY_TRANSCRIPTION_TIMEOUT_SECONDS", 0.01)
     host = Host()
 
@@ -210,7 +209,7 @@ async def test_slow_historical_audio_keeps_original_and_cannot_block_text_or_ign
         assert "answer the current text question" in str(request.parts)
         assert request.history[0].actor_id == "bob"
         assert len(host.inputs) == 1 and host.inputs[0].provider_attachment_id == "Fvoice"
-        assert any(VOICE_FALLBACK in (part.text or "") for part in request.history[0].parts)
+        assert any(history_media.HISTORY_TRANSCRIPTION_UNAVAILABLE in (part.text or "") for part in request.history[0].parts)
         assert len(client.posts) == 2
 
 
