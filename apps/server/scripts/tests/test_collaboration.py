@@ -1,7 +1,9 @@
 """Hermetic collaboration contracts: real aiohttp, SQLite and StreamSession.
 
-Run independently with ``python -m unittest scripts.tests.test_collaboration``.
-Only model output and the certificate transport are fixtures.
+Historical pre-Runtime stream fixtures; they are not current installed-product
+qualification. Canonical HTTP sharing/directory tests live in
+``tests/test_session_sharing.py``; public runtime and multi-device authority
+contracts are qualified by the root test suite.
 """
 
 import asyncio
@@ -91,14 +93,6 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
             _make_stream_post_turn_hook=lambda: None,
             _handle_command=command,
         )
-        from openagent_identity.coordinator.store import CoordinatorStore
-        from openagent_server.runtime_directory import NativeRuntimeDirectory
-        users = CoordinatorStore(self.db)
-        await users.set_network_role(role="coordinator", network_id=self.tenant, name="fixture")
-        for handle in ("alice", "bob", "charlie", "suspended"):
-            await users.create_user(handle=handle, pake_record=b"fixture", pake_algo="fixture")
-        await users.set_user_status("suspended", "suspended")
-        self.gateway.runtime_principal_active = NativeRuntimeDirectory(self.gateway, self.gateway.agent).principal_active
         self.service = self.gateway._collaboration = Collaboration(self.gateway)
         self.gateway.broadcast_resource = AsyncMock(
             side_effect=lambda *args: self.service.hub.resource(*args)
@@ -112,13 +106,10 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         )
         parts.start()
         self.addCleanup(parts.stop)
-        # Text-only contract fixture: use the public StreamSession factory
-        # seam, without the standalone audio service or removed Core helpers.
-        async def text_start(session, _gateway):
-            await session.start()
-        audio = patch("openagent_server.gateway.collaboration.start_stream", text_start)
-        audio.start()
-        self.addCleanup(audio.stop)
+        for name in ("resolve_stt", "resolve_tts"):
+            patched = patch("openagent_core.stream.session." + name, AsyncMock(return_value=None))
+            patched.start()
+            self.addCleanup(patched.stop)
 
         @web.middleware
         async def identity(request, handler):
@@ -331,31 +322,6 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await first)[0], 200)
         self.assertEqual((await second)[0], 200)
         self.assertTrue(await self.service.release_idle("chat"))
-
-    async def test_sharing_rejects_unknown_and_suspended_recipients_without_changing_acl(self):
-        url = self.server.make_url("/api/collaboration/chat/members")
-        before_response = await self.http.get(url)
-        before = await before_response.json()
-        conn = await self.db._ensure_connected()
-        before_version = (await (await conn.execute("SELECT acl_version FROM sessions_v2 WHERE id='chat'")).fetchone())[0]
-        for handle in ("unregistered", "suspended"):
-            with self.subTest(handle=handle):
-                response = await self.http.put(url, json={"handle":handle,"permission":"admin"})
-                self.assertEqual(response.status,404)
-                self.assertEqual((await response.json())["error"],"User unavailable")
-        response = await self.http.get(url)
-        self.assertEqual((await response.json())["members"],before["members"])
-        after_version = (await (await conn.execute("SELECT acl_version FROM sessions_v2 WHERE id='chat'")).fetchone())[0]
-        self.assertEqual(before_version,after_version)
-
-    async def test_directory_unavailability_fails_closed_but_stale_grants_can_be_removed(self):
-        url = self.server.make_url("/api/collaboration/chat/members")
-        self.gateway.runtime_principal_active = None
-        response = await self.http.put(url,json={"handle":"charlie","permission":"view"})
-        self.assertEqual(response.status,503)
-        response = await self.http.put(url,json={"handle":"bob","permission":None})
-        self.assertEqual(response.status,200)
-        self.assertNotIn("bob",[row["handle"] for row in (await response.json())["members"]])
 
     async def test_owner_sharing_and_immediate_revoke_stop(self):
         url = self.server.make_url("/api/collaboration/chat/members")
