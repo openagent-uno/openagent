@@ -1,11 +1,11 @@
 {
   "date": "2026-11-06",
   "product": {
-    "version": "1.1.9b9",
-    "tag": "v1.1.9-beta.9",
-    "source_commit": "12887706bd6e61930f04295e1ccaa9ee1ed8d330",
+    "version": "1.1.9b10",
+    "tag": "v1.1.9-beta.10",
+    "source_commit": "f613e6b7b24226ac19b5e88dd543cb7c51d45217",
     "published_wheels": 7,
-    "anonymous_https_wheel_and_manifest_checks": 8,
+    "anonymous_https_wheel_and_manifest_checks": 10,
     "installer_verified_first_party_wheels": 39,
     "installer_release_manifests": 9
   },
@@ -31,11 +31,42 @@
     "version": "1.1.0-beta.25",
     "source_commit": "842a236b62afb71afb3402043ef050a69a30a20c",
     "build_run": 42225770140,
-    "state": "qualification-running-not-published"
+    "state": "published",
+    "publication_run": 42229260779,
+    "verified_public_assets": 36,
+    "qualified_native_targets": 6,
+    "successful_build_attempt": 2
   },
   "limits": [
-    "Device and authenticated transport acceptance uses local hosts on one physical computer",
-    "UI acceptance uses deterministic desktop fixtures",
-    "No physical two-machine or live-provider acceptance is claimed"
-  ]
+    "Multi-client transport acceptance uses independent local hosts on one physical computer",
+    "Live desktop acceptance uses a physical macOS client and a remote Linux host; a second physical desktop client was not enrolled",
+    "Native Windows Authenticode and live messaging-provider delivery are not claimed",
+    "Remote QA uses an isolated offline browser page; browser sandbox security is outside this acceptance"
+  ],
+  "desktop_correction_candidate": {
+    "version": "1.1.0-beta.26",
+    "source_commit": "d5899a0b834ca6facb5aeb2d27fdcd6b4b0a4f3a",
+    "build_run": 42235546493,
+    "state": "qualification-running"
+  },
+  "verification": {
+    "standalone_tests": 461,
+    "standalone_subtests": 72,
+    "cli_and_packaging_tests": 168,
+    "installer_subtests": 2,
+    "installed_public_wheel_device_contracts": 13,
+    "ui_scenarios_two_consecutive_passes": 4,
+    "live_acceptance": {
+      "installed_app": "1.1.0-beta.25",
+      "remote_linux_product": "1.1.9b10",
+      "chat_model_response": true,
+      "same_owner_local_device_inventory": true,
+      "local_desktop_video_through_remote_host": true,
+      "remote_desktop_video": true,
+      "natural_pointer_and_text_input": true,
+      "native_backspace": true,
+      "isolated_test_page": true,
+      "sent_messages_to_people": false
+    }
+  }
 }

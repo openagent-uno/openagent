@@ -8,17 +8,15 @@ repository transfer was performed.
 
 ## Published cohorts and ownership
 
-- [Product 1.1.8](https://github.com/openagent-uno/openagent/releases/tag/v1.1.8)
-  supplies the server/CLI manual installer and Python wheels. Seven newly
-  versioned packages share the same product version. Host Tools Python B8,
-  product-config B20 and channel-bridges B16 retain their published bytes.
-  The B8 facade inherits Device Tools B10 through a public versioned dependency;
-  the old B7 wheel is not rewritten.
-- [App beta24](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.24)
+- [Product 1.1.9 beta 10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.9-beta.10)
+  supplies seven versioned server/CLI wheels and the complete pinned manual
+  installer. Core beta48, Device Tools B18, Host Tools B15, product-config B20
+  and channel bridges B19 retain their independent public release identities.
+- [App beta25](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.25)
   supplies ten installers/archives across six native targets, with 36 verified
-  release assets. macOS ARM64 and x64 are signed and notarized. The App retains
-  the exact signed native B7 bundles in its lock; this migration does not claim
-  a refreshed native tool bundle. Windows Authenticode is not claimed.
+  release assets. macOS ARM64 and x64 are signed, notarized and stapled.
+  It inherits the six public Host Tools B15 bundles and preserves the native
+  helper's existing signed application identity. Windows Authenticode is not claimed.
 - The mutable [App feed](https://github.com/openagent-uno/openagent/releases/tag/app-update-feed)
   contains only four beta channel YAML files. Their absolute URLs reference
   immutable App tag assets, with the original SHA-512 and size. Update metadata
@@ -40,12 +38,12 @@ Replace an existing App at the same location. Keep its profile, identity and
 agent directories; do not uninstall first or erase data. The ID
 `ai.openagent.desktop`, `openagent` protocol, updater cache and consent paths
 remain stable. New Windows installers retain application data on uninstall.
-Manually selecting beta24 opts into beta; stable/beta separation and the
+Manually selecting beta25 opts into beta; stable/beta separation and the
 no-downgrade invariant remain enforced after the updater channel is assigned.
 
-Run the immutable 1.1.8 installer for server/CLI. It verifies 39 first-party
-wheels across six manifests and acquires the pinned connector runner for the
-server. `OPENAGENT_INSTALL_ROOT` controls the command environment, not an identity
+Run the immutable 1.1.9 beta 10 installer for server/CLI. It verifies 39
+first-party wheels across nine manifests and acquires the complete native Host
+Tools bundle. The server also acquires the pinned connector runner. `OPENAGENT_INSTALL_ROOT` controls the command environment, not an identity
 reset. When server and CLI already share the installation root, upgrade both
 to the same product version to align their exact-version dependencies.
 The installer preserves unrelated commands; choose `--prefix` explicitly
@@ -99,7 +97,8 @@ values. Temporary fingerprint secrets were removed.
 
 The final receipt records native build/publication jobs, public installer and
 live pagination acceptance, dependency acquisition and known downstream fixture
-limitations. Package/signature/installation checks do not claim live model or
-connector-provider acceptance, a user-device upgrade or a production runtime
-deployment. Installed user profiles and original concurrent code checkouts were
-preserved.
+limitations. Those historical package/signature/installation checks did not claim live model
+or connector-provider acceptance, a user-device upgrade or a production runtime
+deployment. The independent 6 November receipt records the newer desktop and
+remote-host acceptance scope. Installed user profiles and original concurrent
+code checkouts were preserved.

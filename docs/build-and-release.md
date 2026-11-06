@@ -54,11 +54,11 @@ Do not uninstall or erase a profile as part of manual migration.
 
 ## Current canonical publication
 
-The manual-upgrade cohort is product 1.1.8 and App beta24. Use the reviewed
+The current manual-upgrade cohort is product 1.1.9 beta 10 and App beta25. Use the reviewed
 native build and canonical publisher workflows described in
 [the current migration/publication procedure](release-consolidation.md).
-Python Host Tools B8 and the unchanged signed native B7 bundles have distinct
-qualification scopes. The six-platform App and all four feed files are public;
+Python Host Tools B15 and its six signed/qualified native bundles have distinct
+qualification scopes; the App preserves the original signed computer helper. The six-platform App and all four feed files are public;
 old distribution repositories are retired. Historical recipes below retain
 original attribution and are not current release destinations.
 

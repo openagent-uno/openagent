@@ -29,7 +29,7 @@ const props = defineProps<{ target?: Target }>();
 // Select the reviewed product cohort explicitly: mixed component and historical
 // release publication order must never change the primary download offered.
 const repoPath = "openagent-uno/openagent";
-const releaseTags = {desktop: "app-v1.1.0-beta.24", server: "v1.1.8", cli: "v1.1.8"};
+const releaseTags = {desktop: "app-v1.1.0-beta.25", server: "v1.1.9-beta.10", cli: "v1.1.9-beta.10"};
 const releasesUrl = computed(
   () => `https://api.github.com/repos/${repoPath}/releases/tags/${releaseTags[props.target || "server"]}`,
 );

@@ -2,6 +2,19 @@
 
 Notable changes, newest first.
 
+## Server/CLI 1.1.9 beta 10
+
+- The desktop selector excludes browser-tab `computer` tools that require different arguments. An unchanged desktop remains connected while connection heartbeats and current authorization are enforced.
+- The canonical installer pins 39 first-party wheels across nine public manifests and includes the complete qualified native host bundle.
+
+
+## App beta25 and server/CLI 1.1.9 beta 9
+
+- Connected devices have a responsive Devices grid, offline inventory and per-session usage. Complete participants moved into session details. The desktop view accepts direct pointer, keyboard, drag, scroll, paste and IME input, with optional live H.264 media.
+- Private human sessions inherit authorized devices from the same authenticated owner. Exact device/generation routing, revocation and disconnect never select another device implicitly. Core beta48 exposes optional generic grants and streaming contracts; hosts own identity and sharing policy.
+- Public Desktop Tools SDK 0.1.0 and Device Tools B18 own reusable desktop execution and native artifacts. Host Tools B15 and the installer acquire qualified native bundles without source forks or rebuilding a helper in each product package.
+- All six App targets and Host Tools targets passed native qualification; both macOS architectures are signed and notarized. [Release evidence](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/device-release-2026-11-06.json) records public hashes and verification limits.
+
 ## v1.1.0-beta.45 and connector SDK 0.1.8
 
 - [SDK18](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.8) publishes 114 official connectors plus Custom MCP: 90 manual-token profiles with two specific reads each, plus read-only OneDrive/SharePoint. Token setup guidance and 45 verified shared marks are distributed by the SDK; provider permission and real-account acceptance remain separate.

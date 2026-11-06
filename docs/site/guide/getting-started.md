@@ -2,8 +2,8 @@
 
 OpenAgent is available as the standalone product or as independently versioned
 libraries. The current manual-upgrade server/CLI cohort is
-[1.1.8](https://github.com/openagent-uno/openagent/releases/tag/v1.1.8), with
-Core beta43 and Device Tools B10. App beta24 carries the canonical desktop
+[1.1.9 beta 10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.9-beta.10), with
+Core beta48 and Device Tools B18. App beta25 carries the canonical desktop
 updater. See [downloads](../downloads) for publication and verification scope.
 
 ## Desktop app
@@ -11,12 +11,15 @@ updater. See [downloads](../downloads) for publication and verification scope.
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your OS and CPU. Replace an existing App without
-uninstalling it or deleting its profile. Manually selecting beta24 opts into its
+uninstalling it or deleting its profile. Manually selecting beta25 opts into its
 beta update channel. New builds use the canonical feed; reinstalling an older
 build may preserve an obsolete feed. Native artifact checks and provider
 acceptance remain separate; see [downloads](../downloads).
-The app registers dashboard and local-computer capabilities only for its
-authenticated device turns; Telegram, scheduled work and other clients do not inherit them.
+Private human sessions can use all connected, consenting devices belonging to
+their authenticated owner. Devices lists connected and offline computers; session
+details contain participants, used devices and a direct desktop view. Channel,
+scheduled and agent ingress does not acquire client authority implicitly. The
+embedded Core supports other topologies through host-supplied optional grants.
 
 ## Standalone server and CLI
 
@@ -32,35 +35,30 @@ the version-pinned public installer rather than assembling a partial wheel set:
 
 ```bash
 # Standalone server
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.8/install.sh | sh -s -- --server
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --server
 
 # CLI
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.8/install.sh | sh -s -- --cli
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --cli
 
 # Download and verify every first-party wheel without installing
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.8/install.sh | sh -s -- --check
+curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --check
 ```
 
-The installer checks first-party wheels against the six pinned manifests
-below, creates its isolated virtual environment and refuses to overwrite an
-unrelated command. Server installation also acquires and verifies the SDK-pinned
-native connector runner; users do not need a Go compiler. `--check` verifies the
-wheelhouse without installing dependencies or acquiring the native runner.
-The default installer root is shared. If both commands are already installed
-there, run both installers when upgrading so their exact-version dependencies
-stay aligned. The CLI remains a remote client and does
-not need the server engine, model runtime or local connector runner.
-The current product manifest and immutable installer contain the exact six
-release pins and SHA-256 values. The public installer has completed in an owned
-temporary macOS prefix, including the verified native connector runner. Clean
-wheel dependency resolution, CLI startup and 31 installed updater contracts and live two-page GitHub feed verification also
-passed. This does not establish production or provider acceptance.
+The installer verifies 39 first-party wheels against nine pinned manifests,
+creates an isolated virtual environment and refuses to overwrite unrelated
+commands. It binds each first-party dependency to the verified local bytes and
+acquires the complete native Host Tools B15 bundle. Server installation also
+acquires the pinned native connector runner; no local native compiler is needed.
+`--check` verifies the wheelhouse and installation metadata without installing
+or acquiring the native archives.
 
-The Python host-tools B8 facade inherits Device Tools B10. Native App bundles
-remain the unchanged signed B7 artifacts; native helper versions still pinned by
-other clients remain available at canonical compatibility tags. Earlier full
-runtime/profile receipts are dated evidence for their original cohorts, not
-qualification of new source.
+The default installer root is shared. If server and CLI are both installed there,
+upgrade both so their exact-version dependencies stay aligned. The CLI remains a
+remote client and does not install the server engine or connector runner.
+Device Tools B18 owns reusable native/browser behavior; the product composes it
+through the Host Tools B15 facade. Core remains independent of clients, users
+and the native distribution. See the [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/device-release-2026-11-06.json)
+for qualification and limits.
 
 Embedding products or custom packagers should follow the
 [operator acquisition contract](./connector-operations.md#pinning-the-shared-implementation),
