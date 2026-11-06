@@ -112,10 +112,13 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         )
         parts.start()
         self.addCleanup(parts.stop)
-        for name in ("resolve_stt", "resolve_tts"):
-            patched = patch("openagent_core.stream.session." + name, AsyncMock(return_value=None))
-            patched.start()
-            self.addCleanup(patched.stop)
+        # Text-only contract fixture: use the public StreamSession factory
+        # seam, without the standalone audio service or removed Core helpers.
+        async def text_start(session, _gateway):
+            await session.start()
+        audio = patch("openagent_server.gateway.collaboration.start_stream", text_start)
+        audio.start()
+        self.addCleanup(audio.stop)
 
         @web.middleware
         async def identity(request, handler):
