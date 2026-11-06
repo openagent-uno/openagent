@@ -52,6 +52,7 @@ def standalone_profile(
     automation_runtime: Any | None = None,
     ptc_enabled: bool = False,
     local_e2e: bool = False,
+    agent_name: str = "Agent",
 ) -> RuntimeProfile:
     shared = {
         "db_path": str(Path(db_path).expanduser().resolve()),
@@ -75,7 +76,7 @@ def standalone_profile(
         "mcp": ModuleConfig(
             agent_service_host,
             {**shared, "catalog_mode": "dynamic", "pool_factory": mcp_pool_factory,
-             "target_label": "OpenAgent MCP catalog"},
+             "target_label": f"{agent_name}'s Computer"},
         ),
         "workflows": ModuleConfig(
             frozenset({"service", "agent_tools", "host_api", "workers"})

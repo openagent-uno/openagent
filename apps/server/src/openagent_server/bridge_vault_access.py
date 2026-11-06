@@ -79,3 +79,28 @@ def owner_bridge_vault_turn(context, config: Mapping) -> bool:
         provider, provider, account, sender,
         sender if provider == "telegram" else sender + "@c.us", None, prefix + sender,
     ) for sender in senders)
+
+
+def bridge_device_owner(context, config: Mapping) -> str | None:
+    """Explicit sender-to-native-owner grant, additionally gated by owner trust.
+
+    This maps access to a device owner, never changes the channel's principal,
+    session ownership, history, certificate or other permissions.
+    """
+    if not owner_bridge_vault_turn(context, config):
+        return None
+    provider = _OWNER_BRIDGES[context.initiator.subject_id]
+    grants = (config.get("runtime_tool_audiences") or {}).get("device_owner_channels") or {}
+    mappings = grants.get(provider) or {}
+    if not isinstance(mappings, Mapping):
+        return None
+    for sender in owner_bridge_senders(config, provider):
+        # Reuse the exact bot/private-route validation, restricted to one sender.
+        policy = dict(config)
+        audiences = dict(config.get("runtime_tool_audiences") or {})
+        audiences["vault_owner_channels"] = {provider: [sender]}
+        policy["runtime_tool_audiences"] = audiences
+        if owner_bridge_vault_turn(context, policy):
+            handle = mappings.get(sender)
+            return handle if isinstance(handle, str) and handle and not handle.startswith("__bridge_") else None
+    return None

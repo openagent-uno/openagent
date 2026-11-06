@@ -137,6 +137,13 @@ jobs:
         run: |
           cd universal
           npx expo export --platform web
+      - name: Qualify shared UI and responsive session controls twice
+        if: inputs.existing_failed_run_id == '' && matrix.platform == 'linux-x64'
+        run: |
+          (cd universal && npx tsc --noEmit)
+          npm --prefix desktop run build:test
+          node --experimental-strip-types --test common/__tests__/*.test.mjs
+          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs --repeat-each=2 --workers=1)
       - name: Acquire the exact public host bundle
         if: inputs.existing_failed_run_id == ''
         run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform }} .release-deps/host-tools-dist

@@ -160,7 +160,11 @@ class NativeChannelTransport:
 
     async def send(self, request, *, on_event=None):
         context = await self._execution(request.context)
-        canonical = replace(context, ingress_id=None)
+        resolver = getattr(self.service, "capability_context_resolver", None)
+        if resolver is not None:
+            context = await self.service.authorizer.grant_channel_capabilities(
+                context, await resolver(context))
+        canonical = replace(context, ingress_id=None, capabilities=())
         run_id = "channel-" + hashlib.sha256(json.dumps(request.context.deduplication_key).encode()).hexdigest()
         # Provider history is freshly fetched and can change on redelivery.
         # Compare only the event's immutable payload; reuse its durable input.

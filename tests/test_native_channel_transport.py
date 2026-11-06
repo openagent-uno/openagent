@@ -291,3 +291,41 @@ async def test_failed_native_channel_receives_public_ai_remedy_and_keeps_failure
     finally:
         await service.runtime.close()
         await db.close()
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('provider', ['slack', 'discord'])
+async def test_channel_send_attaches_exact_host_leases_and_child_keeps_them(tmp_path, provider):
+    from openagent_core.contracts import CapabilityLease
+    service, host, bridge, context, current, calls, users, store, db = await assemble(tmp_path)
+    try:
+        # Exercise the actual channel send/submit/observe/artifact boundary,
+        # rather than testing only a detached capability resolver.
+        if provider != 'slack':
+            service.agent.config['channels'][provider] = service.agent.config['channels'].pop('slack')
+            host.name = host.binding_id = bridge.name = bridge.binding_id = provider
+            context = replace(context, provider=provider, binding_id=provider)
+        bridge.members = ['Ualice']
+        context = replace(context, audience_ids=('Ualice',))
+        current[0] = context
+        lease = CapabilityLease('owned-laptop', 'process', '1:0')
+        seen = []
+        async def resolve(bound):
+            assert await service.authorizer._channel(bound) is not None
+            return (lease,)
+        service.capability_context_resolver = resolve
+        async def leased_tool(arguments, execution):
+            assert execution.capabilities == (lease,)
+            seen.append((execution.author.kind, execution.session_id))
+            return {'structuredContent': {'text': 'exact laptop'}}
+        catalog = service.runtime.capabilities
+        catalog.revoke('same-host')
+        source = FunctionSource((ToolDefinition('host-tool', 'Owned laptop', {}),), {'host-tool': leased_tool})
+        catalog.register(lease.source_id, source, source, target_label='Owned laptop', lease=lease)
+        reply = await host.send(BridgeMessage(context, (BridgePart(text='spawn child'),)))
+        assert reply.status == 'success'
+        assert [kind for kind, _ in seen] == ['user', 'agent']
+        assert len({session for _, session in seen}) == 2
+    finally:
+        await host.stop()
+        await service.runtime.close()
+        await db.close()

@@ -23,8 +23,33 @@ to every consented connected device owned by that same verified human in the
 same network. Selecting a tool reference always selects one exact device,
 process and generation. Another user's devices are never inherited. Resume
 recomputes the grant set from current ownership and connections; a saved session
-or offline inventory confers no access. Channels, deferred work and agent
-certificates inherit no interactive device grants. Tool results, status events
+or offline inventory confers no access. Private mapped Slack/Discord turns use
+that same verified network user, with the complete provider audience and mapping
+revalidated before tools and publication. Shared channel audiences receive no
+personal device grants. Deferred work and agent certificates receive no new
+interactive grants. An authorized synchronous child can inherit the parent's
+exact leases; it cannot discover additional destinations.
+
+Legacy private Telegram/WhatsApp bridges keep their own principal. To grant one
+verified owner sender access to a native user's devices, configure both the
+existing `vault_owner_channels` owner policy and the explicit mapping below:
+
+```yaml
+runtime_tool_audiences:
+  vault_owner_channels:
+    telegram: ["155490357"]
+  device_owner_channels:
+    telegram:
+      "155490357": alice
+```
+
+The sender must also remain in `channels.telegram.allowed_users`. WhatsApp uses
+the same fields under `whatsapp`. The exact bot account/private route, current
+native owner, certificate binding and connected device consent are checked again
+on every invocation and result publication. This grants device access only;
+it never aliases the bridge as that user, changes session ownership, or shares
+private device access with a group. Unmapped/unsupported bridge ingress remains
+denied; an allowlist alone never confers device ownership. Tool results, status events
 and audit entries include the exact execution host.
 
 Core exposes optional interaction grants and generic sources. It imposes no
@@ -194,6 +219,16 @@ platforms are unchanged. Rebuild and verify the release artifacts before
 claiming installed-product adoption.
 
 ## Devices and session details
+
+Session sharing opens from the share icon beside **Participants** in session
+details. Its modal supports choosing an active network user or entering an exact
+username, granting collaboration and removing existing grants. Session ACLs
+remain authoritative; sharing a conversation never shares a personal computer.
+
+The agent's own desktop is named **<Agent name>'s Computer**, distinct from
+connected-device labels. A headless server needs a complete graphical session;
+Xvfb plus Chromium alone has no window manager or taskbar. See
+[server desktop provisioning](../../server-browser-mcps.md).
 
 The App sidebar includes **Devices**, a responsive grid of known computers with
 online/offline status and the modules each host advertises. Restarting a client

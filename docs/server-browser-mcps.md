@@ -1,13 +1,33 @@
 <!-- Installation names and paths are anonymized operator labels; original deployment records are retained in the protected audit. -->
 # Server browser dependencies for custom MCPs
 
-The standalone server does not lend an App or CLI device's `agent-in-chrome`
-capability to Telegram, another channel, or a scheduled run. It can register
-its **own** `agent-in-chrome` and `computer-control` sidecars by listing them in
-`server_host_tools.tools`; those have a distinct host destination and are
-available to channels and automation. A separately registered server MCP may
-also depend on a browser running on the agent host. The host must provision
-its graphical session and sidecar dependencies explicitly.
+The standalone host can grant personal device tools to a verified private
+channel turn through its explicit identity/device-owner policy; see
+[Client Capabilities](site/guide/client-capabilities.md). These exact device
+sources are distinct from the agent's own `server_host_tools.tools`. A missing
+client destination must never be substituted with the server desktop.
+
+## Full desktop rather than a browser-only display
+
+A screenshot/stream captures the complete display. Xvfb plus Chromium alone
+contains no window manager: there are no managed window decorations, taskbar or
+application switcher to capture. Provision an X11 window manager and panel (for
+example `openbox` and `tint2`) in the **same** display, Xauthority and mount
+namespace as the supervised browser. Preserve its profile and display; attaching
+a shell does not require restarting Chromium or signing in again.
+
+`apps/server/scripts/attach-desktop-shell.py --browser-service=<owned.service>`
+attaches Openbox and tint2 to the exact service's existing browser display. Run
+as the browser's OS user. It follows only descendants of that unit's current
+MainPID, inherits only DISPLAY/XAUTHORITY, refuses an existing window manager,
+and stops its own children on shutdown. Install `openbox`, `tint2`, `xprop` and
+`xsetroot` through the host package manager first. A companion systemd service
+should use `After=`, `BindsTo=` and `PartOf=` for the browser unit, share its
+`PrivateTmp` via `JoinsNamespaceOf=`, and be wanted by that browser unit. Verify
+`_NET_SUPPORTING_WM_CHECK`, a visible panel, window controls and actual pointer/
+keyboard interaction through the authenticated App desktop view. This is
+optional host infrastructure, not a Core requirement: clientless/headless agents
+without desktop tools remain valid.
 
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its

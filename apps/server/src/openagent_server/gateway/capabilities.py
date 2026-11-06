@@ -473,9 +473,17 @@ class CapabilityRegistry:
         """Only certificate-owned, consented and live devices of this human."""
         if identity.auth_kind != "device_cert" or identity.principal_type != "user":
             return ()
+        return self.connections_for_owner(identity.tenant_id, identity.handle)
+
+    def connections_for_owner(self, tenant_id: str, handle: str) -> tuple[CapabilityConnection, ...]:
+        """Host-authorized owner lookup; callers must validate ingress and policy.
+
+        No certificate or channel identity is manufactured by this lookup.
+        Each destination retains its original certificate, consent and epoch.
+        """
         return tuple(conn for conn in self._connections.values()
-                     if conn.network_id == identity.tenant_id
-                     and conn.owner_handle == identity.handle
+                     if conn.network_id == tenant_id
+                     and conn.owner_handle == handle
                      and conn.owner_kind == "user"
                      and not getattr(conn.ws, "closed", False)
                      and time.time() - conn.last_seen_at < CAPABILITY_HEARTBEAT_TIMEOUT_S)

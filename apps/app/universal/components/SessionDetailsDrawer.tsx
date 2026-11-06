@@ -12,6 +12,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import SessionDevices from './SessionDevices';
 import SharedPresence from './SharedPresence';
+import SessionSharing from './SessionSharing';
 import {
   createDrawerNavigator,
   useDrawerStatus,
@@ -321,10 +322,12 @@ function linkedRuns(
 function Section({
   title,
   count,
+  action,
   children,
 }: {
   title: string;
   count?: number;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -332,6 +335,7 @@ function Section({
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{title}</Text>
         {count != null ? <Text style={styles.sectionCount}>{count}</Text> : null}
+        {action ? <View style={{ marginLeft: 'auto' }}>{action}</View> : null}
       </View>
       {children}
     </View>
@@ -622,7 +626,7 @@ function SessionDetailsContent({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Section title="Participants">
+        <Section title="Participants" action={<SessionSharing key={`${accountId}:${session.id}`} sessionId={session.id} />}>
           <SharedPresence id={session.id} detailed />
         </Section>
         <Section title="Devices">

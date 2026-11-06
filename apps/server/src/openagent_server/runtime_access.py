@@ -35,6 +35,7 @@ class _ChannelBinding:
     context: ExecutionContext
     validate: Callable[[], Awaitable[bool]]
     validate_child: Callable[[ExecutionContext], Awaitable[bool]] | None = None
+    capabilities: tuple = ()
 
 
 class _TrustedRequest(dict):
@@ -105,10 +106,22 @@ class NativeRuntimeAuthorizer:
         self._channel_bindings[identifier] = _ChannelBinding(bound, validate, validate_child)
         return bound
 
+    async def grant_channel_capabilities(self, context, capabilities):
+        """Attach host-issued leases to an already verified channel binding."""
+        binding = await self._channel(context)
+        if binding is None or context != binding.context:
+            raise PermissionError("Channel capability binding changed")
+        leases = tuple(capabilities)
+        self._channel_bindings[context.ingress_id] = replace(binding, capabilities=leases)
+        return replace(context, capabilities=leases)
+
     async def _channel(self, context):
         binding = self._channel_bindings.get(context.ingress_id or "")
         if binding is None:
             return None
+        if any(lease not in binding.capabilities for lease in context.capabilities):
+            return None
+        context = replace(context, capabilities=binding.context.capabilities)
         if context != binding.context:
             base = binding.context
             if (any(getattr(context, name) != getattr(base, name) for name in (

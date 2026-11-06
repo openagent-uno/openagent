@@ -424,6 +424,7 @@ class NativeRuntimeService:
             vault_path=vault_path,
             environment=environment,
             mcp_pool_factory=mcp_pool_factory,
+            agent_name=self.agent.name,
             automation_runtime=self.automation_runtime,
             ptc_enabled=bool((self.agent.config.get("ptc") or {}).get("enabled")),
             local_e2e=self.agent.config.get("_local_e2e") is True,
@@ -569,6 +570,35 @@ class NativeRuntimeService:
         identity = await self.authorizer.bind_request(request)
         return await self.authorizer.context_for_identity(identity, session_id)
 
+    async def _device_owner(self, context):
+        """Resolve a currently authorized private interactive device owner."""
+        from openagent_core.contracts import PrincipalRef
+        from openagent_server.bridge_vault_access import bridge_device_owner, is_owner_bridge_principal
+
+        if (context.deferred or not context.ingress_id or context.author != context.initiator
+                or context.authority != context.initiator or context.initiator.kind != "user"
+                or context.audience != (context.initiator,)):
+            return None
+        if str(context.ingress_id).startswith("channel:"):
+            binding = await self.authorizer._channel(context)
+            if binding is None:
+                return None
+        else:
+            binding = await self.authorizer._binding(context)
+            if binding is None or binding.identity.auth_kind != "device_cert":
+                return None
+        principal = context.initiator
+        if is_owner_bridge_principal(principal):
+            handle = bridge_device_owner(context, self.agent.config)
+            if handle is None:
+                return None
+            principal = PrincipalRef("openagent", context.tenant_id, handle, "user")
+            return principal if await self.directory.principal_active(principal) else None
+        # Native middleware and mapped-channel callbacks already revalidate the
+        # exact user's current directory/certificate. Do not require a separate
+        # coordinator from valid single-installation native ingress.
+        return principal
+
     async def _capability_context(self, context):
         from openagent_core.core.execution_origin import current_execution_origin
         from openagent_core.mcp.catalog import register_interactive_capabilities
@@ -578,16 +608,16 @@ class NativeRuntimeService:
             if self.dashboards is not None
             else ()
         )
-        identity = current_on_behalf_identity()
         registry = getattr(self.gateway, "capabilities", None)
-        if (identity is None or registry is None or context.deferred or not context.ingress_id
-                or context.ingress_id.startswith("channel:")
-                or identity.auth_kind != "device_cert" or identity.principal_type != "user"):
+        owner = await self._device_owner(context) if registry is not None else None
+        if owner is None:
             return dashboard_leases
         origin = current_execution_origin()
-        if origin is not None and (identity.device_id != origin.device_id or origin.registry is not registry):
+        identity = current_on_behalf_identity()
+        if origin is not None and (identity is None or identity.device_id != origin.device_id
+                                   or origin.registry is not registry):
             raise PermissionError("Capability origin differs from the authenticated device")
-        connections = registry.owned_connections(identity)
+        connections = registry.connections_for_owner(owner.tenant_id, owner.subject_id)
         # Old explicitly bound clients remain compatible; unknown owners never
         # become candidates for cross-device use.
         origins = [connection.origin(registry) for connection in connections]
@@ -595,7 +625,12 @@ class NativeRuntimeService:
             origins.append(origin)
         granted = []
         for target in origins:
-            namespace = (f"app/{context.ingress_id}/{target.device_id}/"
+            # A bridge certificate can carry several private sender routes.
+            # Bind grants to the exact session too; another sender must never
+            # reuse the first sender's cached authorization callback.
+            import hashlib
+            route = hashlib.sha256(f"{context.ingress_id}:{context.session_id}".encode()).hexdigest()
+            namespace = (f"interactive/{route}/{target.device_id}/"
                          f"{target.client_instance_id}/{target.generation}/{target.auth_epoch}")
             leases = self._interactive_leases.get(namespace)
             if leases is None:
@@ -606,7 +641,7 @@ class NativeRuntimeService:
                 if hasattr(leases, "__await__"):
                     leases = await leases
                 for lease in leases:
-                    self._interactive_sources[lease.source_id] = context.initiator.key
+                    self._interactive_sources[lease.source_id] = (context, owner)
                 self._interactive_leases[namespace] = tuple(leases)
                 self._interactive_origins[namespace] = (
                     target.device_id, target.client_instance_id, target.generation, target.auth_epoch)
@@ -708,9 +743,12 @@ class NativeRuntimeService:
             source = source.rsplit("/", 1)[0]
         owner = self._interactive_sources.get(source)
         if owner is not None:
-            return owner == context.initiator.key and context.audience == (
-                context.initiator,
-            )
+            granted_context, granted_owner = owner
+            return (context.initiator == granted_context.initiator
+                    and context.authority == granted_context.authority
+                    and context.ingress_id == granted_context.ingress_id
+                    and context.audience == granted_context.audience
+                    and await self._device_owner(granted_context) == granted_owner)
         if context.delegation_id and f"capability:{source}" not in context.scopes:
             return False
         # One catalog owns native module capabilities, external MCPs and

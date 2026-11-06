@@ -11,7 +11,7 @@ import json
 from typing import Any, Callable, Mapping
 
 _DEFAULT_IDS = frozenset({
-    "product.persona", "product.proactivity", "product.network",
+    "product.device-targets", "product.persona", "product.proactivity", "product.network",
     "product.autonomy", "product.delegation-preference", "product.identity-management",
 })
 

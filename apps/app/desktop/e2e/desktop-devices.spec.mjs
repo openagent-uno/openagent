@@ -18,11 +18,15 @@ function fixturePng() {
   return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',header),chunk('IDAT',deflateSync(rows)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 class DeviceGateway extends DeterministicGateway {
-  calls=[]; offline=false; live=false; streamCloses=0;
+  calls=[]; offline=false; live=false; streamCloses=0; members=[];
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
+    this.collaborationServer=new WebSocketServer({noServer:true});
     this.server.on('upgrade',(request,socket,head)=>{
+      if(new URL(request.url,this.baseUrl).pathname==='/ws/collaboration'){
+        this.collaborationServer.handleUpgrade(request,socket,head,ws=>ws.send(JSON.stringify({type:'auth_ok',shared:true})));return;
+      }
       if(new URL(request.url,this.baseUrl).pathname==='/api/sessions/e2e-session/computer-stream'){
         this.videoServer.handleUpgrade(request,socket,head,ws=>{
           let timer;ws.once('message',raw=>{const hello=JSON.parse(raw);if(hello.tool_ref!=='exact-agent-desktop'){ws.close();return;}
@@ -33,10 +37,20 @@ class DeviceGateway extends DeterministicGateway {
       for(const listener of original)listener(request,socket,head);
     });return this;
   }
-  async close(){for(const socket of this.videoServer?.clients||[])socket.terminate();this.videoServer?.close();await super.close();}
+  async close(){for(const server of [this.videoServer,this.collaborationServer]){for(const socket of server?.clients||[])socket.terminate();server?.close();}await super.close();}
   async handleHttp(request,response) {
     const path=new URL(request.url,'http://fixture').pathname;
     const reply=(value,status=200)=>{response.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));};
+    if(path==='/api/collaboration')return reply({version:1});
+    if(path==='/api/network/users')return reply({users:[{handle:'bob',status:'active'},{handle:'suspended-user',status:'suspended'}]});
+    if(path==='/api/collaboration/e2e-session/members'){
+      if(request.method==='PUT'){
+        let body='';for await(const chunk of request)body+=chunk;
+        const {handle,permission}=JSON.parse(body);this.members=this.members.filter(member=>member.handle!==handle);
+        if(permission)this.members.push({handle,permission});
+      }
+      return reply({can_manage:true,members:this.members});
+    }
     if(path==='/api/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',online:true,modules:['shell','editor','computer-control','agent-in-chrome'],last_seen_at:1700000000},{device_id:'two',client_instance_id:'b',label:'Home desktop',online:false,modules:['filesystem'],last_seen_at:1700000000}]});
     if(path==='/api/sessions/e2e-session/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',first_used_at:1700000000,last_used_at:1700000001}]});
     if(path==='/api/sessions/e2e-session/participants')return reply({participants:[{id:'alice',handle:'alice',display:'Alice'}]});
@@ -82,9 +96,27 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByRole('button',{name:'Local capability E2E',exact:true}).click();
     await expect(page).toHaveURL(/\/chat\?session=e2e-session$/);
     await expect(page.getByText('A shared conversation',{exact:true})).toBeVisible();
+    await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await page.getByLabel('Toggle session details',{exact:true}).click();
     await expect(page.getByText('Participants',{exact:true})).toBeVisible();
     await expect(page.getByText('Participated',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Share session',exact:true}).click();
+    await page.getByRole('button',{name:'Select bob',exact:true}).click();
+    await expect(page.getByLabel('Collaborator username',{exact:true})).toHaveValue('bob');
+    await expect(page.getByRole('button',{name:'Select suspended-user',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'SHARE',exact:true}).click();
+    await expect(page.getByText('Can collaborate',{exact:true})).toBeVisible();
+    expect(gateway.members).toEqual([{handle:'bob',permission:'admin'}]);
+    await page.setViewportSize({width:390,height:844});
+    await expect(page.getByLabel('Collaborator username',{exact:true})).toBeInViewport({ratio:1});
+    await expect(page.getByLabel('Close sharing',{exact:true})).toBeInViewport({ratio:1});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+    await page.getByRole('button',{name:'Remove bob',exact:true}).click();
+    await expect(page.getByText('Can collaborate',{exact:true})).toHaveCount(0);
+    expect(gateway.members).toEqual([]);
+    await page.getByLabel('Close sharing',{exact:true}).click();
+    await page.setViewportSize({width:1440,height:960});
+
     await page.setViewportSize({width:800,height:600});
     await page.getByPlaceholder('Message OpenAgent...').fill('Responsive composer');
     const send=page.getByLabel('Send message',{exact:true});

@@ -22,8 +22,8 @@ jobs:
           uv lock --check --project apps/server
           uv lock --check --project apps/cli
           uv lock --check --project packages/host-tools
-      - name: Build the seven product packages from one clean source
-        run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport
+      - name: Build the product and independently versioned configuration packages from one clean source
+        run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport product-config
       - name: Install the pinned public dependency closure and candidate wheels
         run: |
           curl --fail --location --retry 3 https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh -o "$RUNNER_TEMP/bootstrap.sh"
