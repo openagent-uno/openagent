@@ -35,6 +35,19 @@ selected. Attaching a shell to another healthy browser's display will not add
 window controls to the computer the App is actually showing. Follow the exact
 matching unit; verify its PID/profile remain unchanged when attaching the shell.
 
+For a persistent remote computer, supervise the X server and shell independently
+of browser windows. For example, run `xvfb-run --server-num=<fixed number>
+--auth-file=<private persistent file> --server-args="-screen 0 1280x920x24 -noreset"
+python3 attach-desktop-shell.py --existing-display` as the desktop service.
+Keep X11 TCP disabled (the `xvfb-run` default), the authority file private to the
+OS user, and its display number stable. Browser/tool services consume that exact
+DISPLAY/XAUTHORITY and join the desktop's mount namespace when PrivateTmp is
+enabled. With `Type=notify`/`NotifyAccess=all`, the helper signals readiness only
+after its window manager is running; dependent browsers then start with their
+window decorations in place. The desktop must not depend on a browser unit: closing its last window
+must leave the desktop and taskbar usable. A browser exit can end its CDP tools
+until reopened; it must not terminate the computer or agent service.
+
 For a CDP-backed MCP, use a dedicated persistent profile owned by the agent's
 operating-system account. Bind the debugging endpoint to `127.0.0.1`, keep its
 port stable for the MCP configuration, and run the browser under a service

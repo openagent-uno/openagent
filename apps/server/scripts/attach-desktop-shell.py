@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Attach window decorations and a taskbar to an explicitly supervised X11 browser.
 
-Run as the browser's OS user, in its mount namespace (systemd JoinsNamespaceOf
+Run as the display's OS user, in its mount namespace (systemd JoinsNamespaceOf
 when PrivateTmp is enabled). Never creates/replaces a display or browser profile.
+For a persistent desktop, run with --existing-display under an independently
+supervised X server; browser clients can then close without stopping the desktop.
 The operator must install openbox, tint2 and xsetroot first.
 """
 from __future__ import annotations
@@ -10,6 +12,7 @@ import argparse
 import os
 from pathlib import Path
 import signal
+import socket
 import subprocess
 import time
 
@@ -40,10 +43,17 @@ def browser_environment(service: str) -> dict[str, str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--browser-service', required=True)
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument('--browser-service')
+    modes.add_argument('--existing-display', action='store_true')
     args = parser.parse_args()
     graphical = None
-    for _ in range(120):
+    if args.existing_display:
+        display, authority = os.environ.get('DISPLAY'), os.environ.get('XAUTHORITY')
+        if not display or not authority or not Path(authority).is_file():
+            raise SystemExit('Explicit DISPLAY and existing XAUTHORITY required')
+        graphical = {'DISPLAY': display, 'XAUTHORITY': authority}
+    for _ in range(120 if args.browser_service else 0):
         try:
             graphical = browser_environment(args.browser_service)
             break
@@ -76,6 +86,13 @@ def main() -> None:
         else:
             raise RuntimeError('Window manager did not become ready')
         children.append(subprocess.Popen(['tint2'], env=env))
+        # A Type=notify supervisor can order browser clients after the window
+        # manager is ready, including the first browser after a cold boot.
+        notify = os.environ.get('NOTIFY_SOCKET')
+        if notify:
+            with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as notifier:
+                notifier.connect('\0' + notify[1:] if notify.startswith('@') else notify)
+                notifier.sendall(b'READY=1')
         while all(child.poll() is None for child in children):
             time.sleep(.25)
     finally:
