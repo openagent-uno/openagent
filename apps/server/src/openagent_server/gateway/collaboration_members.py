@@ -63,12 +63,12 @@ async def handle_members(request):
                 )
             if permission is not None:
                 from openagent_core.contracts import PrincipalRef
-                directory = getattr(getattr(gateway, "runtime_service", None), "directory", None)
-                if directory is None:
+                principal_active = getattr(gateway, "runtime_principal_active", None)
+                if not callable(principal_active):
                     return web.json_response({"error": "User directory unavailable"}, status=503)
-                if not await directory.principal_active(
+                if await principal_active(
                     PrincipalRef("openagent", access.tenant_id, handle, "user")
-                ):
+                ) is not True:
                     return web.json_response({"error": "User unavailable"}, status=404)
             if not await gateway._request_device_still_authorized(request, cert):
                 return web.json_response(

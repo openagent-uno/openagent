@@ -98,7 +98,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         for handle in ("alice", "bob", "charlie", "suspended"):
             await users.create_user(handle=handle, pake_record=b"fixture", pake_algo="fixture")
         await users.set_user_status("suspended", "suspended")
-        self.gateway.runtime_service = SimpleNamespace(directory=NativeRuntimeDirectory(self.gateway, self.gateway.agent))
+        self.gateway.runtime_principal_active = NativeRuntimeDirectory(self.gateway, self.gateway.agent).principal_active
         self.service = self.gateway._collaboration = Collaboration(self.gateway)
         self.gateway.broadcast_resource = AsyncMock(
             side_effect=lambda *args: self.service.hub.resource(*args)
@@ -347,7 +347,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_directory_unavailability_fails_closed_but_stale_grants_can_be_removed(self):
         url = self.server.make_url("/api/collaboration/chat/members")
-        self.gateway.runtime_service = None
+        self.gateway.runtime_principal_active = None
         response = await self.http.put(url,json={"handle":"charlie","permission":"view"})
         self.assertEqual(response.status,503)
         response = await self.http.put(url,json={"handle":"bob","permission":None})
