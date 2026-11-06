@@ -2,6 +2,12 @@
 
 Notable changes, newest first.
 
+## App beta26
+
+- Composer actions wrap inside narrow workspaces, keeping Send reachable with both sidebars open. Four repeated video/snapshot UI scenarios verify direct computer input and responsive layouts.
+- All six native targets passed qualification. macOS ARM64/x64 are signed, notarized and stapled; the release preserves the existing native helper and application identities.
+
+
 ## Server/CLI 1.1.9 beta 10
 
 - The desktop selector excludes browser-tab `computer` tools that require different arguments. An unchanged desktop remains connected while connection heartbeats and current authorization are enforced.

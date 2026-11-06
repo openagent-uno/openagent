@@ -3,7 +3,7 @@
 The current canonical server and CLI manual-upgrade release is
 **[OpenAgent 1.1.9 beta 10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.9-beta.10)**.
 It contains the canonical server updater and a complete pinned installer.
-Desktop **[App 1.1.0-beta.25](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.25)**
+Desktop **[App 1.1.0-beta.26](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.26)**
 is published with all six native targets verified and 36 asset checksums checked.
 Both macOS targets are signed and notarized. Windows Authenticode and live
 provider acceptance are separate from these native installation checks.
@@ -16,7 +16,7 @@ Download the installer for your OS and CPU from the canonical App release.
 For an existing installation, replace the app at the same location. Keep its
 profile and agent directories; do not uninstall first or erase data. The App ID,
 `openagent` protocol, and identity paths remain unchanged.
-Choosing beta 25 manually opts into the beta channel. Its subsequent updates use
+Choosing beta 26 manually opts into the beta channel. Its subsequent updates use
 the canonical `app-update-feed`; stable/beta separation and no-downgrade checks
 remain in force. Older installers may still contain a retired updater URL.
 
@@ -48,7 +48,7 @@ identity reset. See [Getting Started](./guide/getting-started) for commands.
 Product 1.1.9 beta 10 uses Core/SQLite/Gateway/SDK beta48, modules beta37,
 capability-host B3, Host Tools B15 and Device Tools B18. Other Tools beta6
 packages and product-config B20 retain their published bytes; channel bridges
-are B19. The native connector runner remains 0.1.14. App beta25 consumes the
+are B19. The native connector runner remains 0.1.14. App beta26 consumes the
 public Desktop Tools SDK 0.1.0, MCP Apps 0.1.3 and six qualified Host Tools B15
 bundles. Native desktop behavior is owned by Tools and keeps its signed macOS
 application identity.
@@ -66,7 +66,10 @@ Qualification includes 461 standalone tests, 168 CLI and packaging contracts,
 native App targets. The public installer verified 39 first-party wheels from
 nine immutable manifests. Host Tools publication independently verified all 16
 assets by anonymous HTTPS. Native package checks do not establish acceptance
-on two physical computers or a real messaging/model provider. See the
+on two physical desktop clients or arbitrary messaging/provider integrations.
+Separate live acceptance verified an installed macOS App with a remote Linux
+host: chat/model response, desktop video, direct pointer/text input and a
+constant-output shell command executed by the agent on the authorized client. See the
 [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/device-release-2026-11-06.json)
 for source revisions, build/publication runs and verification limits.
 

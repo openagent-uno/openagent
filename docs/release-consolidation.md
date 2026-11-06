@@ -12,7 +12,7 @@ repository transfer was performed.
   supplies seven versioned server/CLI wheels and the complete pinned manual
   installer. Core beta48, Device Tools B18, Host Tools B15, product-config B20
   and channel bridges B19 retain their independent public release identities.
-- [App beta25](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.25)
+- [App beta26](https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.26)
   supplies ten installers/archives across six native targets, with 36 verified
   release assets. macOS ARM64 and x64 are signed, notarized and stapled.
   It inherits the six public Host Tools B15 bundles and preserves the native
@@ -38,7 +38,7 @@ Replace an existing App at the same location. Keep its profile, identity and
 agent directories; do not uninstall first or erase data. The ID
 `ai.openagent.desktop`, `openagent` protocol, updater cache and consent paths
 remain stable. New Windows installers retain application data on uninstall.
-Manually selecting beta25 opts into beta; stable/beta separation and the
+Manually selecting beta26 opts into beta; stable/beta separation and the
 no-downgrade invariant remain enforced after the updater channel is assigned.
 
 Run the immutable 1.1.9 beta 10 installer for server/CLI. It verifies 39

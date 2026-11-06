@@ -54,7 +54,7 @@ Do not uninstall or erase a profile as part of manual migration.
 
 ## Current canonical publication
 
-The current manual-upgrade cohort is product 1.1.9 beta 10 and App beta25. Use the reviewed
+The current manual-upgrade cohort is product 1.1.9 beta 10 and App beta26. Use the reviewed
 native build and canonical publisher workflows described in
 [the current migration/publication procedure](release-consolidation.md).
 Python Host Tools B15 and its six signed/qualified native bundles have distinct

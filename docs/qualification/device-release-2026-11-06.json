@@ -28,14 +28,14 @@
     "windows_authenticode_claimed": false
   },
   "app": {
-    "version": "1.1.0-beta.25",
-    "source_commit": "842a236b62afb71afb3402043ef050a69a30a20c",
-    "build_run": 42225770140,
+    "version": "1.1.0-beta.26",
+    "source_commit": "d5899a0b834ca6facb5aeb2d27fdcd6b4b0a4f3a",
+    "build_run": 42235546493,
+    "successful_build_attempt": 2,
     "state": "published",
-    "publication_run": 42229260779,
+    "publication_run": 42236610337,
     "verified_public_assets": 36,
-    "qualified_native_targets": 6,
-    "successful_build_attempt": 2
+    "qualified_native_targets": 6
   },
   "limits": [
     "Multi-client transport acceptance uses independent local hosts on one physical computer",
@@ -43,12 +43,6 @@
     "Native Windows Authenticode and live messaging-provider delivery are not claimed",
     "Remote QA uses an isolated offline browser page; browser sandbox security is outside this acceptance"
   ],
-  "desktop_correction_candidate": {
-    "version": "1.1.0-beta.26",
-    "source_commit": "d5899a0b834ca6facb5aeb2d27fdcd6b4b0a4f3a",
-    "build_run": 42235546493,
-    "state": "qualification-running"
-  },
   "verification": {
     "standalone_tests": 461,
     "standalone_subtests": 72,
@@ -57,7 +51,7 @@
     "installed_public_wheel_device_contracts": 13,
     "ui_scenarios_two_consecutive_passes": 4,
     "live_acceptance": {
-      "installed_app": "1.1.0-beta.25",
+      "installed_app": "1.1.0-beta.26",
       "remote_linux_product": "1.1.9b10",
       "chat_model_response": true,
       "same_owner_local_device_inventory": true,
@@ -66,7 +60,22 @@
       "natural_pointer_and_text_input": true,
       "native_backspace": true,
       "isolated_test_page": true,
-      "sent_messages_to_people": false
-    }
+      "sent_messages_to_people": false,
+      "initial_installed_app": "1.1.0-beta.25",
+      "native_client_shell_via_live_model": true,
+      "client_shell_probe": "constant-output printf; no file reads or writes",
+      "composer_send_visible_with_both_sidebars": true
+    },
+    "desktop_contract_tests": 134
+  },
+  "previous_app_validation": {
+    "version": "1.1.0-beta.25",
+    "source_commit": "842a236b62afb71afb3402043ef050a69a30a20c",
+    "build_run": 42225770140,
+    "state": "published",
+    "publication_run": 42229260779,
+    "verified_public_assets": 36,
+    "qualified_native_targets": 6,
+    "successful_build_attempt": 2
   }
 }

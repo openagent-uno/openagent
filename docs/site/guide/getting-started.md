@@ -3,7 +3,7 @@
 OpenAgent is available as the standalone product or as independently versioned
 libraries. The current manual-upgrade server/CLI cohort is
 [1.1.9 beta 10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.9-beta.10), with
-Core beta48 and Device Tools B18. App beta25 carries the canonical desktop
+Core beta48 and Device Tools B18. App beta26 carries the canonical desktop
 updater. See [downloads](../downloads) for publication and verification scope.
 
 ## Desktop app
@@ -11,7 +11,7 @@ updater. See [downloads](../downloads) for publication and verification scope.
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your OS and CPU. Replace an existing App without
-uninstalling it or deleting its profile. Manually selecting beta25 opts into its
+uninstalling it or deleting its profile. Manually selecting beta26 opts into its
 beta update channel. New builds use the canonical feed; reinstalling an older
 build may preserve an obsolete feed. Native artifact checks and provider
 acceptance remain separate; see [downloads](../downloads).
