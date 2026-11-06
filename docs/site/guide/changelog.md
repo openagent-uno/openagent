@@ -2,6 +2,18 @@
 
 Notable changes, newest first.
 
+## Server/CLI 1.1.9 beta 14
+
+- Session sharing validates the host's current native user directory. Unknown/suspended recipients cannot receive grants or advance the ACL; directory outages deny new sharing while retaining removal of old grants. Sharing never aliases a channel principal as a native owner or grants a collaborator personal-device access.
+- Qualification passed 478 installed tests, 80 subtests, 20 Custom View scenarios and four repeated responsive App scenarios. Configuration beta21 is reused byte-for-byte from beta13; the installer verifies 39 wheels across nine pinned manifests.
+
+## App beta27
+
+- Session sharing opens from the icon beside Participants in session details, with user selection/search and access removal. It no longer occupies the composer.
+- Opening a desktop preserves the user's first click and keyboard focus through the modal transition. Repeated snapshot/video tests cover sharing, narrow layouts and direct keyboard/pointer/drag/scroll input.
+- All six native targets passed qualification; macOS ARM64/x64 are signed, notarized and stapled. Existing application/helper identities and the native Host Tools cohort remain unchanged.
+
+
 ## Server/CLI 1.1.9 beta 13
 
 - Private mapped Slack/Discord sessions receive the exact native user's consented device leases. Private Telegram/WhatsApp bridges can use explicit sender-to-device-owner mappings independently of vault ownership.

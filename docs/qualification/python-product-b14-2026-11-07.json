@@ -1,0 +1,32 @@
+{
+  "format": 1,
+  "version": "1.1.9b14",
+  "product_config_version": "1.1.0b21",
+  "source_commit": "5dc4e0c2a01703fcfe14de94f01c403466c608ef",
+  "manifest_sha256": "c1d90df9cc1137f5e7236021d5b61dda4cc276ef538f90701ddd9b22ec949d2c",
+  "core_version": "1.1.0b50",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42290382218",
+  "root_tests_passed": 478,
+  "root_tests_skipped": 1,
+  "subtests_passed": 80,
+  "custom_view_protocol_scenarios_passed": 20,
+  "source_lock_checks": [
+    "server",
+    "cli",
+    "host-tools"
+  ],
+  "installed_dependency_check": "passed",
+  "app_source_types_and_unit_tests": "passed",
+  "responsive_sharing_and_computer_ui_scenarios": 4,
+  "channel_contracts_tested": [
+    "mapped Slack",
+    "mapped Discord",
+    "private Telegram",
+    "private WhatsApp"
+  ],
+  "session_sharing_recipient_directory": "unknown/suspended rejected; unavailable fails closed; revocation remains available",
+  "external_provider_message_delivery_tested": false,
+  "physical_client_acceptance": "separate private receipt",
+  "native_app_and_host_tools": "independently versioned",
+  "local_mac_build_performed": false
+}
