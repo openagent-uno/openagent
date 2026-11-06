@@ -50,8 +50,10 @@ a mandatory kernel storage substrate and optional administration tools. Vault,
 MCP, Search, Scheduler, Workflows and other module surfaces are independently selected.
 
 Capabilities bind exact source, actor, audience and generation; calls use opaque
-tool references. A connected App's local computer/dashboard grant applies only
-to its authenticated originating context, not to a channel or scheduled task.
+tool references. App dashboards stay bound to their authenticated originating
+context. For private human sessions, product policy can grant consented devices
+owned by the same authenticated user. Channels and scheduled tasks receive no
+automatic device grant; Core assumes neither clients nor a sharing policy.
 Server-owned tools are separate explicitly registered sources. Revocation and
 publication recheck current authority. A network acknowledgement is not a
 terminal result; reconcile run identity and replay cursor instead of duplicating effects.

@@ -130,8 +130,15 @@ run in three modes:
 
 OpenAgent App and CLI register dashboards, shell, filesystem, editor,
 computer-control and agent-in-chrome for the authenticated client context.
-Channel turns and delayed automation do not inherit those temporary device
-capabilities.
+For a private human session, the product grants consented connections owned by
+the same authenticated user; each call still binds one exact source and generation.
+Core receives optional generic grants and assumes no client topology. Channel
+turns and delayed automation do not inherit temporary device capabilities.
+
+The desktop selector checks the supported invocation schema: a browser-tab
+`computer` tool is not a desktop target. Live desktop media may remain idle
+without emitting frames. Capability heartbeats still check the exact connection;
+absence of screen changes does not itself disconnect the view.
 
 ## Identity and multiuser sessions
 

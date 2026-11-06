@@ -932,7 +932,14 @@ class CapabilityRegistry:
             if not sent:
                 raise ClientCapabilityError("CLIENT_OFFLINE", "Exact media host unavailable")
             while True:
-                packet = await asyncio.wait_for(queue.get(), timeout=20)
+                try:
+                    packet = await asyncio.wait_for(queue.get(), timeout=20)
+                except asyncio.TimeoutError:
+                    # ScreenCaptureKit need not emit a new frame for an idle
+                    # desktop. Silence is not a disconnect; the capability
+                    # heartbeat and exact-origin checks still enforce liveness.
+                    self._require_origin(origin)
+                    continue
                 self._require_origin(origin)
                 if packet is None:
                     break

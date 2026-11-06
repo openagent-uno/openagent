@@ -121,6 +121,44 @@ class DeviceApi(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(200, response.status)
         self.assertEqual({'alice'}, {p['handle'] for p in (await response.json())['participants']})
 
+    async def test_browser_computer_is_not_a_desktop_target(self):
+        from openagent_device_tools.sidecars import AGENT_IN_CHROME_MANIFEST
+        browser = next(tool for tool in AGENT_IN_CHROME_MANIFEST.tools if tool.name == 'computer')
+        schema = browser.input_schema
+        await self.gateway.capabilities.update_catalog(self.host, generation=1, servers=[
+            *({**server, 'tools': list(server['tools'])} for server in self.host.catalog.values()),
+            {'name': 'agent-in-chrome', 'tools': [{'name': 'computer', 'input_schema': schema}]},
+        ])
+        response = await self.client.get('/api/sessions/session/computer-targets')
+        self.assertEqual(200, response.status)
+        self.assertEqual(1, len((await response.json())['targets']))
+
+    async def test_idle_desktop_keeps_exact_stream_open(self):
+        from unittest.mock import patch
+        self.host.media_protocols = ('openagent-video/1',)
+        context = await self.service.authorizer.context_for_identity(self.identity, 'session')
+        token = install_on_behalf_identity(self.identity)
+        try:
+            from dataclasses import replace
+            context = replace(context, capabilities=tuple(await self.service._capability_context(context)))
+        finally:
+            reset_on_behalf_identity(token)
+        lease = next(lease for lease in context.capabilities if lease.source_id.endswith('/computer-control'))
+        iterator = self.gateway.capabilities.stream_tool(self.host.origin(self.gateway.capabilities),
+            'computer-control', 'computer', {}, execution_context=context, source_id=lease.source_id)
+        original_wait = asyncio.wait_for
+        async def short_wait(awaitable, timeout):
+            return await original_wait(awaitable, .01 if timeout == 20 else timeout)
+        with patch('openagent_server.gateway.capabilities.asyncio.wait_for', short_wait):
+            pending = asyncio.create_task(anext(iterator))
+            await asyncio.sleep(.04)
+            self.assertFalse(pending.done(), 'An unchanged desktop must not disconnect')
+            stream = next(iter(self.host.media))
+            self.gateway.capabilities.receive_media(self.host, {'type': 'client_media_packet',
+                'stream_id': stream, 'generation': 1, 'packet': {'type': 'frame'}})
+            self.assertEqual({'type': 'frame'}, await original_wait(pending, 1))
+            await iterator.aclose()
+
     async def test_live_stream_exact_generation_close_and_revocation(self):
         self.host.media_protocols=('openagent-video/1',)
         await self.gateway.capabilities.update_catalog(self.host,generation=1,servers=[{**server,'tools':list(server['tools'])} for server in self.host.catalog.values()])

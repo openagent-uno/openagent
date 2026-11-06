@@ -27,8 +27,10 @@ the authenticated execution context and authorizes actions and result
 audiences.
 
 One uniform catalog binds opaque tool references to exact sources, executors
-and generations. App and CLI advertise device capabilities only for their
-authenticated originating turn. App injects dashboard capabilities itself;
+and generations. The host grants consented device sources explicitly. The
+standalone product can grant the same authenticated owner’s connected devices
+to private human sessions, while Core stays independent of client topology.
+App injects dashboard capabilities itself;
 keeping the persistent dashboard service in the server does not advertise
 those tools to Telegram, another client, or a scheduled task. Disconnect and
 revocation invalidate further calls, without selecting another computer.

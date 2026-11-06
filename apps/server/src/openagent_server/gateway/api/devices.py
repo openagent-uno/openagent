@@ -78,8 +78,15 @@ async def handle_participants(request):
 
 
 def computer_tools(tools):
+    # A browser tab also exposes a tool named ``computer``. It requires a
+    # tab identifier and cannot accept this desktop view's input contract.
+    # Match the callable schema, never labels or opaque reference prefixes.
     return [tool for tool in tools if tool.name in {'computer', 'computer_control_computer'}
-            and 'action' in tool.input_schema.get('properties', {})]
+            and 'action' in tool.input_schema.get('properties', {})
+            and set(tool.input_schema.get('required', ())) <= {'action', 'coordinate', 'text'}
+            and ('enum' not in tool.input_schema['properties']['action']
+                 or {'get_screenshot', 'mouse_move', 'left_click', 'key', 'type'}
+                 <= set(tool.input_schema['properties']['action']['enum']))]
 
 
 async def handle_targets(request):
