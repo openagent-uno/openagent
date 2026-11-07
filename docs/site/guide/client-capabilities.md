@@ -139,13 +139,15 @@ records the bridge regressions and the remaining installed-product gates.
 
 ## Server-originated work
 
-Only a turn received from a live authenticated Desktop or CLI instance has a
-client execution origin. The following always see server MCPs only, even while a
-client is online:
+Device access requires a current trusted interactive grant. Desktop and CLI
+turns derive that grant from the authenticated native user; supported private
+channel turns use the verified audience and explicit owner mapping described
+above. A channel allowlist or an online client alone does not create a grant.
+The following see server MCPs only:
 
 - scheduled-task firings;
 - webhook and event deliveries;
-- Telegram, Discord, WhatsApp and other channel bridges;
+- unmapped, unsupported or shared-audience channel turns;
 - automatically started workflows;
 - any durable/asynchronous child run spawned from those paths.
 
