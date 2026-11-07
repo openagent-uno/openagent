@@ -19,6 +19,7 @@ resolution-markers = [
 [manifest]
 constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
+    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.19/openagent_channel_bridges-0.1.0b19-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
     { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
@@ -2275,10 +2276,13 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 [[package]]
 name = "openagent-channel-bridges"
 version = "0.1.0b19"
-source = { directory = "../../packages/channel-bridges" }
+source = { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.19/openagent_channel_bridges-0.1.0b19-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "aiohttp" },
     { name = "openagent-core" },
+]
+wheels = [
+    { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.19/openagent_channel_bridges-0.1.0b19-py3-none-any.whl?download=1", hash = "sha256:26a47ce04edc395622aeb1aa9421ba50e6419f8cd1dcbe71711b8d223e3cd14c" },
 ]
 
 [package.metadata]
@@ -2294,11 +2298,11 @@ requires-dist = [
     { name = "slack-bolt", marker = "extra == 'slack'", specifier = ">=1.18,<2" },
     { name = "whatsapp-api-client-python", marker = "extra == 'whatsapp'", specifier = ">=0.0.46,<1" },
 ]
-provides-extras = ["slack", "discord", "telegram", "whatsapp", "test"]
+provides-extras = ["discord", "slack", "telegram", "test", "whatsapp"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -2308,7 +2312,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = "==1.1.0b51" },
-    { name = "openagent-identity", specifier = "==1.1.9b15" },
+    { name = "openagent-identity", specifier = "==1.1.9b16" },
 ]
 
 [[package]]
@@ -2381,7 +2385,7 @@ provides-extras = ["capabilities", "engine", "providers", "audio", "retrieval", 
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2395,7 +2399,7 @@ requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
     { name = "openagent-core", specifier = "==1.1.0b51" },
-    { name = "openagent-identity", specifier = "==1.1.9b15" },
+    { name = "openagent-identity", specifier = "==1.1.9b16" },
 ]
 
 [[package]]
@@ -2456,7 +2460,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2565,7 +2569,7 @@ requires-dist = [
     { name = "litellm", specifier = ">=1.50.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0.0,<2" },
     { name = "numpy", specifier = ">=1.24" },
-    { name = "openagent-channel-bridges", directory = "../../packages/channel-bridges" },
+    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.19/openagent_channel_bridges-0.1.0b19-py3-none-any.whl?download=1" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
     { name = "openagent-core", extras = ["engine"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1" },
@@ -2628,7 +2632,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -2655,7 +2659,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
@@ -2674,7 +2678,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.9b15" },
+    { name = "openagent-identity", specifier = "==1.1.9b16" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2996,7 +3000,7 @@ requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b51" }]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.9b15"
+version = "1.1.9b16"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },

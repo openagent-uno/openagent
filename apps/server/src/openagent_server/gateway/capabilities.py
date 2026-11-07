@@ -255,6 +255,40 @@ def _classification_for_arguments(
     return max(matches, key=risk.__getitem__)
 
 
+def _desktop_arguments(
+    manifest: dict[str, Any], args: dict[str, Any],
+) -> dict[str, Any]:
+    schema = manifest["input_schema"]
+    properties = schema.get("properties")
+    action_schema = properties.get("action") if isinstance(properties, dict) else None
+    if not isinstance(action_schema, dict):
+        return args
+
+    # The native sidecar describes actions through a local const union. Older
+    # catalog snapshots use an inline enum. Do not follow arbitrary refs.
+    choices = action_schema.get("enum")
+    if action_schema.get("$ref") == "#/$defs/Action":
+        definitions = schema.get("$defs")
+        definition = definitions.get("Action") if isinstance(definitions, dict) else None
+        variants = definition.get("oneOf") if isinstance(definition, dict) else None
+        choices = [item.get("const") for item in variants if isinstance(item, dict)] if isinstance(variants, list) else None
+    if not isinstance(choices, list) or "get_screenshot" not in choices:
+        return args
+
+    action = args.get("action")
+    if isinstance(action, str) and action in choices:
+        return args
+    if action == "screenshot":
+        canonical = {**args, "action": "get_screenshot"}
+        if _classification_for_arguments(manifest, canonical) == "read_only":
+            return canonical
+    raise ClientCapabilityError(
+        "INVALID_ARGUMENTS",
+        "Unsupported desktop action. Use the exact action from the tool schema, "
+        "such as get_screenshot for a screenshot.",
+    )
+
+
 def normalise_catalog(raw: Any) -> dict[str, dict[str, Any]]:
     """Validate a client catalog and return it keyed by MCP server name."""
 
@@ -1056,6 +1090,8 @@ class CapabilityRegistry:
             args = {}
         if not isinstance(args, dict):
             raise ClientCapabilityError("INVALID_ARGUMENTS", "args must be an object")
+        if server_name == "computer-control" and tool_name == "computer":
+            args = _desktop_arguments(tool_manifest, args)
         background_requested = (
             server_name == "shell" and tool_name == "shell_exec"
             and args.get("run_in_background") is True

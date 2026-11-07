@@ -114,6 +114,12 @@ OS/architecture: the release version and every bundled file's SHA-256 are
 verified before Desktop or CLI starts them, so no user-installed Node.js,
 Python or `npx` is required.
 
+The gateway accepts `screenshot` as a compatibility spelling for the client
+desktop tool's read-only `get_screenshot` action. It resolves that spelling
+before dispatch and rejects actions outside the advertised desktop action set
+before they can acquire the local write lock. The same rules apply to native
+sessions and mapped channels with access to the exact device.
+
 ### Desktop host transport lifecycle
 
 The Desktop bridge binds stdout, stderr, pending responses and cancellation to

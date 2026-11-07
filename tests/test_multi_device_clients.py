@@ -29,6 +29,7 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         self.registry.record_device_use = self.directory.used
         self.identity = OnBehalfIdentity('network', 'user', 'alice', 'origin')
         self.sent = []
+        self.dispatched_classifications = []
         self.connections = []
         self.policy = self
         self.catalog = CapabilityCatalog(self)
@@ -66,15 +67,17 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         async def send(ws, frame):
             self.sent.append((device, frame))
             if frame['type'] == 'client_tool_call':
+                self.dispatched_classifications.append(conn.pending[frame['call_id']].classification)
                 self.registry.resolve_result(conn, {'call_id': frame['call_id'], 'generation': generation,
                     'result': {'content': [{'type': 'text', 'text': device}]}})
             return True
         conn = await self.registry.register(device_id=device, account_id=network, network_id=network,
             owner_handle=owner, owner_kind=kind, client_instance_id=instance, generation=generation,
             device_label=device.title(), ws=Socket(), send_json=send,
-            servers=[{'name': 'computer-control', 'tools': [{'name': 'computer', 'classification': 'read_only',
+            servers=[{'name': 'computer-control', 'tools': [{'name': 'computer', 'classification': 'mutating',
+                'classification_by_argument': {'action': {'get_screenshot': 'read_only'}},
                 'input_schema': {'type': 'object', 'properties': {'action': {'$ref': '#/$defs/Action'}},
-                                 '$defs': {'Action': {'enum': ['get_screenshot', 'left_click']}}}}]}])
+                                 '$defs': {'Action': {'oneOf': [{'const': 'get_screenshot'}, {'const': 'left_click'}]}}}}]}])
         self.connections.append(conn)
         await self.directory.remember(conn)
         return conn
@@ -95,6 +98,17 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         used = await self.directory.session_devices('network', 'session', self.registry)
         self.assertEqual({'Laptop', 'Workstation'}, {d['label'] for d in used})
         self.assertFalse(await self.directory.session_devices('foreign', 'session', self.registry))
+
+    async def test_unknown_desktop_action_never_reaches_the_host(self):
+        await self.connect()
+        context = replace(self.context, capabilities=await self.service._capability_context(self.context))
+        target = (await self.catalog.discover(context))[0]
+        with self.assertRaisesRegex(ClientCapabilityError, 'get_screenshot') as error:
+            await self.catalog.call_tool(target.tool_ref, {'action': 'unknown'}, context)
+        self.assertEqual('INVALID_ARGUMENTS', error.exception.code)
+        self.assertFalse(self.sent)
+        await self.catalog.call_tool(target.tool_ref, {'action': 'left_click'}, context)
+        self.assertEqual(['mutating'], self.dispatched_classifications)
 
     async def test_offline_inventory_survives_restart_but_never_confers_authority(self):
         conn = await self.connect()
@@ -148,7 +162,9 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
                 self.assertIsNotNone(await self.service.authorizer._channel(context))
                 targets = await self.catalog.discover(context)
                 self.assertEqual({'Laptop'}, {t.target_label for t in targets})
-                await self.catalog.call_tool(targets[0].tool_ref, {'action':'get_screenshot'}, context)
+                await self.catalog.call_tool(targets[0].tool_ref, {'action':'screenshot'}, context)
+                self.assertEqual({'action': 'get_screenshot'}, self.sent[-1][1]['args'])
+                self.assertEqual('read_only', self.dispatched_classifications[-1])
                 forged = replace(context, capabilities=(*leases, CapabilityLease('invented', 'app', '1')))
                 self.assertIsNone(await self.service.authorizer._channel(forged))
                 self.binding_valid = False
@@ -174,6 +190,11 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual('__bridge_'+provider, context.initiator.subject_id)
                 targets = await self.catalog.discover(context)
                 self.assertEqual({'Laptop'}, {t.target_label for t in targets})
+                args = {'action': 'screenshot'}
+                await self.catalog.call_tool(targets[0].tool_ref, args, context)
+                self.assertEqual({'action': 'screenshot'}, args)
+                self.assertEqual({'action': 'get_screenshot'}, self.sent[-1][1]['args'])
+                self.assertEqual('read_only', self.dispatched_classifications[-1])
                 for changed in (replace(context, session_id=prefix+'999'), replace(context, audience=(p,self.context.initiator))):
                     self.assertFalse(await self.service._capability_context(changed))
                 self.active_users.clear()
