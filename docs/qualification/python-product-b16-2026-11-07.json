@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "version": "1.1.9b16",
+  "product_config_version": "1.1.0b21",
+  "source_commit": "c310fedcf3d122590d7ee26a1adf42ecb203d0e3",
+  "manifest_sha256": "402e34e31128e6ccfd3b55646f460d265866a9cf7206c375b1eb0274cc51e869",
+  "core_version": "1.1.0b51",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42348282070",
+  "root_tests_passed": 483,
+  "root_tests_skipped": 1,
+  "subtests_passed": 80,
+  "custom_view_protocol_scenarios_passed": 20,
+  "native_host_lock_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+  ],
+  "source_lock_checks": [
+    "server",
+    "cli",
+    "host-tools"
+  ],
+  "installed_dependency_check": "passed",
+  "app_source_types_and_unit_tests": "passed",
+  "responsive_sharing_and_computer_ui_scenarios": 4,
+  "channel_contracts_tested": [
+    "mapped Slack",
+    "mapped Discord",
+    "private Telegram",
+    "private WhatsApp"
+  ],
+  "connected_desktop_screenshot_alias": "canonicalized to get_screenshot before risk classification and dispatch",
+  "unadvertised_desktop_actions": "rejected before host dispatch",
+  "external_provider_message_delivery_tested": false,
+  "physical_client_acceptance": "separate private receipt",
+  "native_app_and_host_tools": "independently versioned",
+  "local_mac_build_performed": false,
+  "installer": {
+    "public_asset_sha256": "ff0e2fc85ce45a9f0790a6496d2be011271bdc4d88134d294c079cbe7831629d",
+    "public_wheels_verified": 39
+  },
+  "installed_acceptance": {
+    "previous_runtime_preserved": true,
+    "database_snapshot_verified": true,
+    "desktop_and_browsers_preserved": true,
+    "read_only_alias_with_installed_sidecar_schema": true,
+    "invalid_action_rejected_before_dispatch": true,
+    "real_connected_mac_capture_through_authorized_session_api": true,
+    "telegram_bot_message_delivery_verified": false
+  }
+}
