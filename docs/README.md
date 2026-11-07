@@ -13,6 +13,8 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Python beta18 candidate: explicit legacy private conversation continuity](releases/v1.1.9-beta.18.md).
+
 - [Python beta17: complete Core53/Sessions adoption and scoped history recovery](releases/v1.1.9-beta.17.md)
   ([public qualification](qualification/python-product-b17-2026-11-07.json)).
 

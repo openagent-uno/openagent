@@ -12,9 +12,17 @@ class TelegramBridge(_provider.TelegramBridge, StandaloneBaseBridge):
     def __init__(self, token: str, allowed_users=None,
                  gateway_url="ws://localhost:8765/ws", gateway_token=None,
                  personality=None, streaming=False, allowed_chats=None, live=True,
-                 *, transport=None, binding_id="telegram"):
+                 *, transport=None, binding_id="telegram", legacy_private_sessions=None):
         transport = transport if transport is not None else make_gateway_transport(
             gateway_url, gateway_token, name="telegram", binding_id=binding_id)
+        if legacy_private_sessions is not None:
+            from .gateway_transport import GatewayBridgeTransport
+            from .session_identity import LegacyPrivateSessions
+            policy = LegacyPrivateSessions.from_config(legacy_private_sessions)
+            if (not isinstance(transport, GatewayBridgeTransport) or policy.binding_id != binding_id
+                    or token.partition(':')[0] != policy.account_id):
+                raise ValueError('Legacy private sessions need their exact configured bot/account gateway')
+            transport.configure_legacy_private_sessions(legacy_private_sessions)
         super().__init__(token, allowed_users, personality=personality,
             streaming=streaming, allowed_chats=allowed_chats, live=live,
             transport=transport, binding_id=binding_id)
