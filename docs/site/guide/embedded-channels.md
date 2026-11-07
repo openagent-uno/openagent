@@ -135,6 +135,30 @@ retained; they are not rewritten or deleted. Missing mapping keeps the legacy
 DM transport; it does not enable groups. Gateway slash commands are not executed
 with the internal bridge certificate in mapped mode.
 
+### Recovering mapped-conversation history (unreleased source fix)
+
+The standalone channel authorizer recognizes the read-side Sessions actions
+`session.list`, `session.search`, `session.read` and `session.publish` for the
+current conversation and its authorized descendant lineage. Previously it
+recognized only `session.read`: Sessions search/list filtered the current chat
+out, and a successful read could not pass its separate publication check.
+This could make existing history tools unusable even though the transcript was
+durable. The fix also works with existing explicit-reference Sessions callers;
+it does not depend on automatic cross-session recall.
+
+Every action still requires the exact bound tenant, current provider membership,
+mapped principals and result audience. Another conversation, thread or audience
+epoch is not made readable by sharing a channel provider. Session rename,
+archive, restore and purge remain denied through this channel binding. Revocation
+between reading and publication blocks the result. A separate host permission
+contract is required for broader cross-conversation recall.
+
+Provider proof timestamps and event IDs are not session identifiers: inactivity
+alone does not rotate the conversation key. A host mapping/binding or audience
+change, explicit reset or deletion remains a different boundary. These are
+source-tested contracts, not proof of the configuration/version of any installed
+agent. See [qualification](../../qualification/channel-history-recovery-2026-11-07.json).
+
 Inbound generic files/images use the same public session-scoped
 `ArtifactRepository` as normal sessions, with bounded authorized staged reads.
 Output uses canonical session-linked artifacts and reauthorizes before reading

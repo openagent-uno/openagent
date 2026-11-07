@@ -13,6 +13,9 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Unreleased mapped-channel history recovery](site/guide/embedded-channels.md#recovering-mapped-conversation-history-unreleased-source-fix)
+  ([source qualification](qualification/channel-history-recovery-2026-11-07.json)).
+
 - [Python beta12: revision integrity and bounded summaries](releases/v1.1.9-beta.12.md).
 
 - Architecture: [v1 boundaries](architecture-v1.md), [modules](modules-v1.1.md), [application composition](site/guide/application-composition.md).

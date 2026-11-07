@@ -9,7 +9,9 @@ import sys
 import pytest
 
 from openagent_core import (CapabilityCatalog, FunctionSource, Runtime, RuntimeServices,
-                            RuntimeSettings, ToolDefinition)
+                            RuntimeSettings, ToolDefinition, ModuleCatalog, ModuleConfig,
+                            RuntimeProfile)
+from openagent_core.runtime import execution_scope
 from openagent_core.artifacts import ArtifactRepository
 from openagent_core.contracts import IdempotencyConflict, PrincipalRef, ResourceRef, RunRequest
 from openagent_core.memory.db import MemoryDB
@@ -30,7 +32,7 @@ class Provider(BaseBridge):
                        audience_verified_at=time.time())
 
 
-async def assemble(tmp_path, *, settings=None):
+async def assemble(tmp_path, *, settings=None, sessions=False):
     db = MemoryDB(str(tmp_path / "state.sqlite"))
     await db.connect()
     config = settings or {"channels": {"slack": {"identity": {"tenant_id": "network", "account_id": "team",
@@ -71,8 +73,13 @@ async def assemble(tmp_path, *, settings=None):
                  "final_answer": {"text": "same agent and catalog", "attachments": refs}})
             return "same agent and catalog"
     store = SqliteRuntimeStore(db.db_path)
+    modules = {}
+    if sessions:
+        from openagent_module_sessions import descriptor
+        modules = {"module_catalog": ModuleCatalog((descriptor,)),
+                   "profile": RuntimeProfile(1, {"sessions": ModuleConfig(frozenset({"service", "agent_tools"}))})}
     service.runtime = Runtime(RuntimeSettings("agent", tmp_path),
-        RuntimeServices(store, Executor(), service.authorizer, catalog))
+        RuntimeServices(store, Executor(), service.authorizer, catalog), **modules)
     await service.runtime.start()
     host = NativeChannelTransport(service, "slack", "slack")
     bridge = Provider(transport=host, binding_id="slack")
@@ -230,6 +237,9 @@ async def test_normal_child_tool_retains_individual_authority_and_cannot_borrow_
         assert child.author.kind == "agent" and child.authority == child.initiator == parent.initiator
         assert child.audience == parent.audience and child.parent_run_id == reply.run_ref
         assert len(calls) == 2  # Parent and child both use the exact normal catalog.
+        child_resource = ResourceRef("session", "network", child.request.session_id)
+        for action in ("session.read", "session.publish", "session.list", "session.search"):
+            assert await service.authorizer.authorize(parent, action, child_resource, audience=parent.audience)
         forged = parent.child(session_id="unrelated", run_id="unknown-parent",
                               agent=PrincipalRef("openagent", "network", "agent", "agent"))
         assert not await service.authorizer.authorize(forged, "run.submit",
@@ -268,6 +278,74 @@ async def test_native_channel_host_never_maps_unknown_recipient_or_owner_fallbac
         bridge.members.pop()  # Revocation invalidates an already-bound execution.
         assert not await service.authorizer.authorize(bound, "run.submit", resource, audience=bound.audience)
         assert calls == []
+    finally:
+        await host.stop()
+        await service.runtime.close()
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_native_channel_history_tools_can_publish_only_current_conversation(tmp_path):
+    service, host, bridge, context, current, calls, users, store, db = await assemble(tmp_path, sessions=True)
+    try:
+        first = await host.send(BridgeMessage(context, (BridgePart(text="CEDAR launch plan: compare budgets"),)))
+        other_context = replace(context, conversation_id="other-channel", event_id="other-event")
+        other = await host.send(BridgeMessage(other_context, (BridgePart(text="PRIVATE unrelated plan"),)))
+        bound = await host._execution(context)
+        own = ResourceRef("session", bound.tenant_id, bound.session_id)
+        foreign = ResourceRef("session", bound.tenant_id, other.session_ref)
+        with execution_scope(service.runtime, bound, None, module_generation=1,
+                             capability_revision=service.runtime.capabilities.snapshot_revision()):
+            tools = {tool.name: tool for tool in await service.runtime.capabilities.discover(bound)}
+            searched = await service.runtime.capabilities.call_tool(
+                tools["sessions_search"].tool_ref, {"query": "CEDAR", "limit": 5}, bound)
+            assert [item["session_id"] for item in searched["sessions"]] == [first.session_ref]
+            result = await service.runtime.capabilities.call_tool(tools["sessions_read"].tool_ref,
+                {"session_ref": searched["sessions"][0]["session_ref"]}, bound)
+            assert result["messages"][0]["text"] == "CEDAR launch plan: compare budgets"
+            assert "PRIVATE unrelated plan" not in str(result)
+            unrelated = await service.runtime.capabilities.call_tool(
+                tools["sessions_search"].tool_ref, {"query": "PRIVATE", "limit": 5}, bound)
+            assert unrelated["sessions"] == []
+            listed = await service.runtime.capabilities.call_tool(tools["sessions_list"].tool_ref, {}, bound)
+            assert [item["session_id"] for item in listed["sessions"]] == [first.session_ref]
+        reads = ("session.read", "session.publish", "session.list", "session.search")
+        for action in reads:
+            assert await service.authorizer.authorize(bound, action, own, audience=bound.audience)
+            assert not await service.authorizer.authorize(bound, action, foreign, audience=bound.audience)
+            assert not await service.authorizer.authorize(bound, action, own, audience=(bound.initiator,))
+        for action in ("session.archive", "session.restore", "session.purge", "session.rename"):
+            assert not await service.authorizer.authorize(bound, action, own, audience=bound.audience)
+        bridge.members.remove("Ubob")
+        for action in reads:
+            assert not await service.authorizer.authorize(bound, action, own, audience=bound.audience)
+    finally:
+        await host.stop()
+        await service.runtime.close()
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_channel_history_revocation_between_read_and_publication_is_denied(tmp_path, monkeypatch):
+    service, host, bridge, context, current, calls, users, store, db = await assemble(tmp_path, sessions=True)
+    try:
+        await host.send(BridgeMessage(context, (BridgePart(text="Original conversation detail"),)))
+        bound = await host._execution(context)
+        read = store.read_session
+        async def revoke_after_read(*args, **kwargs):
+            result = await read(*args, **kwargs)
+            bridge.members.remove("Ubob")
+            return result
+        monkeypatch.setattr(store, "read_session", revoke_after_read)
+        with execution_scope(service.runtime, bound, None, module_generation=1,
+                             capability_revision=service.runtime.capabilities.snapshot_revision()):
+            tools = await service.runtime.capabilities.discover(bound)
+            selected = next(tool for tool in tools if tool.name == "sessions_read")
+            listed = next(tool for tool in tools if tool.name == "sessions_list")
+            references = await service.runtime.capabilities.call_tool(listed.tool_ref, {}, bound)
+            with pytest.raises(PermissionError):
+                await service.runtime.capabilities.call_tool(selected.tool_ref,
+                    {"session_ref": references["sessions"][0]["session_ref"]}, bound)
     finally:
         await host.stop()
         await service.runtime.close()

@@ -1,0 +1,33 @@
+{
+  "status": "unreleased-source-fix",
+  "product_base_commit_short": "376e3c72",
+  "defect": "Mapped channel authorizations recognized session.read but denied session.list, session.search and session.publish, making canonical Sessions retrieval empty or unable to publish",
+  "reproduction": {
+    "test": "tests/test_native_channel_transport.py::test_native_channel_history_tools_can_publish_only_current_conversation",
+    "before_fix": "Failed: sessions_search returned an empty list for an existing current-conversation match",
+    "real_runtime_sqlite_and_authorizer": true,
+    "provider_and_model": "Synthetic fixtures"
+  },
+  "change": "Recognize all four read-side history actions only within the existing exact channel/session/authorized-descendant and audience checks; no administration or cross-chat grants",
+  "validation": {
+    "command": "python -m pytest tests/test_native_channel_transport.py tests/test_runtime_access.py tests/test_native_memory_access.py tests/test_channel_agent_identity.py packages/channel-bridges/tests/test_conversation.py packages/channel-bridges/tests/test_conversation_runtime.py -q",
+    "passed": 62,
+    "failed": 0,
+    "independent_core_compatibility": "Both new history regression tests also pass with unmodified Core 7b85c96; the product fix does not require the optional current-session reference feature",
+    "coverage": [
+      "Actual Sessions search/read/list with exact opaque session references",
+      "Other conversations excluded even with the same provider audience",
+      "Current-session and same-lineage child-history permissions",
+      "Wrong result audience and session administration denied",
+      "Provider membership revocation before and during history publication",
+      "Native channel restart, identity epochs, exact targets and ordinary runtime authorization"
+    ]
+  },
+  "limits": {
+    "live_telegram_or_other_provider": false,
+    "reported_chat_incident_attributed": false,
+    "new_package_release_or_installed_agent_update": false,
+    "cross_chat_recall_grant": false,
+    "task_token_cost_benchmark": false
+  }
+}
