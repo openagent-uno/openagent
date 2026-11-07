@@ -22,6 +22,13 @@ from openagent_core.memory.operational.access import resource_is_visible
 
 SourceAuthorizer = Callable[..., Awaitable[bool]]
 
+# Sessions discovery and publication are separate read-side checks in Core.
+# Channels may recover only their own currently authorized conversation/lineage;
+# these actions never grant session administration or cross-chat browsing.
+_SESSION_HISTORY_ACTIONS = frozenset({
+    "session.read", "session.publish", "session.list", "session.search",
+})
+
 
 @dataclass(frozen=True)
 class _Binding:
@@ -291,8 +298,8 @@ class NativeRuntimeAuthorizer:
                 return False
             if resource.kind == "session":
                 if action not in {
-                    "run.submit", "run.execute", "run.publish", "run.read", "run.replay", "run.cancel", "session.read", "run.delegate",
-                }:
+                    "run.submit", "run.execute", "run.publish", "run.read", "run.replay", "run.cancel", "run.delegate",
+                } | _SESSION_HISTORY_ACTIONS:
                     return False
                 if tuple(audience) != context.audience:
                     return False
@@ -300,7 +307,7 @@ class NativeRuntimeAuthorizer:
                     connection.row_factory = aiosqlite.Row
                     row = await self._session(connection, resource.resource_id)
                     if resource.resource_id != context.session_id and not (
-                            action in {"run.read", "run.replay", "session.read"} and row is not None
+                            action in {"run.read", "run.replay"} | _SESSION_HISTORY_ACTIONS and row is not None
                             and row["root_session_id"] == binding.context.session_id):
                         return False
                     if row is None:
