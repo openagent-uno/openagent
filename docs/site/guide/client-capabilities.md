@@ -234,10 +234,10 @@ user directory before granting access. Unknown/suspended users are rejected
 without advancing the ACL; stale grants can still be removed. Sharing a
 conversation never shares a personal computer.
 
-The agent's own desktop is named **<Agent name>'s Computer**, distinct from
+The agent's own desktop is named **`<Agent name>'s Computer`**, distinct from
 connected-device labels. A headless server needs a complete graphical session;
 Xvfb plus Chromium alone has no window manager or taskbar. See
-[server desktop provisioning](../../server-browser-mcps.md).
+[server desktop provisioning](https://github.com/openagent-uno/openagent/blob/main/docs/server-browser-mcps.md).
 
 The App sidebar includes **Devices**, a responsive grid of known computers with
 online/offline status and the modules each host advertises. Restarting a client
