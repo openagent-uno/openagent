@@ -19,6 +19,7 @@ public versioned capabilities to consumers; product-local patches are prohibited
 - Public guides: [site](site/index.md), [client capabilities](site/guide/client-capabilities.md), [channels](site/guide/channels.md), [MCP Apps](site/guide/mcp-apps.md).
 - Connectors: [operations](site/guide/connector-operations.md), [status and remaining gates](site/guide/connector-status.md), [privacy](site/privacy.md).
 - Distribution: [build/release](build-and-release.md), [runtime qualification](runtime-and-verification.md), [repository/updater transition](repository-transition.md).
+- Operations: [incremental operational maintenance and recovery boundaries](operational-maintenance.md).
 - Receipts and releases: `qualification/`, `releases/`, and the [previous release index](INDEX-HISTORY-2026-11-02.md).
 
 ## Maintenance
