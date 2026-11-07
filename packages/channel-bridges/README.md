@@ -6,14 +6,16 @@ Channels speak to the host's existing agent; they do not construct another
 runtime, capability catalog, memory vault or database. They are separate from
 MCP connectors used to operate a provider's APIs as tools.
 
-Beta21 is a source candidate. Historical transcriptions share a 30-second
+Beta21 is [published](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.21), with 452 installed-wheel cases and no skips, errors or failures on Core/SQLite beta45.
+See the [public receipt](../../docs/qualification/channel-history-speech-shared-budget-public-2026-11-07.json); consumer deployment and real provider acceptance remain separate.
+Historical transcriptions share a 30-second
 budget across all selected audio, inside the complete history budget. On expiry the original
 audio remains attributed and an explicit unavailable-transcription notice is
 included; text and other records are preserved. Revocation and cancellation
 still deny submission. Current-turn speech retains its existing host budget.
 See the [history contract](../../docs/site/guide/channel-history-media.md).
 
-Component [`0.1.0b18`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.18)
+Earlier component [`0.1.0b18`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.18)
 is published with 351 installed-wheel tests and 86 subtests passed on the declared
 Core/SQLite beta42 minimum. All four public assets were anonymously read back
 byte-identical. See the [source receipt](../../docs/qualification/channel-context-attestation-2026-11-04.json)
@@ -22,7 +24,7 @@ Host adoption and real provider acceptance remain separate boundaries.
 The preceding beta17 [public receipt](../../docs/qualification/channel-telegram-command-menu-public-2026-11-03.json)
 retains its separate Core/SQLite beta44 qualification.
 
-Beta19 is a source candidate. It bounds the complete additional-history
+Beta19 bounds the complete additional-history
 preparation for Slack and Discord to 120 seconds, including host authorization,
 provider pagination, downloads and transcription. Expiry reports unavailable
 history before submission; it does not silently submit a partial context.

@@ -1,0 +1,35 @@
+{
+  "state": "public immutable component published; no consumer deployment",
+  "tag": "channel-bridges-v0.1.0-beta.21",
+  "source": "e8eb376ae90f1490a8ee6d8c28c36b8ba0ac0fb2",
+  "workflow": 42314101095,
+  "manifestSHA256": "aa27a3594443f123fe66bc6b0eff1c5b3ead4c9946713c756d21fd413c4af4a5",
+  "qualificationSHA256": "0944760fc9b4ee2c45d6e4f37e4ef788b6379ea2fed4ebd3928fe8f80d8a6785",
+  "wheels": [
+    {
+      "file": "openagent_channel_bridges-0.1.0b21-py3-none-any.whl",
+      "name": "openagent-channel-bridges",
+      "version": "0.1.0b21",
+      "sha256": "d0fb00b25ed133180b09b21233742a0ae1e90a67ae6177433d77690b6b0eff9e",
+      "bytes": 124038
+    }
+  ],
+  "installedQualification": {
+    "scope": "normally installed wheel; provider-free full component suite",
+    "source": "e8eb376ae90f1490a8ee6d8c28c36b8ba0ac0fb2",
+    "wheelSha256": "d0fb00b25ed133180b09b21233742a0ae1e90a67ae6177433d77690b6b0eff9e",
+    "core": "1.1.0b45",
+    "sqlite": "1.1.0b45",
+    "counts": {
+      "tests": 452,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "providerAcceptance": false,
+    "deployment": false
+  },
+  "liveProviderAcceptance": false,
+  "consumerDeployment": false,
+  "previousBeta20": "immutable and superseded for the shared-budget correction"
+}
