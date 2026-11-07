@@ -104,6 +104,39 @@ remain host responsibilities.
 
 ## Standalone mapped channels
 
+### Explicit legacy Telegram conversation continuity (API v1)
+
+Old standalone installations used private selectors such as `tg:101`, before
+provider account/binding/thread identity became part of the scoped key. Do not
+guess that any old row belongs to a current bot or rename its primary key.
+The standalone Telegram gateway accepts this **operator-owned**, opt-in policy:
+
+```yaml
+channels:
+  telegram:
+    legacy_private_sessions:
+      version: 1
+      binding_id: telegram
+      account_id: "900"    # Synthetic example: verify the existing bot account.
+      actor_ids: ["101"]  # Only explicitly attested existing private senders.
+```
+
+`LEGACY_PRIVATE_SESSION_API_VERSION` is 1. The configured account must match the
+bot token's account, and every use is bound to the exact provider/binding/account
+and actor. It preserves an attested private main-chat selector and explicitly
+selected children of that same actor; it never aliases another actor, group or
+forum topic. New installations and unlisted actors keep the existing scoped key.
+Malformed policies and account/selector mismatches fail closed. This is routing,
+not a new admission, history, publication or administration grant. Existing
+allowlists, owner policy, tenant and current-audience checks remain mandatory.
+
+The host must verify the old account association before configuring this policy:
+legacy names alone do not attest it. No message, identity, primary key or durable
+automation approval is rewritten. The policy is not accepted in message/tool
+arguments and is not inferred from a consumer name. This standalone gateway
+compatibility contract does not alter the embeddable channel package's identity
+or provide automatic cross-account history migration.
+
 Standalone Slack/Discord can explicitly map an authenticated provider account
 to current network users. Configure `channels.<provider>.identity` with exactly
 `tenant_id`, `account_id`, and `user_bindings` (provider-user-ID to network-user

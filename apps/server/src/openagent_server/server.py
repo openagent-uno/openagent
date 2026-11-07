@@ -1506,6 +1506,7 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_serv
                 streaming=bool(cfg.get("streaming", False)),
                 allowed_chats=cfg.get("allowed_chats"),
                 live=live,
+                legacy_private_sessions=cfg.get("legacy_private_sessions"),
             ))
 
         elif name == "discord":

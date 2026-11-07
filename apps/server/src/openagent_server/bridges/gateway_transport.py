@@ -68,6 +68,11 @@ class GatewayBridgeTransport:
 
     def _session_for_context(self, context):
         hint = _legacy_session_hint.get()
+        migration = getattr(self, '_legacy_private_sessions', None)
+        if migration is not None:
+            legacy = migration.resolve(context, hint)
+            if legacy is not None:
+                return legacy
         # Real typed ingress never keys collectors by a channel-only hint.
         # The old untyped BaseBridge adapter retains its literal session key;
         # current provider callbacks carry account/actor/thread explicitly.
@@ -76,6 +81,11 @@ class GatewayBridgeTransport:
             context.binding_id, context.provider, context.account_id, context.actor_id,
             context.conversation_id, context.thread_id, hint,
         )
+
+    def configure_legacy_private_sessions(self, value):
+        """Trusted host configuration only; never accepts a message argument."""
+        from .session_identity import LegacyPrivateSessions
+        self._legacy_private_sessions = LegacyPrivateSessions.from_config(value)
 
     async def prepare_text(self, text):
         from openagent_core.core.hooks import expand_quick_command
