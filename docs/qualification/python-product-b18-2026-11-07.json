@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "status": "published-public-wheels-and-installer-verified",
+  "version": "1.1.9b18",
+  "source_commit": "5f4c8ed2d2ef533f0e7a341be9baf8dab59bedfd",
+  "manifest_sha256": "8a6fb94be1d6880b5b16e3586341dfbdcb9933f559e98abb3e411f8f61b4cb78",
+  "product_config_version": "1.1.0b22",
+  "core_version": "1.1.0b53",
+  "sessions_version": "1.1.0b3",
+  "full_profile_version": "1.1.0b4",
+  "legacy_private_session_api_version": 1,
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42381862534",
+  "remote_jobs_passed": [
+    "qualify",
+    "qualify-session-ui",
+    "qualify-host-instance (ubuntu-24.04)",
+    "qualify-host-instance (macos-15-intel)",
+    "qualify-host-instance (windows-2025)"
+  ],
+  "publication": "Exact successful manual-candidate artifacts promoted without rebuilding; redundant tag build cancelled",
+  "root_product_tests_passed": 500,
+  "root_product_tests_skipped": 1,
+  "root_subtests_passed": 84,
+  "public_product_wheels_verified_anonymously": 8,
+  "installer": {
+    "sha256": "2fdd6e984b58c2e097c787119d8c81b4e13a3483052f6b7c101808d6b7978bd9",
+    "check_mode_first_party_wheels_verified": 39,
+    "independent_configuration_wheel_selected_once": true,
+    "fixture_tests_passed": 2,
+    "fixture_subtests_passed": 4
+  },
+  "native_app_and_host_tools": "Independent existing releases preserved",
+  "existing_agent_upgraded_by_this_receipt": false,
+  "real_telegram_delivery_verified": false,
+  "generative_continuation_quality_verified": false
+}
