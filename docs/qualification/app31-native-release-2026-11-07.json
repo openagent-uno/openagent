@@ -1,0 +1,58 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.31",
+  "source_commit": "304c92a25bd015895d93fef643b8d2317a1e6a17",
+  "source_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42314674537",
+  "desktop_tests_passed": 136,
+  "shared_tests_passed": 152,
+  "responsive_ui_scenarios_passed": 4,
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42314989817",
+  "build_attempt": 3,
+  "qualified_targets": 6,
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42318290508",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.31",
+  "public_assets": 36,
+  "mac_arm64_zip_sha256": "42d576f1f9d245b5b4ab81c81249b03b262326b0a85dd4ce330394483cfbb5a6",
+  "host_tools_version": "1.0.0b15",
+  "desktop_sdk_version": "0.1.0",
+  "tested_desktop_contracts": [
+    "accepted first shared HTTP run retires the local draft hint without reopening the session",
+    "empty shared observations do not authorize durable session details",
+    "native live transcript and authorized canonical history retire the draft hint",
+    "focused desktop Escape reaches the remote destination and keeps the modal open",
+    "modified shortcuts apply Shift once",
+    "healthy stream renews the exact reference before producer expiry",
+    "overload recovery and renewal never replay input",
+    "ordered burst typing and multiline Unicode paste",
+    "responsive participant sharing and device controls at 390, 800 and 1440 pixels"
+  ],
+  "local_mac_build_performed": false,
+  "physical_mac_acceptance": {
+    "new_empty_draft_placeholder_correct": true,
+    "first_shared_run_reveals_participants_share_and_computers_without_reopening": true,
+    "share_modal_has_network_user_directory": true,
+    "device_shell_command": "uname -s",
+    "device_shell_result": "Darwin",
+    "device_shell_exit": 0,
+    "exact_device_label_verified_in_tool_card": true,
+    "session_used_device_record_visible": true,
+    "focused_remote_escape_keeps_modal_open": true,
+    "focused_remote_keyboard_capture_observed": true,
+    "full_remote_desktop_window_controls_and_taskbar_visible": true,
+    "device_grid_connected_cards": 1,
+    "final_chat_status": "Ready",
+    "saved_agent_account_resumed": true,
+    "private_telegram_bridge_screenshot_after_client_reconnect": {
+      "execution_host_kind": "client",
+      "exact_current_device_reference_verified": true,
+      "external_message_sent": false
+    }
+  },
+  "physical_acceptance": "protected operator receipt; no private session or device identifiers in this record",
+  "macos_signed_notarized_stapled": true,
+  "verification_limits": [
+    "Physical acceptance uses this macOS client and the remote Linux server; a second physical client is inaccessible.",
+    "Direct native Mac GUI typing was separately verified on App beta30 with the same public host-tools bundle.",
+    "Channel device grants have automated Slack/Discord/Telegram/WhatsApp contract coverage; external provider message delivery is not claimed."
+  ]
+}
