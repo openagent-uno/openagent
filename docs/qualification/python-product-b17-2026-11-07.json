@@ -1,0 +1,62 @@
+{
+  "format": 1,
+  "status": "published-public-artifacts-verified",
+  "version": "1.1.9b17",
+  "product_config_version": "1.1.0b22",
+  "source_commit": "46014c31cf2bd8effac86975677d13ee4325f346",
+  "manifest_sha256": "aa57768d15a00faa7d2c6138144e3f1b485017954cc83e43d8b2ae80009beb87",
+  "core_version": "1.1.0b53",
+  "core_manifest_sha256": "6f2c22fd7de22943e0df2c93068aa057f110122f3919585047a99770ae87a23b",
+  "sessions_version": "1.1.0b3",
+  "full_profile_version": "1.1.0b4",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42376383338",
+  "remote_jobs_passed": [
+    "qualify-session-ui",
+    "qualify",
+    "qualify-host-instance (macos-15-intel)",
+    "qualify-host-instance (ubuntu-24.04)",
+    "qualify-host-instance (windows-2025)",
+    "publish"
+  ],
+  "root_product_tests_passed": 489,
+  "root_product_tests_skipped": 1,
+  "root_subtests_passed": 84,
+  "custom_views_protocol_scenarios_passed": 20,
+  "public_product_wheels_verified_anonymously": 8,
+  "public_product_wheel_bytes_verified": 765633,
+  "installer": {
+    "sha256": "a7189dfaa8cbe2b664af6706af2386307aab5089088dc47a1cb824f1295e1884",
+    "check_mode": "passed, 39 public first-party wheels verified",
+    "independent_configuration_wheel_selected_once": true,
+    "fixture_tests_passed": 2,
+    "fixture_subtests_passed": 4,
+    "exact_runtime_dependency_snapshot": {
+      "fresh_non_editable_environment": true,
+      "first_party_wheels": 39,
+      "third_party_versions": "Exact pinned snapshot extracted from this installer",
+      "runtime_source_paths_disabled": true,
+      "dependency_consistency": "passed",
+      "regression_tests_passed": 86,
+      "subtests_passed": 18,
+      "failed": 0
+    },
+    "native_bundle_or_existing_agent_installation_performed": false
+  },
+  "additional_local_channel_contracts": {
+    "passed": 367,
+    "subtests_passed": 86,
+    "telegram_reply_after_four_days_and_bridge_restart": "passed, including the pinned installed provider wheel",
+    "provider_sdk_calls": "fixtures, not live message delivery"
+  },
+  "public_core_installed_suite": {
+    "source_package_paths_disabled": true,
+    "passed": 792,
+    "skipped": 2,
+    "subtests_passed": 128
+  },
+  "native_app_and_host_tools": "Existing independently versioned artifacts preserved",
+  "existing_agent_upgraded": false,
+  "real_telegram_delivery_verified": false,
+  "generative_continuation_quality_verified": false,
+  "complete_task_token_or_cost_savings_claimed": false
+}
