@@ -16,15 +16,15 @@ resolution-markers = [
 constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_core-1.1.0b53-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_execution-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_gateway-1.1.0b51-py3-none-any.whl?download=1" },
-    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_sdk-1.1.0b51-py3-none-any.whl?download=1" },
+    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_gateway-1.1.0b53-py3-none-any.whl?download=1" },
+    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_sdk-1.1.0b53-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_shell-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_storage_sqlite-1.1.0b51-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_storage_sqlite-1.1.0b53-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" },
 ]
 
@@ -951,7 +951,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-cli"
-version = "1.1.9b16"
+version = "1.1.9b17"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -987,7 +987,7 @@ requires-dist = [
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b16"
+version = "1.1.9b17"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -996,16 +996,16 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b51" },
-    { name = "openagent-identity", specifier = "==1.1.9b16" },
+    { name = "openagent-core", specifier = "==1.1.0b53" },
+    { name = "openagent-identity", specifier = "==1.1.9b17" },
 ]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b51"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1" }
+version = "1.1.0b53"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_core-1.1.0b53-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1", hash = "sha256:73210345de08f0bcb35276f61aff81f13b4136fa96083bc506311da0ea076774" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_core-1.1.0b53-py3-none-any.whl?download=1", hash = "sha256:4a18ce37c327650389ae1ec305849c428a2f866d314e4362639a15436b210892" },
 ]
 
 [package.metadata]
@@ -1017,6 +1017,7 @@ requires-dist = [
     { name = "docstring-parser", marker = "extra == 'engine'", specifier = ">=0.16" },
     { name = "google-genai", marker = "extra == 'providers'", specifier = ">=1" },
     { name = "groq", marker = "extra == 'providers'", specifier = ">=0.4" },
+    { name = "httpx", marker = "extra == 'audio'", specifier = ">=0.24,<1" },
     { name = "httpx", marker = "extra == 'engine'", specifier = ">=0.24" },
     { name = "jinja2", marker = "extra == 'engine'", specifier = ">=3.1" },
     { name = "jsonschema", marker = "extra == 'engine'", specifier = ">=4.20" },
@@ -1024,7 +1025,7 @@ requires-dist = [
     { name = "mcp", marker = "extra == 'engine'", specifier = ">=1.27,<2" },
     { name = "numpy", marker = "extra == 'retrieval'", specifier = ">=1.24" },
     { name = "openagent-capability-host", marker = "extra == 'capabilities'", specifier = "==1.0.0b3" },
-    { name = "openagent-modules", marker = "extra == 'modules'", specifier = "==1.1.0b3" },
+    { name = "openagent-modules", marker = "extra == 'modules'", specifier = "==1.1.0b4" },
     { name = "openai", marker = "extra == 'providers'", specifier = ">=1" },
     { name = "packaging", marker = "extra == 'engine'", specifier = ">=21" },
     { name = "pydantic", marker = "extra == 'engine'", specifier = ">=2" },
@@ -1107,7 +1108,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b16"
+version = "1.1.9b17"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -1128,7 +1129,7 @@ requires-dist = [
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b51" },
+    { name = "openagent-core", specifier = "==1.1.0b53" },
     { name = "srptools", specifier = ">=1.0.1,<3" },
 ]
 

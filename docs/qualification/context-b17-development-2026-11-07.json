@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "status": "development-wheel-tests-passed-not-a-published-product-release",
+  "product_version": "1.1.9b17",
+  "product_config_version": "1.1.0b22",
+  "core_version": "1.1.0b53",
+  "sessions_version": "1.1.0b3",
+  "full_module_profile_version": "1.1.0b4",
+  "core_publication": {
+    "source_commit": "6c6a8fff02e63d072f95eb9ce3092e151e9d675e",
+    "manifest_sha256": "6f2c22fd7de22943e0df2c93068aa057f110122f3919585047a99770ae87a23b",
+    "remote_run": "https://github.com/openagent-uno/openagent-core/actions/runs/42374331917",
+    "actual_os_contracts": ["Linux", "macOS", "Windows"],
+    "anonymous_public_wheels_verified": 23,
+    "public_installed_runtime_suite": {
+      "source_package_pythonpath_disabled": true,
+      "working_directory_outside_checkout": true,
+      "passed": 792,
+      "skipped": 2,
+      "subtests_passed": 128,
+      "failed": 0
+    }
+  },
+  "development_installation": {
+    "candidate_product_wheels": 8,
+    "configuration_version_independent_from_product": true,
+    "non_editable_wheel_installation": true,
+    "dependency_consistency": "passed",
+    "root_product_tests_passed": 489,
+    "root_product_tests_skipped": 1,
+    "root_subtests_passed": 84,
+    "source_channel_contract_tests_passed": 367,
+    "source_channel_subtests_passed": 86,
+    "custom_views_protocol_scenarios_passed": 20,
+    "source_lock_checks": ["server", "cli", "host-tools"],
+    "public_core_artifact_pins_cross_checked": 15,
+    "semantic_models_loaded_on_control_machine": false
+  },
+  "release_gate_changes": [
+    "Build the independently versioned product-config wheel with the seven coupled product wheels",
+    "Adopt every declared exact public Core/module/Tools pin, not just the four coupled Core wheels",
+    "Reject duplicate, unhashed, incomplete or credential-bearing external wheel inputs",
+    "Check candidate wheel hashes and the product/full-module/Identity/Support/Transport dependency cohort"
+  ],
+  "regression": "A Telegram SDK-context fixture recreates its bridge after four days and replies to an earlier event; the conversation key remains unchanged and no forum thread is invented",
+  "not_claimed": [
+    "Published beta17 artifacts or an updated installer",
+    "Native App or native Host Tools rebuild",
+    "An existing agent installation upgrade",
+    "Live Telegram message delivery or generative-model continuation quality",
+    "Complete-task token or billed-cost savings"
+  ]
+}

@@ -13,6 +13,8 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Python beta17 candidate: complete Core53/Sessions adoption and scoped history recovery](releases/v1.1.9-beta.17.md).
+
 - [Unreleased mapped-channel history recovery](site/guide/embedded-channels.md#recovering-mapped-conversation-history-unreleased-source-fix)
   ([source qualification](qualification/channel-history-recovery-2026-11-07.json)).
 

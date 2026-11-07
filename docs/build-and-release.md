@@ -221,7 +221,8 @@ Anonymous public download verification and consumer adoption are separate gates.
 
 ## Python product cohorts
 
-`.github/workflows/product-python-release.yml` builds the seven product wheels
+`.github/workflows/product-python-release.yml` builds the seven coupled product wheels
+and the independently versioned product-configuration wheel
 on a hosted Linux runner from a clean source commit, installs the public pinned
 Core cohort and runs both root tests and the deterministic Custom Views protocol
 suite. Tag publication consumes those qualified exact wheel artifacts and refuses

@@ -918,6 +918,23 @@ class ProviderContextTests(unittest.IsolatedAsyncioTestCase):
             await bridge.send_message("wrong bot account", context=context)
         self.assertEqual(transport.requests, [])
 
+    async def test_telegram_reply_after_four_days_and_bridge_restart_keeps_conversation(self):
+        bridge, transport, bot, message, _ = self.telegram()
+        with patch("openagent_channel_bridges.telegram.time.time", return_value=1_700_000_000):
+            first = await bridge._delivery_context(bridge._bridge_context(message))
+        # A new bridge has no process-local conversation cache. A normal reply
+        # targets an event, not a forum topic or a new session.
+        resumed_bridge, _, _, resumed_message, _ = self.telegram()
+        resumed_message.message_id = 51
+        resumed_message.reply_to_message = SimpleNamespace(message_id=50)
+        with patch("openagent_channel_bridges.telegram.time.time", return_value=1_700_000_000 + 4 * 86400):
+            resumed = await resumed_bridge._delivery_context(resumed_bridge._bridge_context(resumed_message))
+        self.assertIsNone(resumed.thread_id)
+        self.assertEqual(resumed.reply_to_event_id, "50")
+        self.assertEqual(first.conversation.session_key, resumed.conversation.session_key)
+        self.assertNotEqual(first.deduplication_key, resumed.deduplication_key)
+        self.assertNotEqual(first.audience_verified_at, resumed.audience_verified_at)
+
     async def test_telegram_group_audience_remains_incomplete_without_enumeration(self):
         bridge, transport, bot, message, _ = self.telegram(chat_type="supergroup", chat_id=-33)
         context = bridge._bridge_context(message)
