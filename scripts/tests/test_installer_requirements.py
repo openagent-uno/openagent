@@ -12,7 +12,18 @@ SCRIPT = Path(__file__).resolve().parents[2] / 'docs/site/public/install.sh'
 
 class InstallerRequirementsTests(unittest.TestCase):
     def test_server_and_cli_use_verified_component_versions(self):
+        self._verify_fixture(SCRIPT.read_text())
+
+    def test_product_manifest_can_supply_its_independent_configuration_wheel(self):
         source = SCRIPT.read_text()
+        match = re.search(r'releases = (\(.*?\n\))', source, re.S)
+        releases = __import__('ast').literal_eval(match.group(1))
+        releases = tuple(row for row in releases if row[-1] != 'config')
+        replacement = 'releases = (\n' + ''.join('    '+repr(row)+',\n' for row in releases) + ')'
+        source = source[:match.start()] + replacement + source[match.end():]
+        self._verify_fixture(source)
+
+    def _verify_fixture(self, source):
         code = re.search(r'"\$PYTHON" - "\$WHEELHOUSE"(?: "\$PRODUCT")? <<\x27PY\x27\n(.*?)\nPY', source, re.S).group(1)
         # Build a complete fixture for every configured release. No network/pip.
         releases = __import__('ast').literal_eval(re.search(r'releases = (\(.*?\n\))', code, re.S).group(1))
@@ -22,7 +33,11 @@ class InstallerRequirementsTests(unittest.TestCase):
                 destination = Path(directory)
                 payloads = {}; replaced=[]
                 for index, (repo, tag, manifest_name, _, selection) in enumerate(releases):
-                    if selection == 'modules':
+                    if selection in ('kernel', 'modules') and tag != 'fixture-modules':
+                        # One immutable release may supply both selections;
+                        # its manifest/asset bytes must not change per consumer.
+                        names = [('openagent-core','6.1.0b8'), ('openagent-modules','1.1.0b3')]
+                    elif selection == 'modules':
                         names = [('openagent-core','6.1.0b7'), ('openagent-modules','1.1.0b3')]
                     elif selection == 'capability-host':
                         names = [('openagent-core','6.1.0b7'), ('openagent-capability-host','1.0.0b3')]
@@ -34,6 +49,8 @@ class InstallerRequirementsTests(unittest.TestCase):
                         names = [('openagent-device-tools','1.0.0b10')]
                     elif repo == 'openagent-uno/openagent' and re.fullmatch(r'v\d+\.\d+\.\d+(?:-beta\.\d+)?', tag):
                         names = [('openagent-framework','7.2.0b9'),('openagent-cli','7.2.0b9')]
+                        if not any(row[-1] == 'config' for row in releases):
+                            names.append(('openagent-product-config','1.1.0b20'))
                     elif repo.endswith('openagent-core'):
                         names = [('openagent-core','6.1.0b8')]
                     else:
@@ -42,7 +59,8 @@ class InstallerRequirementsTests(unittest.TestCase):
                     for name, version in names:
                         filename=name.replace('-','_')+'-'+version+'-py3-none-any.whl'
                         buf=io.BytesIO()
-                        with zipfile.ZipFile(buf,'w') as archive:archive.writestr(name.replace('-','_')+'-'+version+'.dist-info/METADATA','Name: '+name+'\nVersion: '+version+'\n')
+                        metadata = zipfile.ZipInfo(name.replace('-','_')+'-'+version+'.dist-info/METADATA', date_time=(1980,1,1,0,0,0))
+                        with zipfile.ZipFile(buf,'w') as archive:archive.writestr(metadata,'Name: '+name+'\nVersion: '+version+'\n')
                         data=buf.getvalue();url='https://github.com/'+repo+'/releases/download/'+tag+'/'+filename
                         payloads[url]=data;rows.append({'file':filename,'sha256':__import__('hashlib').sha256(data).hexdigest()});assets.append({'name':filename,'browser_download_url':url})
                     manifest=json.dumps({'artifacts':rows} if manifest_name=='upstream-ownership-manifest.json' else {'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest,selection))
@@ -56,6 +74,8 @@ class InstallerRequirementsTests(unittest.TestCase):
                 self.assertTrue((destination/'openagent_device_tools-1.0.0b10-py3-none-any.whl').exists())
                 expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,modules]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
                 self.assertEqual((destination/'install-requirements.txt').read_text().splitlines(),expected)
+                constraints = (destination/'first-party-constraints.txt').read_text().splitlines()
+                self.assertEqual(sum(line.startswith('openagent-product-config @ ') for line in constraints), 1)
         self.assertNotRegex(source,r'DIST="openagent-(?:framework|cli).*==')
         self.assertNotIn("--pre --constraint", source)
         self.assertIn('--requirement "$WHEELHOUSE/install-requirements.txt"',source)
