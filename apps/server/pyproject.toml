@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-framework"
-version = "1.1.9b16"
+version = "1.1.9b17"
 description = "Simplified LLM agent framework with MCP, memory, and multi-channel support"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,18 +14,18 @@ dependencies = [
     "openagent-channel-bridges==0.1.0b19",
     "openagent-device-tools==1.0.0b18",
     "openagent-connectors==0.1.15",
-    "openagent-storage-sqlite==1.1.0b51",
-    "openagent-modules==1.1.0b3",
+    "openagent-storage-sqlite==1.1.0b53",
+    "openagent-modules==1.1.0b4",
     "openagent-execution==1.0.0b3",
-    "openagent-client-transport==1.1.9b16",
-    "openagent-core[engine]==1.1.0b51",
-    "openagent-identity==1.1.9b16",
-    "openagent-dashboards==1.1.9b16",
-    "openagent-product-config==1.1.0b21",
-    "openagent-support-integration==1.1.9b16",
+    "openagent-client-transport==1.1.9b17",
+    "openagent-core[engine]==1.1.0b53",
+    "openagent-identity==1.1.9b17",
+    "openagent-dashboards==1.1.9b17",
+    "openagent-product-config==1.1.0b22",
+    "openagent-support-integration==1.1.9b17",
     # Federation is part of the standard server catalog and must be present
     # in every wheel install, not only when the optional channel bundle is requested.
-    "openagent-mcp==1.1.9b16",
+    "openagent-mcp==1.1.9b17",
     # ``[cli]`` pulls in typer: recent ``mcp`` releases import it from a
     # submodule that ``collect_submodules("mcp")`` walks at PyInstaller build
     # time, so without typer the frozen build aborts with
@@ -224,24 +224,24 @@ constraint-dependencies = [
     "openagent-module-ptc @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_ptc-1.1.0b1-py3-none-any.whl?download=1#sha256=63969b07cba8769ada4b8a0e9f30aeac45360d1331406bcd7ae5736ee26d5b13",
     "openagent-module-scheduler @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_scheduler-1.1.0b1-py3-none-any.whl?download=1#sha256=102e7f649f10cf005e157c4cf2447ed9f8ff173855126d3a78ee4e42dbbf5b7b",
     "openagent-module-search @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_search-1.1.0b2-py3-none-any.whl?download=1#sha256=8ef7aba3c3c1e233376fbef6ad53c3723efa7def4e314a127fe57decdb3a6f99",
-    "openagent-module-sessions @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_sessions-1.1.0b2-py3-none-any.whl?download=1#sha256=dc56896861911b84a77f8dae46d16b6ea1acf256e2df85b94f88b065b33447b0",
+    "openagent-module-sessions @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_module_sessions-1.1.0b3-py3-none-any.whl?download=1#sha256=0230bae6060508b4ac82763877064e42d6208710ddeb880f43ee9aeea0d2da0d",
     "openagent-module-skills @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_skills-1.1.0b1-py3-none-any.whl?download=1#sha256=8bb7e1e34221faa1632a972eb5af3c25d7e0fe4ad4fd3e6e7a4c02bc77e4cd0f",
     "openagent-module-tool-discovery @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_tool_discovery-1.1.0b1-py3-none-any.whl?download=1#sha256=9319b4776220dbff682c7dd8111ca5f2ea7ceb696a763790a16fd17a4a26cb1b",
     "openagent-module-vault @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_vault-1.1.0b1-py3-none-any.whl?download=1#sha256=c6960d70083da6c74bceb4b1bdcb64911e09b0f272dd9a3a47bc55d794eb7043",
     "openagent-module-workflows @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_workflows-1.1.0b1-py3-none-any.whl?download=1#sha256=a1ce9f25f0feea0764b748c2c9251fac36d3f82e84cb8d21344375a0acc00f9b",
-    "openagent-modules @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_modules-1.1.0b3-py3-none-any.whl?download=1#sha256=1554a9982fbb27e14b8e93f99ce740b0758bcef66959cd3d7750d6030f0b96aa",
-    "openagent-modules-full @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_modules_full-1.1.0b3-py3-none-any.whl?download=1#sha256=4ab7820df844043db4ded19800317aafbb3a4af5cb7423a425f9fbb03d8e4ced",
+    "openagent-modules @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_modules-1.1.0b4-py3-none-any.whl?download=1#sha256=65a7a5e095f992f5cc22cf5e51ea5f84da71c37cb3ecbb145a14c54c434e74e4",
+    "openagent-modules-full @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_modules_full-1.1.0b4-py3-none-any.whl?download=1#sha256=d87fd964614db10a416df64deae1c70ca5d9e90873cf6028c02ee86db4bf9e91",
     "openagent-capability-host @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1#sha256=ad8c5b7ad269db72f79c622af0fd7503c139fc9a065469f00c11b964d1c97218",
     "openagent-connectors @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1#sha256=a67a7a963cc63fcfdd7c80cddc8783773eebdcffdb0fd2354d8064f84e475cb6",
-    "openagent-core @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1#sha256=73210345de08f0bcb35276f61aff81f13b4136fa96083bc506311da0ea076774",
+    "openagent-core @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_core-1.1.0b53-py3-none-any.whl?download=1#sha256=4a18ce37c327650389ae1ec305849c428a2f866d314e4362639a15436b210892",
     "openagent-device-tools @ https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1#sha256=b061071fe0098e2c0160cbc0ee13775baf6e2d7d87a50c441dfea783b6fa8f20",
     "openagent-editor @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1#sha256=45c90f0bcdf8bd428f7f1da07abab0ddb7280d10e7ec622337929ccee87a2116",
     "openagent-execution @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_execution-1.0.0b3-py3-none-any.whl?download=1#sha256=d0d2a5ab2c83d8f94944cd25226bab3af529256528bfc2704e19445b867d99ca",
     "openagent-filesystem @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1#sha256=67939fd8afff98241109802ad23ae1df218d691e15c0c62dbd7ff8bd15d4ff1f",
-    "openagent-gateway @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_gateway-1.1.0b51-py3-none-any.whl?download=1#sha256=4ace4c023dcaa5d297bdc80ce8182571c8af53ae0bef5ddd24f1b3d2de15189b",
-    "openagent-sdk @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_sdk-1.1.0b51-py3-none-any.whl?download=1#sha256=f7ba7ffd3fde3e0503f862cd34a52b3fd2a2ea6aa9d5e31b2e2bac905ab80bd0",
+    "openagent-gateway @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_gateway-1.1.0b53-py3-none-any.whl?download=1#sha256=bf060da11639b53c272086e58c63225088697178426b5bc358b41d697a36e6e2",
+    "openagent-sdk @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_sdk-1.1.0b53-py3-none-any.whl?download=1#sha256=edba51de30c2dd54236ba0e100fb10a130c980f9a829f1c55790a44810fbf98d",
     "openagent-shell @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_shell-1.0.0b3-py3-none-any.whl?download=1#sha256=95dc0e5094345061835d3f36057c4e3a300615959c6f2ceb8ada8e879cc8c35f",
-    "openagent-storage-sqlite @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_storage_sqlite-1.1.0b51-py3-none-any.whl?download=1#sha256=2b23cbfb521cab7a6fb4ecb5e25d23f57133386b1354ef4d6a4ed6d120b94aef",
+    "openagent-storage-sqlite @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_storage_sqlite-1.1.0b53-py3-none-any.whl?download=1#sha256=838f588a1d5f9bf8ecd99d9590daf2b04e9f974054d380e8582815e2d412c8fe",
     "openagent-tool-protocol @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1#sha256=1e0cbdc1007ddcf96aae9538983727841228b40ebb50f481a915d2020115ea6c",
 ]
 
@@ -255,8 +255,8 @@ openagent-mcp = { path = "../mcp-bridge" }
 openagent-support-integration = { path = "../../packages/integrations/support" }
 openagent-product-config = { path = "../../packages/product-config" }
 
-openagent-core = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_core-1.1.0b51-py3-none-any.whl?download=1" }
-openagent-storage-sqlite = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.51/openagent_storage_sqlite-1.1.0b51-py3-none-any.whl?download=1" }
+openagent-core = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_core-1.1.0b53-py3-none-any.whl?download=1" }
+openagent-storage-sqlite = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_storage_sqlite-1.1.0b53-py3-none-any.whl?download=1" }
 openagent-capability-host = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" }
 
 openagent-tool-protocol = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" }
