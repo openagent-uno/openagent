@@ -18,7 +18,7 @@ Notable changes, newest first.
 
 - Private mapped Slack/Discord sessions receive the exact native user's consented device leases. Private Telegram/WhatsApp bridges can use explicit sender-to-device-owner mappings independently of vault ownership.
 - Every device grant remains bound to its private route and verified descendant runs. Current identity, sender mapping, audience, owner, consent, connection and generation are rechecked; other users, groups, disconnected devices and background work gain no implicit access.
-- The agent's own desktop has a distinct **<Agent name>'s Computer** destination. Host documentation covers full X11 window decorations/taskbar rather than a browser-only virtual display.
+- The agent's own desktop has a distinct **`<Agent name>'s Computer`** destination. Host documentation covers full X11 window decorations/taskbar rather than a browser-only virtual display.
 - The public cohort includes product configuration beta21 and a verified 39-wheel installer. Core beta50 and native Host Tools remain independently versioned. Installed Python qualification passed 472 tests, 76 subtests and 20 Custom View scenarios; App source UI qualification is separate from native binary publication.
 
 

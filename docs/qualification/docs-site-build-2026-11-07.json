@@ -1,0 +1,10 @@
+{
+  "status": "local-site-build-passed",
+  "previous_failed_run": "https://github.com/openagent-uno/openagent/actions/runs/42377402590",
+  "cause": "Two literal angle-bracket placeholders were parsed as unclosed Vue elements; a repository-level guide link was also outside the site root",
+  "correction": "Render placeholders as inline code and link the existing repository guide by its canonical URL; dead-link validation remains enabled",
+  "verification": "npm ci and npm run docs:build with the locked docs toolchain",
+  "built_public_installer_sha256": "a7189dfaa8cbe2b664af6706af2386307aab5089088dc47a1cb824f1295e1884",
+  "runtime_or_release_wheel_changes": false,
+  "live_site_deployment_claimed_by_this_local_receipt": false
+}
