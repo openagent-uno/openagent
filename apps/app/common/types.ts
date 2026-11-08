@@ -987,6 +987,8 @@ export interface ChatMessage {
    * case renderers preserve the historical text-then-attachments order. */
   parts?: MessagePart[];
   toolInfo?: ToolInfo;
+  /** Place a tool after a Unicode code-point offset in the exact reply. */
+  toolPosition?: { messageId: string; afterText: number; order: number };
   /** Set on ``role: 'compaction'`` messages — the compaction card payload. */
   compactionInfo?: CompactionInfo;
   model?: string;

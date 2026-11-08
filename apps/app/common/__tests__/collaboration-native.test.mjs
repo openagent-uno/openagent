@@ -7,7 +7,7 @@ async function load(path) {
   return import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 }
 const { OpenAgentWS } = await load('../../universal/services/ws.ts');
-const { mergeSharedTranscript } = await load('../shared-transcript.ts');
+const { mergeSharedTranscript, placeSharedTools } = await load('../shared-transcript.ts');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 test('native chat sends text, commands and exact Stop through collaboration', async t => {
@@ -66,4 +66,37 @@ test('catalog tool cards preserve exact destination and reconcile with durable r
   const canonical = [{ id: 'canonical-tool', role: 'tool', text: '', timestamp: 2000,
     providerRunId: 'run:chat:request', toolInfo }];
   assert.deepEqual(mergeSharedTranscript([...live, ...canonical], snapshot), canonical);
+});
+
+test('shared replies interleave prose and tool calls even with identical timestamps and late results', () => {
+  const tool = (id, afterText) => ({ id, afterText, timestamp: 1, toolInfo: { tool_name: id, tool_call_id: id } });
+  const turn = { id: 'turn', runId: 'request', providerRunId: 'run', active: true, startedAt: 1,
+    messages: [{ id: 'input', role: 'user', text: 'Read', timestamp: 1 },
+      { id: 'response', role: 'assistant', text: '🔍 Read. Checked. Done.', timestamp: 1 }],
+    tools: [tool('start', 0), tool('read', 8), tool('parallel', 8), tool('check', 17)] };
+  const snapshot = { session_id: 'chat', revision: 1, turns: [turn] };
+  const projected = rows => placeSharedTools(rows).map(row => row.toolInfo?.tool_call_id ?? row.text);
+  const order = ['Read', 'start', '🔍 Read. ', 'read', 'parallel', 'Checked. ', 'check', 'Done.'];
+  const live = mergeSharedTranscript([], snapshot);
+  assert.deepEqual(projected(live), order);
+  turn.tools[1].toolInfo.result = 'late completion';
+  assert.deepEqual(projected(mergeSharedTranscript(live, snapshot)), order);
+
+  turn.active = false;
+  const durable = [
+    { id: 'user', role: 'user', text: 'Read', timestamp: 1000, providerRunId: 'run' },
+    { id: 'persisted-tool', role: 'tool', text: '', timestamp: 1000, providerRunId: 'run',
+      toolInfo: { tool_name: 'read', tool_call_id: 'read' }, toolInvocationId: 'invocation' },
+    { id: 'answer', role: 'assistant', text: turn.messages[1].text, timestamp: 1000, providerRunId: 'run',
+      parts: [{ kind: 'text', text: '🔍 Read. Checked. ' }, { kind: 'ui_view', view_id: 'view', revision: 1 },
+        { kind: 'text', text: 'Done.' }] },
+  ];
+  const reconciled = mergeSharedTranscript([...live, ...durable], snapshot);
+  assert.deepEqual(projected(reconciled), order);
+  assert.equal(placeSharedTools(reconciled).find(row => row.id === 'persisted-tool').toolInvocationId, 'invocation');
+  assert.deepEqual(placeSharedTools(reconciled).at(-1).parts, durable.at(-1).parts.slice(1));
+  assert.deepEqual(mergeSharedTranscript(reconciled, snapshot), reconciled);
+
+  const revised = [...durable.slice(0, -1), { ...durable.at(-1), text: 'Authorized replacement' }];
+  assert.deepEqual(mergeSharedTranscript(revised, snapshot), revised);
 });

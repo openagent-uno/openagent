@@ -141,12 +141,20 @@ class SharedAgentHub:
                     "timestamp": time.time(),
                 }
                 messages.append(message)
-            value = message["text"] + text if kind == "delta" else text
+            previous = message["text"]
+            value = previous + text if kind == "delta" else text
             message["text"] = value[:131072]
             turn["truncated"] = len(value) > 131072 or turn.get("truncated", False)
             if frame.get("model"):
                 message["model"] = frame["model"]
             if kind == "response":
+                # The final answer can replace the streamed draft. Only use
+                # positions when that answer retains the observed prefix.
+                tools = turn.get("tools", [])
+                last_boundary = max((tool["afterText"] for tool in tools), default=0)
+                if not text.startswith(previous[:last_boundary]):
+                    for tool in tools:
+                        tool["afterText"] = 0
                 for field in ("attachments", "parts"):
                     if frame.get(field) and len(json.dumps(frame[field])) <= 262144:
                         message[field] = frame[field]
@@ -173,7 +181,12 @@ class SharedAgentHub:
                     if len(tools) >= 128:
                         tools.pop(0)
                         turn['truncated'] = True
-                    tools.append({'id':tool['tool_call_id'],'toolInfo':tool,'timestamp':time.time()})
+                    response = next((m for m in messages if m["role"] == "assistant"), None)
+                    tools.append({
+                        "id": tool["tool_call_id"], "toolInfo": tool, "timestamp": time.time(),
+                        # Unicode code points, independent of clock precision.
+                        "afterText": len(response["text"]) if response else 0,
+                    })
                 while len(json.dumps(tools)) > 131072:
                     tools.pop(0)
                     turn['truncated'] = True

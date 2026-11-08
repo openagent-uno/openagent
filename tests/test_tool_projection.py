@@ -53,6 +53,29 @@ class LiveToolCards(unittest.TestCase):
         self.assertIsNone(cards[1]["toolInfo"]["result"])
         self.assertEqual(cards[1]["toolInfo"]["execution_host"]["instance_id"], "connection-two")
 
+    def test_tool_positions_survive_late_results_and_the_final_response(self):
+        def publish(kind, text):
+            self.hub.publish({"type": kind, "session_id": "chat", "text": text})
+
+        self.status("before")
+        publish("delta", "🔍 Reading. ")
+        self.status("first")
+        self.status("parallel")
+        publish("delta", "Checked. ")
+        self.status("first", result="late result")
+        self.status("last")
+        publish("response", "🔍 Reading. Checked. Finished.")
+
+        self.assertEqual([(row["id"], row["afterText"]) for row in self.turn["tools"]], [
+            ("before", 0), ("first", len("🔍 Reading. ")), ("parallel", len("🔍 Reading. ")),
+            ("last", len("🔍 Reading. Checked. ")),
+        ])
+        self.assertEqual(len(self.turn["messages"]), 2)  # Older viewers still accept it.
+        self.assertEqual(self.turn["messages"][-1]["text"], "🔍 Reading. Checked. Finished.")
+
+        publish("response", "Revised answer.")
+        self.assertTrue(all(row["afterText"] == 0 for row in self.turn["tools"]))
+
     def test_plain_or_invalid_status_never_fabricates_tool_cards(self):
         for status in ("Working", "{invalid", "[]", "null", '{"tool_name":"read_text_file"}',
                        '{"tool_call_id":"missing-name"}'):

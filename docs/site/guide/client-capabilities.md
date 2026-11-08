@@ -120,6 +120,15 @@ before dispatch and rejects actions outside the advertised desktop action set
 before they can acquire the local write lock. The same rules apply to native
 sessions and mapped channels with access to the exact device.
 
+### Tool cards in the chat
+
+The shared transcript records the amount of visible reply text when each tool
+call first appears. The App places the card at that boundary and updates it in
+place when the result arrives. The server still sends the full canonical reply,
+including attachments and rich parts. The App reuses the live positions during
+history reconciliation when the canonical reply matches the observed text.
+History without recorded positions keeps its durable order.
+
 ### Desktop host transport lifecycle
 
 The Desktop bridge binds stdout, stderr, pending responses and cancellation to

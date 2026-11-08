@@ -54,12 +54,15 @@ class DeviceGateway extends DeterministicGateway {
     if(path==='/api/collaboration/turns'&&request.method==='POST'){
       let body='';for await(const chunk of request)body+=chunk;
       const turn=JSON.parse(body);this.acceptedSessions.add(turn.session_id);
+      const before = 'Session started';
+      const answer = before + 'Check complete';
       const now=Date.now();const snapshot={type:'shared_state',session_id:turn.session_id,revision:1,turns:[{id:turn.request_id,runId:'accepted-run',active:false,startedAt:now,finishedAt:now,messages:[
         {id:'accepted-user',role:'user',text:turn.message,timestamp:now,author:{kind:'human',handle:'alice',display:'Alice'}},
-        {id:'accepted-assistant',role:'assistant',text:'Session started',timestamp:now,author:{kind:'agent'}},
-      ]}]};
+        {id:'accepted-assistant',role:'assistant',text:answer,timestamp:now,author:{kind:'agent'}},
+      ], tools: [{id:'timeline-call',afterText:before.length,timestamp:now,
+        toolInfo:{tool_name:'timeline_probe',tool_call_id:'timeline-call',result:'ok'}}]}]};
       for(const socket of this.collaborationServer.clients)if(socket.readyState===1)socket.send(JSON.stringify(snapshot));
-      return reply({session_id:turn.session_id,request_id:turn.request_id,response:'Session started'});
+      return reply({session_id:turn.session_id,request_id:turn.request_id,response:answer});
     }
     if(path==='/api/network/users')return reply({users:[{handle:'bob',status:'active'},{handle:'suspended-user',status:'suspended'}]});
     if(path==='/api/collaboration/e2e-session/members'){
@@ -253,6 +256,10 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByPlaceholder('Message OpenAgent...').fill('Start this session');
     await page.getByLabel('Send message',{exact:true}).click();
     await expect(page.getByText('Session started',{exact:true})).toBeVisible();
+    const timeline = page.getByText('Session started', { exact: true })
+      .or(page.getByText('Timeline Probe', { exact: true }))
+      .or(page.getByText('Check complete', { exact: true }));
+    await expect(timeline).toHaveText(['Session started', 'Timeline Probe', 'Check complete']);
     await expect(page.getByText('Send the first message to start this session.',{exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toBeVisible();
     await expect(page.getByLabel('Open computer Agent environment',{exact:true})).toBeVisible();

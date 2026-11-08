@@ -36,6 +36,7 @@ import {
 import type { MessagePart } from '../../common/ui-views';
 import { attachmentKey } from '../../common/attachments';
 import { messageHeaderVisibility, messageTurnTimeline } from '../../common/message-groups';
+import { placeSharedTools } from '../../common/shared-transcript';
 import {
   compactToolFallback,
   legacyToolInfoFromText,
@@ -100,7 +101,7 @@ export interface MessageListProps {
 }
 
 function MessageListBase({
-  sessionId, messages, isProcessing, statusText, isReasoning, maxItems, onRegenerate, onEditUser,
+  sessionId, messages: transcript, isProcessing, statusText, isReasoning, maxItems, onRegenerate, onEditUser,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
   hasMoreBefore, onLoadEarlier,
@@ -108,7 +109,8 @@ function MessageListBase({
   const activeId = useChat(state => state.activeSessionId);
   const activeMessages = useChat(state => state.sessions.find(session => session.id === state.activeSessionId)?.messages);
   const accountId = useConnection(state => state.activeAccountId);
-  const appSessionId = sessionId ?? (messages === activeMessages ? activeId ?? undefined : undefined);
+  const appSessionId = sessionId ?? (transcript === activeMessages ? activeId ?? undefined : undefined);
+  const messages = useMemo(() => placeSharedTools(transcript), [transcript]);
   // Windowing: render only the last `shown` messages. With bottom-pinned
   // scroll the tail is what the user sees; a long transcript otherwise
   // materializes thousands of deeply-nested DOM nodes and re-maps + diffs
