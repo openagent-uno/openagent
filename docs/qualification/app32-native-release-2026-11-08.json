@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.32",
+  "source_commit": "a916b20b06e69a67ed9b7ff285375fbc3da3de4b",
+  "source_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42454592685",
+  "desktop_tests_passed": 136,
+  "shared_tests_passed": 153,
+  "electron_ui_scenarios_passed": 4,
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42454591577",
+  "build_attempt": 3,
+  "qualified_targets": 6,
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42455511342",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.32",
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "16bfc17e4dc874b8032f736c08a0ae3c80ca1ba74f0bd26262c37b955af71f2c",
+  "tested_transcript_contracts": [
+    "assistant text, tool card and continuation render in their observed order",
+    "matching timestamps do not change the order of parallel calls",
+    "late results update a call in place",
+    "matching canonical history keeps positions and durable tool anchors",
+    "rich reply parts retain their order"
+  ],
+  "companion_server_version": "1.1.9b20",
+  "local_mac_build_performed": false,
+  "verification_scope": "Electron fixture and native package qualification"
+}
