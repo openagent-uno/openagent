@@ -1,0 +1,44 @@
+{
+  "format": 1,
+  "version": "1.1.9b19",
+  "product_config_version": "1.1.0b22",
+  "source_commit": "a916b20b06e69a67ed9b7ff285375fbc3da3de4b",
+  "manifest_sha256": "516bf696e03ebeb24583075aac0bb6b65052b4ec77b3e344e3f21821d9b87d1d",
+  "core_version": "1.1.0b53",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42454592685",
+  "root_tests_passed": 501,
+  "root_tests_skipped": 1,
+  "subtests_passed": 84,
+  "custom_view_protocol_scenarios_passed": 20,
+  "native_host_lock_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+  ],
+  "source_lock_checks": [
+    "server",
+    "cli",
+    "host-tools"
+  ],
+  "installed_dependency_check": "passed",
+  "app_source_types_and_unit_tests": "passed",
+  "responsive_sharing_and_computer_ui_scenarios": 4,
+  "channel_contracts_tested": [
+    "mapped Slack",
+    "mapped Discord",
+    "private Telegram",
+    "private WhatsApp"
+  ],
+  "shared_transcript_tool_order": "first call position preserved through updates and canonical reconciliation",
+  "paired_desktop_app_version": "1.1.0-beta.32",
+  "external_provider_message_delivery_tested": false,
+  "physical_client_acceptance": "not performed for this release",
+  "native_app_and_host_tools": "independently versioned",
+  "local_mac_build_performed": false,
+  "installer": {
+    "public_asset_sha256": "a55d6d5d2360b1f79a45fb3d5683e44c1e7c9d8f15a08b56c1c4dadefac5fe4c",
+    "public_wheels_verified": 39,
+    "fixture_scenarios_passed": 4
+  },
+  "desktop_fixture_assertion": "assistant text, positioned tool card, continuation in DOM order"
+}
