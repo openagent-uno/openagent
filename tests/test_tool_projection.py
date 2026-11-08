@@ -76,6 +76,19 @@ class LiveToolCards(unittest.TestCase):
         publish("response", "Revised answer.")
         self.assertTrue(all(row["afterText"] == 0 for row in self.turn["tools"]))
 
+    def test_final_whitespace_trimming_preserves_tool_positions(self):
+        def publish(kind, text):
+            self.hub.publish({"type": kind, "session_id": "chat", "text": text})
+
+        publish("delta", "\n  🔍 Reading. ")
+        self.status("read")
+        publish("delta", "Finished. \n")
+        self.status("last")
+        publish("response", "🔍 Reading. Finished.")
+        self.assertEqual([row["afterText"] for row in self.turn["tools"]], [
+            len("🔍 Reading. "), len("🔍 Reading. Finished."),
+        ])
+
     def test_plain_or_invalid_status_never_fabricates_tool_cards(self):
         for status in ("Working", "{invalid", "[]", "null", '{"tool_name":"read_text_file"}',
                        '{"tool_call_id":"missing-name"}'):

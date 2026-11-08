@@ -152,9 +152,18 @@ class SharedAgentHub:
                 # positions when that answer retains the observed prefix.
                 tools = turn.get("tools", [])
                 last_boundary = max((tool["afterText"] for tool in tools), default=0)
-                if not text.startswith(previous[:last_boundary]):
+                prefix = previous[:last_boundary]
+                if not text.startswith(prefix):
+                    trimmed_prefix = prefix.lstrip()
+                    removed = len(prefix) - len(trimmed_prefix)
+                    # Final content normalization trims outer whitespace.
+                    # Retain positions only when that explains the difference.
+                    same_prefix = text.startswith(trimmed_prefix) or text == previous.strip()
                     for tool in tools:
-                        tool["afterText"] = 0
+                        tool["afterText"] = (
+                            min(len(text), max(0, tool["afterText"] - removed))
+                            if same_prefix else 0
+                        )
                 for field in ("attachments", "parts"):
                     if frame.get(field) and len(json.dumps(frame[field])) <= 262144:
                         message[field] = frame[field]
