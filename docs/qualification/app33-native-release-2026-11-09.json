@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.33",
+  "source_commit": "26c48372ec25e881c90e84eb30635dfab5e0bc47",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42645808275",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42646787256",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.33",
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "adbd682b08568e574ed02ef5dfe6652a2ff71c6eafddf1ebbd35bfb09cc08c93",
+  "public_beta_feeds_verified": [
+    "beta-mac.yml",
+    "beta.yml",
+    "beta-linux.yml",
+    "beta-linux-arm64.yml"
+  ],
+  "electron_fixture_scenarios": [
+    "agent rail, remembered login and drawer geometry",
+    "device directory and remote computer snapshots",
+    "device directory and remote computer video"
+  ],
+  "companion_server_version": "1.1.9b21",
+  "local_installed_update_performed": false
+}
