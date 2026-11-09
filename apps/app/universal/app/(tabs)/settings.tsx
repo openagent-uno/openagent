@@ -17,7 +17,9 @@ import { useConnection } from '../../stores/connection';
 import { useConfig } from '../../stores/config';
 import { useVoiceConfig, VOICE_DEFAULTS, VOICE_LANGUAGES, type VoiceConfig } from '../../stores/voice';
 import { useTheme } from '../../stores/theme';
-import { triggerUpdate, triggerRestart } from '../../services/api';
+import { triggerUpdate, triggerRestart, currentAgentScope } from '../../services/api';
+import { pickAgentThumbnail } from '../../services/agent-thumbnail';
+import { AgentAvatar } from '../../components/AgentAvatar';
 import { useConfirm } from '../../components/ConfirmDialog';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
@@ -56,7 +58,7 @@ interface Category {
 }
 
 const CATEGORIES: Category[] = [
-  { id: 'identity', label: 'Agent Identity', icon: 'user', description: 'Name and system prompt' },
+  { id: 'identity', label: 'Agent Identity', icon: 'user', description: 'Name, thumbnail and system prompt' },
   { id: 'appearance', label: 'Appearance', icon: 'sun', description: 'Light or dark theme' },
   { id: 'models', label: 'Models & Providers', icon: 'cpu', description: 'LLMs and provider credentials' },
   { id: 'costs', label: 'Costs', icon: 'bar-chart-2', description: 'Daily spend breakdown' },
@@ -98,6 +100,9 @@ export default function SettingsScreen() {
     config: agentConfig,
     identityError,
     identityLoading,
+    thumbnail,
+    channelPresentation,
+    refreshChannelPresentation,
     loadConfig,
     updateSection,
     updateIdentity,
@@ -118,6 +123,17 @@ export default function SettingsScreen() {
   // Local form state
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
+  const [thumbnailEdit, setThumbnailEdit] = useState<string | null | undefined>();
+  const [thumbnailError, setThumbnailError] = useState('');
+  const [pickingThumbnail, setPickingThumbnail] = useState(false);
+  const previewThumbnail = thumbnailEdit !== undefined ? thumbnailEdit
+    : thumbnail !== undefined ? thumbnail : activeAccount?.agentThumbnail;
+  const pendingPresentation = Object.values(channelPresentation).includes('pending');
+  useEffect(() => {
+    if (!pendingPresentation) return;
+    const timer = setInterval(() => void refreshChannelPresentation(), 1500);
+    return () => clearInterval(timer);
+  }, [pendingPresentation, refreshChannelPresentation]);
   const [dreamEnabled, setDreamEnabled] = useState(false);
   const [dreamTime, setDreamTime] = useState('3:00');
   const [autoUpdateEnabled, setAutoUpdateEnabled] = useState(false);
@@ -222,9 +238,29 @@ export default function SettingsScreen() {
     }
   };
 
+  const chooseThumbnail = async () => {
+    const scope = currentAgentScope();
+    setThumbnailError('');
+    setPickingThumbnail(true);
+    try {
+      const next = await pickAgentThumbnail();
+      if (scope === currentAgentScope() && next) setThumbnailEdit(next);
+    } catch (error) {
+      if (scope === currentAgentScope()) setThumbnailError(error instanceof Error ? error.message : 'Could not open the image.');
+    } finally {
+      if (scope === currentAgentScope()) setPickingThumbnail(false);
+    }
+  };
+
   const saveIdentity = async () => {
-    const identity = await updateIdentity(name, systemPrompt);
-    if (identity) {
+    const scope = currentAgentScope();
+    const localOnly = thumbnail === undefined;
+    const identity = await updateIdentity(name, systemPrompt, localOnly ? undefined : thumbnailEdit);
+    if (identity && scope === currentAgentScope() && activeAccountId) {
+      useConnection.getState().rememberAgentPresentation(
+        activeAccountId, identity.name, localOnly ? thumbnailEdit : identity.thumbnail,
+      );
+      setThumbnailEdit(undefined);
       setSaved('identity');
       setTimeout(() => setSaved(null), 3000);
     }
@@ -309,8 +345,23 @@ export default function SettingsScreen() {
     <>
       <Text style={styles.sectionTitle}>Agent Identity</Text>
       <Card>
-        <Text style={styles.label}>Name</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="my-agent" placeholderTextColor={colors.textMuted} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <AgentAvatar name={name || agentName || ''} thumbnail={previewThumbnail} size={56} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Name</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="my-agent" placeholderTextColor={colors.textMuted} />
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <Button label="Choose thumbnail" icon="image" variant="secondary" size="sm"
+            disabled={pickingThumbnail || identityLoading || !agentConfig} onPress={chooseThumbnail} />
+          {previewThumbnail ? <Button label="Remove thumbnail" variant="ghost" size="sm"
+            onPress={() => setThumbnailEdit(null)} /> : null}
+        </View>
+        {thumbnail === undefined && agentConfig ? (
+          <Text style={styles.fieldHint}>This server version saves thumbnails on this device only. Update the server to sync them to channels.</Text>
+        ) : null}
+        {thumbnailError ? <Text style={[styles.fieldHint, { color: colors.error }]}>{thumbnailError}</Text> : null}
         <Text style={[styles.label, { marginTop: 12 }]}>System Prompt</Text>
         {Platform.OS === 'web' ? (
           <textarea
@@ -332,6 +383,12 @@ export default function SettingsScreen() {
           busy={identityLoading}
           onPress={saveIdentity}
         />
+        {Object.entries(channelPresentation).map(([channel, state]) => (
+          <Text key={channel} style={styles.fieldHint}>
+            {channel}: {state === 'pending' ? 'Syncing profile…'
+              : state === 'synced' ? 'Profile synced' : state}
+          </Text>
+        ))}
         {!!identityError && (
           <Text style={[styles.fieldHint, { color: colors.error, marginTop: 8 }]}>
             {identityError}

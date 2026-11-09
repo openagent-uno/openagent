@@ -55,6 +55,7 @@ let suppressNext = false;
 
 interface NavHistoryState {
   trail: string[];
+  reset: () => void;
   /** Append the current route (called by the recorder on every nav change). */
   record: (href: string) => void;
   /** Pop one level and navigate to the previous route (or `fallback`). */
@@ -63,6 +64,7 @@ interface NavHistoryState {
 
 export const useNavHistory = create<NavHistoryState>((set, get) => ({
   trail: [],
+  reset: () => { suppressNext = false; set({ trail: [] }); },
   record: (href) => {
     // Our own back() navigations are flagged so they don't re-grow the trail.
     if (suppressNext) { suppressNext = false; return; }

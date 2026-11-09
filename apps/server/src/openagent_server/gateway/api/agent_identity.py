@@ -1,4 +1,4 @@
-"""Owner-only REST surface for the agent's editable name and persona."""
+"""Owner-only REST surface for the agent's editable name, thumbnail and persona."""
 
 from __future__ import annotations
 
@@ -65,7 +65,7 @@ async def handle_patch(request):
             ) from exc
         if not isinstance(body, dict):
             raise AgentIdentityInputError("request body must be an object")
-        allowed = {"name", "system_prompt", "expected_revision"}
+        allowed = {"name", "system_prompt", "thumbnail", "expected_revision"}
         unknown = sorted(set(body) - allowed)
         if unknown:
             raise AgentIdentityInputError(
@@ -76,6 +76,7 @@ async def handle_patch(request):
             name=body.get("name"),
             system_prompt=body.get("system_prompt"),
             expected_revision=body.get("expected_revision"),
+            **({"thumbnail": body["thumbnail"]} if "thumbnail" in body else {}),
         ))
     except Exception as exc:  # noqa: BLE001
         return error_response(exc)

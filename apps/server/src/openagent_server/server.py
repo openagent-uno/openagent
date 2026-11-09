@@ -1881,6 +1881,12 @@ class AgentServer:
         await self._start_scheduler()
 
         # 4. Bridges (connect to Gateway as internal WS clients)
+        if self._gateway is not None:
+            from openagent_server.channel_presentation import ChannelPresentationSync
+
+            self._gateway.channel_presentation = ChannelPresentationSync(
+                self._bridges, self.config.get("channels") or {},
+            )
         for bridge in self._bridges:
             self._bridge_tasks.append(asyncio.create_task(
                 bridge.start(), name=f"bridge:{bridge.name}"
@@ -2077,6 +2083,9 @@ class AgentServer:
             await asyncio.gather(*self._warmup_tasks, return_exceptions=True)
             self._warmup_tasks.clear()
         # 1. Stop bridges
+        presentation = getattr(self._gateway, "channel_presentation", None)
+        if presentation is not None:
+            await presentation.close()
         for bridge in self._bridges:
             try:
                 await asyncio.wait_for(bridge.stop(), timeout=10)

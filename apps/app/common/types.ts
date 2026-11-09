@@ -185,6 +185,7 @@ export type ServerMessage =
   | {
       type: 'auth_ok';
       agent_name: string;
+      thumbnail?: string | null;
       version: string;
       /** New gateways may inline discovery; older ones omit it. */
       capabilities?: CapabilitiesResponse;
@@ -245,7 +246,7 @@ export type ServerMessage =
   // ``GET /api/sessions/{id}/context``. Clients that don't know it ignore it.
   | { type: 'context_report'; session_id: string; report: SessionContext; seq?: number; ts_ms?: number }
   | { type: 'pong' }
-  | { type: 'agent_identity_changed'; name: string; revision: string }
+  | { type: 'agent_identity_changed'; name: string; thumbnail?: string | null; revision: string }
   // Resource-change ping: a list the desktop app might be showing
   // moved on the server. Subscribed stores refetch on receipt.
   | { type: 'resource_event'; resource: ResourceKind; action: ResourceAction; id?: string }
@@ -1224,6 +1225,8 @@ export interface ConnectionConfig {
 
 export interface SavedAccount extends ConnectionConfig {
   id: string;          // unique identifier
+  agentDisplayName?: string;
+  agentThumbnail?: string | null;
   createdAt: number;   // epoch ms
   inviteCode?: string; // oa1… ticket used when joining (stored for reference)
 }
@@ -1492,13 +1495,15 @@ export interface AgentConfig {
 
 export interface AgentIdentity {
   name: string;
+  thumbnail?: string | null;
+  channel_presentation?: Record<string, string>;
   /** User-defined persona layer, never OpenAgent's framework prompt. */
   system_prompt: string;
   revision: string;
   framework_prompt_mutable: false;
   restart_required?: boolean;
   effective?: 'next_turn';
-  changed?: Array<'name' | 'system_prompt'>;
+  changed?: Array<'name' | 'system_prompt' | 'thumbnail'>;
 }
 
 // ── REST API — vault, config ──

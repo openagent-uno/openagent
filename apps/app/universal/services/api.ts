@@ -47,6 +47,32 @@ import { normalizeAttachmentRefs, normalizeMessageContent } from '../../common/u
 import { attachmentContentRef } from '../../common/attachments';
 
 let baseUrl = '';
+let agentScope = 0;
+export const currentAgentScope = () => agentScope;
+export function clearBaseUrl() {
+  baseUrl = '';
+  agentScope += 1;
+}
+
+/** Reject reads that finished after their originating agent was left. */
+async function fetchAgent(input: string, init?: RequestInit): Promise<Response> {
+  const scope = agentScope;
+  if (!baseUrl) throw new Error('Agent is not connected');
+  const response = await fetch(input, init);
+  const assertCurrent = () => {
+    if (scope !== agentScope) throw new Error('Agent selection changed');
+  };
+  assertCurrent();
+  for (const method of ['json', 'text', 'blob', 'arrayBuffer'] as const) {
+    const read = response[method].bind(response);
+    (response[method] as () => Promise<unknown>) = async () => {
+      const result = await read();
+      assertCurrent();
+      return result;
+    };
+  }
+  return response;
+}
 
 export function setBaseUrl(host: string, port: number) {
   baseUrl = `http://${host}:${port}`;
@@ -160,7 +186,7 @@ async function responseError(res: Response): Promise<ApiError> {
 async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   const init = withTimeout({ signal }, `GET ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
     return res.json();
   } finally {
@@ -175,7 +201,7 @@ async function put<T>(path: string, body: object): Promise<T> {
     body: JSON.stringify(body),
   }, `PUT ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
     return res.json();
   } finally {
@@ -191,7 +217,7 @@ async function post<T>(path: string, body: object = {}, signal?: AbortSignal): P
     signal,
   }, `POST ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
     return res.json();
   } finally {
@@ -202,7 +228,7 @@ async function post<T>(path: string, body: object = {}, signal?: AbortSignal): P
 async function del(path: string): Promise<void> {
   const init = withTimeout({ method: 'DELETE' }, `DELETE ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
   } finally {
     clearTimer(init);
@@ -216,7 +242,7 @@ async function patch<T>(path: string, body: object): Promise<T> {
     body: JSON.stringify(body),
   }, `PATCH ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
     return res.json();
   } finally {
@@ -330,7 +356,7 @@ export async function writeNote(path: string, content: string): Promise<VaultWri
     body: JSON.stringify({ content }),
   }, `PUT ${path}`);
   try {
-    const res = await fetch(url, init);
+    const res = await fetchAgent(url, init);
     // 422 = the quality gate rejected the note. Return it as a structured
     // result (don't throw) so the editor can show the errors and keep the
     // user's text. Any other non-2xx is a real failure.
@@ -828,7 +854,7 @@ export async function uploadFile(
   if (opts?.sessionId) query.set('session_id', opts.sessionId);
   const encodedQuery = query.toString();
   const qs = encodedQuery ? `?${encodedQuery}` : '';
-  const res = await fetch(`${baseUrl}/api/upload${qs}`, {
+  const res = await fetchAgent(`${baseUrl}/api/upload${qs}`, {
     method: 'POST',
     body: form,
     signal: opts?.signal,
@@ -885,7 +911,7 @@ export async function downloadAttachment(attachment: Attachment, _token?: string
  * is the primary target.
  */
 export async function downloadFile(path: string, filename: string, _token?: string): Promise<void> {
-  const res = await fetch(fileUrl(path));
+  const res = await fetchAgent(fileUrl(path));
   if (!res.ok) throw new Error(`Download failed: ${res.status}`);
   const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
@@ -914,7 +940,7 @@ export async function updateConfigSection(
   section: string,
   data: any,
 ): Promise<{ ok: boolean; restart_required: boolean }> {
-  const res = await fetch(`${baseUrl}/api/config/${section}`, {
+  const res = await fetchAgent(`${baseUrl}/api/config/${section}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -932,6 +958,7 @@ export async function getAgentIdentity(): Promise<AgentIdentity> {
 export async function updateAgentIdentity(data: {
   name?: string;
   system_prompt?: string;
+  thumbnail?: string | null;
   expected_revision?: string;
 }): Promise<AgentIdentity & { ok: boolean }> {
   return patch<AgentIdentity & { ok: boolean }>('/api/agent/identity', data);
@@ -940,13 +967,13 @@ export async function updateAgentIdentity(data: {
 // ── Control API ──
 
 export async function triggerUpdate(): Promise<{ updated: boolean; version?: string; old?: string; new?: string }> {
-  const res = await fetch(`${baseUrl}/api/update`, { method: 'POST' });
+  const res = await fetchAgent(`${baseUrl}/api/update`, { method: 'POST' });
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 export async function triggerRestart(): Promise<{ ok: boolean }> {
-  const res = await fetch(`${baseUrl}/api/restart`, { method: 'POST' });
+  const res = await fetchAgent(`${baseUrl}/api/restart`, { method: 'POST' });
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -1215,7 +1242,7 @@ export async function getMarketplaceServer(
 export async function installFromMarketplace(
   payload: MarketplaceInstallPayload,
 ): Promise<MCPEntry> {
-  const res = await fetch(`${baseUrl}/api/marketplace/install`, {
+  const res = await fetchAgent(`${baseUrl}/api/marketplace/install`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -1727,7 +1754,7 @@ export async function mintNetworkInvitation(body: {
 async function delJson<T>(path: string): Promise<T> {
   const init = withTimeout({ method: 'DELETE' }, `DELETE ${path}`);
   try {
-    const res = await fetch(`${baseUrl}${path}`, init);
+    const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
     return res.json();
   } finally {

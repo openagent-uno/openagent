@@ -19,6 +19,9 @@ import {
 } from '@react-navigation/drawer';
 import {
   NavigationContainer,
+  NavigationContext,
+  type NavigationProp,
+  type ParamListBase,
   NavigationIndependentTree,
   useNavigation,
 } from '@react-navigation/native';
@@ -88,6 +91,8 @@ import {
 } from '../stores/sessionDetailsDrawer';
 import { colors, font, radius, spacing } from '../theme';
 import { useLayout } from '../hooks/useLayout';
+import { AGENT_RAIL_WIDTH } from './AgentSwitcher';
+import { directedAccountId } from '../stores/connection';
 import {
   configureNextDrawerLayout,
   useReducedMotion,
@@ -355,10 +360,8 @@ function MetaRow({ label, value, mono = false }: { label: string; value: string;
 
 function SessionDetailsContent({
   onNavigate,
-  onClose,
 }: {
   onNavigate?: () => void;
-  onClose: () => void;
 }) {
   const router = useRouter();
   const renameSession = useRenameSession();
@@ -610,15 +613,6 @@ function SessionDetailsContent({
             {loading
               ? <ActivityIndicator size="small" color={colors.textMuted} />
               : <Feather name="refresh-cw" size={14} color={colors.textSecondary} />}
-          </Pressable>
-          <Pressable
-            onPress={onClose}
-            style={styles.topButton}
-            accessibilityRole="button"
-            accessibilityLabel="Close session details"
-            {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
-          >
-            <Feather name="x" size={16} color={colors.textSecondary} />
           </Pressable>
         </View>
       </View>
@@ -1106,11 +1100,9 @@ function appendWarning(current: string | null, message: string): string {
 function RunDetailsContent({
   target,
   onNavigate,
-  onClose,
 }: {
   target: SessionDetailsRunTarget;
   onNavigate?: () => void;
-  onClose: () => void;
 }) {
   const router = useRouter();
   const accountId = useConnection((state) => state.activeAccountId);
@@ -1543,15 +1535,6 @@ function RunDetailsContent({
               ? <ActivityIndicator size="small" color={colors.textMuted} />
               : <Feather name="refresh-cw" size={14} color={colors.textSecondary} />}
           </Pressable>
-          <Pressable
-            onPress={onClose}
-            style={styles.topButton}
-            accessibilityRole="button"
-            accessibilityLabel="Close session details"
-            {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
-          >
-            <Feather name="x" size={16} color={colors.textSecondary} />
-          </Pressable>
         </View>
       </View>
 
@@ -1727,24 +1710,17 @@ function RunDetailsContent({
 }
 
 function DrawerContent({
-  topInset,
   present,
 }: {
-  topInset: number;
   present: boolean;
 }) {
   const isOpen = useSessionDetailsDrawer((state) => state.isOpen);
   const runTarget = useSessionDetailsDrawer((state) => state.runTarget);
   const requestClose = useSessionDetailsDrawer((state) => state.requestClose);
   const { isPhone } = useLayout();
-  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const onNavigate = isPhone ? requestClose : undefined;
-  const onClose = useCallback(() => {
-    if (!isPhone) configureNextDrawerLayout(reducedMotion);
-    requestClose();
-  }, [isPhone, reducedMotion, requestClose]);
-  const resolvedTopInset = Math.max(topInset, isPhone ? insets.top : 0);
+
   const inertRef = useWebInert(!isOpen);
   return (
     <View
@@ -1756,8 +1732,7 @@ function DrawerContent({
       style={[
         styles.drawerSurface,
         Platform.OS === 'web' && !isPhone && styles.drawerSurfaceResizeBoundary,
-        { paddingTop: resolvedTopInset },
-        isPhone && { paddingBottom: insets.bottom },
+        isPhone && { paddingTop: insets.top, paddingBottom: insets.bottom },
       ]}
       {...(Platform.OS === 'web'
         ? ({ 'aria-hidden': !isOpen } as any)
@@ -1765,17 +1740,19 @@ function DrawerContent({
     >
       {present ? (
         runTarget
-          ? <RunDetailsContent target={runTarget} onNavigate={onNavigate} onClose={onClose} />
-          : <SessionDetailsContent onNavigate={onNavigate} onClose={onClose} />
+          ? <RunDetailsContent target={runTarget} onNavigate={onNavigate} />
+          : <SessionDetailsContent onNavigate={onNavigate} />
       ) : null}
     </View>
   );
 }
 
-const ShellContent = createContext<ReactNode>(null);
+const ShellContent = createContext<{ children: ReactNode; header: ReactNode }>({
+  children: null, header: null,
+});
 
 function WorkspaceScreen() {
-  const children = useContext(ShellContent);
+  const { children, header } = useContext(ShellContent);
   const navigation = useNavigation<any>();
   const drawerStatus = useDrawerStatus();
   const toggleRequested = useSessionDetailsDrawer((state) => state.toggleRequested);
@@ -1806,7 +1783,12 @@ function WorkspaceScreen() {
     setOpen(nextOpen);
   }, [drawerStatus, isOpen, isPhone, reducedMotion, setOpen]);
 
-  return <View style={styles.workspace}>{children}</View>;
+  return (
+    <View style={styles.workspace}>
+      {children}
+      <View style={styles.workspaceHeader} testID="session-workspace-header">{header}</View>
+    </View>
+  );
 }
 
 /** Wrap one detail-capable route in a right-positioned Drawer. Keeping this
@@ -1814,12 +1796,15 @@ function WorkspaceScreen() {
  *  Expo Router remain the sole owner of URL and cross-section history. */
 export default function SessionDetailsDrawerShell({
   children,
-  topInset = 0,
+  header,
 }: {
   children: ReactNode;
-  topInset?: number;
+  header: ReactNode;
 }) {
+  const outerNavigation = useNavigation<NavigationProp<ParamListBase>>();
   const layout = useLayout();
+  const railWidth = directedAccountId() || (typeof window !== 'undefined' && (window as any).desktop?.isChild)
+    ? 0 : AGENT_RAIL_WIDTH;
   const isOpen = useSessionDetailsDrawer((state) => state.isOpen);
   const detailsWidth = useDrawerPreferences((state) => state.sessionDetailsWidth);
   const navigationWidth = useDrawerPreferences((state) => state.navigationWidth);
@@ -1829,13 +1814,13 @@ export default function SessionDetailsDrawerShell({
   const reducedMotion = useReducedMotion();
   const resizeBounds = useMemo(() => responsiveDrawerWidthBounds(
     'session-details',
-    layout.width,
+    layout.width - railWidth,
     { otherDrawerOpen: navigationOpen, otherDrawerWidth: navigationWidth },
-  ), [layout.width, navigationOpen, navigationWidth]);
+  ), [layout.width, navigationOpen, navigationWidth, railWidth]);
   const expandedWidth = layout.isPhone
     ? Math.min(
         SESSION_DETAILS_DRAWER_DEFAULT_WIDTH,
-        Math.max(280, layout.width * 0.88),
+        Math.max(220, (layout.width - railWidth) * 0.86),
       )
     : clampDrawerWidth(detailsWidth || SESSION_DETAILS_DRAWER_DEFAULT_WIDTH, resizeBounds);
   const motionDuration = drawerMotionDuration(reducedMotion);
@@ -1845,14 +1830,17 @@ export default function SessionDetailsDrawerShell({
     drawerContentRetentionDuration(layout.isPhone, reducedMotion),
   );
   return (
-    <ShellContent.Provider value={children}>
+    <ShellContent.Provider value={{
+      children,
+      header: <NavigationContext.Provider value={outerNavigation}>{header}</NavigationContext.Provider>,
+    }}>
       <NavigationIndependentTree>
         <NavigationContainer documentTitle={{ enabled: false }}>
           <RightDrawer.Navigator
             defaultStatus={isOpen ? 'open' : 'closed'}
             drawerContent={() => (
-              <View style={styles.drawerHost}>
-                <DrawerContent topInset={topInset} present={contentPresent} />
+              <View style={[styles.drawerHost, { width: expandedWidth }]} testID="session-details-fixed-width">
+                <DrawerContent present={contentPresent} />
                 {!layout.isPhone && isOpen && Platform.OS === 'web' ? (
                   <DrawerResizeHandle
                     side="right"
@@ -1894,7 +1882,8 @@ export default function SessionDetailsDrawerShell({
 
 const styles = StyleSheet.create({
   workspace: { flex: 1 },
-  drawerHost: { flex: 1, position: 'relative' },
+  workspaceHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  drawerHost: { flex: 1, alignSelf: 'flex-start', flexShrink: 0, position: 'relative' },
   drawerSurface: {
     flex: 1,
     backgroundColor: colors.sidebar,

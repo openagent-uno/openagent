@@ -11,6 +11,7 @@
 import type { WebContents } from 'electron';
 import {
   startNativeLoopback,
+  listSavedNetworkAgents,
   type RunningLoopback,
   type StartLoopbackArgs as NativeStartArgs,
   type VerifiedLoopbackTarget,
@@ -424,6 +425,13 @@ export async function stopAllLoopbacks(): Promise<void> {
 }
 
 export function registerLoopbackHandlers(): void {
+  handleTrustedIpc('loopback:listSavedNetworkAgents', (_event, network: unknown, handle: unknown) => {
+    if (typeof network !== 'string' || !network.trim() || typeof handle !== 'string' || !handle.trim()) {
+      throw new Error('A saved network and username are required.');
+    }
+    return withDeadline(listSavedNetworkAgents(network, handle), STARTUP_TIMEOUT_MS, 'agent directory');
+  });
+
   handleTrustedIpc('loopback:start', async (event, raw: unknown) => {
     const args = validateStartArgs(raw, 'loopback:start', true) as StartLoopbackArgs;
     observeRenderer(event.sender);

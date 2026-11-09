@@ -16,7 +16,7 @@
  */
 
 import { create } from 'zustand';
-import type { ConnectionConfig, SavedAccount } from '../../common/types';
+import type { ConnectionConfig, SavedAccount, ServerMessage } from '../../common/types';
 import type { CapabilitiesResponse } from '../../common/unified-history';
 import { sessionDiscoveryStrategy } from '../../common/history-feed-policy';
 import { createLatestAttemptGate } from '../../common/latest-attempt';
@@ -29,6 +29,7 @@ import {
 import { OpenAgentWS } from '../services/ws';
 import {
   setBaseUrl,
+  clearBaseUrl,
   fetchSessions,
   getUnifiedCapabilities,
   isExplicitlyUnsupported,
@@ -38,6 +39,7 @@ import {
 } from '../services/api';
 import * as storage from '../services/storage';
 import { useChat } from './chat';
+import { useConfig } from './config';
 
 const STORAGE_KEY = 'openagent:accounts';
 const ACTIVE_CONNECTION_KEY = 'openagent:activeConnection';
@@ -225,6 +227,8 @@ interface DesktopAPI {
   forgetCredential?: (accountId: string) => Promise<void>;
   releaseLoopbackAttempt?: (args: { accountId: string; attemptToken: number }) => Promise<void>;
   stopLoopback: (args: { accountId: string }) => Promise<void>;
+  setRelayAgent?: (id: string | null) => void;
+  wsRelayBroadcast?: (payload: string, id: string) => void;
   getLoopbackPort: (accountId: string) => Promise<number | null>;
   /** Open a standalone agent window bound to ``accountId`` (own
    *  connection). Present only in Electron; used for multi-window. */
@@ -248,6 +252,7 @@ export interface LoopbackStartResult {
 
 export type RememberedConnectionResult =
   | RememberedLoopbackResult
+  | { status: 'started'; port: number }
   | { status: 'stale' };
 
 export interface RememberedCredentialFailure {
@@ -340,6 +345,10 @@ interface ConnectionState {
   // Account management
   loadAccounts: () => Promise<void>;
   removeAccount: (id: string) => Promise<void>;
+  selectAccount: (id: string) => Promise<void>;
+  relayFromChild: (payload: string, id?: string) => void;
+  warmSavedAccounts: () => void;
+  rememberAgentPresentation: (id: string, name?: string, thumbnail?: string | null) => void;
   refreshCredentialAvailability: () => Promise<boolean>;
 
   // Onboarding & connection
@@ -381,11 +390,33 @@ export const useConnection = create<ConnectionState>((set, get) => {
   const connectionAttempts = createLatestAttemptGate<string>();
   const backgroundJoinAttempts = createLatestAttemptGate<string>();
 
+  const sockets = new Map<string, ReturnType<typeof _openWebsocket>>();
+  const warming = new Map<string, Promise<void>>();
+  const warmAttempted = new Set<string>();
+  // Warm starts use separate ownership tokens without cancelling UI attempts.
+  let warmToken = Number.MAX_SAFE_INTEGER;
+  const closeSocket = (id: string) => {
+    const socket = sockets.get(id);
+    sockets.delete(id);
+    socket?.close();
+  };
+  const wire = (account: SavedAccount, port: number, activate = true) => {
+    closeSocket(account.id);
+    const socket = _openWebsocket(get, set, { ...account, sidecarPort: port }, account.id);
+    sockets.set(account.id, socket);
+    if (activate) socket.activate();
+  };
   const beginConnectionAttempt = (accountId: string) => {
     const attempt = connectionAttempts.begin(accountId);
-    const old = get().ws;
-    // Make the old WS stale before disconnecting it; synchronous close/error
-    // callbacks then fail `_openWebsocket`'s identity guard.
+    const state = get();
+    if (state.ws && state.activeAccountId && !sockets.has(state.activeAccountId)) {
+      state.ws.disconnect();
+    }
+    if (state.activeAccountId) sockets.get(state.activeAccountId)?.deactivate();
+    desktop()?.setRelayAgent?.(accountId);
+    clearBaseUrl();
+    useChat.getState().clearAll();
+    useConfig.setState(useConfig.getInitialState());
     set({
       ws: null,
       config: null,
@@ -398,8 +429,6 @@ export const useConnection = create<ConnectionState>((set, get) => {
       error: null,
       rememberedFailure: null,
     });
-    old?.disconnect();
-    useChat.getState().clearAll();
     return attempt;
   };
 
@@ -474,12 +503,15 @@ export const useConnection = create<ConnectionState>((set, get) => {
   },
 
   removeAccount: async (id) => {
-    const { accounts, activeAccountId } = get();
-    if (activeAccountId === id) {
-      await get().disconnect();
-    }
-    const filtered = accounts.filter((a) => a.id !== id);
+    const wasActive = get().activeAccountId === id;
+    const filtered = get().accounts.filter((a) => a.id !== id);
     set({ accounts: filtered });
+    closeSocket(id);
+    if (wasActive) {
+      const next = filtered.find((account) => sockets.get(account.id)?.ready()) ?? filtered[0];
+      if (next) void get().selectAccount(next.id);
+      else await get().disconnect();
+    }
     await persistAccountsSerialized(filtered);
     // Best-effort cleanup of any lingering sidecar for this account.
     try {
@@ -491,6 +523,63 @@ export const useConnection = create<ConnectionState>((set, get) => {
       await desktop()?.forgetCredential?.(id);
     } catch {
       // ignore
+    }
+  },
+
+  rememberAgentPresentation: (id, name, thumbnail) => {
+    const account = get().accounts.find((row) => row.id === id);
+    if (!account || ((name === undefined || name === account.agentDisplayName)
+      && (thumbnail === undefined || thumbnail === account.agentThumbnail))) return;
+    const accounts = get().accounts.map((row) => row.id !== id ? row : {
+      ...row,
+      agentDisplayName: name ?? row.agentDisplayName,
+      agentThumbnail: thumbnail === undefined ? row.agentThumbnail : thumbnail,
+    });
+    set({ accounts });
+    void persistAccountsSerialized(accounts).catch(() => {});
+  },
+
+  relayFromChild: (payload, id) => {
+    if (id) sockets.get(id)?.sendRaw(payload);
+  },
+
+  selectAccount: async (id) => {
+    if (!get().accounts.some((account) => account.id === id)) return;
+    if (get().activeAccountId === id && (get().isConnected || get().isConnecting)) return;
+    const socket = sockets.get(id);
+    if (socket?.ready()) {
+      beginConnectionAttempt(id);
+      socket.activate();
+      return;
+    }
+    await get().connectRememberedAccount(id);
+  },
+
+  warmSavedAccounts: () => {
+    const d = desktop();
+    if (!d?.startRememberedLoopback || directedAccountId()
+      || (typeof window !== 'undefined' && (window as any).desktop?.isChild)) return;
+    const pending = get().accounts.filter(({ id }) => id !== get().activeAccountId
+      && !sockets.has(id) && !warming.has(id) && !warmAttempted.has(id));
+    for (const account of pending.slice(0, Math.max(0, 2 - warming.size))) {
+      const token = warmToken--;
+      warmAttempted.add(account.id);
+      const job = (async () => {
+        const existing = await d.getLoopbackPort(account.id);
+        const result = existing ? null : await d.startRememberedLoopback!({
+          ...accountLoopbackTarget(account), attemptToken: token,
+        });
+        const port = existing || (result?.status === 'started' ? result.port : null);
+        if (!get().accounts.some(({ id }) => id === account.id)) {
+          if (result?.status === 'started') await discardStaleLoopback(d, account.id, token);
+          return;
+        }
+        if (port && !sockets.has(account.id)) wire(account, port, false);
+      })().catch(() => {}).finally(() => {
+        warming.delete(account.id);
+        get().warmSavedAccounts();
+      });
+      warming.set(account.id, job);
     }
   },
 
@@ -519,7 +608,6 @@ export const useConnection = create<ConnectionState>((set, get) => {
 
   joinNetwork: async (args) => {
     const accountId = genId();
-    const previousAccountId = get().activeAccountId;
     const attempt = beginConnectionAttempt(accountId);
     const d = desktop();
     if (!d) {
@@ -531,11 +619,6 @@ export const useConnection = create<ConnectionState>((set, get) => {
       }
       return;
     }
-    if (previousAccountId && previousAccountId !== accountId) {
-      try { await d.stopLoopback({ accountId: previousAccountId }); } catch { /* ignore */ }
-      if (!attempt.isCurrent()) return;
-    }
-
     // Spawn the loopback in ticket mode. The Python CLI parses the
     // ticket, registers/logs in via SRP-6a, mints the cert, persists
     // the network in the user store, and prints the bound port. We
@@ -581,7 +664,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
       await discardStaleLoopback(d, accountId, attempt.token);
       return;
     }
-    _openWebsocket(get, set, { ...newAccount, sidecarPort: started.port }, accountId);
+    wire(newAccount, started.port);
   },
 
   joinNetworkInNewWindow: async (args) => {
@@ -654,7 +737,6 @@ export const useConnection = create<ConnectionState>((set, get) => {
     remember = false,
     selectedAgentHandle,
   ) => {
-    const previousAccountId = get().activeAccountId;
     const attempt = beginConnectionAttempt(accountId);
     const d = desktop();
     if (!d) {
@@ -672,13 +754,9 @@ export const useConnection = create<ConnectionState>((set, get) => {
       return;
     }
 
-    // Tear down any prior connection first so a switch from A→B doesn't
-    // leave A's sidecar running. Every await is followed by a token guard:
-    // an older attempt must not proceed to start after a newer click.
-    if (previousAccountId && previousAccountId !== accountId) {
-      try { await d.stopLoopback({ accountId: previousAccountId }); } catch { /* ignore */ }
-      if (!attempt.isCurrent()) return;
-    }
+    await warming.get(accountId);
+    if (!attempt.isCurrent()) return;
+    closeSocket(accountId);
     // Explicit password entry must perform a real coordinator login before
     // main stores the credential. Reusing a stale same-account loopback
     // would accept (and remember) an unverified replacement password.
@@ -725,18 +803,12 @@ export const useConnection = create<ConnectionState>((set, get) => {
       await discardStaleLoopback(d, accountId, attempt.token);
       return;
     }
-    _openWebsocket(
-      get,
-      set,
-      { ...(repaired ?? account), sidecarPort: started.port },
-      accountId,
-    );
+    wire(repaired ?? account, started.port);
   },
 
   connectRememberedAccount: async (accountId) => {
     const d = desktop();
     const account = get().accounts.find((candidate) => candidate.id === accountId);
-    const previousAccountId = get().activeAccountId;
     const attempt = beginConnectionAttempt(accountId);
     if (!d || !account || !d.startRememberedLoopback) {
       const result: RememberedLoopbackResult = { status: 'missing' };
@@ -750,9 +822,18 @@ export const useConnection = create<ConnectionState>((set, get) => {
       return result;
     }
 
-    if (previousAccountId && previousAccountId !== accountId) {
-      try { await d.stopLoopback({ accountId: previousAccountId }); } catch { /* ignore */ }
-      if (!attempt.isCurrent()) return { status: 'stale' };
+    await warming.get(accountId);
+    if (!attempt.isCurrent()) return { status: 'stale' };
+    const warm = sockets.get(accountId);
+    if (warm?.usable()) {
+      warm.activate();
+      return { status: 'started', port: warm.port };
+    }
+    const livePort = await d.getLoopbackPort(accountId).catch(() => null);
+    if (!attempt.isCurrent()) return { status: 'stale' };
+    if (livePort) {
+      wire(account, livePort);
+      return { status: 'started', port: livePort };
     }
     let result: RememberedLoopbackResult;
     try {
@@ -790,12 +871,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
     }
 
     if (result.status === 'started') {
-      _openWebsocket(
-        get,
-        set,
-        { ...resolvedAccount, sidecarPort: result.port },
-        accountId,
-      );
+      wire(resolvedAccount, result.port);
       return result;
     }
 
@@ -826,7 +902,11 @@ export const useConnection = create<ConnectionState>((set, get) => {
   disconnect: async () => {
     connectionAttempts.invalidate();
     const { ws, activeAccountId } = get();
+    if (activeAccountId) { closeSocket(activeAccountId); warmAttempted.add(activeAccountId); }
     ws?.disconnect();
+    desktop()?.setRelayAgent?.(null);
+    clearBaseUrl();
+    useConfig.setState(useConfig.getInitialState());
     // Flip the visible state SYNCHRONOUSLY before any await. Subscribers
     // (notably the login screen's auto-redirect effect) read this on
     // their next render — if we awaited the IPC first, a route change
@@ -898,7 +978,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
       return;
     }
     if (port) {
-      _openWebsocket(get, set, { ...account, sidecarPort: port }, activeAccountId);
+      wire(account, port);
       return;
     }
     await get().connectRememberedAccount(activeAccountId);
@@ -1002,11 +1082,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
       set({ isRestoringSession: false, isConnecting: false });
       return;
     }
-    _openWebsocket(
-      get, set,
-      { ...account, sidecarPort: port }, accountId,
-      { persistActive: false },
-    );
+    wire(account, port);
   },
   });
 });
@@ -1038,7 +1114,6 @@ function _openWebsocket(
   set: (s: Partial<ConnectionState>) => void,
   config: ConnectionConfig & { sidecarPort: number },
   accountId: string,
-  opts: { persistActive?: boolean } = {},
 ) {
   let isChild = false;
   try {
@@ -1080,17 +1155,9 @@ function _openWebsocket(
   // a fresh ``isConnecting: true``.
   const isCurrent = () => get().ws === ws;
 
-  ws.onMessage((msg) => {
-    // Any frame at all means the agent is talking to us, so a latched
-    // "Reconnecting…" is a lie by then. ``auth_ok`` clears the flag too, but
-    // it is not the only way back: a child window is handed a *synthesized*
-    // auth_ok through the IPC relay, and a reconnect the store did not drive
-    // itself can start delivering frames without one — leaving the banner up
-    // over a working session. Traffic is the ground truth; use it.
-    if (isCurrent() && get().isReconnecting) set({ isReconnecting: false });
-    if (msg.type === 'auth_ok') {
-      finalize();
-      if (!isCurrent()) return;
+  let cachedAuth: Extract<ServerMessage, { type: 'auth_ok' }> | null = null;
+  let terminal = false;
+  const authenticate = (msg: Extract<ServerMessage, { type: 'auth_ok' }>) => {
       const st = get();
       const acct = st.accounts.find((a) => a.id === accountId);
       set({
@@ -1107,6 +1174,7 @@ function _openWebsocket(
         agentVersion: msg.version || st.agentVersion,
         error: null,
       });
+      get().warmSavedAccounts();
       // Patch the saved account from the gateway's auth_ok frame —
       // covers post-join when we didn't yet know the network ID, and
       // keeps the display label fresh as the agent name evolves.
@@ -1136,7 +1204,7 @@ function _openWebsocket(
       // windows (they resume from their own ``?connect=`` URL instead) so
       // they don't overwrite the primary window's resume target — including
       // the login-fallback path, hence the ``directedAccountId()`` guard.
-      if (opts.persistActive !== false && !directedAccountId()) {
+      if (!isChild && !directedAccountId()) {
         storage.setItem(ACTIVE_CONNECTION_KEY, JSON.stringify({
           accountId,
           sidecarPort: config.sidecarPort,
@@ -1160,18 +1228,27 @@ function _openWebsocket(
         if (!isCurrent() || !get().isConnected) return;
         useChat.getState().settleStaleTurns(attachedAt);
       }, STALE_TURN_GRACE_MS);
+  };
+
+  ws.onMessage((msg) => {
+    if (!isChild) desktop()?.wsRelayBroadcast?.(JSON.stringify(msg), accountId);
+    if (msg.type === 'auth_ok') {
+      cachedAuth = msg;
+      finalize();
+      get().rememberAgentPresentation(accountId, msg.agent_name, msg.thumbnail);
+      if (isCurrent()) authenticate(msg);
     } else if (msg.type === 'agent_identity_changed') {
+      if (cachedAuth) cachedAuth = { ...cachedAuth, agent_name: msg.name,
+        thumbnail: msg.thumbnail === undefined ? cachedAuth.thumbnail : msg.thumbnail,
+      };
+      get().rememberAgentPresentation(accountId, msg.name, msg.thumbnail);
       if (!isCurrent()) return;
-      // A profile update can originate in Settings or from agent-manager.
-      // The server deliberately omits the persona text from this broadcast.
       set({ agentName: msg.name });
-      // Settings owns the owner-scoped persona text and optimistic revision;
-      // reconcile them from REST instead of putting private prompt content on
-      // a broadcast frame received by every connected client.
-      void import('./config').then(({ useConfig }) => {
-        void useConfig.getState().loadConfig();
-      }).catch(() => {});
+      // The broadcast carries only public presentation, never persona text.
+      void useConfig.getState().loadConfig();
     } else if (msg.type === 'auth_error') {
+      cachedAuth = null;
+      terminal = true;
       finalize();
       if (!isCurrent()) return;
       const authError = humanizeLoginError((msg as any).reason);
@@ -1194,6 +1271,9 @@ function _openWebsocket(
   // ``onclose`` only logged + scheduled a 3 s reconnect. Now the WS
   // surfaces them through onClose so we clear the loading state.
   ws.onClose(async (info) => {
+    cachedAuth = null;
+    if (info.reason !== 'post_auth') terminal = true;
+    if (!isCurrent() && terminal) { finalize(); ws.disconnect(); return; }
     if (info.reason === 'replaced') {
       // The gateway has already accepted a newer transport for this device.
       // OpenAgentWS deliberately does not reconnect this superseded socket:
@@ -1247,6 +1327,7 @@ function _openWebsocket(
         // can at least stop the dead one and surface a clear error
         // with a reconnect prompt instead of "Reconnecting…" forever.
         try { await desktop()?.stopLoopback({ accountId: acctId }); } catch { /* ignore */ }
+        if (!isCurrent()) return;
         set({
           isConnected: false,
           isConnecting: false,
@@ -1291,7 +1372,8 @@ function _openWebsocket(
   authTimer = setTimeout(() => {
     if (attemptDone) return;
     finalize();
-    if (!isCurrent()) return;
+    terminal = true;
+    if (!isCurrent()) { ws.disconnect(); return; }
     set({
       isConnected: false,
       isConnecting: false,
@@ -1306,13 +1388,20 @@ function _openWebsocket(
     ws.disconnect();
   }, WS_AUTH_TIMEOUT_MS);
 
+  ws.setPresentationActive(false);
   ws.connect();
-  setBaseUrl(host, port);
-  set({
-    config,
-    ws,
-    isConnected: false,
-    error: null,
-    activeAccountId: accountId,
-  });
+  return {
+    port,
+    sendRaw: (payload: string) => ws.sendRaw(payload),
+    ready: () => !terminal && cachedAuth !== null,
+    usable: () => !terminal && (!attemptDone || cachedAuth !== null),
+    deactivate: () => ws.setPresentationActive(false),
+    activate: () => {
+      ws.setPresentationActive(true);
+      setBaseUrl(host, port);
+      set({ config, ws, error: null, activeAccountId: accountId });
+      if (cachedAuth) authenticate(cachedAuth);
+    },
+    close: () => { terminal = true; finalize(); ws.disconnect(); },
+  };
 }

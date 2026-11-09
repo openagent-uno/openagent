@@ -20,6 +20,8 @@
     "dagre": "^0.8.5",
     "expo": "~55.0.0",
     "expo-blur": "~55.0.14",
+    "expo-image-manipulator": "~55.0.15",
+    "expo-image-picker": "~55.0.18",
     "expo-linear-gradient": "~15.0.7",
     "expo-router": "~5.0.0",
     "katex": "^0.16.47",

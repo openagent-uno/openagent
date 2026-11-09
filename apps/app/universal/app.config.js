@@ -40,7 +40,14 @@ module.exports = ({ config }) => ({
       themeColor: '#050810',
       backgroundColor: '#050810',
     },
-    plugins: ['expo-router'],
+    plugins: [
+      'expo-router',
+      ['expo-image-picker', {
+        photosPermission: 'Choose a photo for your OpenAgent profile.',
+        cameraPermission: false,
+        microphonePermission: false,
+      }],
+    ],
     experiments: baseUrl ? { baseUrl } : {},
   },
 });

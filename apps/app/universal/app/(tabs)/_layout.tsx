@@ -18,7 +18,8 @@
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Platform, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, View } from 'react-native';
+import AgentSwitcher, { AGENT_RAIL_WIDTH } from '../../components/AgentSwitcher';
 import Sidebar from '../../components/Sidebar';
 import DrawerResizeHandle from '../../components/DrawerResizeHandle';
 import GlobalSearchOverlay from '../../components/search/GlobalSearchOverlay';
@@ -29,7 +30,8 @@ import {
   useWebInert,
   webDrawerWidthTransition,
 } from '../../hooks/useDrawerMotion';
-import { useConnection } from '../../stores/connection';
+import { directedAccountId, useConnection } from '../../stores/connection';
+import { useNavHistory } from '../../stores/navHistory';
 import { useChat } from '../../stores/chat';
 import { globalSearchAvailable, useSearch } from '../../stores/search';
 import { useNavigationSidebar } from '../../stores/navigationSidebar';
@@ -81,6 +83,17 @@ export default function AppDrawerLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const accountId = useConnection((state) => state.activeAccountId);
+  const accountCount = useConnection((state) => state.accounts.length);
+  const isLoading = useConnection((state) => state.isLoading);
+  const connected = useConnection((state) => state.isConnected);
+  const connecting = useConnection((state) => state.isConnecting || state.isRestoringSession);
+  const connectionError = useConnection((state) => state.error);
+  const hasRail = accountCount > 0 && !directedAccountId()
+    && !(typeof window !== 'undefined' && (window as any).desktop?.isChild);
+  const openChat = useCallback(() => {
+    useNavHistory.getState().reset();
+    router.replace('/(tabs)/chat');
+  }, [router]);
   const ws = useConnection((state) => state.ws);
   const wideSidebarOpen = useNavigationSidebar((state) => state.isOpen);
   const navigationWidth = useDrawerPreferences((state) => state.navigationWidth);
@@ -95,15 +108,15 @@ export default function AppDrawerLayout() {
   const detailsRouteActive = pathname === '/chat' || pathname.startsWith('/runs/');
   const resizeBounds = useMemo(() => responsiveDrawerWidthBounds(
     'navigation',
-    layout.width,
+    layout.width - (hasRail ? AGENT_RAIL_WIDTH : 0),
     {
       otherDrawerOpen: sessionDetailsOpen && detailsRouteActive,
       otherDrawerWidth: detailsWidth,
     },
-  ), [detailsRouteActive, detailsWidth, layout.width, sessionDetailsOpen]);
+  ), [detailsRouteActive, detailsWidth, hasRail, layout.width, sessionDetailsOpen]);
   const expandedWidth = permanent
     ? clampDrawerWidth(navigationWidth || NAVIGATION_DRAWER_DEFAULT_WIDTH, resizeBounds)
-    : 296;
+    : Math.min(296, layout.width - (hasRail ? AGENT_RAIL_WIDTH : 0) - 20);
   const width = resolvedDrawerWidth(expandedWidth, !permanent, wideSidebarOpen);
   const motionDuration = drawerMotionDuration(reducedMotion);
   const sidebarInertRef = useWebInert(!wideSidebarOpen);
@@ -117,18 +130,19 @@ export default function AppDrawerLayout() {
   });
 
   useEffect(() => {
-    if (!accountId) {
+    if (!accountId || !connected) {
       useSearch.getState().clear();
       useUIViews.getState().clear();
       return;
     }
     void initializeAccountSearch(accountId);
     void useUIViews.getState().initialize(accountId);
-  }, [accountId]);
+  }, [accountId, connected]);
 
   useEffect(() => {
     if (!ws) return;
     return ws.onMessage((message) => {
+      if (useConnection.getState().ws !== ws) return;
       if (message.type === 'history_changed') {
         useSearch.getState().handleHistoryChanged(message);
         if (message.action === 'upsert') {
@@ -178,9 +192,23 @@ export default function AppDrawerLayout() {
     openSearchTarget(router, target, causedBy, metadata);
   }, [router]);
 
+  useEffect(() => {
+    if (!isLoading && accountCount === 0) router.replace('/');
+  }, [accountCount, isLoading, router]);
+
   return (
-    <>
-      <Drawer
+    <View style={{ flex: 1, flexDirection: 'row' }}>
+      {hasRail && <AgentSwitcher onSelect={openChat} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+      {hasRail && !connected ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
+          {connecting ? <ActivityIndicator color={colors.accent} /> : null}
+          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+            {connecting ? 'Connecting…' : connectionError || 'Select an agent to connect.'}
+          </Text>
+        </View>
+      ) : <Drawer
+        key={accountId ?? 'no-agent'}
         // The Drawer is the cross-section "back" boundary. react-navigation's
           // default backBehavior is 'firstRoute', which REBUILDS the drawer
           // history to [firstRoute(chat), current] on every section switch — so
@@ -205,7 +233,7 @@ export default function AppDrawerLayout() {
                       ? ({ 'aria-hidden': !wideSidebarOpen } as any)
                       : {})}
                   >
-                    <Sidebar />
+                    <Sidebar showWindowControls={!hasRail} />
                     {wideSidebarOpen && Platform.OS === 'web' ? (
                       <DrawerResizeHandle
                         side="left"
@@ -220,6 +248,7 @@ export default function AppDrawerLayout() {
                 )
               : (
                   <Sidebar
+                    showWindowControls={!hasRail}
                     onNavigate={() => props.navigation.closeDrawer()}
                   />
                 )}
@@ -260,7 +289,7 @@ export default function AppDrawerLayout() {
           }}
       >
         {/* Leaf screens render the drawer header directly. */}
-        <Drawer.Screen name="chat" options={leaf('Chat')} />
+        <Drawer.Screen name="chat" options={{ title: 'Chat', headerShown: false }} />
         <Drawer.Screen name="model" options={leaf('Model')} />
         <Drawer.Screen name="devices" options={leaf('Devices')} />
         <Drawer.Screen name="system" options={leaf('System')} />
@@ -281,8 +310,9 @@ export default function AppDrawerLayout() {
         <Drawer.Screen name="terminal" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
         <Drawer.Screen name="automations" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
         <Drawer.Screen name="members" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
-      </Drawer>
-      <GlobalSearchOverlay onOpenTarget={handleOpenTarget} />
-    </>
+      </Drawer>}
+      {connected && <GlobalSearchOverlay onOpenTarget={handleOpenTarget} />}
+      </View>
+    </View>
   );
 }

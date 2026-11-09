@@ -58,10 +58,9 @@ import PopupMenu, { type PopupMenuHandle } from './PopupMenu';
 import { useEvents } from '../stores/events';
 import { useUIViews } from '../stores/uiViews';
 import type { UIViewSummary } from '../../common/ui-views';
-import AgentSwitcher from './AgentSwitcher';
 import BrandLogo from './BrandLogo';
-import WindowControls from './WindowControls';
 import DragRegion from './DragRegion';
+import WindowControls from './WindowControls';
 import { colors, font, radius, spacing } from '../theme';
 
 type IconName = keyof typeof Feather.glyphMap;
@@ -114,14 +113,15 @@ interface FeedItem {
 
 export default function Sidebar({
   onNavigate,
+  showWindowControls,
 }: {
   onNavigate?: () => void;
+  showWindowControls?: boolean;
 }) {
   const router = useRouter();
   const segments = useSegments();
   const routeParams = useGlobalSearchParams<{ id?: string }>();
-  // Post-auth WS drop — surfaced right above the agent name so the connection
-  // state lives next to the agent identity (moved here from the chat screen).
+  // Surface a post-auth drop in the navigation footer.
   const isReconnecting = useConnection((s) => s.isReconnecting);
   // macOS shows native traffic lights over the sidebar's top-left, so the
   // brand pads down to clear them and that strip drags the window.
@@ -163,11 +163,12 @@ export default function Sidebar({
         >
           {/* Drag layer behind the controls (sibling, never their parent). */}
           <DragRegion />
-          <WindowControls />
+          {showWindowControls && <WindowControls />}
+
         </View>
       )}
 
-      {/* ── Brand (agent lives in the footer) ── */}
+      {/* ── Brand ── */}
       <View
         // @ts-ignore web drag region
         style={[
@@ -215,25 +216,26 @@ export default function Sidebar({
         onNavigate={onNavigate}
       />
 
-      {/* ── Footer: agent picker + square utility actions ── */}
+      {/* ── Footer: utility actions ── */}
       <View style={[styles.footer, styles.footerFull]}>
         <View style={styles.footerRule} />
-        {isReconnecting && (
-          <View style={styles.reconnectRow}>
-            <View
-              style={styles.reconnectDot}
-              {...(Platform.OS === 'web' ? { className: 'oa-pulse' } : {})}
-            />
-            <Text style={styles.reconnectText} numberOfLines={1}>Reconnecting…</Text>
-          </View>
-        )}
         <View style={styles.footerActionRow}>
-          <AgentSwitcher variant="compact" />
+          {isReconnecting && <ReconnectStatus />}
           <FooterIcon icon="settings" label="Settings" active={activeSeg === 'settings'} onPress={() => go('/settings')} />
           <FooterIcon icon="file-text" label="Logs" active={activeSeg === 'logs'} onPress={() => go('/logs')} />
           <FooterIcon icon="activity" label="System" active={activeSeg === 'system'} onPress={() => go('/system')} />
         </View>
       </View>
+    </View>
+  );
+}
+
+function ReconnectStatus() {
+  return (
+    <View style={styles.reconnectRow} accessibilityLiveRegion="polite">
+      <View style={styles.reconnectDot}
+        {...(Platform.OS === 'web' ? { className: 'oa-pulse' } : {})} />
+      <Text style={styles.reconnectText} numberOfLines={1}>Reconnecting…</Text>
     </View>
   );
 }
@@ -981,20 +983,19 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
 
-  // Footer (icons only)
+  // Footer
   footer: { marginTop: 'auto' },
   footerFull: { paddingTop: spacing.xs },
   footerRule: { height: 1, backgroundColor: colors.borderLight, marginBottom: spacing.xs },
-  // Reconnecting hint — sits right above the agent row (see [[isReconnecting]]).
   reconnectRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 7,
-    paddingHorizontal: spacing.xs, paddingBottom: spacing.sm,
+    flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7,
+    paddingLeft: spacing.xs,
   },
-  reconnectDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.warning },
+  reconnectDot: { flexShrink: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: colors.warning },
   reconnectText: {
-    fontSize: 11, color: colors.textSecondary, fontFamily: font.mono, letterSpacing: 0.3,
+    flexShrink: 1, fontSize: 11, color: colors.textSecondary, fontFamily: font.mono, letterSpacing: 0.3,
   },
-  footerActionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  footerActionRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.xs },
   footerBtn: { width: ROW_H, height: ROW_H, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: 'transparent' },
   footerBtnActive: { backgroundColor: colors.surface, borderColor: colors.border },
 });

@@ -10,8 +10,8 @@ import McpAppDraftReview from '../../components/McpAppDraftReview';
  * the transcript and streams the mic through the active chat session.
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo, useLayoutEffect } from 'react';
-import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Image,
@@ -33,7 +33,7 @@ import { useSharedView } from '../../components/SharedPresence';
 import SessionDetailsDrawerShell from '../../components/SessionDetailsDrawer';
 import BrandLogo from '../../components/BrandLogo';
 import {
-  useHeaderInset,
+  useWorkspaceHeaderInset, WorkspaceHeader,
   HeaderMenuAndBack,
   HeaderMenu,
   HeaderRight,
@@ -55,7 +55,6 @@ import {
 } from '../../services/api';
 import { modelEffort, modelFamily } from '../../../common/types';
 import type { ModelEntry, GatewayCommandSpec, ProviderAccounts } from '../../../common/types';
-import AgentSwitcher from '../../components/AgentSwitcher';
 import { formatDuration } from '../../components/AccountsPanel';
 
 // Commands that act on the agent, not on one conversation: they must be
@@ -95,11 +94,10 @@ const log = (event: string, data?: Record<string, unknown>) => {
 };
 
 export default function ChatScreen() {
-  const headerInset = useHeaderInset();
+  const headerInset = useWorkspaceHeaderInset();
   const ws = useConnection((s) => s.ws);
   const currentUserHandle = useConnection((s) => s.config?.handle);
   const router = useRouter();
-  const navigation = useNavigation<any>();
   const routeParams = useLocalSearchParams<{
     session?: string;
     message?: string;
@@ -500,76 +498,47 @@ export default function ChatScreen() {
     }
   }, []);
 
-  // Drive the (drawer) header's left control. A child session — a delegation
-  // sub-agent, a scheduled firing, or a workflow node — gets a real "back"
-  // chevron instead of the drawer toggle: it swaps to the parent session in
-  // place when that session is loaded (walking the lineage to any depth),
-  // and otherwise steps back through navigation history to whatever screen
-  // opened it (e.g. a run detail). A top-level chat session keeps the drawer
-  // toggle. ``router``/``openChildSession`` are intentionally out of the deps
-  // (``useRouter`` returns a fresh ref each render, which would re-run
-  // setOptions every frame); the captured refs stay correct because the
-  // effect re-runs whenever the session being viewed actually changes.
+  // Child sessions keep their back control while the header stays inside
+  // the workspace, alongside the right inspector.
   const parentSession = activeSession?.parentSessionId
     ? sessions.find((s) => s.id === activeSession.parentSessionId)
     : undefined;
   const isChildSession = !!activeSession
     && (!!activeSession.parentSessionId
       || (!!activeSession.origin && activeSession.origin !== 'chat'));
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () =>
-        isChildSession ? (
-          <HeaderMenuAndBack
-            onPress={() => {
-              // If this child was drilled into from a NON-chat screen (e.g. a
-              // run detail's sub-agent card), return to that screen via the
-              // route trail. Otherwise it's an in-chat delegation → swap to the
-              // parent session in place (the session-lineage axis, any depth).
-              const trail = useNavHistory.getState().trail;
-              const prev = trail[trail.length - 2];
-              if (prev && !prev.startsWith('/chat')) goBack(router);
-              else if (parentSession) openChildSession(parentSession.id);
-              else goBack(router);
-            }}
-          />
-        ) : (
-          <HeaderMenu />
-        ),
-      // Session details live in the right navigation drawer. The overflow menu
-      // remains only for destructive chat actions, while the drawer button is
-      // always available for every open session (including child/run sessions).
-      headerRight: () =>
-        activeSession ? (
-          <HeaderRight>
-            {!isChildSession ? (
-              <PopupMenu
-                triggerIcon="more-vertical"
-                triggerSize={18}
-                triggerColor={colors.textSecondary}
-                triggerStyle={[styles.headerMenuBtn, NO_DRAG]}
-                accessibilityLabel="Chat options"
-                items={[
-                  {
-                    label: 'Rename',
-                    icon: 'edit-2' as const,
-                    onPress: () => renameSession(activeSession),
-                  },
-                  {
-                    label: 'Delete chat',
-                    icon: 'trash-2' as const,
-                    destructive: true,
-                    onPress: () => confirmAndRemove(activeSession),
-                  },
-                ]}
-              />
-            ) : null}
-            <HeaderSessionDetails />
-          </HeaderRight>
-        ) : null,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigation, isChildSession, parentSession?.id, activeSession?.id, activeSession?.title, renameSession]);
+  const headerLeft = isChildSession ? (
+    <HeaderMenuAndBack
+      onPress={() => {
+        const trail = useNavHistory.getState().trail;
+        const prev = trail[trail.length - 2];
+        if (prev && !prev.startsWith('/chat')) goBack(router);
+        else if (parentSession) openChildSession(parentSession.id);
+        else goBack(router);
+      }}
+    />
+  ) : <HeaderMenu />;
+
+  const headerRight = activeSession ? (
+    <HeaderRight>
+      {!isChildSession ? (
+        <PopupMenu
+          triggerIcon="more-vertical"
+          triggerSize={18}
+          triggerColor={colors.textSecondary}
+          triggerStyle={[styles.headerMenuBtn, NO_DRAG]}
+          accessibilityLabel="Chat options"
+          items={[
+            { label: 'Rename', icon: 'edit-2', onPress: () => renameSession(activeSession) },
+            {
+              label: 'Delete chat', icon: 'trash-2', destructive: true,
+              onPress: () => confirmAndRemove(activeSession),
+            },
+          ]}
+        />
+      ) : null}
+      <HeaderSessionDetails />
+    </HeaderRight>
+  ) : null;
 
   // A freshly-spawned child session fires a resource_event. V2 normally gets
   // its exact summary from history_changed; gateways without that realtime
@@ -1503,7 +1472,7 @@ export default function ChatScreen() {
   );
 
   return (
-    <SessionDetailsDrawerShell topInset={headerInset}>
+    <SessionDetailsDrawerShell header={<WorkspaceHeader title="Chat" left={headerLeft} right={headerRight} />}>
       <View style={[styles.chatArea, { paddingTop: headerInset }]}>
         {dragActive && (
           <View style={styles.dropOverlay} pointerEvents="none">
@@ -1719,7 +1688,6 @@ export default function ChatScreen() {
               slashCommands={slashCommands}
               modelOptions={modelOptions}
               activeModelId={activeSession?.llmPin}
-              menuFooter={<AgentSwitcher variant="menu-row" />}
               onSelectModel={handleSelectModel}
               pendingFiles={pendingFiles}
               onRetryFile={(idx) => {

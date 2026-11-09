@@ -11,7 +11,7 @@ import type {McpAppHostService} from '@openagent/mcp-apps/desktop';
  * for a complete desktop-window management experience.
  */
 
-import { app, BrowserWindow, shell, dialog, Menu } from 'electron';
+import { app, BrowserWindow, shell, dialog, Menu, webContents } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
@@ -224,7 +224,8 @@ const childWindows = new Set<BrowserWindow>();
 // through the primary window (opened with ``markChild``). Standalone agent
 // windows (own loopback + own WS) are deliberately excluded so the primary's
 // broadcast never leaks another agent's frames into them.
-const relayChildIds = new Set<number>();
+const relayChildAccounts = new Map<number, string>();
+let relayAgent: string | null = null;
 let primaryWindowId: number | null = null;
 let staticServer: http.Server | null = null;
 let staticPort = 0;
@@ -405,10 +406,14 @@ function createWindow(opts: CreateWindowOptions = {}): BrowserWindow {
     ? new URL(baseUrl)
     : buildRendererTarget(rendererPolicy, route);
   if (connectAccountId) target.searchParams.set('connect', connectAccountId);
-  if (markChild) target.searchParams.set('child', '1');
+  const childRelayAgent = markChild ? relayAgent : null;
+  if (markChild) {
+    target.searchParams.set('child', '1');
+    if (childRelayAgent) target.searchParams.set('connect', childRelayAgent);
+  }
   void win.loadURL(target.toString());
 
-  if (markChild) relayChildIds.add(webContentsId);
+  if (childRelayAgent) relayChildAccounts.set(webContentsId, childRelayAgent);
 
   // ── Register with the central window manager ──
   const windowType = connectAccountId
@@ -426,7 +431,7 @@ function createWindow(opts: CreateWindowOptions = {}): BrowserWindow {
   win.on('closed', () => {
     unregisterTrustedRenderer(trustedContents);
     childWindows.delete(win);
-    relayChildIds.delete(webContentsId);
+    relayChildAccounts.delete(webContentsId);
     // Also unregister from the central registry.
     unregisterWindow(webContentsId);
 
@@ -438,13 +443,14 @@ function createWindow(opts: CreateWindowOptions = {}): BrowserWindow {
     // Relay one through the primary window's gateway socket here so the
     // PTY on the host is reaped instead of lingering until app exit.
     const terminalId = terminalIdFromRoute(route);
-    if (terminalId && primaryWindowId) {
-      const primary = BrowserWindow.fromId(primaryWindowId);
-      if (primary && !primary.isDestroyed() && primary.webContents.id !== webContentsId) {
+    if (terminalId && primaryWindowId && childRelayAgent) {
+      const primary = webContents.fromId(primaryWindowId);
+      if (primary && !primary.isDestroyed() && primary.id !== webContentsId) {
         sendToTrustedRenderer(
-          primary.webContents,
+          primary,
           'ws:relay-from-child',
           JSON.stringify({ type: 'terminal_close', terminal_id: terminalId }),
+          childRelayAgent,
         );
       }
     }
@@ -490,14 +496,17 @@ function installConfiguredTestLoopback(): void {
   const raw = process.env.OPENAGENT_DESKTOP_E2E_LOOPBACK?.trim();
   if (!raw) return;
 
-  let value: Record<string, unknown>;
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
-    value = parsed as Record<string, unknown>;
-  } catch {
-    throw new Error('OPENAGENT_DESKTOP_E2E_LOOPBACK must be a JSON object');
+  const parsed = JSON.parse(raw);
+  const targets: unknown[] = Array.isArray(parsed) ? parsed : [parsed];
+  for (const target of targets) {
+    if (!target || typeof target !== 'object' || Array.isArray(target)) {
+      throw new Error('OPENAGENT_DESKTOP_E2E_LOOPBACK must contain loopback objects');
+    }
+    installTestLoopbackTarget(target as Record<string, unknown>);
   }
+}
+
+function installTestLoopbackTarget(value: Record<string, unknown>): void {
   const required = [
     'account_id', 'base_url', 'network_name', 'network_id', 'device_id',
     'handle', 'coordinator_node_id', 'agent_node_id', 'agent_handle',
@@ -770,28 +779,31 @@ handleTrustedIpc('window:closeAllChildren', () => {
 
 // ── IPC: Multi-window WS relay ──
 
-// Primary window's WS is shared with its *relay* children only.
-// Standalone agent windows carry their own connection and are never part
-// of this fan-out (their ids are not in ``relayChildIds``), so agent A's
-// frames can't leak into an agent-B window.
+// Detached views stay bound to the account they opened on. The primary
+// renderer dispatches their frames to that account's authenticated socket.
+onTrustedIpc('ws:set-agent', (event, accountId: unknown) => {
+  if (event.sender.id !== primaryWindowId || (accountId !== null && typeof accountId !== 'string')) return;
+  relayAgent = accountId;
+});
+
 onTrustedIpc('ws:relay-out', (event, payload: string) => {
-  if (!relayChildIds.has(event.sender.id)) return;
+  const accountId = relayChildAccounts.get(event.sender.id);
+  if (!accountId) return;
   if (typeof payload !== 'string' || Buffer.byteLength(payload, 'utf8') > 16 * 1024 * 1024) return;
-  const primary = primaryWindowId
-    ? BrowserWindow.fromId(primaryWindowId)
-    : null;
+  const primary = primaryWindowId ? webContents.fromId(primaryWindowId) : null;
   if (primary && !primary.isDestroyed()) {
-    sendToTrustedRenderer(primary.webContents, 'ws:relay-from-child', payload);
+    sendToTrustedRenderer(primary, 'ws:relay-from-child', payload, accountId);
   }
 });
 
-onTrustedIpc('ws:relay-broadcast', (event, payload: string) => {
-  if (event.sender.id !== primaryWindowId) return;
+onTrustedIpc('ws:relay-broadcast', (event, payload: string, accountId: unknown) => {
+  if (event.sender.id !== primaryWindowId || typeof accountId !== 'string') return;
   if (typeof payload !== 'string' || Buffer.byteLength(payload, 'utf8') > 16 * 1024 * 1024) return;
-  for (const id of relayChildIds) {
-    const win = BrowserWindow.fromId(id);
-    if (win && !win.isDestroyed()) {
-      sendToTrustedRenderer(win.webContents, 'ws:relay-to-child', payload);
+  for (const [id, childAccount] of relayChildAccounts) {
+    if (childAccount !== accountId) continue;
+    const contents = webContents.fromId(id);
+    if (contents && !contents.isDestroyed()) {
+      sendToTrustedRenderer(contents, 'ws:relay-to-child', payload);
     }
   }
 });

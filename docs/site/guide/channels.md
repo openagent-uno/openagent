@@ -198,3 +198,28 @@ Voice messages are transcribed automatically. Two backends (tried in order):
 
 1. **faster-whisper** (local, free, no API key) — install with `pip install openagent-framework[voice]`
 2. **OpenAI Whisper API** (cloud fallback) — requires `OPENAI_API_KEY` in environment
+
+## Bot profile synchronization
+
+In the OpenAgent App, the owner can save a name and thumbnail under
+**Settings → Agent Identity**. The standalone server normalizes the image to
+a square JPEG and queues profile updates for configured bots. The settings
+screen reports each provider's outcome. Save again to retry a rejected
+update after correcting its settings or waiting for a rate limit to clear.
+This changes the presentation of the configured bot; the OpenAgent network
+handle and channel bindings stay the same.
+
+- **Discord** uses the installed bot's profile API. Discord server nicknames
+  can still take precedence over the bot name.
+- **Telegram** uses the installed bot's default name and profile photo. Any
+  separately configured localized names keep their precedence.
+- **Slack** needs a dedicated app and an app configuration token with
+  `app_configurations:read` and `app_configurations:write`; bot and socket
+  tokens cannot manage its profile.
+  Set `channels.slack.presentation_app_id` to that app's ID and
+  `channels.slack.presentation_config_token` to a reference such as
+  `${SLACK_PRESENTATION_CONFIG_TOKEN}`. The bot name and icon apply to the
+  app's installations. To restore Slack's default icon, remove the uploaded
+  icon in Slack app settings.
+- Channels that do not expose a managed bot profile leave their provider
+  identity unchanged.

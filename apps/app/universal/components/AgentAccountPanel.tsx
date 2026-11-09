@@ -24,6 +24,8 @@ export type AgentAccountPanelMode = 'connect' | 'open-window';
 interface AgentAccountPanelProps {
   mode: AgentAccountPanelMode;
   embedded?: boolean;
+  addOnly?: boolean;
+  reconnectAccountId?: string | null;
   preferredAccountId?: string | null;
   onAttempt?: () => void;
   onComplete?: () => void;
@@ -36,6 +38,8 @@ interface AgentAccountPanelProps {
 export default function AgentAccountPanel({
   mode,
   embedded = false,
+  addOnly = false,
+  reconnectAccountId,
   preferredAccountId,
   onAttempt,
   onComplete,
@@ -60,11 +64,17 @@ export default function AgentAccountPanel({
     openAccountWindow,
   } = useConnection();
 
-  const [adding, setAdding] = useState(false);
-  const [signInId, setSignInId] = useState<string | null>(preferredAccountId ?? null);
+  const [adding, setAdding] = useState(addOnly);
+  const [signInId, setSignInId] = useState<string | null>(reconnectAccountId ?? preferredAccountId ?? null);
   const [passwordId, setPasswordId] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [selectedAgentHandle, setSelectedAgentHandle] = useState('');
+  const [directory, setDirectory] = useState<{
+    accountId: string;
+    agents: { handle: string; label: string }[];
+    error?: string;
+  } | null>(null);
+  const [directoryRetry, setDirectoryRetry] = useState(0);
   const [ticket, setTicket] = useState('');
   const [handle, setHandle] = useState('');
   const [joinPassword, setJoinPassword] = useState('');
@@ -79,6 +89,45 @@ export default function AgentAccountPanel({
     bindTo: string;
     networkName: string;
   } | null>(null);
+
+  const showPassword = !!signInId && passwordId === signInId && retryId !== signInId;
+  const legacyAccount = !adding && showPassword
+    ? accounts.find((account) => account.id === signInId && !account.agentHandle)
+    : undefined;
+  const currentDirectory = directory?.accountId === signInId ? directory : null;
+  const needsSelection = !!legacyAccount;
+  const targetReady = !needsSelection || !!currentDirectory?.agents.some(({ handle }) => handle === selectedAgentHandle);
+
+  useEffect(() => {
+    if (!legacyAccount) return;
+    const { id, network, handle } = legacyAccount;
+    const desktop = typeof window !== 'undefined' ? window.desktop : undefined;
+    setDirectory(null);
+    setSelectedAgentHandle('');
+    if (!desktop?.listSavedNetworkAgents) {
+      setDirectory({ accountId: id, agents: [], error: 'Agent discovery requires the desktop app.' });
+      return;
+    }
+    let current = true;
+    void desktop.listSavedNetworkAgents(network, handle).then(agents => {
+      if (!current) return;
+      const savedLabel = accountAgentPresentation(legacyAccount).primary.toLowerCase();
+      const matches = agents.filter(agent => agent.handle.toLowerCase() === savedLabel
+        || agent.label.toLowerCase() === savedLabel);
+      // An old label is a suggestion for the visible picker. The saved
+      // target is pinned only after successful login with that choice.
+      const suggested = agents.length === 1 ? agents[0] : matches.length === 1 ? matches[0] : null;
+      setSelectedAgentHandle(suggested?.handle ?? '');
+      setDirectory({
+        accountId: id,
+        agents,
+        ...(agents.length ? {} : { error: 'No agents are registered in this network.' }),
+      });
+    }).catch(() => {
+      if (current) setDirectory({ accountId: id, agents: [], error: 'Could not load agents from this network.' });
+    });
+    return () => { current = false; };
+  }, [legacyAccount, directoryRetry]);
 
   const transition = useRef(new Animated.Value(1)).current;
   const uiAttempt = useRef(0);
@@ -102,11 +151,11 @@ export default function AgentAccountPanel({
   }, [preferredAccountId]);
 
   useEffect(() => {
-    if (!rememberedFailure) return;
+    if (!rememberedFailure || addOnly || (reconnectAccountId && rememberedFailure.accountId !== reconnectAccountId)) return;
     setSignInId(rememberedFailure.accountId);
     setRetryId(rememberedFailure.kind === 'retryable' ? rememberedFailure.accountId : null);
     setPasswordId(rememberedFailure.kind === 'retryable' ? null : rememberedFailure.accountId);
-  }, [rememberedFailure]);
+  }, [rememberedFailure, addOnly, reconnectAccountId]);
 
   // Small cross-platform layout transition for list ↔ join and inline auth
   // states; deliberately short and limited to opacity/translation.
@@ -166,8 +215,7 @@ export default function AgentAccountPanel({
     setAdding(false);
     setSignInId(accountId);
     setPassword('');
-    const selectedAccount = accounts.find((account) => account.id === accountId);
-    setSelectedAgentHandle(selectedAccount?.agentHandle ?? '');
+    setSelectedAgentHandle('');
     setPasswordId(null);
     setRetryId(null);
     setLocalError(null);
@@ -198,7 +246,7 @@ export default function AgentAccountPanel({
   };
 
   const submitPassword = async () => {
-    if (!signInId || !password) return;
+    if (!signInId || !password || !targetReady) return;
     const attemptToken = mode === 'connect' ? ++uiAttempt.current : 0;
     const submittedPassword = password;
     setPassword('');
@@ -210,7 +258,7 @@ export default function AgentAccountPanel({
         signInId,
         submittedPassword,
         credentialStorageAvailable && remember,
-        selectedAgentHandle.trim() || undefined,
+        needsSelection ? selectedAgentHandle : undefined,
       );
       setBusyId((current) => current === signInId ? null : current);
       if (result.ok) {
@@ -226,7 +274,7 @@ export default function AgentAccountPanel({
       signInId,
       submittedPassword,
       credentialStorageAvailable && remember,
-      selectedAgentHandle.trim() || undefined,
+      needsSelection ? selectedAgentHandle : undefined,
     );
     if (attemptToken !== uiAttempt.current) return;
     setBusyId((current) => current === signInId ? null : current);
@@ -273,8 +321,7 @@ export default function AgentAccountPanel({
     if (signInId === accountId) setSignInId(null);
   };
 
-  const showPassword = !!signInId && passwordId === signInId && retryId !== signInId;
-  const displayError = localError || error;
+  const displayError = localError || (adding && !attempted ? null : error);
   const restoring = embedded && (isLoading || isRestoringSession);
 
   return (
@@ -283,7 +330,7 @@ export default function AgentAccountPanel({
       {...(Platform.OS === 'web' ? { className: 'oa-slide-up' } as any : {})}
     >
       <View style={styles.rail} />
-      <Text style={styles.title}>{adding ? 'Add an agent' : 'Your agents'}</Text>
+      <Text style={styles.title}>{adding ? 'Add an agent' : reconnectAccountId ? 'Sign in again' : 'Your agents'}</Text>
       {!adding && mode === 'open-window' ? (
         <Text style={styles.sheetHint}>Each agent opens in its own window.</Text>
       ) : null}
@@ -345,7 +392,7 @@ export default function AgentAccountPanel({
               />
               {displayError ? <ErrorText message={displayError} /> : null}
               <View style={styles.joinActions}>
-                {accounts.length > 0 ? (
+                {accounts.length > 0 && !addOnly ? (
                   <Button
                     label="Back"
                     variant="ghost"
@@ -372,7 +419,7 @@ export default function AgentAccountPanel({
               <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
                 {accounts.length === 0 ? (
                   <Text style={styles.empty}>No agents yet — add one to begin.</Text>
-                ) : accounts.map((account, index) => {
+                ) : accounts.filter((a) => !reconnectAccountId || a.id === reconnectAccountId).map((account, index) => {
                   const active = account.id === activeAccountId && isConnected;
                   const selected = signInId === account.id;
                   const presentation = accountAgentPresentation(account);
@@ -397,7 +444,7 @@ export default function AgentAccountPanel({
                             <Text style={styles.rowSub} numberOfLines={1}>
                               {presentation.verified
                                 ? `Target: ${presentation.primary} · @${account.handle}`
-                                : `Target not verified · @${account.handle}`}
+                                : `${account.handle}@${account.network}`}
                             </Text>
                           </View>
                           {busyId === account.id ? (
@@ -448,17 +495,40 @@ export default function AgentAccountPanel({
                         </Animated.View>
                       ) : selected && showPassword && !active ? (
                         <Animated.View style={[styles.passwordArea, animateStyle]}>
-                          {!account.agentHandle ? (
-                            <Input
-                              label="Agent handle"
-                              value={selectedAgentHandle}
-                              onChangeText={setSelectedAgentHandle}
-                              placeholder="Required when this network has multiple agents"
-                              autoCapitalize="none"
-                              autoCorrect={false}
-                              mono
-                              containerStyle={{ marginTop: 0, marginBottom: spacing.sm }}
-                            />
+                          {needsSelection && !currentDirectory ? (
+                            <Text style={styles.directoryHint} accessibilityLiveRegion="polite">
+                              Finding agents in this network…
+                            </Text>
+                          ) : null}
+                          {needsSelection && currentDirectory?.error ? (
+                            <View style={styles.directory}>
+                              <ErrorText message={currentDirectory.error} compact />
+                              <Button label="Reload agents" variant="ghost" size="sm"
+                                onPress={() => setDirectoryRetry(value => value + 1)} />
+                            </View>
+                          ) : null}
+                          {needsSelection && (currentDirectory?.agents.length ?? 0) > 1 ? (
+                            <View style={styles.directory}>
+                              <Text style={styles.directoryTitle}>Choose the agent for this saved login</Text>
+                              <ScrollView style={styles.directoryList} keyboardShouldPersistTaps="handled">
+                                {currentDirectory?.agents.map(agent => {
+                                  const selected = agent.handle === selectedAgentHandle;
+                                  const label = agent.label === agent.handle ? agent.label : `${agent.label} · ${agent.handle}`;
+                                  return (
+                                    <Pressable key={agent.handle} accessibilityRole="radio"
+                                      accessibilityLabel={label}
+                                      accessibilityState={{ checked: selected }}
+                                      {...(Platform.OS === 'web' ? { 'aria-checked': selected } : {})}
+                                      onPress={() => setSelectedAgentHandle(agent.handle)}
+                                      style={styles.directoryOption}>
+                                      <Feather name={selected ? 'check-circle' : 'circle'} size={14}
+                                        color={selected ? colors.accent : colors.textMuted} />
+                                      <Text style={styles.directoryLabel} numberOfLines={1}>{label}</Text>
+                                    </Pressable>
+                                  );
+                                })}
+                              </ScrollView>
+                            </View>
                           ) : null}
                           <View style={styles.passwordRow}>
                             <Input
@@ -477,7 +547,7 @@ export default function AgentAccountPanel({
                               variant="primary"
                               size="sm"
                               onPress={submitPassword}
-                              disabled={busyId === account.id || !password}
+                              disabled={busyId === account.id || !password || !targetReady}
                             />
                           </View>
                           <RememberControl
@@ -492,7 +562,7 @@ export default function AgentAccountPanel({
                   );
                 })}
               </ScrollView>
-              <View style={styles.addFoot}>
+              {!reconnectAccountId && <View style={styles.addFoot}>
                 <Button
                   label="Add an agent"
                   variant="secondary"
@@ -507,7 +577,7 @@ export default function AgentAccountPanel({
                   }}
                   fullWidth
                 />
-              </View>
+              </View>}
             </>
           )}
         </Animated.View>
@@ -561,7 +631,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: spacing.md,
-    maxHeight: '85%',
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? ({ backdropFilter: glassSurface.webFilter, WebkitBackdropFilter: glassSurface.webFilter } as any)
@@ -571,7 +640,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 32,
   },
-  embeddedSurface: { maxHeight: undefined, alignSelf: 'center' },
+  embeddedSurface: { alignSelf: 'center' },
   rail: {
     position: 'absolute', top: 0, left: 0, right: 0, height: 2,
     backgroundColor: colors.panelRail,
@@ -616,6 +685,14 @@ const styles = StyleSheet.create({
   rowSub: { fontFamily: font.mono, fontSize: 11, color: colors.textMuted },
   iconButton: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
   passwordArea: { paddingBottom: spacing.sm },
+  directory: { paddingHorizontal: spacing.sm, paddingBottom: spacing.sm },
+  directoryHint: {
+    fontSize: 12, color: colors.textMuted, paddingHorizontal: spacing.sm, paddingBottom: spacing.sm,
+  },
+  directoryTitle: { fontSize: 12, color: colors.textSecondary, marginBottom: spacing.xs },
+  directoryList: { maxHeight: 150 },
+  directoryOption: { minHeight: 32, flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
+  directoryLabel: { flex: 1, color: colors.text, fontSize: 12 },
   passwordRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingHorizontal: spacing.sm,

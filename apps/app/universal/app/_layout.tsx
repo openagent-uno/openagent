@@ -55,7 +55,7 @@ export default function RootLayout() {
     let unbind = () => {};
     let release = () => {};
     void ws.enableShared().then(shared => {
-      if (!current || !shared) return;
+      if (!current || !shared || useConnection.getState().ws !== ws) return;
       unbind = bindShared(shared);
       const update = () => {
         const state = useChat.getState();
@@ -120,6 +120,8 @@ export default function RootLayout() {
     if (!ws) return;
 
     const unsub = ws.onMessage((msg) => {
+      // A warm inactive socket can still receive traffic before effect cleanup.
+      if (useConnection.getState().ws !== ws) return;
       if (
         msg.type === 'status'
         || msg.type === 'delta'
@@ -186,30 +188,17 @@ export default function RootLayout() {
         useChat.getState().dropSessionLocal(msg.id);
       }
 
-      if (isDesktop && !isChild) {
-        try {
-          desktop()?.wsRelayBroadcast(JSON.stringify(msg));
-        } catch { /* ignore */ }
-      }
     });
 
-    let relayCleanup: (() => void) | undefined;
-    if (isDesktop && !isChild) {
-      const d = desktop();
-      if (d?.onWsRelayFromChild) {
-        relayCleanup = d.onWsRelayFromChild((data: string) => {
-          try {
-            ws.sendRaw(data);
-          } catch { /* ignore */ }
-        });
-      }
-    }
+    return unsub;
+  }, [ws, handleServerMessage]);
 
-    return () => {
-      unsub();
-      relayCleanup?.();
-    };
-  }, [ws, handleServerMessage, isDesktop, isChild]);
+  useEffect(() => {
+    if (!isDesktop || isChild) return;
+    return desktop()?.onWsRelayFromChild?.((payload: string, accountId?: string) => {
+      useConnection.getState().relayFromChild(payload, accountId);
+    });
+  }, [isDesktop, isChild]);
 
   return (
     <ConfirmProvider>

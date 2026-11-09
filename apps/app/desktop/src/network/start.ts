@@ -10,6 +10,7 @@
  * with native TS. Same wire on the iroh side, same renderer-facing
  * shape (just a localhost port).
  */
+import { randomBytes } from 'node:crypto';
 import {
   loadOrCreateIdentity,
 } from './identity.js';
@@ -42,6 +43,7 @@ import {
 } from './network-store.js';
 import type { IrohEndpoint, IrohNodeAddr } from './iroh-types.js';
 import { nodeDiscoveryMode } from './discovery-config.js';
+import { createRuntimeLeases } from './runtime-leases.js';
 import { selectAgentForConnection, type DiscoverableAgent } from './agent-selection.js';
 
 export interface StartLoopbackArgs {
@@ -92,6 +94,11 @@ interface IrohRuntime {
   addPeerAddr(addr: IrohNodeAddr): Promise<void>;
   shutdown(): Promise<void>;
 }
+
+// The device certificate binds each tunnel to the same key. An Iroh relay
+// allows one registration for that identity, so all accounts in this
+// process share the endpoint and keep their own certificates and dialers.
+const deviceRuntimes = createRuntimeLeases<IrohRuntime>();
 
 async function startIrohNode(secret: Uint8Array): Promise<IrohRuntime> {
   const iroh = await import('@number0/iroh');
@@ -206,25 +213,23 @@ export async function startNativeLoopback(
   }
 
   const identity = await loadOrCreateIdentity(userIdentityPath());
-  const runtime = await startIrohNode(identity.secret);
+  const { runtime, release } = await deviceRuntimes.acquire(
+    identity.nodeIdHex,
+    () => startIrohNode(identity.secret),
+  );
   let proxy: LoopbackProxy | null = null;
   let dialer: SessionDialer | null = null;
 
   const teardown = async () => {
     try { if (proxy) await proxy.stop(); } catch { /* ignore */ }
     try { if (dialer) await dialer.close(); } catch { /* ignore */ }
-    try { await runtime.shutdown(); } catch { /* ignore */ }
+    try { await release(); } catch { /* ignore */ }
   };
 
-  // Seed iroh's peer table BEFORE the first dial. Without this,
-  // ``endpoint.connect({ nodeId })`` triggers full discovery (mDNS +
-  // pkarr DNS) — both can hang on macOS DMG builds where Local
-  // Network access isn't granted and the coordinator isn't published.
-  if (coordinatorAddrHint) {
-    await runtime.addPeerAddr(coordinatorAddrHint);
-  }
-
   try {
+    // Seed the peer table before the first dial so a saved hint can work
+    // even when the coordinator cannot be reached through discovery.
+    if (coordinatorAddrHint) await runtime.addPeerAddr(coordinatorAddrHint);
     let loginResult: LoginResult;
     let resolvedNet: StoredNetwork;
 
@@ -287,14 +292,7 @@ export async function startNativeLoopback(
       // Reuse cached coordinator addresses (from a previous join's
       // ticket) on the refresh-cert path so this dial also skips
       // discovery.
-      const refreshAddr: IrohNodeAddr | undefined =
-        net.coordinatorRelayUrl || (net.coordinatorAddresses && net.coordinatorAddresses.length > 0)
-          ? {
-              nodeId: net.coordinatorNodeId,
-              relayUrl: net.coordinatorRelayUrl,
-              addresses: net.coordinatorAddresses,
-            }
-          : undefined;
+      const refreshAddr = savedCoordinatorAddress(net);
       if (refreshAddr) {
         await runtime.addPeerAddr(refreshAddr);
         coordinatorAddrHint = refreshAddr;
@@ -391,7 +389,34 @@ function normalizedTargetValue(value: string): string {
   return value.trim().toLowerCase();
 }
 
-type AgentRow = DiscoverableAgent;
+type AgentRow = DiscoverableAgent & { label?: string };
+
+/** Read the pinned coordinator's directory without using the device key or
+ * a password. The normal login verifies the selected target again. */
+export async function listSavedNetworkAgents(network: string, handle: string) {
+  const stored = find(loadStore(), normalizedTargetValue(network), normalizedTargetValue(handle));
+  if (!stored) throw new LoginError('This network is not saved on this device.');
+  const runtime = await startIrohNode(randomBytes(32));
+  const address = savedCoordinatorAddress(stored);
+  try {
+    if (address) await runtime.addPeerAddr(address);
+    const agents = await listAgents(runtime.endpoint, stored.coordinatorNodeId, address);
+    return agents.flatMap(({ handle, nodeId, label }) => handle && nodeId
+      ? [{ handle, label: label?.trim() || handle }]
+      : []);
+  } finally {
+    await runtime.shutdown();
+  }
+}
+
+function savedCoordinatorAddress(net: StoredNetwork): IrohNodeAddr | undefined {
+  if (!net.coordinatorRelayUrl && !net.coordinatorAddresses?.length) return undefined;
+  return {
+    nodeId: net.coordinatorNodeId,
+    relayUrl: net.coordinatorRelayUrl,
+    addresses: net.coordinatorAddresses,
+  };
+}
 
 async function listAgents(
   endpoint: IrohEndpoint,
@@ -418,6 +443,7 @@ async function listAgents(
     return {
       handle: typeof m.handle === 'string' ? m.handle : undefined,
       nodeId: typeof m.node_id === 'string' ? m.node_id : undefined,
+      label: typeof m.label === 'string' ? m.label : undefined,
     };
   });
 }

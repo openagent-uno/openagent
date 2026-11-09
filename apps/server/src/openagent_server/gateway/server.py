@@ -172,6 +172,7 @@ class Gateway:
         self.config_path = config_path
         self._stop_event = stop_event
         self.sessions = SessionManager(agent_name=agent.name)
+        self.channel_presentation = None
         # The MCP pool is already connected when the Gateway is constructed.
         # Bind lazily-consumed live state so agent-manager can update session
         # prefixes and notify clients without a second process credential.
@@ -2266,6 +2267,7 @@ class Gateway:
         await self._safe_ws_send_json(ws, {
             "type": P.AUTH_OK,
             "agent_name": self.agent.name,
+            "thumbnail": (getattr(self.agent, "config", {}) or {}).get("thumbnail"),
             "version": getattr(openagent_server, "__version__", "?"),
             "handle": cert.handle,
             # Opaque, websocket-scoped owner token for auxiliary REST reads

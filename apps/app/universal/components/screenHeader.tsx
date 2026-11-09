@@ -11,11 +11,12 @@
  * of the header still drags the window. See DragRegion.
  */
 
-import { Pressable, Text, Platform, View, StyleSheet } from 'react-native';
+import { Pressable, Text, Platform, View, StyleSheet, useWindowDimensions } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import { useNavigation, useRouter } from 'expo-router';
 import { DrawerActions } from '@react-navigation/native';
-import { useHeaderHeight } from '@react-navigation/elements';
+import { getDefaultHeaderHeight, Header as NavigationHeader, useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLayout } from '../hooks/useLayout';
 import {
   configureNextDrawerLayout,
@@ -99,6 +100,29 @@ export const themedHeader = {
  */
 export function useHeaderInset(): number {
   return useHeaderHeight();
+}
+
+/** The right inspector and this header are sibling regions: the header
+ *  belongs to the conversation/run scene, not the whole route. */
+export function useWorkspaceHeaderInset(): number {
+  const layout = useWindowDimensions();
+  const { top } = useSafeAreaInsets();
+  return getDefaultHeaderHeight(layout, false, top);
+}
+
+export function WorkspaceHeader({ title, left, right }: {
+  title: string;
+  left: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  const { top } = useSafeAreaInsets();
+  return <NavigationHeader
+    {...themedHeader}
+    title={title}
+    headerStatusBarHeight={top}
+    headerLeft={() => left}
+    headerRight={() => right}
+  />;
 }
 
 /** Left navigation-drawer toggle. It stays available at every breakpoint:

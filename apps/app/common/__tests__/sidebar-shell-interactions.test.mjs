@@ -69,9 +69,11 @@ test('recent timestamps appear only while their compound row is hovered', () => 
   );
 });
 
-test('agent picker and utility actions share one 32px footer row', () => {
+test('utility actions remain in the footer and the agent rail sits outside the drawer', () => {
   const row = sidebar.match(/<View style=\{styles\.footerActionRow\}>([\s\S]*?)<\/View>/)?.[1] || '';
-  assert.match(row, /<AgentSwitcher variant="compact"/);
+  assert.doesNotMatch(sidebar, /<AgentSwitcher/);
+  const rail = tabsLayout.indexOf('<AgentSwitcher');
+  assert.ok(rail >= 0 && rail < tabsLayout.indexOf('<Drawer\n'));
   assert.match(row, /label="Settings"/);
   assert.match(row, /label="Logs"/);
   assert.match(row, /label="System"/);

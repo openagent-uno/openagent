@@ -13,14 +13,12 @@
  */
 
 import { Stack } from 'expo-router';
-import { themedHeader, HeaderBackOrMenu } from '../../../components/screenHeader';
 
 export default function RunsStackLayout() {
   return (
     <Stack
       screenOptions={{
-        ...themedHeader,
-        headerLeft: () => <HeaderBackOrMenu />,
+        headerShown: false,
         animation: 'slide_from_right',
       }}
     >

@@ -70,7 +70,7 @@ async def handle_get(request):
 #: yaml — creating them there is a silent no-op at runtime and confuses
 #: users who expect edits to take effect.
 DB_OWNED_SECTIONS = frozenset({"providers", "models", "mcp", "mcps", "scheduled", "scheduled_tasks"})
-IDENTITY_SECTIONS = frozenset({"name", "system_prompt"})
+IDENTITY_SECTIONS = frozenset({"name", "system_prompt", "thumbnail"})
 
 
 def _strip_db_owned(data: dict) -> dict:
@@ -86,7 +86,7 @@ async def handle_put(request):
     current = _read_raw(request)
     # A full replacement has no revision field and historically bypassed all
     # identity ACL/validation. Keep it for non-identity configuration, but
-    # require the dedicated owner-scoped PATCH surface for these two fields.
+    # require the dedicated owner-scoped PATCH surface for the profile fields.
     missing = object()
     identity_changed = any(
         data.get(section, missing) != current.get(section, missing)
@@ -95,7 +95,7 @@ async def handle_put(request):
     if identity_changed:
         return web.json_response({
             "error": (
-                "name and system_prompt cannot be changed through full config PUT; "
+                "Agent identity fields cannot be changed through full config PUT; "
                 "use PATCH /api/agent/identity"
             ),
         }, status=400)

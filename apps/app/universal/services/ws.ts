@@ -124,9 +124,18 @@ export class OpenAgentWS {
   private appRegistrationComplete: ((id: string | undefined) => void) | undefined;
   private appRegistrationTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private presentationActive = true;
+  setPresentationActive(active: boolean): void {
+    if (this.presentationActive === active) return;
+    this.presentationActive = active;
+    if (active && this.authed) this.offerAppCapabilities();
+    if (!active) this.clearAppRegistration();
+  }
+
   private dashboardConnection(): Promise<string | undefined> { return this.appRegistration; }
   private offerAppCapabilities(): void {
     this.clearAppRegistration();
+    if (!this.presentationActive) return;
     this.appRegistration = new Promise(resolve => { this.appRegistrationComplete = resolve; });
     // Old standalone servers can continue to serve chat during transition.
     this.appRegistrationTimer = setTimeout(() => this.clearAppRegistration(), 5000);
@@ -141,6 +150,7 @@ export class OpenAgentWS {
     this.appRegistration = Promise.resolve(undefined);
   }
   private handleAppRegistration(message: ServerMessage): void {
+    if (!this.presentationActive) return;
     if (message.type === 'app_capability_registered' && message.dashboard_tools === 1 && message.connection_id) {
       if (this.appRegistrationTimer) clearTimeout(this.appRegistrationTimer);
       this.appRegistrationTimer = undefined;

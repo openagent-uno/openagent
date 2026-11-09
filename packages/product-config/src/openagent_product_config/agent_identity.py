@@ -1,8 +1,7 @@
 """Canonical read/update service for the user-defined OpenAgent identity.
 
 The immutable framework prompt is deliberately out of scope.  This service
-owns only the two top-level ``openagent.yaml`` fields that already back the
-Settings UI: ``name`` and the user-defined persona ``system_prompt``.
+owns the user-defined name, thumbnail and persona stored in ``openagent.yaml``.
 """
 
 from __future__ import annotations
@@ -22,6 +21,7 @@ from openagent_core.core.logging import elog
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
 
 
+_UNSET = object()
 MAX_AGENT_NAME_CHARS = 120
 # The persona is injected into every turn. Keep it comfortably below even the
 # smaller supported context windows; long knowledge belongs in the vault, not
@@ -50,12 +50,14 @@ class AgentIdentitySnapshot:
     name: str
     system_prompt: str
     revision: str
+    thumbnail: str | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "system_prompt": self.system_prompt,
             "revision": self.revision,
+            "thumbnail": self.thumbnail,
             "framework_prompt_mutable": False,
         }
 
@@ -71,9 +73,12 @@ def _lock_for(path: Path) -> asyncio.Lock:
     return lock
 
 
-def _revision(name: str, system_prompt: str) -> str:
+def _revision(name: str, system_prompt: str, thumbnail: str | None = None) -> str:
+    fields = {"name": name, "system_prompt": system_prompt}
+    if thumbnail is not None:
+        fields["thumbnail"] = thumbnail
     payload = json.dumps(
-        {"name": name, "system_prompt": system_prompt},
+        fields,
         ensure_ascii=False,
         sort_keys=True,
         separators=(",", ":"),
@@ -230,13 +235,19 @@ class AgentIdentityService:
             )
             or ""
         )
-        return AgentIdentitySnapshot(name, system_prompt, _revision(name, system_prompt))
+        thumbnail = raw.get("thumbnail")
+        if not isinstance(thumbnail, str):
+            thumbnail = None
+        return AgentIdentitySnapshot(name, system_prompt, _revision(name, system_prompt, thumbnail), thumbnail)
 
     async def get(self, actor: OnBehalfIdentity | None) -> dict[str, Any]:
         await self._authorize(actor)
         async with _lock_for(self.config_path):
             await self._authorize(actor)
-            return self._snapshot(_read_raw_config(self.config_path)).as_dict()
+            result = self._snapshot(_read_raw_config(self.config_path)).as_dict()
+            sync = getattr(self.gateway, "channel_presentation", None)
+            result["channel_presentation"] = sync.status.copy() if sync else {}
+            return result
 
     async def update(
         self,
@@ -245,13 +256,14 @@ class AgentIdentityService:
         name: str | None = None,
         system_prompt: str | None = None,
         expected_revision: str | None = None,
+        thumbnail: object = _UNSET,
     ) -> dict[str, Any]:
         """Update provided fields; ``system_prompt=''`` intentionally clears it."""
 
         await self._authorize(actor)
-        if name is None and system_prompt is None:
+        if name is None and system_prompt is None and thumbnail is _UNSET:
             raise AgentIdentityInputError(
-                "pass name and/or system_prompt; omitted fields stay unchanged",
+                "pass name, system_prompt or thumbnail; omitted fields stay unchanged",
             )
         if expected_revision is not None:
             if (
@@ -262,6 +274,15 @@ class AgentIdentityService:
                 raise AgentIdentityInputError(
                     "expected_revision must be a lowercase SHA-256 hex string",
                 )
+
+        normalized = None
+        if thumbnail is not _UNSET:
+            from .agent_thumbnail import normalize_thumbnail
+
+            try:
+                normalized = await asyncio.to_thread(normalize_thumbnail, thumbnail)
+            except ValueError as exc:
+                raise AgentIdentityInputError(str(exc)) from exc
 
         async with _lock_for(self.config_path):
             await self._authorize(actor)
@@ -278,6 +299,7 @@ class AgentIdentityService:
                 if system_prompt is None
                 else _validate_system_prompt(system_prompt)
             )
+            next_thumbnail = current.thumbnail if thumbnail is _UNSET else normalized
             changed: list[str] = []
             if next_name != current.name:
                 raw["name"] = next_name
@@ -285,6 +307,13 @@ class AgentIdentityService:
             if next_prompt != current.system_prompt:
                 raw["system_prompt"] = next_prompt
                 changed.append("system_prompt")
+
+            if next_thumbnail != current.thumbnail:
+                if next_thumbnail is None:
+                    raw.pop("thumbnail", None)
+                else:
+                    raw["thumbnail"] = next_thumbnail
+                changed.append("thumbnail")
 
             if changed:
                 _atomic_write_raw_config(self.config_path, raw)
@@ -306,13 +335,23 @@ class AgentIdentityService:
             if isinstance(agent_config, dict):
                 agent_config["name"] = next_name
                 agent_config["system_prompt"] = next_prompt
+                agent_config["thumbnail"] = next_thumbnail
 
             gateway = self.gateway
             if gateway is not None:
                 if sessions is not None:
                     sessions.agent_name = next_name
 
-            revision = _revision(next_name, next_prompt)
+            revision = _revision(next_name, next_prompt, next_thumbnail)
+            sync = getattr(gateway, "channel_presentation", None)
+            if sync and ({"name", "thumbnail"}.intersection(changed) or (
+                sync.needs_retry and (name is not None or thumbnail is not _UNSET)
+            )):
+                sync.submit(
+                    next_name, next_thumbnail,
+                    update_name="name" in changed,
+                    update_thumbnail="thumbnail" in changed,
+                )
             if changed or runtime_drifted:
                 elog(
                     "agent.identity.updated" if changed else "agent.identity.runtime_healed",
@@ -325,6 +364,7 @@ class AgentIdentityService:
                         await gateway.broadcast({
                             "type": "agent_identity_changed",
                             "name": next_name,
+                            "thumbnail": next_thumbnail,
                             "revision": revision,
                         })
                         await gateway.broadcast_resource("config", "updated", "identity")
@@ -339,6 +379,8 @@ class AgentIdentityService:
                 "ok": True,
                 "name": next_name,
                 "system_prompt": next_prompt,
+                "thumbnail": next_thumbnail,
+                "channel_presentation": sync.status.copy() if sync else {},
                 "revision": revision,
                 "changed": changed,
                 "framework_prompt_mutable": False,

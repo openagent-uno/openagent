@@ -19,7 +19,7 @@ test('cold start and the in-app switcher render the same account panel', () => {
   assert.match(loginScreen, /import AgentAccountPanel from ['"]\.\.\/components\/AgentAccountPanel['"]/);
   assert.match(switcher, /import AgentAccountPanel from ['"]\.\/AgentAccountPanel['"]/);
   assert.match(loginScreen, /<AgentAccountPanel\s+[\s\S]*?mode="connect"/);
-  assert.match(switcher, /<AgentAccountPanel\s+[\s\S]*?mode=\{isElectron \? 'open-window' : 'connect'\}/);
+  assert.match(switcher, /<AgentAccountPanel\s+[\s\S]*?mode="connect" addOnly=\{adding\}/);
 
   // These belonged to the duplicated legacy login implementation. Keeping
   // them out of the route prevents the two account surfaces drifting apart.
@@ -29,7 +29,7 @@ test('cold start and the in-app switcher render the same account panel', () => {
 });
 
 test('the shared account panel owns list, add-agent and reduced-motion transitions', () => {
-  assert.match(accountPanel, /\{adding \? 'Add an agent' : 'Your agents'\}/);
+  assert.match(accountPanel, /\{adding \? 'Add an agent' : reconnectAccountId \? 'Sign in again' : 'Your agents'\}/);
   assert.match(accountPanel, /<Animated\.View style=\{animateStyle\}>/);
   assert.match(accountPanel, /Animated\.timing\(transition/);
   assert.match(accountPanel, /duration: reduceMotion \? 0 : 180/);

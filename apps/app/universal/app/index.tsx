@@ -1,10 +1,9 @@
 /** Cold-start account screen. The account UI is the same component used by
  * the in-app switcher, placed beneath the clock. */
-import { useEffect, useRef } from 'react';
-import { Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useConnection, directedAccountId } from '../stores/connection';
-import { useChat } from '../stores/chat';
 import AgentAccountPanel from '../components/AgentAccountPanel';
 import BrandLogo from '../components/BrandLogo';
 import DragRegion from '../components/DragRegion';
@@ -18,29 +17,14 @@ export default function LoginScreen() {
   const isMacDesktop = typeof window !== 'undefined'
     && (window as any).desktop?.isDesktop === true
     && (window as any).desktop?.platform === 'darwin';
-  const {
-    activeAccountId,
-    isConnected,
-    isRestoringSession,
-    agentName,
-  } = useConnection();
-  const createSession = useChat((state) => state.createSession);
-  const sessions = useChat((state) => state.sessions);
-  const sessionsHydrated = useChat((state) => state.sessionsHydrated);
-  const attemptedRef = useRef(false);
-
-  // `_layout` owns bootstrapping. Mark that automatic path as an attempt so
-  // successful keychain login follows the same redirect as manual login.
+  const { activeAccountId, accounts, isLoading } = useConnection();
   useEffect(() => {
-    if (isRestoringSession || connectId) attemptedRef.current = true;
-  }, [isRestoringSession, connectId]);
+    if (!isLoading && accounts.length > 0) router.replace('/(tabs)/chat');
+  }, [accounts.length, isLoading, router]);
 
-  useEffect(() => {
-    if (!attemptedRef.current || !isConnected || !agentName || !sessionsHydrated) return;
-    attemptedRef.current = false;
-    if (sessions.length === 0) createSession();
-    router.replace('/(tabs)/chat');
-  }, [isConnected, agentName, sessions.length, sessionsHydrated, createSession, router]);
+  if (isLoading || accounts.length > 0) {
+    return <View style={styles.container}><ActivityIndicator /></View>;
+  }
 
   return (
     <View style={styles.screen}>
@@ -63,7 +47,6 @@ export default function LoginScreen() {
             embedded
             mode="connect"
             preferredAccountId={connectId || activeAccountId}
-            onAttempt={() => { attemptedRef.current = true; }}
           />
         </View>
       </ScrollView>

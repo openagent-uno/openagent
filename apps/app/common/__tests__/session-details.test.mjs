@@ -87,8 +87,8 @@ test('the right drawer stays below Expo Router and is mounted only by detail-cap
   );
 
   assert.doesNotMatch(tabsLayout, /SessionDetailsDrawerShell/);
-  assert.match(chat, /<SessionDetailsDrawerShell topInset=\{headerInset\}>/);
-  assert.match(run, /<SessionDetailsDrawerShell topInset=\{headerInset\}>/);
+  assert.match(chat, /<SessionDetailsDrawerShell header=\{<WorkspaceHeader/);
+  assert.match(run, /<SessionDetailsDrawerShell header=\{<WorkspaceHeader/);
   assert.match(drawer, /<NavigationIndependentTree>/);
   assert.match(drawer, /<NavigationContainer documentTitle=\{\{ enabled: false \}\}>/);
   assert.match(drawer, /defaultStatus=\{isOpen \? 'open' : 'closed'\}/);
@@ -98,7 +98,8 @@ test('the right drawer stays below Expo Router and is mounted only by detail-cap
   assert.match(tabsLayout, /webDrawerWidthTransition\(isResizing \? 0 : motionDuration\)/);
   assert.match(tabsLayout, /testID="navigation-drawer-content"/);
   assert.match(drawer, /const onNavigate = isPhone \? requestClose : undefined/);
-  assert.match(drawer, /Math\.max\(topInset, isPhone \? insets\.top : 0\)/);
+  assert.match(drawer, /width: expandedWidth.*session-details-fixed-width/);
+  assert.doesNotMatch(drawer, /accessibilityLabel="Close session details"/);
   assert.doesNotMatch(chat, /closeSessionDetails/);
   assert.doesNotMatch(run, /closeSessionDetails/);
   assert.match(drawer, /state\.historyRevision/);

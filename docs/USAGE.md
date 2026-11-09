@@ -119,3 +119,29 @@ sidecar pins, updater bridges, checksums and qualification. Imported component
 workflows are historical until ported to the root `.github/`. Source tests,
 closed-wheel tests, signed GUI, external provider acceptance and rollout remain
 different evidence levels.
+
+## Switch agents in the App
+
+After adding an agent, use the avatar rail to the left of navigation to switch
+in the same window. Hover or focus an avatar to identify the agent; the rail
+shows the thumbnail or an initial. Use **+** to sign in with another invite.
+Double-click an avatar on desktop or hold it on mobile to remove its saved
+login. Removing a login leaves the agent and conversations on the server.
+With no saved logins, the full-screen sign-in form opens.
+
+The desktop app warms saved logins with remembered credentials in the
+background. Switching between ready agents reuses their authenticated
+connections. Desktop uses one Iroh endpoint for its device identity. Each
+agent tunnel keeps its own certificate and can close independently.
+A login without a remembered credential may need its password
+the first time. The saved login already supplies the username and network.
+If an older login lacks a pinned destination, the app looks up that network's
+registered agents and offers a choice when several are available. It saves
+the selected destination after sign-in.
+
+Set a thumbnail next to the name in **Settings → Agent Identity**. The current
+server stores the image as part of the owner-managed identity, and sends the
+presentation to authenticated clients. An older server allows the app to
+keep the thumbnail on that device until the server is upgraded. See
+[bot profile synchronization](site/guide/channels.md#bot-profile-synchronization)
+for the provider requirements.

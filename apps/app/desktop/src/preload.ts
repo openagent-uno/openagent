@@ -146,14 +146,18 @@ contextBridge.exposeInMainWorld('desktop', {
 
   // ── Multi-window WS relay ──
 
+  setRelayAgent: (accountId: string | null): void => {
+    ipcRenderer.send('ws:set-agent', accountId);
+  },
+
   // Child → primary: send an outbound WS message.
   wsRelayOut: (payload: string): void => {
     ipcRenderer.send('ws:relay-out', payload);
   },
 
   // Primary → children: broadcast a server message.
-  wsRelayBroadcast: (payload: string): void => {
-    ipcRenderer.send('ws:relay-broadcast', payload);
+  wsRelayBroadcast: (payload: string, accountId: string): void => {
+    ipcRenderer.send('ws:relay-broadcast', payload, accountId);
   },
 
   // Child: subscribe to server messages from the primary.
@@ -164,13 +168,15 @@ contextBridge.exposeInMainWorld('desktop', {
   },
 
   // Primary: subscribe to outbound messages from children.
-  onWsRelayFromChild: (cb: (data: string) => void): (() => void) => {
-    const handler = (_event: any, data: string) => cb(data);
+  onWsRelayFromChild: (cb: (data: string, accountId?: string) => void): (() => void) => {
+    const handler = (_event: any, data: string, accountId?: string) => cb(data, accountId);
     ipcRenderer.on('ws:relay-from-child', handler);
     return () => { ipcRenderer.removeListener('ws:relay-from-child', handler); };
   },
 
   // ── Network loopback (Iroh transport bridge) ──
+  listSavedNetworkAgents: (network: string, handle: string): Promise<{ handle: string; label: string }[]> =>
+    ipcRenderer.invoke('loopback:listSavedNetworkAgents', network, handle),
   startLoopback: (args: {
     accountId: string;
     password: string;
