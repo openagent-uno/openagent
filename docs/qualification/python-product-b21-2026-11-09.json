@@ -1,0 +1,31 @@
+{
+  "format": 1,
+  "version": "1.1.9b21",
+  "product_config_version": "1.1.0b23",
+  "channel_bridges_version": "0.1.0b22",
+  "source_commit": "26c48372ec25e881c90e84eb30635dfab5e0bc47",
+  "manifest_sha256": "a99cad30f12edf7453a927a593d7c3c8ce375a2d739c20f28ec206f6d1987b84",
+  "core_version": "1.1.0b53",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42645813657",
+  "channel_bridges_run": "https://github.com/openagent-uno/openagent/actions/runs/42644761572",
+  "root_tests_passed": 505,
+  "root_tests_skipped": 1,
+  "subtests_passed": 84,
+  "custom_view_protocol_scenarios_passed": 20,
+  "native_host_lock_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+  ],
+  "installed_dependency_check": "passed",
+  "real_messaging_provider_profile_changes": false,
+  "installer": {
+    "format": 1,
+    "version": "1.1.9b21",
+    "product_source": "26c48372ec25e881c90e84eb30635dfab5e0bc47",
+    "wheel_manifest_sha256": "a99cad30f12edf7453a927a593d7c3c8ce375a2d739c20f28ec206f6d1987b84",
+    "public_asset_sha256": "cde09cbc92a4c74a571f331eb47515ab164655a37e64f28022e865bfaf920481",
+    "public_wheels_verified": 39,
+    "fixture_scenarios_passed": 4
+  }
+}
