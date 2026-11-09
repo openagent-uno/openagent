@@ -107,6 +107,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
       await window.desktop.setItem('openagent:activeConnection',JSON.stringify({accountId:account.id,sidecarPort:port}));
     },{port:Number(new URL(gateway.baseUrl).port)});
     await page.reload();
+    await page.getByRole('button',{name:'Devices',exact:true}).click();
     await expect(page.getByText('Studio laptop',{exact:true})).toBeVisible();
     await expect(page.getByText('Home desktop',{exact:true})).toBeVisible();
     await expect(page.getByText('Offline',{exact:true})).toBeVisible();
