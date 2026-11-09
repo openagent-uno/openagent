@@ -143,7 +143,7 @@ jobs:
           (cd universal && npx tsc --noEmit)
           npm --prefix desktop test
           node --experimental-strip-types --test common/__tests__/*.test.mjs
-          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs --repeat-each=2 --workers=1)
+          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs e2e/desktop-agent-switcher.spec.mjs --repeat-each=2 --workers=1)
       - name: Acquire the exact public host bundle
         if: inputs.existing_failed_run_id == ''
         run: node desktop/scripts/fetch-host-tools-release.js ${{ matrix.platform }} .release-deps/host-tools-dist

@@ -131,7 +131,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Connected device inventory, per-session device usage and participants in session details, plus a responsive desktop view with direct mouse, keyboard, drag and scroll interaction. Native execution and optional live media use the public Desktop Tools SDK and pinned Host Tools ${{ env.HOST_TOOLS_VERSION }} bundles.
+            Switch between saved agents from the avatar rail. The desktop app reuses ready connections and shares an Iroh endpoint across agent tunnels to keep certificate renewal reliable. Settings can save an agent thumbnail, and the session details drawer opens at full height with a fixed content width. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
