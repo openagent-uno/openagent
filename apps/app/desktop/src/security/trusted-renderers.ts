@@ -9,6 +9,7 @@ import {
   isTrustedRendererUrl,
   safeExternalHttpUrl,
 } from './renderer-url-policy';
+import { DASHBOARD_FRAME_PATH } from '../security-policy';
 
 interface TrustedRendererRegistration {
   readonly contents: WebContents;
@@ -47,6 +48,13 @@ export function registerTrustedRenderer(
 
   contents.on('will-navigate', (event, url) => {
     if (!isTrustedRendererUrl(url, policy)) event.preventDefault();
+  });
+  contents.on('will-frame-navigate', (event) => {
+    // An opaque dashboard document may render locally but cannot navigate
+    // its own frame to a URL carrying the data it has been given.
+    const current = event.frame?.url;
+    if (!event.isMainFrame && current && isTrustedRendererUrl(current, policy)
+        && new URL(current).pathname === DASHBOARD_FRAME_PATH) event.preventDefault();
   });
   contents.on('will-redirect', (event, url) => {
     if (!isTrustedRendererUrl(url, policy)) event.preventDefault();

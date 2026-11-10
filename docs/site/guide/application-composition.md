@@ -75,10 +75,54 @@ partial, stale and error states are part of the component contract. CLI and
 non-graphical hosts use the same application services without pretending to
 render a graphical editor.
 
-An application definition cannot add executable JavaScript, arbitrary native
-code or new privileges merely by naming a component. Trusted renderer code and
-explicitly configured command capabilities retain their existing installation
-and execution policy. View content is data, not authorization.
+Application definitions bind to renderer components and existing capabilities.
+The desktop renderer can display a versioned interactive dashboard document in
+a separate sandbox. The document receives only the dashboard data and declared
+assets available to the viewer. New privileges still require the host's normal
+authorization and confirmation policies. See [Interactive dashboards](#interactive-dashboards).
+
+### Interactive dashboards
+
+Add an `interactive` node to an existing OA-UI view and publish the HTML as
+an immutable bundle asset. A document can contain HTML, CSS and JavaScript,
+including locally bundled React/TypeScript, Three.js, WebGL, Canvas, SVG or a
+charting library. Bundle dependencies at authoring time. Use HTML scripts or
+declare additional bundle assets and load them through the document bridge.
+
+```xml
+<interactive src="asset:dashboard.html" title="Observatory" height="640"
+  assets='["asset:scene.glb"]' />
+```
+
+```html
+<canvas id="scene" width="640" height="320"></canvas>
+<output id="total"></output>
+<script>
+  const gl = document.querySelector('#scene').getContext('webgl2')
+  if (gl) {
+    gl.clearColor(0.15, 0.32, 0.55, 1)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+  }
+  OpenAgent.onData(data => {
+    document.querySelector('#total').textContent = data.total ?? 'Loading'
+  })
+</script>
+```
+
+Publish through `ui_create_view` with `assets_base64`, or the regular Custom
+Views REST API. Live view data arrives through `OpenAgent.onData(listener)`
+and updates the existing frame. `OpenAgent.asset(ref)` returns a Blob URL for
+a declared asset and `OpenAgent.assetBytes(ref)` returns its bytes and MIME
+type. `OpenAgent.import(ref)` loads a declared, self-contained JavaScript
+module. Use `OpenAgent.onVisibility(listener)` to pause animations when the
+screen loses focus. `OpenAgent.run(actionId, input)` requests a named view action and opens
+the app's confirmation. Inline previews can display data and use local controls.
+
+Each view supports up to four documents, with up to 2 MiB of HTML and up to
+32 declared asset references per document. The desktop app isolates the frame
+from renderer APIs, credentials and external network navigation. Browser and
+mobile clients render the declarative components of the view and display a
+desktop fallback for an interactive document.
 
 ### Source bindings and resources
 

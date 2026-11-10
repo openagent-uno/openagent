@@ -1,4 +1,4 @@
-"""Parser, validator, and compiler for the non-executable OA-UI v1 DSL."""
+"""Parser and validator for OA-UI v1, including isolated asset references."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ MAX_DEPTH = 32
 MAX_CHILDREN = 100
 MAX_PROPS = 64
 MAX_STRING_CHARS = 16_384
+MAX_INTERACTIVE = 4
 
 _NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,63}$")
 _BINDING_RE = re.compile(r"^(?P<source>[A-Za-z][A-Za-z0-9_.-]{0,63}):(?P<path>/.*|)$")
@@ -32,7 +33,7 @@ LEAF_COMPONENTS = frozenset({
     "metric", "status", "progress", "image", "icon", "file-link", "button",
     "toggle", "select", "segmented", "text-input", "table", "list", "key-value",
     "line-chart", "bar-chart", "area-chart", "pie-chart", "donut-chart",
-    "scatter-chart", "gauge", "sparkline",
+    "scatter-chart", "gauge", "sparkline", "interactive",
     "loading-state", "empty-state", "stale-state", "error-state",
 })
 COMPONENTS = CONTAINER_COMPONENTS | LEAF_COMPONENTS
@@ -83,6 +84,7 @@ _COMPONENT_PROPS: dict[str, frozenset[str]] = {
     "scatter-chart": frozenset({"data", "values", "series", "xKey", "yKey", "legend"}),
     "gauge": frozenset({"data", "values", "series", "min", "max", "thresholds"}),
     "sparkline": frozenset({"data", "values", "series", "xKey", "yKey"}),
+    "interactive": frozenset({"assets"}),
 }
 
 
@@ -256,10 +258,11 @@ def validate_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(root, Mapping):
         raise OAUIValidationError("OA-UI spec requires a root node")
     count = 0
+    interactive = 0
     seen_ids: set[str] = set()
 
     def visit(raw: Mapping[str, Any], depth: int) -> dict[str, Any]:
-        nonlocal count
+        nonlocal count, interactive
         count += 1
         if count > MAX_NODES:
             raise OAUIValidationError(f"OA-UI exceeds {MAX_NODES} nodes")
@@ -287,6 +290,21 @@ def validate_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
                 str(key): _validate_prop(component, str(key), value)
                 for key, value in props.items()
             }
+        if component == "interactive":
+            interactive += 1
+            if interactive > MAX_INTERACTIVE:
+                raise OAUIValidationError("OA-UI supports up to four interactive documents per view")
+            source = props.get("src")
+            assets = props.get("assets", [])
+            if not isinstance(source, str) or not source.startswith("asset:") or not source.lower().endswith(".html"):
+                raise OAUIValidationError("interactive requires an immutable HTML bundle asset")
+            _validate_asset_ref(source)
+            if not isinstance(assets, list) or len(assets) > 32:
+                raise OAUIValidationError("interactive supports up to 32 declared bundle assets")
+            for asset in assets:
+                if not isinstance(asset, str) or not asset.startswith("asset:"):
+                    raise OAUIValidationError("interactive assets must be immutable bundle assets")
+                _validate_asset_ref(asset)
         children = raw.get("children", [])
         if not isinstance(children, list) or len(children) > MAX_CHILDREN:
             raise OAUIValidationError(f"OA-UI node children exceed {MAX_CHILDREN}")

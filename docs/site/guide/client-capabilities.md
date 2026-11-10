@@ -255,6 +255,11 @@ is online here while its consented capability connection is live; opening an
 App without enabling its local tools does not grant the agent those tools.
 Offline inventory is descriptive and cannot authorize execution.
 
+The **Agent computer** card opens the configured host desktop directly. The
+gateway checks the current owner and exact `computer-control` capability for
+direct input and streaming, independently of conversation ownership. A headless
+agent without a configured desktop has no remote-control target.
+
 Session details contain **Participants** (current presence and authors retained
 across the authorized session, independently of loaded transcript pages) and **Devices** used by client-tool invocations.
 Device-use metadata starts with this feature; it does not claim to reconstruct
@@ -265,6 +270,10 @@ arguments, file contents or screenshots.
 
 **Open a computer** lists currently authorized `computer` capabilities, including
 the agent environment when its configured tool source provides a real desktop.
+Scheduled runs, event deliveries and workflows expose the same control in their
+details. When the gateway returns a visible session link, its device history is
+queried separately. A missing historical transcript does not prevent the agent
+owner from opening the current host desktop.
 It opens a responsive modal with screen refresh, pointer actions, scrolling,
 keyboard shortcuts and direct typing. It uses the same public capability catalog
 and exact references as agent execution, with current session/device checks on

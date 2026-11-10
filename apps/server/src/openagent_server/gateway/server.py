@@ -1371,6 +1371,9 @@ class Gateway:
         from openagent_server import runtime_service as runtime_api
         from .api import devices as devices_api
         app.router.add_get("/api/devices", devices_api.handle_devices)
+        app.router.add_get("/api/devices/computer-targets", devices_api.handle_targets)
+        app.router.add_post("/api/devices/computer", devices_api.handle_computer)
+        app.router.add_get("/api/devices/computer-stream", devices_api.handle_stream)
         app.router.add_get("/api/sessions/{session_id}/computer-stream", devices_api.handle_stream)
         app.router.add_get("/api/sessions/{session_id}/participants", devices_api.handle_participants)
         app.router.add_get("/api/sessions/{session_id}/devices", devices_api.handle_session_devices)

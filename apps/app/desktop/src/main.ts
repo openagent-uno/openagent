@@ -76,6 +76,8 @@ import { setupDockMenu, updateDockAgentList } from './dock';
 import { configureAutoUpdater, shouldAcceptUpdate } from './update-policy';
 import {
   PRODUCTION_CSP,
+  DASHBOARD_FRAME_PATH,
+  DASHBOARD_FRAME_CSP,
   resolveDevServerUrl,
 } from './security-policy';
 
@@ -302,7 +304,8 @@ function startStaticServer(): Promise<number> {
         const content = fs.readFileSync(filePath);
         res.writeHead(200, {
           'Content-Type': contentType,
-          'Content-Security-Policy': PRODUCTION_CSP.replace("frame-src 'self' blob:", "frame-src 'self' blob: "+(mcpApps?.origin??'')),
+          'Content-Security-Policy': urlPath === DASHBOARD_FRAME_PATH ? DASHBOARD_FRAME_CSP
+            : PRODUCTION_CSP.replace("frame-src 'self' blob:", "frame-src 'self' blob: "+(mcpApps?.origin??'')),
           'X-Content-Type-Options': 'nosniff',
           'Referrer-Policy': 'no-referrer',
           'Cross-Origin-Opener-Policy': 'same-origin',

@@ -7,7 +7,7 @@ from openagent_core.contracts import ResourceRef
 from openagent_core.capabilities import CapabilityUnavailable
 from openagent_core.core.on_behalf_context import install_on_behalf_identity, reset_on_behalf_identity
 from openagent_core.runtime import execution_scope
-from openagent_server.device_directory import directory_for
+from openagent_server.device_directory import AGENT_COMPUTER_CONTEXT, AGENT_COMPUTER_SOURCE, directory_for
 from .sessions import _authorized_session
 
 HEADERS = {'Cache-Control': 'no-store'}
@@ -57,6 +57,33 @@ async def handle_devices(request):
         raise web.HTTPForbidden(text='Device inventory unavailable') from None
 
 
+async def _check_agent_computer(gateway, context):
+    service = gateway.runtime_service
+    if (not await service.management_access.verified_member(context)
+            or context.initiator.subject_id != await service.directory.owner_handle()):
+        raise PermissionError('Only the agent owner may control its desktop')
+
+
+@asynccontextmanager
+async def _computer_scope(request, *, execute=False):
+    if 'session_id' in request.match_info:
+        async with _session(request, execute=execute) as (gateway, _, context):
+            yield gateway, context, False
+        return
+    gateway = request.app['gateway']
+    service = gateway.runtime_service
+    identity = await _identity(request)
+    token = install_on_behalf_identity(identity)
+    try:
+        context = await service.authorizer.context_for_identity(identity, AGENT_COMPUTER_CONTEXT)
+        await _check_agent_computer(gateway, context)
+        # A direct desktop interaction has no conversation or personal-device leases.
+        with execution_scope(service.runtime, context, None):
+            yield gateway, context, True
+    finally:
+        reset_on_behalf_identity(token)
+
+
 async def handle_session_devices(request):
     try:
         async with _session(request) as (gateway, identity, context):
@@ -77,11 +104,12 @@ async def handle_participants(request):
         raise web.HTTPNotFound(text='Session unavailable') from None
 
 
-def computer_tools(tools):
+def computer_tools(tools, *, agent_only=False):
     # A browser tab also exposes a tool named ``computer``. It requires a
     # tab identifier and cannot accept this desktop view's input contract.
     # Match the callable schema, never labels or opaque reference prefixes.
-    return [tool for tool in tools if tool.name in {'computer', 'computer_control_computer'}
+    return [tool for tool in tools if (not agent_only or tool.source_id == AGENT_COMPUTER_SOURCE)
+            and tool.name in {'computer', 'computer_control_computer'}
             and 'action' in tool.input_schema.get('properties', {})
             and set(tool.input_schema.get('required', ())) <= {'action', 'coordinate', 'text'}
             and ('enum' not in tool.input_schema['properties']['action']
@@ -91,9 +119,9 @@ def computer_tools(tools):
 
 async def handle_targets(request):
     try:
-        async with _session(request) as (gateway, identity, context):
-            tools = computer_tools(await gateway.runtime_service.runtime.capabilities.discover(context))
-            return web.json_response({'targets': [dict(tool_ref=t.tool_ref, label=t.target_label, live_media=t.metadata.get('openagent/liveMedia')) for t in tools]}, headers=HEADERS)
+        async with _computer_scope(request) as (gateway, context, agent_only):
+            tools = computer_tools(await gateway.runtime_service.runtime.capabilities.discover(context), agent_only=agent_only)
+            return web.json_response({'targets': [dict(tool_ref=t.tool_ref, label=t.target_label, live_media=t.metadata.get('openagent/liveMedia'), agent_host=t.source_id == AGENT_COMPUTER_SOURCE) for t in tools]}, headers=HEADERS)
     except PermissionError:
         raise web.HTTPForbidden(text='Computer access unavailable') from None
 
@@ -127,9 +155,9 @@ async def handle_computer(request):
     try:
         body = await request.json()
         args = computer_arguments(body)
-        async with _session(request, execute=True) as (gateway, identity, context):
+        async with _computer_scope(request, execute=True) as (gateway, context, agent_only):
             catalog = gateway.runtime_service.runtime.capabilities
-            targets = computer_tools(await catalog.discover(context))
+            targets = computer_tools(await catalog.discover(context), agent_only=agent_only)
             if body['tool_ref'] not in {t.tool_ref for t in targets}:
                 raise CapabilityUnavailable('The exact computer is offline or no longer authorized')
             result = await catalog.call_tool(body['tool_ref'], args, context, surface='app')
@@ -151,14 +179,14 @@ async def handle_stream(request):
     reader = None
     frame = None
     try:
-        async with _session(request, execute=True) as (gateway, identity, context):
+        async with _computer_scope(request, execute=True) as (gateway, context, agent_only):
             await ws.prepare(request)
             hello = await ws.receive_json(timeout=10)
             if not isinstance(hello, dict) or set(hello) - {'tool_ref', 'options'}:
                 raise ValueError('Invalid stream request')
             tool_ref = hello.get('tool_ref')
             catalog = gateway.runtime_service.runtime.capabilities
-            targets = computer_tools(await catalog.discover(context))
+            targets = computer_tools(await catalog.discover(context), agent_only=agent_only)
             if not isinstance(tool_ref, str) or tool_ref not in {tool.tool_ref for tool in targets}:
                 raise CapabilityUnavailable('Exact computer unavailable')
             async def watch_close():
@@ -168,6 +196,7 @@ async def handle_stream(request):
             from openagent_device_tools.media import stream_options
             iterator = catalog.stream_tool(tool_ref, stream_options(hello.get('options', {})), context)
             try:
+                next_owner_check = 0.0
                 while not ws.closed:
                     frame = asyncio.create_task(anext(iterator))
                     done, _ = await asyncio.wait((reader, frame), return_when=asyncio.FIRST_COMPLETED)
@@ -179,6 +208,9 @@ async def handle_stream(request):
                         packet = frame.result()
                     except StopAsyncIteration:
                         break
+                    if agent_only and asyncio.get_running_loop().time() >= next_owner_check:
+                        await _check_agent_computer(gateway, context)
+                        next_owner_check = asyncio.get_running_loop().time() + 1
                     await ws.send_json(packet)
             finally:
                 if frame is not None and not frame.done():

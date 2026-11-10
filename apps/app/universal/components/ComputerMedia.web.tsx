@@ -3,11 +3,11 @@ import { Text } from 'react-native';
 import { VideoCanvasDecoder } from '@openagent/desktop-tools/video';
 import type { ComputerFrame, ComputerTarget } from '../../common/devices';
 import { recoverDesktopMedia, type DesktopMediaRecovery } from '../../common/desktop-media-recovery';
-import { apiUrl } from '../services/api';
+import { apiUrl, computerEndpoint } from '../services/api';
 import ComputerSurface, { type ComputerSurfaceProps } from './ComputerSurface';
 import { colors } from '../theme';
 
-type Props = { sessionId:string;target:ComputerTarget;width:number;paused:boolean;send:ComputerSurfaceProps['send'];onFrame:(frame:ComputerFrame)=>void;onError:(message:string)=>void };
+type Props = { sessionId?:string;target:ComputerTarget;width:number;paused:boolean;send:ComputerSurfaceProps['send'];onFrame:(frame:ComputerFrame)=>void;onError:(message:string)=>void };
 export default function ComputerMedia({sessionId,target,width,paused,send,onFrame,onError}:Props) {
   const canvas=useRef<HTMLCanvasElement>(null);
   const [geometry,setGeometry]=useState<ComputerFrame|null>(null);
@@ -17,7 +17,7 @@ export default function ComputerMedia({sessionId,target,width,paused,send,onFram
     if(paused)return;
     let alive=true,queued=0,tail=Promise.resolve();
     let renewal: ReturnType<typeof setTimeout>;
-    const url=new URL(apiUrl(`/api/sessions/${encodeURIComponent(sessionId)}/computer-stream`),window.location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
+    const url=new URL(apiUrl(`${computerEndpoint(sessionId)}-stream`),window.location.href);url.protocol=url.protocol==='https:'?'wss:':'ws:';
     const ws=new WebSocket(url.href);
     let decoder:VideoCanvasDecoder;
     const fail=(message:string)=>{

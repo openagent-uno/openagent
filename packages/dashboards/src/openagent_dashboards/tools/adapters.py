@@ -154,8 +154,8 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
         """Return the OA-UI v1 component, binding, lifecycle, and limit schema.
 
         Call this before authoring an unfamiliar component or data source.
-        OA-UI is declarative only: HTML, JavaScript, CSS and iframes are not
-        supported. Media must use artifact:/asset: references.
+        OA-UI layout is declarative. An interactive node can mount an immutable
+        HTML bundle asset in the desktop sandbox. Other media use artifact:/asset: references.
         """
 
         await access_for_turn()
@@ -170,6 +170,11 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
                 "run_workflow", "run_scheduled_task", "trigger_event",
             ],
             "bindings": ["{{data.source.path}}", "{{state.controlName}}"],
+            "interactive": {
+                "example": '<interactive src="asset:dashboard.html" height="640" />',
+                "authoring": "Publish a self-contained HTML document in assets_base64. Bundle any React, WebGL or chart libraries locally. External network access is blocked.",
+                "bridge": "Use OpenAgent.onData(fn), OpenAgent.asset(ref), and OpenAgent.run(action, input). Declare extra asset: references in the assets array. Only declared view actions can run, with user confirmation.",
+            },
             "subViews": {
                 "local": "use child components",
                 "referenced": "viewId always requires an explicit immutable revision",

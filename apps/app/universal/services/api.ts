@@ -85,6 +85,20 @@ export function apiUrl(path: string): string {
   return `${baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+export async function getUIViewBundleAsset(viewId: string, revision: number, asset: string, signal?: AbortSignal) {
+  const relative = /^asset:(?:\/\/)?([A-Za-z0-9][A-Za-z0-9_./-]{0,1023})$/.exec(asset)?.[1];
+  const parts = relative?.split('/');
+  if (!parts || parts.some(part => !part || part === '.' || part === '..') || !Number.isInteger(revision) || revision < 1) {
+    throw new Error('Invalid dashboard asset reference');
+  }
+  const path = `/api/ui/views/${encodeURIComponent(viewId)}/revisions/${revision}/assets/${parts.map(encodeURIComponent).join('/')}`;
+  const response = await fetchAgent(apiUrl(path), { signal, cache: 'no-store' });
+  if (!response.ok) throw new Error('Dashboard asset is unavailable');
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > 16 * 1024 * 1024) throw new Error('Dashboard asset exceeds its size limit');
+  return { bytes, mediaType: response.headers.get('Content-Type') || 'application/octet-stream' };
+}
+
 // Hard ceiling so a hung loopback stream (Iroh stalls, server crashes
 // mid-response, etc.) can never lock a UI control "in flight" forever.
 // 30s is generous for normal calls — anything longer is a real failure
@@ -1988,7 +2002,9 @@ export const officialConnectorsAPI = {
 export const listDevices = (signal?: AbortSignal) => get<{ devices: import('../../common/devices').ConnectedDevice[] }>('/api/devices', signal);
 export const listSessionDevices = (sessionId: string, signal?: AbortSignal) => get<{ devices: import('../../common/devices').SessionDevice[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/devices`, signal);
 export const listComputerTargets = (sessionId: string, signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/computer-targets`, signal);
-export const interactWithComputer = (sessionId: string, toolRef: string, action: import('../../common/devices').ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}, signal?: AbortSignal) => post<unknown>(`/api/sessions/${encodeURIComponent(sessionId)}/computer`, { tool_ref: toolRef, action, ...input }, signal);
+export const listAgentComputerTargets = (signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[] }>('/api/devices/computer-targets', signal);
+export const computerEndpoint = (sessionId?: string) => sessionId === undefined ? '/api/devices/computer' : `/api/sessions/${encodeURIComponent(sessionId)}/computer`;
+export const interactWithComputer = (sessionId: string | undefined, toolRef: string, action: import('../../common/devices').ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}, signal?: AbortSignal) => post<unknown>(computerEndpoint(sessionId), { tool_ref: toolRef, action, ...input }, signal);
 
 export interface SessionParticipant { id:string; handle:string; display:string }
 export async function getSessionParticipants(sessionId:string):Promise<SessionParticipant[]> {

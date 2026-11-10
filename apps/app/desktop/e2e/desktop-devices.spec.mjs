@@ -74,6 +74,16 @@ class DeviceGateway extends DeterministicGateway {
       return reply({can_manage:true,members:this.members});
     }
     if(path==='/api/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',online:true,modules:['shell','editor','computer-control','agent-in-chrome'],last_seen_at:1700000000},{device_id:'two',client_instance_id:'b',label:'Home desktop',online:false,modules:['filesystem'],last_seen_at:1700000000}]});
+    if(path==='/api/devices/computer-targets')return reply({targets:[{tool_ref:'exact-owner-desktop',label:'Agent host',agent_host:true}]});
+    if(path==='/api/scheduled-tasks')return reply({tasks:[{id:'legacy-task',name:'Historical report',prompt:'Report',cron_expression:'0 10 * * *',enabled:true}]});
+    if(path==='/api/scheduled-tasks/legacy-task/runs')return reply({runs:[{id:'legacy-e2e',status:'success',started_at:1793527200,started_at_iso:'2026-11-01T10:00:00Z'}]});
+    if(path==='/api/scheduled-runs/legacy-e2e')return reply({id:'legacy-e2e',task_id:'legacy-task',title:'Historical report',status:'success',output_summary_safe:'Saved report output',session_id:null,started_at:'2026-11-01T10:00:00Z',finished_at:'2026-11-01T10:01:00Z'});
+    if(path==='/api/devices/computer') {
+      let body='';for await(const chunk of request)body+=chunk;
+      const call=JSON.parse(body);
+      if(call.tool_ref!=='exact-owner-desktop'||call.action!=='get_screenshot')return reply({error:'wrong destination'},403);
+      return reply({content:[{type:'text',text:JSON.stringify({image_width:800,image_height:450})},{type:'image',mimeType:'image/png',data:fixturePng()}]});
+    }
     if(path==='/api/sessions/e2e-session/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',first_used_at:1700000000,last_used_at:1700000001}]});
     if(path==='/api/sessions/e2e-session/participants')return reply({participants:[{id:'alice',handle:'alice',display:'Alice'}]});
     if(path==='/api/sessions/e2e-session/computer-targets')return reply({targets:[{tool_ref:'exact-agent-desktop',label:'Agent environment',...(this.live?{live_media:'openagent-video/1'}:{})}]});
@@ -111,6 +121,11 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByText('Studio laptop',{exact:true})).toBeVisible();
     await expect(page.getByText('Home desktop',{exact:true})).toBeVisible();
     await expect(page.getByText('Offline',{exact:true})).toBeVisible();
+    if (!live) {
+      await page.getByLabel('Open computer Agent host',{exact:true}).click();
+      await expect(page.getByLabel('Control Agent host. Click and type on the desktop.',{exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Close',exact:true}).click();
+    }
     await page.screenshot({path:join(temporary,'devices-wide.png')});
     await page.setViewportSize({width:390,height:844});
     await expect(page.getByText('Studio laptop',{exact:true})).toBeVisible();
@@ -250,7 +265,8 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.setViewportSize({width:1440,height:960});
     await page.getByRole('button',{name:'New session',exact:true}).click();
     await expect(page.getByText('Send the first message to start this session.',{exact:true})).toBeVisible();
-    await expect(page.getByText('Computers and device history are available after this session starts.',{exact:true})).toBeVisible();
+    await expect(page.getByLabel('Open computer Agent host',{exact:true})).toBeVisible();
+    await expect(page.getByText('Devices used in this session',{exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await expect(page.getByText('Update the agent server to use connected computers.',{exact:true})).toHaveCount(0);
     expect(gateway.draftRequests).toEqual([]);
@@ -264,6 +280,18 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByText('Send the first message to start this session.',{exact:true})).toHaveCount(0);
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toBeVisible();
     await expect(page.getByLabel('Open computer Agent environment',{exact:true})).toBeVisible();
+    if (!live) {
+      await page.getByRole('button',{name:'Scheduled',exact:true}).click();
+      await page.getByLabel('Run history for Historical report',{exact:true}).click();
+      await page.getByLabel('Open scheduled run 2026-11-01T10:00:00Z',{exact:true}).click();
+      await expect(page.getByText('Saved report output',{exact:true})).toBeVisible();
+      const agentHost = page.getByRole('button',{name:'Open computer Agent host',exact:true});
+      if (!(await agentHost.isVisible())) {
+        await page.getByLabel('Toggle session details',{exact:true}).click();
+      }
+      await agentHost.click();
+      await expect(page.getByLabel('Control Agent host. Click and type on the desktop.',{exact:true})).toBeVisible();
+    }
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;

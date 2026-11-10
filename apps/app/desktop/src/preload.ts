@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('desktop', {
   },open:(request: import('@openagent/mcp-apps/desktop').McpAppReference)=>ipcRenderer.invoke('mcp-apps:open',request),close:(viewId:string)=>ipcRenderer.invoke('mcp-apps:close',viewId)}),
   platform: process.platform,
   isDesktop: true,
+  supportsDashboardSandbox: true,
   isChild,
   // Read-only boot identity. It binds renderer-originated session_open frames
   // to the Electron-main capability channel; it grants no local authority.

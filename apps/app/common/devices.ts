@@ -14,7 +14,7 @@ export interface SessionDevice {
   first_used_at: number;
   last_used_at: number;
 }
-export interface ComputerTarget { tool_ref: string; label: string; live_media?: string | null }
+export interface ComputerTarget { tool_ref: string; label: string; live_media?: string | null; agent_host?: boolean }
 export type ComputerAction = 'get_screenshot' | 'mouse_move' | 'middle_click' | 'left_click' | 'double_click' | 'right_click' | 'left_click_drag' | 'scroll' | 'key' | 'type';
 export interface ComputerFrame { uri: string; width: number; height: number; input_width?: number; input_height?: number }
 

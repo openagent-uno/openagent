@@ -16,6 +16,7 @@ from openagent_core.contracts import IdempotencyConflict, RunRequest
 from openagent_core.engine import AgentExecutor, AgentModelCatalog
 from openagent_core.core.on_behalf_context import current_on_behalf_identity
 from openagent_storage_sqlite import SqliteRuntimeStore
+from openagent_server.device_directory import AGENT_COMPUTER_CONTEXT, AGENT_COMPUTER_SOURCE
 from openagent_server.runtime_access import NativeRuntimeAuthorizer
 
 
@@ -719,6 +720,13 @@ class NativeRuntimeService:
     async def _authorize_source(self, context, action, resource, *, audience=()):
         # This policy is host-owned. No MCP row or client-provided ownership
         # field can promote a personal capability into a shared-data source.
+        if context.session_id == AGENT_COMPUTER_CONTEXT:
+            if action not in {"tool.discover", "tool.call", "tool.publish"}:
+                return False
+            source = resource.resource_id.rsplit("/", 1)[0] if resource.kind == "tool" else resource.resource_id
+            if source != AGENT_COMPUTER_SOURCE or context.audience != (context.initiator,):
+                return False
+            return action != "tool.call" or context.initiator.subject_id == await self.directory.owner_handle()
         if self.dashboards is not None:
             result = self.dashboards.authorize_source(
                 context, action, resource, audience=audience

@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8">
+<script>
+const channel = location.hash.slice(1);
+function receive(event) {
+  const message = event.data;
+  if (parent === window || event.source !== parent || event.origin !== location.origin
+      || message?.protocol !== 'openagent-dashboard/1' || message.channel !== channel
+      || message.type !== 'document' || typeof message.document !== 'string') return;
+  window.removeEventListener('message', receive);
+  document.open();
+  document.write(message.document);
+  document.close();
+}
+window.addEventListener('message', receive);
+</script>

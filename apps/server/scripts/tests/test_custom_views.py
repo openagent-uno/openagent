@@ -98,8 +98,12 @@ async def t_oaui_compiler(ctx: TestContext) -> None:
         markup='<sub-view name="main"><text-input name="q" inputType="search" /></sub-view>',
     )
     assert markup["root"]["type"] == "sub-view"
+    rich = compile_oaui(markup='<interactive src="asset:scene.html" assets=\'["asset:model.glb"]\' />')
+    assert rich["root"]["props"]["assets"] == ["asset:model.glb"]
     for unsafe in (
         {"schemaVersion": 1, "root": {"type": "iframe"}},
+        {"root": {"type": "interactive", "props": {"src": "artifact:foreign"}}},
+        {"root": {"type": "interactive", "props": {"src": "asset:scene.html", "assets": ["asset:../secret"]}}},
         {"schemaVersion": 1, "root": {"type": "image", "props": {"src": "https://example.test/x.png"}}},
         {"schemaVersion": 1, "root": {"type": "text", "props": {"href": "javascript:alert(1)"}}},
         {"schemaVersion": 1, "root": {"type": "text", "props": {"href": "//example.test/path"}}},

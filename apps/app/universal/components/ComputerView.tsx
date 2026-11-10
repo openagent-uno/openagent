@@ -16,7 +16,7 @@ type QueuedInput = {
 };
 
 /** One exact computer per mounted view. Closing aborts reads and stops polling. */
-export default function ComputerView({ sessionId, target, onClose }: { sessionId: string; target: ComputerTarget; onClose: () => void }) {
+export default function ComputerView({ sessionId, target, onClose }: { sessionId?: string; target: ComputerTarget; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
   const live = Platform.OS === 'web' && target.live_media === 'openagent-video/1';
   const [frame, setFrame] = useState<ComputerFrame | null>(null);

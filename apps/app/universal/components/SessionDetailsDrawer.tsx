@@ -626,7 +626,7 @@ function SessionDetailsContent({
           {isDraft ? <Text style={styles.emptyText}>Send the first message to start this session.</Text> : <SharedPresence id={session.id} detailed />}
         </Section>
         <Section title="Devices">
-          {isDraft ? <Text style={styles.emptyText}>Computers and device history are available after this session starts.</Text> : <SessionDevices sessionId={session.id} />}
+          <SessionDevices sessionId={isDraft ? undefined : session.id} />
         </Section>
         <Section title="Current context">
           {session.contextUsage?.context_window ? (
@@ -1442,6 +1442,9 @@ function RunDetailsContent({
   }, [loadingMoreRuns, recursiveRunsAvailable, state.relatedRunPageQueue]);
 
   const detail = state.detail;
+  const computerSession = target.kind === 'workflow'
+    ? (detail as WorkflowRunDetail | null)?.trace_steps?.find(step => step.child_session_id)?.child_session_id
+    : detail && 'session_id' in detail ? detail.session_id : undefined;
   const sessions = useMemo(
     () => runSessionRows(target, detail, state.childSessions),
     [detail, state.childSessions, target],
@@ -1592,6 +1595,10 @@ function RunDetailsContent({
               <Feather name="chevron-right" size={14} color={colors.textMuted} />
             </Pressable>
           ) : null}
+        </Section>
+
+        <Section title="Computers">
+          <SessionDevices sessionId={computerSession || undefined} />
         </Section>
 
         <Section title="Sessions" count={sessions.length}>

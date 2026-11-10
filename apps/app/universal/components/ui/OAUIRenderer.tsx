@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import type { UIAction, UIJson, UINode, UIProp, UISpec } from '../../../common/ui-views';
 import { canInvokeUIViewAction, resolveUIProp } from '../../../common/ui-views';
-import { apiUrl } from '../../services/api';
+import { apiUrl, currentAgentScope } from '../../services/api';
 import { colors, font, radius } from '../../theme';
 import AttachmentBlock from '../Attachments';
 import Button from '../Button';
@@ -22,6 +22,7 @@ import Markdown from '../Markdown';
 import ThemedSwitch from '../ThemedSwitch';
 import { useConfirm } from '../ConfirmDialog';
 import OAUIChart from './OAUIChart';
+import InteractiveDashboard from './InteractiveDashboard';
 
 type IconName = keyof typeof Feather.glyphMap;
 
@@ -77,18 +78,19 @@ export default function OAUIRenderer({
 }: RendererProps) {
   const confirm = useConfirm();
   const [uiState, setUIState] = useState<Record<string, UIJson>>({});
-  const runAction = async (actionId: string, input?: unknown) => {
-    if (!canInvokeUIViewAction(canExecute, actionId)) return;
+  const runAction = async (actionId: string, input?: unknown, requireConfirmation = false) => {
+    const scope = currentAgentScope();
+    if (!canInvokeUIViewAction(canExecute, actionId)) return false;
+    if (!Object.prototype.hasOwnProperty.call(actions, actionId)) return false;
     const action = actions[actionId];
-    if (!action) return;
-    if (action?.confirm) {
+    if (requireConfirmation || action.confirm) {
       const ok = await confirm({
         title: action.label || 'Confirm action',
         message: `Run “${action.label || actionId}”?`,
         confirmLabel: 'Run',
         cancelLabel: 'Cancel',
       });
-      if (!ok) return;
+      if (!ok || scope !== currentAgentScope()) return false;
     }
     return onAction?.(actionId, input);
   };
@@ -123,7 +125,7 @@ interface NodeProps {
   node: UINode;
   data: Record<string, unknown>;
   actions: Record<string, UIAction>;
-  onAction: (actionId: string, input?: unknown) => Promise<unknown> | undefined;
+  onAction: (actionId: string, input?: unknown, requireConfirmation?: boolean) => Promise<unknown> | undefined;
   canExecute: boolean;
   onStateChange: (name: string, value: UIJson) => void;
   compact?: boolean;
@@ -153,6 +155,18 @@ function Node({ node, data, actions, onAction, canExecute, onStateChange, compac
   ));
   const gap = bounded(p.gap, 0, 32, 10);
   switch (node.type) {
+    case 'interactive':
+      if (!viewContext || typeof node.props?.src !== 'string') return <Unknown type="interactive" />;
+      return <InteractiveDashboard
+        {...viewContext}
+        source={node.props.src}
+        assets={Array.isArray(node.props.assets) ? node.props.assets.filter((asset): asset is string => typeof asset === 'string') : []}
+        title={typeof p.title === 'string' ? p.title : 'Interactive dashboard'}
+        height={typeof p.height === 'number' ? p.height : undefined}
+        data={data}
+        canRun={canExecute && !compact}
+        run={(action, input) => onAction(action, input, true)}
+      />;
     case 'stack':
       return <View style={[styles.stack, { gap }]}>{children}</View>;
     case 'row':

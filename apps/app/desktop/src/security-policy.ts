@@ -22,6 +22,14 @@ export function resolveDevServerUrl(rawPort: string | undefined): string {
   return `http://localhost:${port}`;
 }
 
+export const DASHBOARD_FRAME_PATH = '/dashboard-frame.html';
+export const DASHBOARD_FRAME_CSP = [
+  "default-src 'none'", "script-src 'unsafe-inline' blob:", "style-src 'unsafe-inline' blob:",
+  'img-src data: blob:', 'font-src data: blob:', 'media-src data: blob:', "connect-src 'none'",
+  "object-src 'none'", "frame-src 'none'", "worker-src 'none'", "base-uri 'none'", "form-action 'none'",
+  "frame-ancestors 'self'", 'sandbox allow-scripts',
+].join('; ');
+
 export const PRODUCTION_CSP = [
   "default-src 'self'",
   // Expo's exported bundle is self-hosted. Blob is required by the existing

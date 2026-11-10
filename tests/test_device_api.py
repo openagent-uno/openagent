@@ -81,6 +81,8 @@ class DeviceApi(unittest.IsolatedAsyncioTestCase):
         app = web.Application(middlewares=[identity]); app['gateway'] = self.gateway
         app.router.add_get('/fixture/capabilities/{device}', process_host)
         app.router.add_get('/api/devices', devices.handle_devices)
+        app.router.add_get('/api/devices/computer-targets', devices.handle_targets)
+        app.router.add_post('/api/devices/computer', devices.handle_computer)
         app.router.add_get('/api/sessions/{session_id}/devices', devices.handle_session_devices)
         app.router.add_get('/api/sessions/{session_id}/computer-targets', devices.handle_targets)
         app.router.add_post('/api/sessions/{session_id}/computer', devices.handle_computer)
@@ -115,6 +117,37 @@ class DeviceApi(unittest.IsolatedAsyncioTestCase):
         response = await self.client.post('/api/sessions/session/computer', json={'tool_ref': target['tool_ref'], 'action': 'get_screenshot'})
         self.assertEqual(403, response.status)
         self.assertFalse(self.sent)
+
+    async def test_agent_desktop_uses_owner_authority_without_borrowing_a_session(self):
+        from openagent_core.capabilities import FunctionSource, ToolDefinition
+
+        async def active(principal): return principal.subject_id == 'alice'
+        async def owner(): return self.owner
+        self.owner = 'alice'
+        self.service.directory.principal_active = active
+        self.service.directory.owner_handle = owner
+        schema = {'type': 'object', 'properties': {'action': {'type': 'string'}}}
+        calls = []
+
+        async def screenshot(arguments, context):
+            calls.append((arguments, context.session_id))
+            return {'content': []}
+
+        host = FunctionSource((ToolDefinition('computer', 'Desktop', schema),), {'computer': screenshot})
+        self.service.runtime.capabilities.register('computer-control', host, host, target_label='Agent desktop')
+        response = await self.client.get('/api/devices/computer-targets')
+        self.assertEqual(200, response.status, await response.text())
+        target, = (await response.json())['targets']
+        self.assertTrue(target['agent_host'])
+        response = await self.client.get('/api/sessions/session/computer-targets')
+        personal = next(row for row in (await response.json())['targets'] if not row['agent_host'])
+        for reference, expected in [(personal['tool_ref'], 409), (target['tool_ref'], 200)]:
+            response = await self.client.post('/api/devices/computer', json={'tool_ref': reference, 'action': 'get_screenshot'})
+            self.assertEqual(expected, response.status, await response.text())
+        self.owner = 'bob'
+        response = await self.client.post('/api/devices/computer', json={'tool_ref': target['tool_ref'], 'action': 'get_screenshot'})
+        self.assertEqual(403, response.status)
+        self.assertEqual([({'action': 'get_screenshot'}, '__agent_computer__')], calls)
 
     async def test_authoritative_session_participants(self):
         response = await self.client.get('/api/sessions/session/participants')

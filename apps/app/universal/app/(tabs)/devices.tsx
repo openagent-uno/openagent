@@ -7,6 +7,7 @@ import { isUnsupportedByAgent, listDevices } from '../../services/api';
 import { useConnection } from '../../stores/connection';
 import { colors, radius } from '../../theme';
 import { useHeaderInset } from '../../components/screenHeader';
+import SessionDevices from '../../components/SessionDevices';
 
 export default function DevicesScreen() {
   const inset = useHeaderInset();
@@ -39,6 +40,10 @@ export default function DevicesScreen() {
       <Text style={{ flex: 1, color: colors.text, fontSize: 24, fontWeight: '600' }}>Devices</Text>
       {loading && <ActivityIndicator color={colors.accent} />}
       <Pressable accessibilityRole="button" accessibilityLabel="Refresh devices" onPress={() => setRevision(n => n + 1)} style={{ padding: 10 }}><Feather name="refresh-cw" size={18} color={colors.accent} /></Pressable>
+    </View>
+    <View style={{ maxWidth: 480, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 20, gap: 12 }}>
+      <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Agent computer</Text>
+      <SessionDevices />
     </View>
     <Text style={{ color: colors.textSecondary }}>Your connected OpenAgent clients share their enabled tools with your interactive sessions. Device access is managed in Settings on each computer.</Text>
     {error && <Text accessibilityRole="alert" style={{ color: colors.error }}>{error}</Text>}
