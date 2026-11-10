@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.34",
+  "source_commit": "2013884168f9f402db93794845ecdadecdcfec87",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42754137944",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42754239291",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.34",
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "3027f616f72140554028dc7844e6f4cd629a02f4c09f1a42d0848afdbe429f3a",
+  "public_beta_feeds_verified": [
+    "beta-mac.yml",
+    "beta.yml",
+    "beta-linux.yml",
+    "beta-linux-arm64.yml"
+  ],
+  "electron_fixture_scenarios": [
+    "agent rail and remembered login",
+    "member overview and access settings",
+    "provider and costs tab consolidation"
+  ],
+  "companion_server_version": "1.1.9b22",
+  "local_installed_update_performed": true,
+  "local_mac_update_path": "Help > Check for Updates",
+  "local_scheduled_run_checks": [
+    "saved output in historical runs",
+    "failed run with its 240-second limit"
+  ]
+}
