@@ -1,0 +1,39 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.36",
+  "source_commit": "323720a6dca2ac8333525420e7bdbac65191b482",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42778509085",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42778527591",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.36",
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "6913054102f24da1643a07c33b597bdc9158cc44e1f7f16930c334f261300e9c",
+  "public_beta_feeds_verified": [
+    "beta-mac.yml",
+    "beta.yml",
+    "beta-linux.yml",
+    "beta-linux-arm64.yml"
+  ],
+  "public_beta_feed_sha256": {
+    "beta-mac.yml": "2dc5bd07b9a13beca9cfee8da3f68d344cd8b5edfd9650a22b2df64d346d660a",
+    "beta.yml": "673b7e9c3de429256ae8d8ddcac787cdfde92a92cd90f99f3318682caed60b76",
+    "beta-linux.yml": "4685aec3fa49a47edb18e136e0d000dc9a163f5ca9b130c8f8d23b6fda2dd57b",
+    "beta-linux-arm64.yml": "64af4fb9d4b4d2963d5598dbea081a3f653903561340f0b22efb406142bd524a"
+  },
+  "macos_electron_regression": {
+    "direction_count": 2,
+    "repeated": true
+  },
+  "build_attempt": 2,
+  "macos_intel_retry_reason": "DMG detach reported a busy device on the first runner",
+  "local_installed_update_performed": true,
+  "local_mac_update_path": "Help > Check for Updates",
+  "local_installed_qa": {
+    "signing_identity_preserved": true,
+    "stapled_ticket_validated": true,
+    "authenticated_agents": 2,
+    "switches_from_open_dashboard": 2,
+    "chat_opened_for_selected_agent": true
+  }
+}
