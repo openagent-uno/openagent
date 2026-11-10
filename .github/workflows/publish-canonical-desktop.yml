@@ -15,6 +15,11 @@ on:
         required: false
         default: ''
         type: string
+      existing_draft_release_id:
+        description: Optional empty draft already created by a release maintainer
+        required: false
+        default: ''
+        type: string
 permissions:
   actions: read
   contents: write
@@ -30,6 +35,7 @@ jobs:
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
       BUILD_SOURCE: ${{ inputs.source_sha }}
       BASELINE_RUN_ID: ${{ inputs.baseline_build_run_id }}
+      OWNED_DRAFT_ID: ${{ inputs.existing_draft_release_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,7 +119,15 @@ jobs:
           python3 - <<'PY'
           import json,subprocess,os
           pages=json.loads(subprocess.check_output(['gh','api','--paginate','--slurp','repos/'+os.environ['GITHUB_REPOSITORY']+'/releases?per_page=100']))
-          assert not any(r['tag_name']==os.environ['APP_TAG'] for p in pages for r in p), 'App release already exists; use a new version'
+          matches=[r for p in pages for r in p if r['tag_name']==os.environ['APP_TAG']]
+          draft_id=os.environ['OWNED_DRAFT_ID']
+          if draft_id:
+              assert draft_id.isdigit() and len(matches)==1
+              draft=matches[0]
+              assert draft['id']==int(draft_id) and draft['draft'] and draft['prerelease']
+              assert not draft['assets'] and draft['target_commitish']==os.environ['BUILD_SOURCE']
+          else:
+              assert not matches, 'App release already exists; use a new version'
           endpoint='repos/'+os.environ['GITHUB_REPOSITORY']+'/git/'
           tag=os.environ['APP_TAG']
           existing=subprocess.run(['gh','api',endpoint+'ref/tags/'+tag],capture_output=True,text=True)
@@ -124,6 +138,7 @@ jobs:
           PY
       - name: Stage a private App release
         id: draft
+        if: inputs.existing_draft_release_id == ''
         uses: softprops/action-gh-release@v2.6.2
         with:
           token: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
@@ -153,9 +168,30 @@ jobs:
             .canonical-publication/artifacts/**/*.blockmap
             .canonical-publication/artifacts/**/*.sha256
             .canonical-publication/artifacts/**/release-manifest-*.json
+      - name: Upload qualified assets to the owned draft
+        if: inputs.existing_draft_release_id != ''
+        run: |
+          python3 - <<'PY'
+          import hashlib,importlib.util,os
+          from pathlib import Path
+          spec=importlib.util.spec_from_file_location('migration','scripts/migrate-release-assets.py')
+          migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+          repo=os.environ['GITHUB_REPOSITORY']
+          client=migration.GitHub(repo,repo)
+          draft=client.api('repos/'+repo+'/releases/'+os.environ['OWNED_DRAFT_ID'])
+          assert draft['tag_name']==os.environ['APP_TAG'] and draft['draft'] and not draft['assets']
+          root=Path('.canonical-publication/artifacts')
+          patterns=('**/*.dmg','**/*.zip','**/*.exe','**/*.AppImage','**/*.deb',
+                    'release-metadata/*.yml','**/*.blockmap','**/*.sha256','**/release-manifest-*.json')
+          for asset in sorted({asset for pattern in patterns for asset in root.glob(pattern)}):
+              with asset.open('rb') as data:
+                  expected=(asset.stat().st_size,'sha256:'+hashlib.file_digest(data,'sha256').hexdigest())
+              uploaded=client.upload(draft,asset)
+              assert (uploaded['size'],uploaded['digest'])==expected
+          PY
       - name: Verify uploaded hashes before publication
         env:
-          RELEASE_ID: ${{ steps.draft.outputs.id }}
+          RELEASE_ID: ${{ steps.draft.outputs.id || env.OWNED_DRAFT_ID }}
           GH_TOKEN: ${{ secrets.CANONICAL_RELEASE_PUBLISH_TOKEN || github.token }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" > release-draft.json

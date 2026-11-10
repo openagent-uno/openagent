@@ -74,7 +74,10 @@ the App release body.
 GitHub's default integration token can reject release creation for reviewed refs
 that include workflow history. A maintainer publication authorization can be
 provided through `CANONICAL_RELEASE_PUBLISH_TOKEN`; it is scoped to publication
-steps, never dependency installation. Temporary publication/retirement tokens
+steps, never dependency installation. If Actions cannot create the release, a maintainer can
+create an empty prerelease draft for the verified tag and pass its ID via
+`existing_draft_release_id`. The publisher checks the draft and source, uploads
+the same qualified assets and verifies their hashes before promotion. Temporary publication/retirement tokens
 were removed after their jobs. Signing settings remain in the repository's
 Actions secrets, not in source, logs or this documentation.
 
