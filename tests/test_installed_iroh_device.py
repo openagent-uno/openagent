@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, closing
 import json
 from pathlib import Path
 import re
+import sqlite3
 import tempfile
 
 import aiohttp
@@ -217,10 +218,16 @@ class InstalledIrohDeviceTests(startup.InstalledIrohStartupTests):
                     for device in self.devices.values():
                         device.verify_shell_effect()
                         device.verify_file_effect()
-                    # Device tools persisted through the public catalog invocation ledger.
-                    rows = await (await server.agent.memory_db._conn.execute(
-                        "SELECT tool_server,tool_name FROM tool_invocations WHERE tool_server LIKE 'app/%' AND status='success'")).fetchall()
-                    self.assertEqual(len(rows),6,rows)
+                    # Read the committed ledger independently of the live
+                    # MemoryDB connection, which can still hold a WAL snapshot.
+                    database = Path(server.agent.memory_db.db_path).as_uri()
+                    with closing(sqlite3.connect(database + "?mode=ro", uri=True)) as audit:
+                        rows = audit.execute(
+                            "SELECT session_id, COUNT(*) FROM tool_invocations "
+                            "WHERE tool_server LIKE 'app/%' AND status='success' "
+                            "GROUP BY session_id ORDER BY session_id"
+                        ).fetchall()
+                    self.assertEqual(rows, [('alice-session', 3), ('bob-session', 3)])
             finally:
                 for proxy in proxies: await proxy.stop()
                 for dialer in dialers: await dialer.close()
