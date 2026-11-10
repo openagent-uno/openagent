@@ -38,7 +38,7 @@ import {
   type WithNormalizedRunDates,
 } from '../../common/run-date-normalization';
 import { openDetached } from '../services/windows';
-import { useChat } from '../stores/chat';
+import { sendTypedChat, useChat } from '../stores/chat';
 import { sessionReadGuard } from '../stores/sessionReadAccess';
 import { useConnection } from '../stores/connection';
 import { useAutoScroll } from '../hooks/useAutoScroll';
@@ -178,7 +178,7 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   const liveAlreadyIncludesHistory = hasLive
     && !!messages?.length
     && sameChatStart(liveMessages?.[0], messages[0]);
-  const display = hasLive
+  const transcript = hasLive
     ? (messages?.length && !liveAlreadyIncludesHistory
       ? [...messages, ...(liveMessages ?? [])]
       : liveMessages)
@@ -187,7 +187,9 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
   // child's broadcast stub never flips the store's ``isProcessing``, and
   // keeping that false is what lets ``reconcileSession`` snap to the canonical
   // transcript on turn_complete.
-  const streaming = !!live || !!liveProcessing;
+  const pending = liveSession?.outbound ?? [];
+  const display = pending.length ? [...(transcript ?? []), ...pending] : transcript;
+  const streaming = !!live || !!liveProcessing || pending.some(message => message.delivery === 'pending');
 
   if (accessRevoked) return <EmptyNote text="This session is no longer available." />;
 
@@ -619,19 +621,17 @@ export function RunDetailView({
 function RunSessionComposer({ sessionId, live }: { sessionId: string; live?: boolean }) {
   const ws = useConnection((s) => s.ws);
   const session = useChat((s) => s.sessions.find((x) => x.id === sessionId));
-  const addUserMessage = useChat((s) => s.addUserMessage);
   const [input, setInput] = useState('');
 
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text || !ws) return;
-    addUserMessage(sessionId, text);
-    ws.sendMessage(text, sessionId, {
+    sendTypedChat(ws, sessionId, text, {
       llmPin: session?.llmPin,
       systemPrompt: session?.systemPrompt,
     });
     setInput('');
-  }, [addUserMessage, input, session?.llmPin, session?.systemPrompt, sessionId, ws]);
+  }, [input, session?.llmPin, session?.systemPrompt, sessionId, ws]);
 
   const handleStop = useCallback(() => {
     if (!ws) return;

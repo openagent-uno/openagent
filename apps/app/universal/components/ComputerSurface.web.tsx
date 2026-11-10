@@ -4,10 +4,10 @@ import type { ComputerAction, ComputerFrame } from '../../common/devices';
 import { screenCoordinate } from '../../common/devices';
 
 type Input = { coordinate?: [number, number]; text?: string };
-export interface ComputerSurfaceProps { children?: ReactNode; frame: ComputerFrame; width: number; label: string; send: (action: ComputerAction, input?: Input) => Promise<boolean> }
+export interface ComputerSurfaceProps { children?: ReactNode; frame: ComputerFrame; width: number; label: string; readOnly?: boolean; send: (action: ComputerAction, input?: Input) => Promise<boolean> }
 
 /** Native pointer/keyboard events over the image. No visible input controls. */
-export default function ComputerSurface({ frame, width, label, send, children }: ComputerSurfaceProps) {
+function InteractiveComputerSurface({ frame, width, label, send, children }: ComputerSurfaceProps) {
   const surface = useRef<HTMLDivElement>(null);
   const keyboard = useRef<HTMLTextAreaElement>(null);
   const focusClaimUntil = useRef(0);
@@ -141,5 +141,13 @@ export default function ComputerSurface({ frame, width, label, send, children }:
       style={{ position: 'absolute', width: 1, height: 1, padding: 0, border: 0, opacity: 0, pointerEvents: 'none', left: 0, top: 0 }}
       onInput={event => { if ((event.nativeEvent as InputEvent).isComposing) return; const text = event.currentTarget.value; event.currentTarget.value = ''; if (text) void send('type', { text }); }}
       onCompositionEnd={event => { const text = event.currentTarget.value; event.currentTarget.value = ''; if (text) void send('type', { text }); }} />
+  </div>;
+}
+
+export default function ComputerSurface(props: ComputerSurfaceProps) {
+  if (!props.readOnly) return <InteractiveComputerSurface {...props} />;
+  const { frame, width, label, children } = props;
+  return <div role="img" aria-label={`View ${label}`} style={{ width, height: width * frame.height / frame.width }}>
+    {children || <img src={frame.uri} alt="" style={{ display: 'block', width: '100%', height: '100%' }} />}
   </div>;
 }

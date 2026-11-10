@@ -60,6 +60,16 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
   return base.sort((a, b) => a.timestamp - b.timestamp);
 }
 
+export function unconfirmedMessages(
+  outbound: ChatMessage[] | undefined, messages: readonly ChatMessage[], snapshot?: SharedSnapshot,
+): ChatMessage[] | undefined {
+  if (!outbound?.length) return undefined;
+  const confirmed = new Set(messages.filter(message => message.role === 'user').map(message => message.providerRunId));
+  for (const turn of snapshot?.turns ?? []) if (turn.runId) confirmed.add(turn.runId);
+  const remaining = outbound.filter(message => !confirmed.has(message.providerRunId));
+  return remaining.length === outbound.length ? outbound : remaining.length ? remaining : undefined;
+}
+
 /** Split only the rendered reply. Keep durable rows and pagination anchors
  * intact in the store. Tool updates keep their card ID. */
 export function placeSharedTools(messages: readonly ChatMessage[]): readonly ChatMessage[] {

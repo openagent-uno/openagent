@@ -19,10 +19,12 @@ import {
 
 import type { Attachment } from '../../../common/types';
 import { runRoutePath, type RunLaunchTarget, type MemoryTarget } from '../../../common/types';
+import { unconfirmedMessages } from '../../../common/shared-transcript';
+import { useCollaboration } from '../../stores/collaboration';
 import { attachmentsForSend } from '../../../common/attachments';
 import { chatSessionIntent, resolveChatAnchor } from '../../../common/search-navigation';
 import { useConnection } from '../../stores/connection';
-import { useChat } from '../../stores/chat';
+import { sendTypedChat, useChat } from '../../stores/chat';
 import { sessionReadGuard } from '../../stores/sessionReadAccess';
 import { useEvents } from '../../stores/events';
 import { useSearch } from '../../stores/search';
@@ -51,7 +53,7 @@ import { useRenameSession } from '../../components/RenameSessionDialog';
 import {
   uploadFile, guessMimeType, listDbModels,
   getSessionModelPin, pinSessionModel, unpinSessionModel, isAgentUnreachable,
-  getGatewayCommands, listServingAccounts, listSessionMessages, getToolInvocationDetail,
+  getGatewayCommands, listServingAccounts, listSessionMessages, getToolInvocationDetail, forkConversation,
 } from '../../services/api';
 import { modelEffort, modelFamily } from '../../../common/types';
 import type { ModelEntry, GatewayCommandSpec, ProviderAccounts } from '../../../common/types';
@@ -120,7 +122,6 @@ export default function ChatScreen() {
   const confirm = useConfirm();
   const renameSession = useRenameSession();
   const addUserMessage = useChat((s) => s.addUserMessage);
-  const editUserMessage = useChat((s) => s.editUserMessage);
   const setDraftInput = useChat((s) => s.setDraftInput);
   const setLlmPin = useChat((s) => s.setLlmPin);
   const setSystemPrompt = useChat((s) => s.setSystemPrompt);
@@ -157,6 +158,8 @@ export default function ChatScreen() {
   // the chip snapped back instead of leaving the rejection invisible.
   const [modelPinError, setModelPinError] = useState<string | null>(null);
   const [anchorError, setAnchorError] = useState<string | null>(null);
+  const canFork = useCollaboration(state => state.client?.sessionFork === true);
+  const [forkError, setForkError] = useState<string | null>(null);
   // The gateway's command registry. `null` until it loads (or if it fails),
   // in which case the composer falls back to the local handlers alone.
   const [gatewayCommands, setGatewayCommands] = useState<GatewayCommandSpec[] | null>(null);
@@ -233,6 +236,14 @@ export default function ChatScreen() {
   const nextPendingId = useRef(0);
   const newPendingId = () => `pf-${++nextPendingId.current}`;
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  const pending = useMemo(() => unconfirmedMessages(
+    activeSession?.outbound, activeSession?.messages ?? [],
+  ), [activeSession?.messages, activeSession?.outbound]);
+  const displayMessages = useMemo(() => {
+    const messages = activeSession?.messages ?? [];
+    return pending?.length ? [...messages, ...pending] : messages;
+  }, [activeSession?.messages, pending]);
+  const awaitingReply = pending?.some(message => message.delivery === 'pending');
 
   // Voice mode state
   const [hasTts, setHasTts] = useState<boolean | null>(null);
@@ -475,6 +486,21 @@ export default function ChatScreen() {
     routerRef.current.replace({ pathname: '/(tabs)/chat', params: { session: childSessionId } });
   }, [setActiveSession]);
 
+  const handleFork = useCallback(async (messageId: string) => {
+    const sid = activeSessionIdRef.current;
+    if (!sid) return;
+    const current = sessionReadGuard(sid);
+    setForkError(null);
+    try {
+      const fork = await forkConversation(sid, messageId);
+      if (current() && activeSessionIdRef.current === sid) openChildSession(fork.session_id);
+    } catch {
+      if (current() && activeSessionIdRef.current === sid) {
+        setForkError('Could not fork from this message. Your conversation is unchanged.');
+      }
+    }
+  }, [openChildSession]);
+
   // A chat turn that ran a scheduled task / workflow shows a RunLaunchCard;
   // pressing it opens that firing's execution screen (``/runs/{id}``) — the
   // same single-run destination the sidebar's Recent feed uses.
@@ -574,9 +600,9 @@ export default function ChatScreen() {
     scrollToBottom,
   } = useAutoScroll({
     trackDeps: [
-      activeSession?.messages.length,
+      displayMessages.length,
       activeSession?.statusText,
-      activeSession?.messages[activeSession?.messages.length - 1]?.text.length,
+      displayMessages.at(-1)?.text.length,
     ],
   });
 
@@ -916,16 +942,15 @@ export default function ChatScreen() {
     const ses = activeSessionRef.current;
     if (!conn || !sid) return;
     const original = ses?.messages.find((message) => message.id === messageId);
-    const attachments = attachmentsForSend(original?.attachments);
+    const attachments = original?.attachments;
     // Shared history belongs to every participant; a correction is a new turn.
-    const ok = conn.collaboration || editUserMessage(sid, messageId, newText);
-    if (!ok) return;
-    conn.sendMessage(newText, sid, {
+    sendTypedChat(conn, sid, newText, {
+      legacyEditMessageId: messageId,
       llmPin: ses?.llmPin,
       systemPrompt: ses?.systemPrompt,
       attachments,
     });
-  }, [editUserMessage]);
+  }, []);
 
   // Cancel an in-flight assistant turn for the active session. Turns run
   // inside a server-side StreamSession whose cancel verb is the
@@ -951,14 +976,12 @@ export default function ChatScreen() {
     if (!conn || !sid || !ses) return;
     const lastUser = [...ses.messages].reverse().find((m) => m.role === 'user');
     if (!lastUser) return;
-    const attachments = attachmentsForSend(lastUser.attachments);
-    if (!conn.collaboration) addUserMessage(sid, lastUser.text || '(regenerate)', lastUser.attachments);
-    conn.sendMessage(lastUser.text, sid, {
+    sendTypedChat(conn, sid, lastUser.text, {
       llmPin: ses.llmPin,
       systemPrompt: ses.systemPrompt,
-      attachments,
+      attachments: lastUser.attachments,
     });
-  }, [addUserMessage]);
+  }, []);
 
   // Up/Down recall — walk the user-message history when composer is
   // empty (or caret at boundary). Index = position from the tail.
@@ -1068,12 +1091,12 @@ export default function ChatScreen() {
       return f.remotePath ? [{ type: f.kind, path: f.remotePath, filename: f.filename }] : [];
     });
 
-    if (!ws.collaboration) addUserMessage(activeSessionId, text, attachments.length ? attachments : undefined);
-    ws.sendMessage(text, activeSessionId, {
+    sendTypedChat(ws, activeSessionId, text, {
       llmPin: activeSession?.llmPin,
       systemPrompt: activeSession?.systemPrompt,
-      attachments: attachmentsForSend(attachments),
+      attachments,
     });
+    if (!isPinned) scrollToBottom(false);
     setInput('');
     // Drop only the chips we actually sent; keep failed + still-uploading
     // entries visible so the user notices them (and the next Enter can
@@ -1587,7 +1610,7 @@ export default function ChatScreen() {
                     );
                   })()
                 ) : null}
-                {activeSession.messages.length === 0 && (
+                {displayMessages.length === 0 && (
                   <View style={styles.heroEmpty}>
                     <BrandLogo size={84} />
                     <Text style={styles.heroTitle}>At your service</Text>
@@ -1612,12 +1635,12 @@ export default function ChatScreen() {
                 )}
                 <MessageList
                   sessionId={activeSession.id}
-                  messages={activeSession.messages}
-                  isProcessing={activeSession.isProcessing}
-                  statusText={activeSession.statusText}
+                  messages={displayMessages}
+                  isProcessing={activeSession.isProcessing || awaitingReply}
                   isReasoning={activeSession.isReasoning}
                   onRegenerate={handleRegenerate}
                   onEditUser={handleEditUser}
+                  onFork={canFork ? handleFork : undefined}
                   onOpenChild={openChildSession}
                   onOpenRun={openRun}
                   onOpenMemory={openMemory}
@@ -1665,6 +1688,9 @@ export default function ChatScreen() {
               <Notice style={styles.pinErrorBar} onDismiss={() => setModelPinError(null)}>
                 {`Could not switch model — ${modelPinError}`}
               </Notice>
+            )}
+            {forkError && (
+              <Notice style={styles.pinErrorBar} onDismiss={() => setForkError(null)}>{forkError}</Notice>
             )}
             {anchorError && (
               <Notice style={styles.pinErrorBar} onDismiss={() => setAnchorError(null)}>

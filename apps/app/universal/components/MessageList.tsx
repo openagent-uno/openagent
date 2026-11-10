@@ -4,7 +4,7 @@
  * Renders a session's transcript with the same look on both Chat and
  * Voice tabs: user prompts as soft rounded surfaces, assistant replies as
  * full-width prose, tool calls as inline expandable cards. Consecutive rows
- * from one speaker share a single author header. The status row ("Thinking…")
+ * from one speaker share a single author header. The activity indicator
  * trails the last message while ``isProcessing``.
  *
  * Both screens share this so a stylistic change to message bubbles
@@ -14,7 +14,7 @@
 
 import { Fragment, memo, useEffect, useState, useMemo, type ReactNode } from 'react';
 import Feather from '@expo/vector-icons/Feather';
-import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { ActivityIndicator, Clipboard, View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import {
   toolPhase,
   runLaunchTarget,
@@ -48,12 +48,14 @@ import Markdown from './Markdown';
 import DelegationCard from './DelegationCard';
 import RunLaunchCard from './RunLaunchCard';
 import ReasoningIndicator from './ReasoningIndicator';
+import { ToolShine, TranscriptEntrance } from './TranscriptMotion';
 import { colors, font, radius } from '../theme';
 import UIViewSurface from './ui/UIViewSurface';
 import McpAppSurface from './McpAppSurface';
 import { mcpAppHint } from '../services/mcp-apps';
 import { useChat } from '../stores/chat';
 import { useConnection } from '../stores/connection';
+import { useReducedMotion } from '../hooks/useDrawerMotion';
 
 // How many trailing messages to render before "Load earlier". Caps the
 // DOM + per-delta reconciliation on long transcripts to a fixed window.
@@ -63,10 +65,6 @@ export interface MessageListProps {
   sessionId?: string;
   messages: ChatMessage[];
   isProcessing?: boolean;
-  statusText?: string;
-  /** When true, the status row shows the animated <ReasoningIndicator/>
-   *  instead of the static status dot + text. Driven by the session's
-   *  ``isReasoning`` flag (the transient ``reasoning`` wire frame). */
   isReasoning?: boolean;
   /** Slice the tail when set (Voice tab uses ~6). Omit for full history. */
   maxItems?: number;
@@ -75,6 +73,7 @@ export interface MessageListProps {
   onRegenerate?: () => void;
   /** Fired by the per-bubble Edit button on a user message. Omit to hide. */
   onEditUser?: (msgId: string, newText: string) => void;
+  onFork?: (messageId: string) => Promise<void>;
   /** Fired when a delegation card is pressed — navigates into the child
    *  session. Omit to render delegation cards as non-clickable. */
   onOpenChild?: (childSessionId: string, meta?: { title?: string; model?: string }) => void;
@@ -101,7 +100,7 @@ export interface MessageListProps {
 }
 
 function MessageListBase({
-  sessionId, messages: transcript, isProcessing, statusText, isReasoning, maxItems, onRegenerate, onEditUser,
+  sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onFork,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
   hasMoreBefore, onLoadEarlier,
@@ -111,6 +110,28 @@ function MessageListBase({
   const accountId = useConnection(state => state.activeAccountId);
   const appSessionId = sessionId ?? (transcript === activeMessages ? activeId ?? undefined : undefined);
   const messages = useMemo(() => placeSharedTools(transcript), [transcript]);
+  const reducedMotion = useReducedMotion();
+  const canonical = useMemo(() => new Map(transcript.map(message => [message.id, message])), [transcript]);
+  const singleUserRuns = useMemo(() => {
+    const unique = new Set<string>();
+    const repeated = new Set<string>();
+    for (const row of transcript) {
+      if (row.role !== 'user' || !row.providerRunId || row.author?.kind === 'agent') continue;
+      if (unique.has(row.providerRunId)) repeated.add(row.providerRunId);
+      unique.add(row.providerRunId);
+    }
+    for (const run of repeated) unique.delete(run);
+    return unique;
+  }, [transcript]);
+  const assistantActions = useMemo(() => {
+    const last = new Map<string, ChatMessage>();
+    for (const row of messages) {
+      if (row.role !== 'assistant') continue;
+      const source = canonical.get(row.id) ?? canonical.get(row.id.split(':after:')[0]);
+      if (source) last.set(source.id, row);
+    }
+    return new Map([...last].map(([id, row]) => [row.id, canonical.get(id)!]));
+  }, [canonical, messages]);
   // Windowing: render only the last `shown` messages. With bottom-pinned
   // scroll the tail is what the user sees; a long transcript otherwise
   // materializes thousands of deeply-nested DOM nodes and re-maps + diffs
@@ -191,14 +212,19 @@ function MessageListBase({
       || !!turnMeta?.showDayDivider;
     const renderKey = msg.role === 'tool'
       ? toolMessageRenderKey(msg.id, msg.toolInfo, msg.toolInvocationId)
-      : msg.id;
+      : msg.role === 'user' && msg.providerRunId && singleUserRuns.has(msg.providerRunId) && msg.author?.kind !== 'agent'
+        ? `user-run:${msg.providerRunId}`
+        : msg.id;
     const wrap = (node: ReactNode) => {
       const content = (
         <>
           {turnMeta?.showDayDivider && turnTimestamp != null
             ? <DayDivider timestamp={turnTimestamp} />
             : null}
-          {node}
+          <TranscriptEntrance reduced={reducedMotion} outgoing={msg.role === 'user' && msg.author?.kind !== 'agent'}
+            recent={!!msg.delivery || !!msg.streaming || Math.abs(Date.now() - msg.timestamp) < 3500}>
+            {node}
+          </TranscriptEntrance>
         </>
       );
       // Search highlighting needs one measurable wrapper, but wrapping every
@@ -230,8 +256,7 @@ function MessageListBase({
     if (msg.role === 'tool') {
       // A delegation renders as a card (deep-links into the sub-agent's
       // child session, OpenCode-style) instead of an inline tool chip —
-      // even while it's still RUNNING (the card is non-clickable until the
-      // child_session_id arrives at completion), so the parent never shows
+      // as soon as an authorized child session is available, so the parent never shows
       // the raw delegate-tool prompt or the sub-agent's own work inline.
       if (isDelegationTool(msg.toolInfo)) {
         const eff = effectiveTool(msg.toolInfo)!;
@@ -264,6 +289,9 @@ function MessageListBase({
         />,
       );
     }
+    const source = msg.role === 'assistant' ? assistantActions.get(msg.id) : canonical.get(msg.id);
+    const fork = onFork && source?.ordinal != null && !source.delivery && !source.streaming
+      ? () => onFork(source.id) : undefined;
     if (msg.role === 'user') {
       // An agent-self seed (a delegated task / scheduled mission / workflow
       // node prompt the agent gave itself) renders as a Mission block,
@@ -273,7 +301,8 @@ function MessageListBase({
           <SelfPromptBlock
             text={msg.text}
             label={msg.author.display}
-            timestamp={turnTimestamp}
+            onFork={fork}
+            timestamp={msg.timestamp}
           />,
         );
       }
@@ -283,8 +312,10 @@ function MessageListBase({
           parts={msg.parts}
           author={msg.author} fallbackLabel={currentUserHandle}
           showHeader={showAuthorHeader}
-          timestamp={turnTimestamp}
-          onEdit={onEditUser}
+          timestamp={msg.timestamp}
+          delivery={msg.delivery}
+          onFork={fork}
+          onEdit={msg.delivery ? undefined : onEditUser}
         />,
       );
     }
@@ -294,8 +325,10 @@ function MessageListBase({
         parts={msg.parts}
         streaming={msg.streaming} author={msg.author}
         showHeader={showAuthorHeader}
-        timestamp={turnTimestamp}
-        onRegenerate={msg.id === lastAssistantId && !isProcessing ? onRegenerate : undefined}
+        timestamp={msg.timestamp}
+        actionText={source?.text}
+        onFork={fork}
+        onRegenerate={msg.id === lastAssistantId && !!source && !isProcessing ? onRegenerate : undefined}
       />,
     );
   };
@@ -321,32 +354,9 @@ function MessageListBase({
         </TouchableOpacity>
       )}
       {visible.map(renderMessage)}
-      {(isProcessing || isReasoning) && (() => {
-        // The animated indicator is the DEFAULT "agent is working" state —
-        // shown whenever we're processing without a specific tool line to
-        // display (the generic "Thinking…" placeholder). It does NOT depend
-        // on the server's ``reasoning`` frame (older/remote agents don't
-        // send it); that frame just reinforces ``isReasoning``. Only a real
-        // tool-status line (e.g. "Using bash…") falls through to the text row.
-        const isGenericThinking = !statusText || /^thinking/i.test(statusText.trim());
-        const showIndicator = isReasoning || isGenericThinking;
-        return (
-          <View style={styles.statusRow}>
-            {showIndicator ? (
-              <ReasoningIndicator />
-            ) : (
-              <>
-                <View
-                  style={styles.statusDot}
-                  // @ts-ignore — web-only className for the pulse keyframe
-                  {...(Platform.OS === 'web' ? { className: 'oa-pulse' } : {})}
-                />
-                <Text style={styles.statusText}>{statusText}</Text>
-              </>
-            )}
-          </View>
-        );
-      })()}
+      {(isProcessing || isReasoning) && (
+        <View style={styles.statusRow}><ReasoningIndicator /></View>
+      )}
     </>
   );
 }
@@ -360,7 +370,7 @@ export default MessageList;
 // ── Atoms ────────────────────────────────────────────────────────────
 
 const UserMessage = memo(function UserMessage({
-  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, onEdit,
+  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, onEdit, onFork,
 }: {
   id: string;
   text: string;
@@ -370,25 +380,31 @@ const UserMessage = memo(function UserMessage({
   fallbackLabel?: string;
   showHeader: boolean;
   timestamp?: number;
+  delivery?: ChatMessage['delivery'];
   onEdit?: (id: string, newText: string) => void;
+  onFork?: () => Promise<void>;
 }) {
   const label = author?.display || author?.handle || fallbackLabel || 'You';
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(text);
   const actions = !editing ? (
-    <View style={[styles.msgActions, !showHeader && styles.continuationActions]}>
+    <View style={[styles.msgActions, styles.userActions]}>
       <CopyButton text={text} />
+      <ForkButton onFork={onFork} />
       {onEdit && (
         <TouchableOpacity
           style={styles.msgActionBtn}
           // @ts-ignore — web hover/press affordance
           {...(Platform.OS === 'web' ? { className: 'oa-icon-btn' } : {})}
           onPress={() => { setDraft(text); setEditing(true); }}
+          accessibilityRole="button"
           accessibilityLabel="Edit message"
         >
           <Feather name="edit-2" size={11} color={colors.textMuted} />
         </TouchableOpacity>
       )}
+      {delivery === 'failed' ? <Text style={styles.failedMessage}>Not sent</Text> : null}
+      <TurnTime timestamp={timestamp} />
     </View>
   ) : null;
   return (
@@ -396,39 +412,19 @@ const UserMessage = memo(function UserMessage({
       style={[styles.userBlock, !showHeader && styles.userContinuation]}
       testID="oa-user-message"
       // @ts-ignore
-      {...(Platform.OS === 'web' ? { className: 'oa-msg-in oa-row-hover' } : {})}
+      {...(Platform.OS === 'web' ? { className: 'oa-row-hover' } : {})}
     >
-      <View style={[styles.userBody, !showHeader && styles.continuationBody]}>
+      <View style={styles.userBody}>
         {showHeader ? (
           <View style={styles.userHead} testID="oa-human-message-header">
             <Text style={styles.userLabel}>{label}</Text>
-            {actions}
-            <TurnTime timestamp={timestamp} flushToTranscriptEdge />
           </View>
-        ) : actions}
+        ) : null}
         {editing ? (
           <>
             <View style={styles.editBox}>
-              <Text
-                // @ts-ignore — pass-through to underlying div as a textarea wrapper
-                style={styles.editPlaceholder}
-              >
-                {Platform.OS === 'web' ? (
-                  // @ts-ignore — RNW lets us drop in a real textarea inline
-                  <textarea
-                    value={draft}
-                    onChange={(e: any) => setDraft(e.target.value)}
-                    rows={Math.max(2, draft.split('\n').length)}
-                    autoFocus
-                    style={{
-                      width: '100%', background: 'transparent', border: 'none',
-                      color: colors.text, fontSize: 14, lineHeight: 1.5,
-                      fontFamily: font.sans, padding: 0, resize: 'vertical',
-                      outline: 'none', minHeight: 60,
-                    } as any}
-                  />
-                ) : draft}
-              </Text>
+              <TextInput value={draft} onChangeText={setDraft} multiline autoFocus
+                accessibilityLabel="Edit message text" style={styles.editPlaceholder} />
             </View>
             <View style={styles.editActionsRow}>
               <TouchableOpacity
@@ -455,17 +451,18 @@ const UserMessage = memo(function UserMessage({
             </View>
           </>
         ) : (
-          parts?.length ? <OrderedParts parts={parts} assistant={false} />
-            : text ? <Text style={styles.userText} selectable>{text}</Text> : null
+          parts?.length ? <OrderedParts parts={parts} />
+            : text ? <Markdown text={text} /> : null
         )}
         {!editing && !parts?.length && <AttachmentBlock attachments={attachments} />}
+        {actions}
       </View>
     </View>
   );
 });
 
 const AssistantMessage = memo(function AssistantMessage({
-  text, model, attachments, parts, streaming, author, showHeader, timestamp, onRegenerate,
+  text, model, attachments, parts, streaming, author, showHeader, timestamp, actionText, onRegenerate, onFork,
 }: {
   text: string;
   model?: string;
@@ -475,23 +472,28 @@ const AssistantMessage = memo(function AssistantMessage({
   author?: MessageAuthor;
   showHeader: boolean;
   timestamp?: number;
+  actionText?: string;
   onRegenerate?: () => void;
+  onFork?: () => Promise<void>;
 }) {
   const label = author?.display || 'OpenAgent';
-  const actions = !streaming ? (
-    <View style={[styles.msgActions, !showHeader && styles.continuationActions]}>
-      <CopyButton text={text} />
+  const actions = !streaming && actionText != null ? (
+    <View style={styles.msgActions}>
+      <CopyButton text={actionText} />
+      <ForkButton onFork={onFork} />
       {onRegenerate && (
         <TouchableOpacity
           style={styles.msgActionBtn}
           // @ts-ignore — web hover/press affordance
           {...(Platform.OS === 'web' ? { className: 'oa-icon-btn' } : {})}
           onPress={onRegenerate}
+          accessibilityRole="button"
           accessibilityLabel="Regenerate response"
         >
           <Feather name="refresh-cw" size={11} color={colors.textMuted} />
         </TouchableOpacity>
       )}
+      <TurnTime timestamp={timestamp} />
     </View>
   ) : null;
   return (
@@ -499,43 +501,37 @@ const AssistantMessage = memo(function AssistantMessage({
       style={[styles.assistantBlock, !showHeader && styles.assistantContinuation]}
       testID="oa-assistant-message"
       // @ts-ignore
-      {...(Platform.OS === 'web' ? { className: 'oa-msg-in oa-row-hover' } : {})}
+      {...(Platform.OS === 'web' ? { className: 'oa-row-hover' } : {})}
     >
       {showHeader ? (
         <View style={styles.assistantHead} testID="oa-agent-message-header">
           <Text style={styles.assistantLabel} testID="oa-agent-message-label">{label}</Text>
           {model && <Text style={styles.modelText}>· {model}</Text>}
-          <View style={styles.headerSpacer} />
-          {actions}
-          <TurnTime timestamp={timestamp} />
         </View>
-      ) : actions}
-      <View style={[styles.assistantBody, !showHeader && styles.continuationBody]}>
-        {parts?.length ? <OrderedParts parts={parts} assistant /> : (
+      ) : null}
+      <View style={styles.assistantBody}>
+        {parts?.length ? <OrderedParts parts={parts} /> : (
           <>
             <Markdown text={text} streaming={streaming} />
             <AttachmentBlock attachments={attachments} downloadable />
           </>
         )}
       </View>
+      {actions}
     </View>
   );
 });
 
 const OrderedParts = memo(function OrderedParts({
   parts,
-  assistant,
 }: {
   parts: MessagePart[];
-  assistant: boolean;
 }) {
   return (
     <Fragment>
       {parts.map((part, index) => {
         if (part.kind === 'text') {
-          return assistant
-            ? <Markdown key={`text-${index}`} text={part.text} />
-            : <Text key={`text-${index}`} style={styles.userText} selectable>{part.text}</Text>;
+          return <Markdown key={`text-${index}`} text={part.text} />;
         }
         if (part.kind === 'attachment') {
           return (
@@ -559,25 +555,27 @@ const OrderedParts = memo(function OrderedParts({
   );
 });
 
-// Generic copy-to-clipboard button used by both user + assistant headers.
+// Message actions are shared across all authors.
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const doCopy = async () => {
-    if (Platform.OS !== 'web' || typeof navigator === 'undefined') return;
     try {
-      await navigator.clipboard.writeText(text);
+      if (Platform.OS === 'web') await navigator.clipboard.writeText(text);
+      else Clipboard.setString(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     } catch (e) {
       console.error('Copy failed:', e);
     }
   };
+  if (!text) return null;
   return (
     <TouchableOpacity
       style={styles.msgActionBtn}
       // @ts-ignore — web hover/press affordance
       {...(Platform.OS === 'web' ? { className: 'oa-icon-btn' } : {})}
       onPress={doCopy}
+      accessibilityRole="button"
       accessibilityLabel={copied ? 'Copied' : 'Copy message'}
     >
       <Feather
@@ -589,12 +587,26 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function ForkButton({ onFork }: { onFork?: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  if (!onFork) return null;
+  return <TouchableOpacity style={styles.msgActionBtn} disabled={busy}
+    accessibilityRole="button" accessibilityLabel="Fork conversation from this message"
+    onPress={async () => {
+      setBusy(true);
+      try { await onFork(); } finally { setBusy(false); }
+    }}>
+    {busy ? <ActivityIndicator size={11} color={colors.textMuted} />
+      : <Feather name="git-branch" size={11} color={colors.textMuted} />}
+  </TouchableOpacity>;
+}
+
 // The agent-authored seed of a child session — the task/mission/role prompt
 // the agent gave itself. Rendered distinctly so it reads as "the agent set
 // itself this task", not as a human "You" message.
 const SelfPromptBlock = memo(function SelfPromptBlock({
-  text, label, timestamp,
-}: { text: string; label?: string; timestamp?: number }) {
+  text, label, timestamp, onFork,
+}: { text: string; label?: string; timestamp?: number; onFork?: () => Promise<void> }) {
   return (
     <View
       style={styles.selfPromptBlock}
@@ -606,29 +618,28 @@ const SelfPromptBlock = memo(function SelfPromptBlock({
         <View style={styles.userHead}>
           <Feather name="target" size={11} color={colors.accent} />
           <Text style={styles.selfPromptLabel}>{(label || 'Mission').toUpperCase()}</Text>
-          <TurnTime timestamp={timestamp} />
         </View>
         <Markdown text={text} />
+        <View style={styles.msgActions}>
+          <CopyButton text={text} />
+          <ForkButton onFork={onFork} />
+          <TurnTime timestamp={timestamp} />
+        </View>
       </View>
     </View>
   );
 });
 
-function TurnTime({
-  timestamp,
-  flushToTranscriptEdge = false,
-}: {
-  timestamp?: number;
-  flushToTranscriptEdge?: boolean;
-}) {
-  if (timestamp == null) return null;
+function TurnTime({ timestamp }: { timestamp?: number }) {
+  if (!timestamp || !Number.isFinite(timestamp)) return null;
   const label = new Date(timestamp).toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
   });
   return (
     <Text
-      style={[styles.turnTime, flushToTranscriptEdge && styles.turnTimeFlushRight]}
+      style={styles.turnTime}
+      accessibilityLabel={new Date(timestamp).toLocaleString()}
       testID="oa-message-turn-time"
     >
       {label}
@@ -686,6 +697,7 @@ const ToolCard = memo(function ToolCard({
         // @ts-ignore — web animation class only
         {...(Platform.OS === 'web' ? { className: 'oa-msg-in' } : {})}
       >
+        {isRunning ? <ToolShine /> : null}
         <View style={styles.toolCardHeader}>
           <View style={[styles.toolStatusDot, { backgroundColor: statusColor }]} />
           <Feather name="tool" size={12} color={colors.textMuted} />
@@ -753,8 +765,9 @@ const ToolCard = memo(function ToolCard({
         isError && styles.toolCardError,
       ]}
       // @ts-ignore
-      {...(Platform.OS === 'web' ? { className: 'oa-msg-in oa-card-hover' } : {})}
+      {...(Platform.OS === 'web' ? { className: 'oa-card-hover' } : {})}
     >
+      {isRunning ? <ToolShine /> : null}
       <View style={styles.toolCardHeader}>
         <View style={[styles.toolStatusDot, { backgroundColor: statusColor }]} />
         <Feather
@@ -917,7 +930,7 @@ const CompactionCard = memo(function CompactionCard({ info }: { info?: Compactio
       onPress={() => { if (canExpand) setExpanded(!expanded); }}
       style={[styles.toolCard, styles.compactionCard]}
       // @ts-ignore — web hover affordance
-      {...(Platform.OS === 'web' ? { className: 'oa-msg-in oa-card-hover' } : {})}
+      {...(Platform.OS === 'web' ? { className: 'oa-card-hover' } : {})}
     >
       <View style={styles.toolCardHeader}>
         <View
@@ -1009,13 +1022,6 @@ const styles = StyleSheet.create({
     fontSize: 9.5, lineHeight: 13,
     marginLeft: 8,
   },
-  // User bubbles inset their content by 12px. Let only the timestamp reach the
-  // shared transcript edge so human, agent and mission times form one column.
-  turnTimeFlushRight: { marginRight: -12 },
-  userText: {
-    fontSize: 14, lineHeight: 22, color: colors.text,
-    fontWeight: '400',
-  },
   // Agent-self seed prompt (Mission / Role / Task) — an accent-ruled quote.
   selfPromptBlock: {
     flexDirection: 'row', alignItems: 'stretch',
@@ -1031,22 +1037,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase', letterSpacing: 0.8, marginLeft: 6,
   },
 
-  // Hover action buttons (Copy / Edit / Regenerate) — live in the first
-  // message header, or at the top-right of a grouped continuation. Web-only
-  // hover-reveal is layered on via ``.oa-row-hover`` (see theme.ts).
-  msgActions: {
-    flexDirection: 'row', gap: 2, marginLeft: 'auto',
-    // @ts-ignore — web-only opacity for hover-reveal; native always-shown
-    ...(Platform.OS === 'web' ? { opacity: 0, transition: 'opacity 0.16s' as any } : {}),
-  },
-  continuationActions: Platform.OS === 'web'
-    ? {
-        position: 'absolute', top: 4, right: 4, zIndex: 1,
-      }
-    : {
-        alignSelf: 'flex-end', marginBottom: 2,
-      },
-  continuationBody: Platform.OS === 'web' ? { paddingRight: 52 } : {},
+  msgActions: { flexDirection: 'row', gap: 4, alignItems: 'center', marginTop: 4 },
+  userActions: { justifyContent: 'flex-end' },
+  failedMessage: { color: colors.error, fontSize: 11, marginLeft: 4 },
   msgActionBtn: {
     width: 22, height: 22, borderRadius: radius.xs,
     alignItems: 'center', justifyContent: 'center',
@@ -1082,7 +1075,6 @@ const styles = StyleSheet.create({
   assistantHead: {
     flexDirection: 'row', alignItems: 'center', gap: 2, marginBottom: 6,
   },
-  headerSpacer: { flex: 1 },
   assistantLabel: {
     fontSize: 10, fontWeight: '600', color: colors.primary,
     textTransform: 'uppercase', letterSpacing: 0.8,
@@ -1098,15 +1090,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingVertical: 10,
   },
-  statusDot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: colors.primary,
-  },
-  statusText: {
-    color: colors.textMuted, fontSize: 13, fontStyle: 'italic',
-    fontFamily: font.mono,
-  },
-
   // Tool rows + cards
   toolRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,

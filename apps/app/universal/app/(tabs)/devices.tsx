@@ -43,11 +43,11 @@ export default function DevicesScreen() {
     </View>
     <View style={{ maxWidth: 480, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 20, gap: 12 }}>
       <Text style={{ color: colors.text, fontSize: 16, fontWeight: '600' }}>Agent computer</Text>
-      <SessionDevices />
+      <SessionDevices showHostLabel={false} />
     </View>
     <Text style={{ color: colors.textSecondary }}>Your connected OpenAgent clients share their enabled tools with your interactive sessions. Device access is managed in Settings on each computer.</Text>
     {error && <Text accessibilityRole="alert" style={{ color: colors.error }}>{error}</Text>}
-    {!loading && !error && !devices.length && <Text style={{ color: colors.textMuted }}>No devices yet. Open the desktop app and enable local computer tools in Settings.</Text>}
+    {!loading && !error && !devices.length && <Text style={{ color: colors.textMuted }}>No connected client computers yet. Open the desktop app and enable local computer tools in Settings.</Text>}
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
       {devices.map(device => <View key={`${device.device_id}:${device.client_instance_id}`} style={{ flexGrow: 1, flexBasis: 260, flexShrink: 1, maxWidth: 480, minWidth: 0, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: 20, gap: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

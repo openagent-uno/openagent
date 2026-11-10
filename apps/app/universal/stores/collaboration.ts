@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { SharedPerson, SharedTarget } from '../../common/collaboration';
-import { mergeSharedTranscript } from '../../common/shared-transcript';
+import { mergeSharedTranscript, unconfirmedMessages } from '../../common/shared-transcript';
 import { CollaborationClient } from '../services/collaboration';
 import { useChat } from './chat';
 import { sessionIsRevoked, setSessionRevoked } from './sessionReadAccess';
@@ -53,7 +53,7 @@ export function bindShared(next: CollaborationClient | null) {
             ? [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false }]
             : s.sessions).map(se => se.id === id
             ? (withdrawn
-              ? { ...se, accessRevoked: true, messages: [], sharedSnapshot: undefined, messageWindow: undefined, contextUsage: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
+              ? { ...se, accessRevoked: true, messages: [], outbound: undefined, sharedSnapshot: undefined, messageWindow: undefined, contextUsage: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
               : { ...se, sharedSnapshot: undefined })
             : se) }));
         }
@@ -75,7 +75,7 @@ export function bindShared(next: CollaborationClient | null) {
       useChat.setState(s => ({ sessions: (s.sessions.some(se => se.id === id) ? s.sessions : [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false, origin: 'delegation' as const }]).map(se => se.id === id ? {
         ...se, localDraft: snapshot.turns.length ? false : se.localDraft,
         accessRevoked: false, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
-        sharedSnapshot: snapshot,
+        sharedSnapshot: snapshot, outbound: unconfirmedMessages(se.outbound, se.messages, snapshot),
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));
       if (!running && (active.get(id) !== false || snapshot.turns.length)) {

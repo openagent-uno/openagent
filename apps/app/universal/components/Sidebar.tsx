@@ -121,8 +121,6 @@ export default function Sidebar({
   const router = useRouter();
   const segments = useSegments();
   const routeParams = useGlobalSearchParams<{ id?: string }>();
-  // Surface a post-auth drop in the navigation footer.
-  const isReconnecting = useConnection((s) => s.isReconnecting);
   // macOS shows native traffic lights over the sidebar's top-left, so the
   // brand pads down to clear them and that strip drags the window.
   const isMac = typeof window !== 'undefined' && (window as any).desktop?.platform === 'darwin';
@@ -220,7 +218,7 @@ export default function Sidebar({
       <View style={[styles.footer, styles.footerFull]}>
         <View style={styles.footerRule} />
         <View style={styles.footerActionRow}>
-          {isReconnecting && <ReconnectStatus />}
+          <ConnectionStatus />
           <FooterIcon icon="settings" label="Settings" active={activeSeg === 'settings'} onPress={() => go('/settings')} />
           <FooterIcon icon="file-text" label="Logs" active={activeSeg === 'logs'} onPress={() => go('/logs')} />
           <FooterIcon icon="activity" label="System" active={activeSeg === 'system'} onPress={() => go('/system')} />
@@ -230,12 +228,16 @@ export default function Sidebar({
   );
 }
 
-function ReconnectStatus() {
+function ConnectionStatus() {
+  const reconnecting = useConnection((s) => s.isReconnecting);
+  const connecting = useConnection((s) => s.isConnecting || s.isRestoringSession);
+  const connected = useConnection((s) => s.isConnected);
+  const label = reconnecting ? 'Reconnecting' : connecting ? 'Connecting' : connected ? 'Ready' : 'Disconnected';
+  const color = reconnecting || connecting ? colors.warning : connected ? colors.success : colors.textMuted;
   return (
-    <View style={styles.reconnectRow} accessibilityLiveRegion="polite">
-      <View style={styles.reconnectDot}
-        {...(Platform.OS === 'web' ? { className: 'oa-pulse' } : {})} />
-      <Text style={styles.reconnectText} numberOfLines={1}>Reconnecting…</Text>
+    <View style={styles.connectionRow} accessibilityLiveRegion="polite" testID="connection-status">
+      <View style={[styles.connectionDot, { backgroundColor: color }]} />
+      <Text style={styles.connectionText} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
@@ -987,12 +989,12 @@ const styles = StyleSheet.create({
   footer: { marginTop: 'auto' },
   footerFull: { paddingTop: spacing.xs },
   footerRule: { height: 1, backgroundColor: colors.borderLight, marginBottom: spacing.xs },
-  reconnectRow: {
+  connectionRow: {
     flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7,
     paddingLeft: spacing.xs,
   },
-  reconnectDot: { flexShrink: 0, width: 6, height: 6, borderRadius: 3, backgroundColor: colors.warning },
-  reconnectText: {
+  connectionDot: { flexShrink: 0, width: 6, height: 6, borderRadius: 3 },
+  connectionText: {
     flexShrink: 1, fontSize: 11, color: colors.textSecondary, fontFamily: font.mono, letterSpacing: 0.3,
   },
   footerActionRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.xs },

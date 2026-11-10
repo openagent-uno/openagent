@@ -12,6 +12,7 @@ import { memo } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { colors, radius } from '../theme';
+import { ToolShine } from './TranscriptMotion';
 
 export type DelegationPhase = 'running' | 'completed' | 'stopped' | 'error';
 
@@ -23,10 +24,7 @@ const DOT_COLOR: Record<DelegationPhase, string> = {
 };
 
 export interface DelegationCardProps {
-  /** The child session to deep-link into. Absent while the delegation is
-   *  still running (the child session id isn't minted until the sub-agent
-   *  starts) — the card then renders as a non-clickable "running" card so the
-   *  parent never shows the raw delegate-tool prompt. */
+  /** The authorized child session, available as soon as it starts. */
   childSessionId?: string;
   title: string;
   model?: string;
@@ -52,6 +50,7 @@ const DelegationCard = memo(function DelegationCard({
         ? { className: clickable ? 'oa-msg-in oa-row-hover oa-card-hover' : 'oa-msg-in' }
         : {})}
     >
+      {phase === 'running' ? <ToolShine /> : null}
       <View style={[styles.dot, { backgroundColor: DOT_COLOR[phase] }]} />
       <Feather name="git-branch" size={12} color={colors.textMuted} style={styles.icon} />
       <View style={styles.body}>
@@ -72,6 +71,7 @@ export default DelegationCard;
 
 const styles = StyleSheet.create({
   card: {
+    overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

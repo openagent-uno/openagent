@@ -109,6 +109,9 @@ test('live chat preserves AI account errors, navigation and child reasoning', as
     await expect(page.getByText('latest live request', { exact: true })).toBeVisible();
     await expect(page.getByText('partial live answer', { exact: true })).toBeVisible();
 
+    const user = page.getByTestId('oa-user-message').filter({ hasText: 'latest live request' });
+    await expect(user.getByLabel('Copy message')).toBeVisible();
+    await expect(user.getByTestId('oa-message-turn-time')).toBeVisible();
     // Reproduce the sub-agent case: reasoning is the child's first frame,
     // before its sidebar metadata exists. Open it through the production
     // delegation card and verify the animated state survived routing.
@@ -125,13 +128,24 @@ test('live chat preserves AI account errors, navigation and child reasoning', as
         tool_args: { model_id: 'researcher' },
         child_session_id: childId,
         child_session_title: 'Research child',
-        result: JSON.stringify({ child_session_id: childId }),
-        status: 'completed',
+        status: 'running',
       }),
     });
-    await page.getByText('Research child', { exact: true }).click();
+    await expect(page.getByTestId('running-tool-shine')).toBeVisible();
+    await page.getByRole('button', { name: 'Open sub-agent session Research child' }).click();
     await expect(page).toHaveURL(/session=e2e-session%3A%3Asub%3A%3Aresearcher%3A%3Arun-1/);
-    await expect(page.getByLabel('Reasoning', { exact: true })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Agent is working' })).toBeVisible();
+    gateway.sendChatFrame({ type: 'delta', session_id: childId, text: [
+      '**Bold** and *italic* with `#1A2B3C` and [reference](https://example.org/reference).',
+      '', '- Root item', '  + Nested item', '',
+      'Name | Value', '--- | ---:', 'Example | 42', '',
+      '~~~js', 'const value = 42;', '~~~',
+    ].join('\n') });
+    await expect(page.getByRole('link', { name: /reference/ })).toHaveAttribute('href', 'https://example.org/reference');
+    await expect(page.getByLabel('Markdown table')).toBeVisible();
+    await expect(page.getByText('Nested item', { exact: true })).toBeVisible();
+    await expect(page.getByLabel('Color #1A2B3C')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy code' })).toBeVisible();
 
     // Server-side public categories must reach the existing app verbatim.
     // Neither failed provider credentials nor quota exhaustion is fixed by /clear.

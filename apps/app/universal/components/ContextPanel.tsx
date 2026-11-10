@@ -81,8 +81,8 @@ function StackedBar({ ctx, height = 9 }: { ctx: SessionContext; height?: number 
 export interface ContextPanelProps {
   context?: SessionContext;
   /** Presentation: 'floating' pins it top-right over the chat transcript;
-   *  'inline' drops it into a run/detail header as an ordinary block. */
-  variant?: 'floating' | 'inline';
+   *  'inline' is a standalone card; 'embedded' uses the surrounding section. */
+  variant?: 'floating' | 'inline' | 'embedded';
   /** Extra top offset for the floating variant (e.g. the header inset). */
   topInset?: number;
   /** The legacy floating panel is governed by the persisted visibility
@@ -172,10 +172,10 @@ const ContextPanel = memo(function ContextPanel({
   const card = (
     <View
       style={[
-        styles.card,
+        variant === 'embedded' ? styles.embedded : styles.card,
         variant === 'floating' && styles.floatingCard,
         variant === 'inline' && styles.inlineCard,
-        Platform.OS === 'web' ? ({ backdropFilter: glassSurface.webFilter, WebkitBackdropFilter: glassSurface.webFilter } as any) : null,
+        variant !== 'embedded' && Platform.OS === 'web' ? ({ backdropFilter: glassSurface.webFilter, WebkitBackdropFilter: glassSurface.webFilter } as any) : null,
       ]}
       // @ts-ignore — web entrance animation
       {...(Platform.OS === 'web' ? { className: 'oa-msg-in' } : {})}
@@ -196,11 +196,11 @@ const ContextPanel = memo(function ContextPanel({
         </Pressable>
       ) : summaryRow}
       <StackedBar ctx={context} />
-      {variant === 'inline' || expanded ? detail : null}
+      {variant !== 'floating' || expanded ? detail : null}
     </View>
   );
 
-  if (variant === 'inline') return card;
+  if (variant !== 'floating') return card;
 
   return (
     <View
@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 5,
   },
+  embedded: { alignSelf: 'stretch', gap: 11 },
   inlineCard: {
     alignSelf: 'stretch',
   },

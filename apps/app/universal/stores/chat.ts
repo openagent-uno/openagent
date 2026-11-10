@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
-import { mergeSharedTranscript } from '../../common/shared-transcript';
+import { mergeSharedTranscript, unconfirmedMessages } from '../../common/shared-transcript';
 import {
   toolPhase,
   toolDisplay,
@@ -24,7 +24,8 @@ import {
 import type { SessionEntry } from '../services/api';
 import type { SessionMessage, SessionMessagePage, ToolInvocationDetail } from '../../common/unified-history';
 import { normalizeAttachmentRefs, normalizeMessageContent } from '../../common/ui-views';
-import { attachmentKey } from '../../common/attachments';
+import type { OpenAgentWS } from '../services/ws';
+import { attachmentKey, attachmentsForSend } from '../../common/attachments';
 import { isAutomaticSessionTitle, sessionTitleFromPrompt } from '../../common/session-title';
 import {
   toolInfoFromInvocationDetail,
@@ -1670,6 +1671,7 @@ export const useChat = create<ChatState>((set, get) => ({
     // So: heard nothing since we attached ⇒ nobody is running this turn.
     const stale = get().sessions.filter((se) => (
       (se.isProcessing || se.isReasoning)
+      && !se.sharedSnapshot?.turns.some(turn => turn.active)
       && !se.messages.some(message => message.sharedTurnId && message.streaming)
       && (lastFrameAt.get(se.id) ?? 0) < attachedAt
     ));
@@ -1728,7 +1730,8 @@ export const useChat = create<ChatState>((set, get) => ({
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
             if (se.isProcessing) return se;
-            return { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) };
+            const patch = transcriptPatch(loaded, se.messages, se.sharedSnapshot);
+            return { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) };
           }),
         }));
       })
@@ -1836,3 +1839,54 @@ export const useChat = create<ChatState>((set, get) => ({
     return id;
   },
 }));
+
+
+/** Display a typed turn before discovery/admission, then reconcile by the
+ * idempotency key. Legacy transports keep their existing local echo. */
+export function sendTypedChat(
+  connection: OpenAgentWS, sessionId: string, text: string,
+  options: { llmPin?: string; systemPrompt?: string; attachments?: Attachment[]; legacyEditMessageId?: string } = {},
+) {
+  const current = sessionReadGuard(sessionId);
+  if (!current()) return;
+  const requestId = globalThis.crypto?.randomUUID?.() ?? genId();
+  const { attachments, llmPin, systemPrompt, legacyEditMessageId } = options;
+  const message: ChatMessage = {
+    id: requestId, providerRunId: requestId, role: 'user', text,
+    timestamp: Date.now(), attachments, delivery: 'pending',
+  };
+  const update = (change: (outbound: ChatMessage[]) => ChatMessage[]) => {
+    if (!current()) return;
+    useChat.setState(state => ({
+      sessions: state.sessions.map(session => session.id === sessionId
+        ? { ...session, outbound: change(session.outbound ?? []) } : session),
+    }));
+  };
+  useChat.setState(state => {
+    const known = state.sessions.some(session => session.id === sessionId);
+    const sessions = known ? state.sessions : capHiddenStubs([
+      ...state.sessions,
+      { id: sessionId, messages: [], isProcessing: false, ...childStubFor(sessionId) } as ChatSession,
+    ], state.activeSessionId);
+    return { sessions: sessions.map(session => session.id === sessionId
+      ? { ...session, outbound: [...(session.outbound ?? []), message] } : session) };
+  });
+  connection.sendMessage(text, sessionId, {
+    requestId, llmPin, systemPrompt, attachments: attachmentsForSend(attachments),
+    onLegacy: () => {
+      update(outbound => outbound.filter(item => item.id !== requestId));
+      if (!current()) return false;
+      if (legacyEditMessageId) return useChat.getState().editUserMessage(sessionId, legacyEditMessageId, text);
+      useChat.getState().addUserMessage(sessionId, text, attachments);
+    },
+    onRejected: () => update(outbound => outbound.map(item => item.id === requestId
+      ? { ...item, delivery: 'failed' } : item)),
+    onSettled: () => {
+      // HTTP success still confirms admission if the live observer is
+      // temporarily offline. Keep the bubble until history can replace it.
+      update(outbound => outbound.map(item => item.id === requestId
+        ? { ...item, delivery: 'confirmed' } : item));
+      if (current()) void useChat.getState().reconcileSession(sessionId);
+    },
+  });
+}

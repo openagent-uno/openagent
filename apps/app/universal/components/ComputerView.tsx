@@ -18,6 +18,8 @@ type QueuedInput = {
 /** One exact computer per mounted view. Closing aborts reads and stops polling. */
 export default function ComputerView({ sessionId, target, onClose }: { sessionId?: string; target: ComputerTarget; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
+  const canControl = target.can_control !== false;
+  const nativeHost = target.can_control !== undefined && sessionId === undefined;
   const live = Platform.OS === 'web' && target.live_media === 'openagent-video/1';
   const [frame, setFrame] = useState<ComputerFrame | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +33,9 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
   const alive = useRef(true);
   const controller = useRef(new AbortController());
   const pausedRef = useRef(false);
+  const frameRef = useRef<ComputerFrame | null>(null);
   const perform = useCallback((action: ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}): Promise<boolean> => {
-    if (!alive.current || (action === 'get_screenshot' && (lock.current || pending.current > 0))) return Promise.resolve(false);
+    if ((!canControl && action !== 'get_screenshot') || !alive.current || (action === 'get_screenshot' && (lock.current || pending.current > 0))) return Promise.resolve(false);
     const previous = lastQueuedInput.current;
     // Preserve every character while a slow exact-device call is in flight.
     // Merge only consecutive, not-yet-started text operations; pointer/key
@@ -50,15 +53,20 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
       if (!alive.current || (failed.current && action !== 'get_screenshot')) { pending.current--; return false; }
       lock.current = true; setBusy(true);
       try {
-        const result = await interactWithComputer(sessionId, target.tool_ref, action, task.input, controller.current.signal);
+        const geometry = frameRef.current;
+        const screenSize: [number, number] | undefined = nativeHost && task.input.coordinate && geometry
+          ? [geometry.input_width || geometry.width, geometry.input_height || geometry.height]
+          : undefined;
+        const result = await interactWithComputer(sessionId, target.tool_ref, action,
+          { ...task.input, ...(screenSize && { screen_size: screenSize }) }, controller.current.signal);
         if (!alive.current) return false;
         const next = computerFrame(result);
-        if (next) setFrame(next);
+        if (next) { frameRef.current = next; setFrame(next); }
         setError(null);
         failed.current = false;
         if (!live && action !== 'get_screenshot' && action !== 'mouse_move' && pending.current === 1) {
           const refresh = await interactWithComputer(sessionId, target.tool_ref, 'get_screenshot', {}, controller.current.signal);
-          if (alive.current) { const screenshot = computerFrame(refresh); if (screenshot) setFrame(screenshot); }
+          if (alive.current) { const screenshot = computerFrame(refresh); if (screenshot) { frameRef.current = screenshot; setFrame(screenshot); } }
         }
         return true;
       } catch (e) {
@@ -76,7 +84,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
     lastQueuedInput.current = task;
     queue.current = result.then(() => {}, () => {});
     return result;
-  }, [sessionId, target.tool_ref, live]);
+  }, [sessionId, target.tool_ref, live, canControl, nativeHost]);
 
   useEffect(() => {
     alive.current = true;
@@ -93,7 +101,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
   }, [perform, live]);
 
   const mediaError = useCallback((message:string) => {setError(message);setPaused(true);pausedRef.current=true;failed.current=true;},[]);
-  const mediaFrame = useCallback((next:ComputerFrame) => {setFrame(next);setError(null);failed.current=false;},[]);
+  const mediaFrame = useCallback((next:ComputerFrame) => {frameRef.current=next;setFrame(next);setError(null);failed.current=false;},[]);
   const displayWidth = Math.max(1, Math.min(width - 56, 1040, frame ? Math.max(80, height - 160) * frame.width / frame.height : 800));
   const button = (label: string, action: () => void, disabled = false) => <Pressable key={label} onPress={action} disabled={disabled} accessibilityRole="button" accessibilityLabel={label}
     style={{ padding: 9, borderRadius: radius.sm, backgroundColor: colors.surface, opacity: disabled ? 0.45 : 1 }}><Text style={{ color: colors.text, fontSize: 12 }}>{label}</Text></Pressable>;
@@ -111,10 +119,12 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
           {error && <Text accessibilityRole="alert" style={{ color: colors.error }}>{error}</Text>}
           <View style={{ alignItems: 'center' }}>
             {live ? <ComputerMedia sessionId={sessionId} target={target} width={displayWidth} paused={paused} send={perform} onFrame={mediaFrame} onError={mediaError} />
-              : frame ? <ComputerSurface frame={frame} width={displayWidth} label={target.label} send={perform} />
+              : frame ? <ComputerSurface frame={frame} width={displayWidth} label={target.label} send={perform} readOnly={!canControl} />
               : <Text style={{ color: colors.textMuted, padding: 32 }}>{busy ? 'Connecting to computer…' : 'Screen unavailable'}</Text>}
           </View>
-          <Text style={{ color: colors.textMuted, fontSize: 11 }}>Click the desktop to control it. Your keyboard and pointer operate this computer.</Text>
+          <Text style={{ color: colors.textMuted, fontSize: 11 }}>{canControl
+            ? 'Click the desktop to control it. Your keyboard and pointer operate this computer.'
+            : 'View only'}</Text>
         </ScrollView>
       </View>
     </View>

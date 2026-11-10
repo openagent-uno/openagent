@@ -8,7 +8,7 @@ import { colors, font, radius } from '../theme';
  */
 
 import { memo, useEffect, useMemo, useState, type ReactElement } from 'react';
-import { Text, View, StyleSheet, Linking, Platform, Image, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, Linking, Platform, Image, TouchableOpacity, ScrollView, Clipboard } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 
 // Side-effect import: the CSS ships KaTeX's font face declarations.
@@ -20,13 +20,6 @@ if (Platform.OS === 'web') {
 
 interface Props {
   text: string;
-  /**
-   * Hint that the text is mid-stream (token deltas still arriving). The
-   * parser is O(n²) over total length when re-run on every delta, so
-   * while streaming we render a fast plain-text fallback and switch to
-   * full markdown once the canonical RESPONSE frame replaces the
-   * bubble's text.
-   */
   streaming?: boolean;
 }
 
@@ -60,16 +53,18 @@ function MarkdownBase({ text, streaming: _streaming }: Props) {
 // parser is O(n) in text length and runs on every render otherwise.
 export default memo(MarkdownBase);
 
-type ListItem = { text: string; checked?: boolean | null };
+type ListItem = { text: string; checked?: boolean; depth: number; number?: number };
+type Alignment = 'left' | 'center' | 'right';
+const listMarker = /^([ 	]*)([-+*•]|[0-9]{1,9}[.)])[ 	]+(.*)$/;
 type Block =
   | { type: 'paragraph'; text: string }
   | { type: 'code'; lang: string; text: string }
   | { type: 'heading'; level: number; text: string }
   | { type: 'quote'; text: string }
-  | { type: 'list'; ordered: boolean; items: ListItem[] }
+  | { type: 'list'; items: ListItem[] }
   | { type: 'hr' }
   | { type: 'math'; tex: string }
-  | { type: 'table'; headers: string[]; rows: string[][] };
+  | { type: 'table'; headers: string[]; rows: string[][]; alignment: Alignment[] };
 
 function parseBlocks(text: string): Block[] {
   const blocks: Block[] = [];
@@ -111,15 +106,14 @@ function parseBlocks(text: string): Block[] {
       continue;
     }
 
-    if (line.trimStart().startsWith('```')) {
-      const lang = line.trimStart().slice(3).trim();
+    const fence = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      const lang = fence[2].trim().split(/\s+/)[0] || '';
       const codeLines: string[] = [];
       i++;
-      while (i < lines.length && !lines[i].trimStart().startsWith('```')) {
-        codeLines.push(lines[i]);
-        i++;
-      }
-      i++;
+      const close = new RegExp('^ {0,3}' + fence[1][0] + '{' + fence[1].length + ',}\\s*$');
+      while (i < lines.length && !close.test(lines[i])) codeLines.push(lines[i++]);
+      if (i < lines.length) i++;
       blocks.push({ type: 'code', lang, text: codeLines.join('\n') });
       continue;
     }
@@ -149,46 +143,33 @@ function parseBlocks(text: string): Block[] {
       continue;
     }
 
-    // Unordered list (`-`, `*`, `•`) with optional task-list checkbox
-    // (`- [ ]` / `- [x]`).
-    if (/^[\s]*[-*•]\s/.test(line)) {
+    if (listMarker.test(line)) {
       const items: ListItem[] = [];
-      while (i < lines.length && /^[\s]*[-*•]\s/.test(lines[i])) {
-        const raw = lines[i].replace(/^[\s]*[-*•]\s+/, '');
-        const taskMatch = raw.match(/^\[([ xX])\]\s+(.*)$/);
-        if (taskMatch) {
-          items.push({ text: taskMatch[2], checked: taskMatch[1].toLowerCase() === 'x' });
-        } else {
-          items.push({ text: raw, checked: null });
-        }
+      const depths: number[] = [];
+      let entry: RegExpMatchArray | null;
+      while (i < lines.length && (entry = lines[i].match(listMarker))) {
+        const indent = entry[1].replace(/\t/g, '    ').length;
+        while (depths.length && depths[depths.length - 1] > indent) depths.pop();
+        if (depths[depths.length - 1] !== indent) depths.push(indent);
+        const task = entry[3].match(/^\[([ xX])\](?:\s+(.*)|$)/);
+        items.push({
+          text: task ? task[2] ?? '' : entry[3],
+          checked: task ? task[1].toLowerCase() === 'x' : undefined,
+          number: /^\d/.test(entry[2]) ? Number.parseInt(entry[2], 10) : undefined,
+          depth: Math.min(5, depths.length - 1),
+        });
         i++;
       }
-      blocks.push({ type: 'list', ordered: false, items });
+      blocks.push({ type: 'list', items });
       continue;
     }
 
-    // Ordered list (`1.`, `2.`, …). Numbering value is ignored — we
-    // re-number from 1 for display so messy `1. 1. 1.` outputs from
-    // the model still look right.
-    if (/^[\s]*\d+\.\s/.test(line)) {
-      const items: ListItem[] = [];
-      while (i < lines.length && /^[\s]*\d+\.\s/.test(lines[i])) {
-        items.push({ text: lines[i].replace(/^[\s]*\d+\.\s+/, ''), checked: null });
-        i++;
-      }
-      blocks.push({ type: 'list', ordered: true, items });
-      continue;
-    }
-
-    if (/^\|.+\|$/.test(line.trim()) && i + 1 < lines.length && /^\|([\s:-]+\|)+$/.test(lines[i + 1].trim())) {
-      const headers = parseTableRow(line);
+    const table = i + 1 < lines.length ? tableStart(line, lines[i + 1]) : null;
+    if (table) {
       i += 2;
       const rows: string[][] = [];
-      while (i < lines.length && /^\|.+\|$/.test(lines[i].trim())) {
-        rows.push(parseTableRow(lines[i]));
-        i++;
-      }
-      blocks.push({ type: 'table', headers, rows });
+      while (i < lines.length && lines[i].includes('|') && rows.length < 512) rows.push(parseTableRow(lines[i++]));
+      blocks.push({ type: 'table', ...table, rows });
       continue;
     }
 
@@ -197,27 +178,35 @@ function parseBlocks(text: string): Block[] {
       continue;
     }
 
-    const paraLines: string[] = [];
-    while (i < lines.length && lines[i].trim() && !lines[i].startsWith('```')
-      && !lines[i].match(/^#{1,6}\s/) && !lines[i].startsWith('> ')
-      && !/^[\s]*[-*•]\s/.test(lines[i])
-      && !/^[\s]*\d+\.\s/.test(lines[i])
+    const paraLines = [line];
+    i++;
+    while (i < lines.length && lines[i].trim() && !/^ {0,3}(`{3,}|~{3,})/.test(lines[i])
+      && !/^#{1,6}\s/.test(lines[i]) && !lines[i].startsWith('> ')
+      && !listMarker.test(lines[i])
       && !/^\s*([-*_])\s*(\1\s*){2,}$/.test(lines[i])
-      && !lines[i].trim().startsWith('$$')) {
-      paraLines.push(lines[i]);
-      i++;
+      && !lines[i].trim().startsWith('$$')
+      && !(i + 1 < lines.length && tableStart(lines[i], lines[i + 1]))) {
+      const previous = paraLines.length - 1;
+      paraLines[previous] += / {2,}$/.test(paraLines[previous]) ? '\n' : ' ';
+      paraLines.push(lines[i++]);
     }
-    if (paraLines.length) {
-      blocks.push({ type: 'paragraph', text: paraLines.join(' ') });
-    }
+    blocks.push({ type: 'paragraph', text: paraLines.join('') });
   }
-
   return blocks;
 }
 
 function parseTableRow(line: string): string[] {
-  const trimmed = line.trim().replace(/^\|/, '').replace(/\|$/, '');
-  return trimmed.split('|').map(c => c.trim());
+  const trimmed = line.trim().replace(/^\|/, '').replace(/(?<!\\)\|$/, '');
+  return trimmed.split(/(?<!\\)\|/).map(cell => cell.replace(/\\\|/g, '|').trim());
+}
+
+function tableStart(first: string, second: string) {
+  if (!first.includes('|') || !second.includes('-')) return null;
+  const headers = parseTableRow(first);
+  const divider = parseTableRow(second);
+  if (headers.length > 32 || headers.length !== divider.length || !divider.every(cell => /^:?-{3,}:?$/.test(cell))) return null;
+  return { headers, alignment: divider.map((cell): Alignment =>
+    cell.endsWith(':') ? cell.startsWith(':') ? 'center' : 'right' : 'left') };
 }
 
 function renderBlock(block: Block, key: number) {
@@ -246,9 +235,9 @@ function renderBlock(block: Block, key: number) {
         <View key={key} style={styles.list}>
           {block.items.map((item, j) => {
             const isTask = item.checked !== null && item.checked !== undefined;
-            const marker = block.ordered ? `${j + 1}.` : '—';
+            const marker = item.number == null ? (item.depth % 2 ? '◦' : '•') : item.number + '.';
             return (
-              <View key={j} style={styles.listItem}>
+              <View key={j} style={[styles.listItem, { marginLeft: item.depth * 16 }]}>
                 {isTask ? (
                   <View
                     style={[
@@ -264,7 +253,7 @@ function renderBlock(block: Block, key: number) {
                   <Text
                     style={[
                       styles.bullet,
-                      block.ordered && styles.bulletOrdered,
+                      item.number != null && styles.bulletOrdered,
                     ]}
                   >
                     {marker}
@@ -289,28 +278,31 @@ function renderBlock(block: Block, key: number) {
       return <MathBlock key={key} tex={block.tex} />;
     case 'table':
       return (
-        <View key={key} style={styles.table}>
+        <ScrollView horizontal key={key} style={styles.tableScroll}
+          contentContainerStyle={{ minWidth: '100%' }} accessibilityLabel="Markdown table">
+          <View style={[styles.table, { minWidth: block.headers.length * 104 }]}>
           <View style={styles.tableRow}>
             {block.headers.map((h, j) => (
               <View key={j} style={[styles.tableCell, styles.tableHeaderCell]}>
-                <Text style={styles.tableHeaderText}>{renderInline(h)}</Text>
+                <Text style={[styles.tableHeaderText, { textAlign: block.alignment[j] }]} selectable>{renderInline(h)}</Text>
               </View>
             ))}
           </View>
           {block.rows.map((row, r) => (
             <View key={r} style={styles.tableRow}>
-              {row.map((cell, c) => (
+              {block.headers.map((_, c) => (
                 <View key={c} style={styles.tableCell}>
-                  <Text style={styles.tableCellText}>{renderInline(cell)}</Text>
+                  <Text style={[styles.tableCellText, { textAlign: block.alignment[c] }]} selectable>{renderInline(row[c] ?? '')}</Text>
                 </View>
               ))}
             </View>
           ))}
-        </View>
+          </View>
+        </ScrollView>
       );
     case 'paragraph':
       return (
-        <Text key={key} style={styles.paragraph}>
+        <Text key={key} style={styles.paragraph} selectable>
           {renderInline(block.text)}
         </Text>
       );
@@ -492,9 +484,9 @@ export function CodeBlock({ lang, code }: { lang: string; code: string }) {
   }, [resolvedLang, code]);
 
   const doCopy = async () => {
-    if (Platform.OS !== 'web' || typeof navigator === 'undefined') return;
     try {
-      await navigator.clipboard.writeText(code);
+      if (Platform.OS === 'web') await navigator.clipboard.writeText(code);
+      else Clipboard.setString(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
     } catch (e) {
@@ -510,6 +502,7 @@ export function CodeBlock({ lang, code }: { lang: string; code: string }) {
           // @ts-ignore — web hover/press affordance
           {...(Platform.OS === 'web' ? { className: 'oa-icon-btn' } : {})}
           onPress={doCopy}
+          accessibilityRole="button"
           accessibilityLabel={copied ? 'Copied' : 'Copy code'}
         >
           <Feather
@@ -537,101 +530,85 @@ export function CodeBlock({ lang, code }: { lang: string; code: string }) {
           dangerouslySetInnerHTML={{ __html: highlightedHtml }}
         />
       ) : (
-        <Text style={styles.codeText} selectable>{code}</Text>
+        <ScrollView horizontal><Text style={styles.codeText} selectable>{code}</Text></ScrollView>
       )}
     </View>
   );
 }
 
-function renderInline(text: string): (string | ReactElement)[] {
-  const parts: (string | ReactElement)[] = [];
-  // Capture groups (order matters — `match[N]` indices feed the
-  // switch below; bold-italic must precede bold and italic so the
-  // longer token wins):
-  //   1-2  bold-italic ***x***
-  //   3-4  bold        **x**
-  //   5-6  italic      *x*
-  //   7-8  inline      `x`
-  //   9-10-11 image    ![alt](url)
-  //   12-13-14 link    [t](url)
-  //   15-16 strike     ~~x~~
-  //   17-18 math       $x$    (inline KaTeX; ``$x x x$`` with non-newline body)
-  const re = /(\*\*\*(.+?)\*\*\*)|(\*\*(.+?)\*\*)|(\*(.+?)\*)|(`([^`]+)`)|(!\[([^\]]*)\]\(([^)]+)\))|(\[([^\]]+)\]\(([^)]+)\))|(~~(.+?)~~)|(\$([^$\n]+?)\$)/g;
-  let last = 0;
-  let match: RegExpExecArray | null;
-  let idx = 0;
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > last) {
-      parts.push(text.slice(last, match.index));
-    }
-
-    if (match[2]) {
-      // bold-italic ***x***
-      parts.push(<Text key={`bi${idx++}`} style={[styles.bold, styles.italic]}>{match[2]}</Text>);
-    } else if (match[4]) {
-      parts.push(<Text key={`b${idx++}`} style={styles.bold}>{match[4]}</Text>);
-    } else if (match[6]) {
-      parts.push(<Text key={`i${idx++}`} style={styles.italic}>{match[6]}</Text>);
-    } else if (match[8]) {
-      parts.push(<Text key={`c${idx++}`} style={styles.inlineCode}>{match[8]}</Text>);
-    } else if (match[10] !== undefined && match[11]) {
-      const imgUrl = match[11];
-      if (/^https?:\/\//i.test(imgUrl)) {
-        parts.push(
-          <Image
-            key={`img${idx++}`}
-            source={{ uri: imgUrl }}
-            style={styles.inlineImage}
-            resizeMode="contain"
-          />
-        );
-      } else {
-        parts.push(match[0]);
-      }
-    } else if (match[13] && match[14]) {
-      parts.push(
-        <Text
-          key={`l${idx++}`}
-          style={styles.link}
-          onPress={() => { void openSafeMarkdownLink(match![14]); }}
-        >
-          {match[13]}
-        </Text>
-      );
-    } else if (match[16]) {
-      parts.push(
-        <Text key={`s${idx++}`} style={styles.strike}>{match[16]}</Text>,
-      );
-    } else if (match[18]) {
-      parts.push(<MathInline key={`m${idx++}`} tex={match[18]} />);
-    }
-
-    last = match.index + match[0].length;
-  }
-
-  if (last < text.length) {
-    parts.push(text.slice(last));
-  }
-
-  return parts.length ? parts : [text];
+function safeMarkdownUrl(raw: string, image = false): string | undefined {
+  if (!raw || raw.length > 8192 || /[\x00-\x20\x7f]/.test(raw)) return undefined;
+  try {
+    const url = new URL(raw);
+    if (url.username || url.password) return undefined;
+    if (url.protocol === 'mailto:' && !image && url.pathname) return url.toString();
+    if ((url.protocol === 'https:' || url.protocol === 'http:') && url.hostname) return url.toString();
+  } catch { /* relative and malformed URLs remain plain text */ }
 }
 
-async function openSafeMarkdownLink(raw: string): Promise<void> {
-  if (!raw || raw.length > 8192 || Array.from(raw).some((char) => {
-    const code = char.charCodeAt(0);
-    return code < 32 || code === 127;
-  })) return;
-  try {
-    const parsed = new URL(raw);
-    const safe = parsed.protocol === 'mailto:'
-      ? !parsed.username && !parsed.password
-      : (parsed.protocol === 'https:' || parsed.protocol === 'http:')
-        && !!parsed.hostname && !parsed.username && !parsed.password;
-    if (safe) await Linking.openURL(parsed.toString());
-  } catch {
-    // Invalid and relative URLs are inert in model-authored markdown.
+const hexColor = /^#(?:[a-f\d]{8}|[a-f\d]{6}|[a-f\d]{4}|[a-f\d]{3})$/i;
+function colorText(value: string, key: string, code = false) {
+  return <Text key={key} style={code ? styles.inlineCode : undefined}>
+    {hexColor.test(value)
+      ? <><Text accessibilityLabel={`Color ${value}`} style={[styles.colorSwatch, { color: value }]}>■</Text>{' '}</>
+      : null}
+    {value}
+  </Text>;
+}
+
+function markdownLink(label: string, raw: string, key: string, depth: number): ReactElement | string {
+  const url = safeMarkdownUrl(raw);
+  if (!url) return label;
+  const file = /\.(pdf|zip|txt|csv|docx?|xlsx?|pptx?|json|md)$/i.test(new URL(url).pathname);
+  const caption = <>{file ? '▤ ' : ''}{renderInline(label, depth + 1, false)}{file ? '' : ' ↗'}</>;
+  if (Platform.OS === 'web') return <a key={key} href={url} target="_blank" rel="noopener noreferrer"
+    style={{ color: colors.primary, textDecoration: 'underline', overflowWrap: 'anywhere' }}>{caption}</a>;
+  return <Text key={key} style={styles.link} accessibilityRole="link"
+    onPress={() => { void Linking.openURL(url).catch(() => undefined); }}>{caption}</Text>;
+}
+
+function renderInline(text: string, depth = 0, links = true): (string | ReactElement)[] {
+  if (depth > 4) return [text];
+  const parts: (string | ReactElement)[] = [];
+  // Keep explicit link/image labels and code opaque to the bare URL scanner.
+  const re = /\\([\`*_{}\[\]()#+\-.!|~])|(`+)([^`]+?)\2|!\[([^\]]*)\]\(([^\s)]+)\)|\[([^\]]+)\]\(([^\s)]+)\)|(<(?:https?:\/\/|mailto:)[^<>\s]+>|https?:\/\/[^\s<>"`]+)|(\*\*\*|___|\*\*|__|\*|_|~~)([^\n]+?)\9|\$([^$\n]+?)\$|(?<![\w#])#[\da-fA-F]{3,8}(?!\w)/g;
+  let last = 0;
+  for (const match of text.matchAll(re)) {
+    const index = match.index!;
+    if (index > last) parts.push(text.slice(last, index));
+    const key = 'inline-' + index;
+    if (match[1]) parts.push(match[1]);
+    else if (match[3]) parts.push(colorText(match[3], key, true));
+    else if (match[4] !== undefined && match[5]) {
+      const url = safeMarkdownUrl(match[5], true);
+      parts.push(url
+        ? <Image key={key} source={{ uri: url }} accessibilityLabel={match[4] || 'Image'}
+          style={styles.inlineImage} resizeMode="contain" />
+        : match[0]);
+    } else if (match[6] && match[7]) {
+      parts.push(links ? markdownLink(match[6], match[7], key, depth) : match[6]);
+    } else if (match[8]) {
+      const raw = match[8];
+      let url = raw.startsWith('<') ? raw.slice(1, -1) : raw.replace(/[.,!?;:]+$/, '');
+      if (!raw.startsWith('<') && url.endsWith(')')) {
+        let balance = 0;
+        for (const char of url) balance += char === '(' ? 1 : char === ')' ? -1 : 0;
+        while (balance < 0 && url.endsWith(')')) { url = url.slice(0, -1); balance++; }
+      }
+      parts.push(links ? markdownLink(url, url, key, depth) : raw);
+      if (links && !raw.startsWith('<') && raw.startsWith(url) && raw.length > url.length) parts.push(raw.slice(url.length));
+    } else if (match[9] && match[10]) {
+      const marker = match[9];
+      parts.push(<Text key={key} style={[marker !== '~~' && marker.length >= 2 && styles.bold,
+        marker.length % 2 === 1 && styles.italic, marker === '~~' && styles.strike]}>
+        {renderInline(match[10], depth + 1, links)}
+      </Text>);
+    } else if (match[11]) parts.push(<MathInline key={key} tex={match[11]} />);
+    else parts.push(hexColor.test(match[0]) ? colorText(match[0], key) : match[0]);
+    last = index + match[0].length;
   }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
 }
 
 const styles = StyleSheet.create({
@@ -771,8 +748,10 @@ const styles = StyleSheet.create({
     marginVertical: 8,
     backgroundColor: colors.codeBg,
   },
+  colorSwatch: { fontSize: 13, fontWeight: "600" },
+  tableScroll: { marginVertical: 8, flexGrow: 0 },
   table: {
-    marginVertical: 8,
+    flexGrow: 1,
     borderWidth: 1,
     borderColor: colors.codeBorder,
     borderRadius: radius.md,

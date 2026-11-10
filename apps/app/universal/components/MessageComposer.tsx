@@ -74,12 +74,8 @@ export interface MessageComposerProps {
   onPickFile?: () => void;             // omit → no paperclip button
   onSend: () => void;
   disabled?: boolean;                  // disables send (e.g. session.isProcessing)
-  /** When true (session is processing), the trailing Send button morphs
-   *  into a Stop button that calls ``onStop``. The input itself stays
-   *  interactive: the user can type a steer message and press Enter to
-   *  send it mid-turn (the server coalesces it into the running turn).
-   *  Do NOT also pass ``disabled`` while processing — that would re-block
-   *  the Enter-to-steer path. */
+  /** Keep Stop available during a turn and show Send alongside it when
+   * there is a steering message ready. Both actions work on touch. */
   processing?: boolean;
   onStop?: () => void;
   /** Optional recall handlers — wired to Up Arrow on empty composer and
@@ -603,28 +599,31 @@ export default function MessageComposer({
               </TouchableOpacity>
             )}
           </View>
-          {processing && onStop ? (
-            <TouchableOpacity
-              style={styles.sendBtn}
-              onPress={onStop}
-              accessibilityLabel="Stop generating"
-              // @ts-ignore — web press affordance
-              {...(Platform.OS === 'web' ? { className: 'oa-press' } : {})}
-            >
-              <Feather name="square" size={11} color={colors.textInverse} />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
-              onPress={onSend}
-              disabled={!canSend}
-              accessibilityLabel="Send message"
-              // @ts-ignore — web press affordance
-              {...(Platform.OS === 'web' ? { className: 'oa-press' } : {})}
-            >
-              <Feather name="arrow-up" size={13} color={colors.textInverse} />
-            </TouchableOpacity>
-          )}
+          <View style={styles.composerSendActions}>
+            {processing && onStop ? (
+              <TouchableOpacity
+                style={[styles.sendBtn, canSend && styles.stopAlongsideSend]}
+                onPress={onStop}
+                accessibilityRole="button"
+                accessibilityLabel="Stop generating"
+                {...(Platform.OS === 'web' ? { className: 'oa-press' } : {})}
+              >
+                <Feather name="square" size={11} color={canSend ? colors.textSecondary : colors.textInverse} />
+              </TouchableOpacity>
+            ) : null}
+            {!processing || !onStop || canSend ? (
+              <TouchableOpacity
+                style={[styles.sendBtn, !canSend && styles.sendBtnDisabled]}
+                onPress={onSend}
+                disabled={!canSend}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                {...(Platform.OS === 'web' ? { className: 'oa-press' } : {})}
+              >
+                <Feather name="arrow-up" size={13} color={colors.textInverse} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       </View>
       {showHint && (
@@ -732,6 +731,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingTop: 4,
   },
+  composerSendActions: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0 },
+  stopAlongsideSend: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   composerLeft: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 4, alignItems: 'center', minWidth: 0 },
   modelChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

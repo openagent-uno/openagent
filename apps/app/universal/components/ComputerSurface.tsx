@@ -5,10 +5,10 @@ import type { ComputerAction, ComputerFrame } from '../../common/devices';
 import { screenCoordinate } from '../../common/devices';
 
 type Input = { coordinate?: [number, number]; text?: string };
-export interface ComputerSurfaceProps { children?: ReactNode; frame: ComputerFrame; width: number; label: string; send: (action: ComputerAction, input?: Input) => Promise<boolean> }
+export interface ComputerSurfaceProps { children?: ReactNode; frame: ComputerFrame; width: number; label: string; readOnly?: boolean; send: (action: ComputerAction, input?: Input) => Promise<boolean> }
 
 /** Native input capture stays invisible; the screen itself owns all gestures. */
-export default function ComputerSurface({ frame, width, label, send, children }: ComputerSurfaceProps) {
+function InteractiveComputerSurface({ frame, width, label, send, children }: ComputerSurfaceProps) {
   const keyboard = useRef<TextInput>(null);
   const start = useRef({ x: 0, y: 0, at: 0 });
   const current = useRef({ frame, width, send }); current.current = { frame, width, send };
@@ -30,5 +30,14 @@ export default function ComputerSurface({ frame, width, label, send, children }:
       style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
       onChangeText={text => { if (text) void current.current.send('type', { text }); }}
       onKeyPress={({ nativeEvent }) => { if (nativeEvent.key === 'Backspace' || nativeEvent.key === 'Enter') void current.current.send('key', { text: nativeEvent.key === 'Enter' ? 'Return' : 'BackSpace' }); }} />
+  </View>;
+}
+
+export default function ComputerSurface(props: ComputerSurfaceProps) {
+  if (!props.readOnly) return <InteractiveComputerSurface {...props} />;
+  const { frame, width, label, children } = props;
+  return <View accessible accessibilityRole="image" accessibilityLabel={`View ${label}`}
+    style={{ width, height: width * frame.height / frame.width }}>
+    {children || <Image source={{ uri: frame.uri }} style={{ width: '100%', height: '100%' }} />}
   </View>;
 }

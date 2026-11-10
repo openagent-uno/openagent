@@ -1657,6 +1657,12 @@ export function runMsgToChat(m: SessionRunMessage): ChatMessage {
   };
 }
 
+export async function forkConversation(sessionId: string, messageId: string, signal?: AbortSignal) {
+  return post<{ session_id: string; title: string }>(
+    `/api/sessions/${encodeURIComponent(sessionId)}/fork`, { message_id: messageId }, signal,
+  );
+}
+
 export async function fetchSessionRuns(sessionId: string, limit?: number): Promise<SessionRunMessage[]> {
   const qs = limit ? `?limit=${limit}` : '';
   const data = await get<SessionRunsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/runs${qs}`);
@@ -2008,9 +2014,9 @@ export const officialConnectorsAPI = {
 export const listDevices = (signal?: AbortSignal) => get<{ devices: import('../../common/devices').ConnectedDevice[] }>('/api/devices', signal);
 export const listSessionDevices = (sessionId: string, signal?: AbortSignal) => get<{ devices: import('../../common/devices').SessionDevice[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/devices`, signal);
 export const listComputerTargets = (sessionId: string, signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[] }>(`/api/sessions/${encodeURIComponent(sessionId)}/computer-targets`, signal);
-export const listAgentComputerTargets = (signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[] }>('/api/devices/computer-targets', signal);
+export const listAgentComputerTargets = (signal?: AbortSignal) => get<{ targets: import('../../common/devices').ComputerTarget[]; host?: import('../../common/devices').AgentComputer }>('/api/devices/computer-targets', signal);
 export const computerEndpoint = (sessionId?: string) => sessionId === undefined ? '/api/devices/computer' : `/api/sessions/${encodeURIComponent(sessionId)}/computer`;
-export const interactWithComputer = (sessionId: string | undefined, toolRef: string, action: import('../../common/devices').ComputerAction, input: { coordinate?: [number, number]; text?: string } = {}, signal?: AbortSignal) => post<unknown>(computerEndpoint(sessionId), { tool_ref: toolRef, action, ...input }, signal);
+export const interactWithComputer = (sessionId: string | undefined, toolRef: string, action: import('../../common/devices').ComputerAction, input: { coordinate?: [number, number]; text?: string; screen_size?: [number, number] } = {}, signal?: AbortSignal) => post<unknown>(computerEndpoint(sessionId), { tool_ref: toolRef, action, ...input }, signal);
 
 export interface SessionParticipant { id:string; handle:string; display:string }
 export async function getSessionParticipants(sessionId:string):Promise<SessionParticipant[]> {

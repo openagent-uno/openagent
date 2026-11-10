@@ -589,7 +589,6 @@ function SessionDetailsContent({
     <View style={styles.root}>
       <View style={styles.topBar}>
         <View style={styles.topTitleWrap}>
-          <Text style={styles.eyebrow}>Session details</Text>
           <Pressable
             onPress={() => renameSession({ id: session.id, title: session.title })}
             style={styles.renameTitleButton}
@@ -632,7 +631,7 @@ function SessionDetailsContent({
           {session.contextUsage?.context_window ? (
             <ContextPanel
               context={session.contextUsage}
-              variant="inline"
+              variant="embedded"
               respectVisibilityPreference={false}
             />
           ) : (
@@ -1550,7 +1549,7 @@ function RunDetailsContent({
           {state.context?.context_window ? (
             <ContextPanel
               context={state.context}
-              variant="inline"
+              variant="embedded"
               respectVisibilityPreference={false}
             />
           ) : (

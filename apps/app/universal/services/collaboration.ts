@@ -27,7 +27,7 @@ export class CollaborationClient {
   onError: ((error: Error) => void) | null = null;
 
   constructor(private readonly origin: string, private readonly socketFactory = (url: string) => new WebSocket(url),
-    private readonly appConnection?: () => Promise<string | undefined>) {}
+    private readonly appConnection?: () => Promise<string | undefined>, readonly sessionFork = false) {}
 
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);

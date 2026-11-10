@@ -15,7 +15,7 @@
  * Back with the sidebar toggle; detached terminals can keep Back alone.
  */
 
-import { createDrawerNavigator } from '@react-navigation/drawer';
+import { createDrawerNavigator, useDrawerStatus } from '@react-navigation/drawer';
 import { StackActions } from '@react-navigation/native';
 import { useNavigation, usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -71,6 +71,24 @@ function DrawerBreakpoint({ navigation, permanent, children }: {
   return <>{children}</>;
 }
 
+function PhoneNavigationDrawer({ hasRail, onSelect, onNavigate }: {
+  hasRail: boolean; onSelect: () => void; onNavigate: () => void;
+}) {
+  const open = useDrawerStatus() === 'open';
+  const inert = useWebInert(!open);
+  return (
+    <View ref={inert} testID="phone-navigation-drawer" pointerEvents={open ? 'auto' : 'none'}
+      accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
+      style={{ flex: 1, flexDirection: 'row' }}
+      {...(Platform.OS === 'web' ? { 'aria-hidden': !open } : {})}>
+      {hasRail && <AgentSwitcher onSelect={onSelect} />}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Sidebar showWindowControls={!hasRail} onNavigate={onNavigate} />
+      </View>
+    </View>
+  );
+}
+
 async function initializeAccountSearch(accountId: string, force = false): Promise<void> {
   await useSearch.getState().initialize(accountId, force);
   const search = useSearch.getState();
@@ -112,15 +130,15 @@ export default function AppDrawerLayout() {
   const detailsRouteActive = pathname === '/chat' || pathname.startsWith('/runs/');
   const resizeBounds = useMemo(() => responsiveDrawerWidthBounds(
     'navigation',
-    layout.width - (hasRail ? AGENT_RAIL_WIDTH : 0),
+    layout.width - (permanent && hasRail ? AGENT_RAIL_WIDTH : 0),
     {
       otherDrawerOpen: sessionDetailsOpen && detailsRouteActive,
       otherDrawerWidth: detailsWidth,
     },
-  ), [detailsRouteActive, detailsWidth, hasRail, layout.width, sessionDetailsOpen]);
+  ), [detailsRouteActive, detailsWidth, hasRail, layout.width, permanent, sessionDetailsOpen]);
   const expandedWidth = permanent
     ? clampDrawerWidth(navigationWidth || NAVIGATION_DRAWER_DEFAULT_WIDTH, resizeBounds)
-    : Math.min(296, layout.width - (hasRail ? AGENT_RAIL_WIDTH : 0) - 20);
+    : Math.min(296 + (hasRail ? AGENT_RAIL_WIDTH : 0), layout.width - 20);
   const width = resolvedDrawerWidth(expandedWidth, !permanent, wideSidebarOpen);
   const motionDuration = drawerMotionDuration(reducedMotion);
   const sidebarInertRef = useWebInert(!wideSidebarOpen);
@@ -202,16 +220,20 @@ export default function AppDrawerLayout() {
 
   return (
     <View style={{ flex: 1, flexDirection: 'row' }}>
-      {hasRail && <AgentSwitcher onSelect={openChat} />}
+      {hasRail && permanent && <AgentSwitcher onSelect={openChat} />}
       <View style={{ flex: 1, minWidth: 0 }}>
-      {hasRail && !connected ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
-          {connecting ? <ActivityIndicator color={colors.accent} /> : null}
-          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
-            {connecting ? 'Connecting…' : connectionError || 'Select an agent to connect.'}
-          </Text>
-        </View>
-      ) : <Drawer
+      <Drawer
+        screenLayout={({ children }) => hasRail && !connected ? (
+          <View style={{ flex: 1 }}>
+            <HeaderMenu />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
+              {connecting ? <ActivityIndicator color={colors.accent} /> : null}
+              <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+                {connecting ? 'Connecting…' : connectionError || 'Select an agent to connect.'}
+              </Text>
+            </View>
+          </View>
+        ) : <>{children}</>}
         key={accountId ?? 'no-agent'}
         // The Drawer is the cross-section "back" boundary. react-navigation's
           // default backBehavior is 'firstRoute', which REBUILDS the drawer
@@ -251,10 +273,8 @@ export default function AppDrawerLayout() {
                   </View>
                 )
               : (
-                  <Sidebar
-                    showWindowControls={!hasRail}
-                    onNavigate={() => props.navigation.closeDrawer()}
-                  />
+                  <PhoneNavigationDrawer hasRail={hasRail} onSelect={openChat}
+                    onNavigate={() => props.navigation.closeDrawer()} />
                 )}
             </DrawerBreakpoint>
           )}
@@ -314,7 +334,7 @@ export default function AppDrawerLayout() {
         <Drawer.Screen name="terminal" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
         <Drawer.Screen name="automations" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
         <Drawer.Screen name="members" options={{ headerShown: false, drawerItemStyle: { display: 'none' } }} />
-      </Drawer>}
+      </Drawer>
       {connected && <GlobalSearchOverlay onOpenTarget={handleOpenTarget} />}
       </View>
     </View>

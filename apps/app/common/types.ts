@@ -978,6 +978,7 @@ export interface CompactionInfo {
 
 export interface ChatMessage {
   providerRunId?: string;
+  delivery?: 'pending' | 'confirmed' | 'failed';
   sharedTurnId?: string;
   id: string;
   role: 'user' | 'assistant' | 'tool' | 'compaction';
@@ -1015,6 +1016,7 @@ export interface ChatSession {
   /** An explicit access withdrawal clears every transcript projection. */
   accessRevoked?: boolean;
   sharedSnapshot?: import('./collaboration').SharedSnapshot;
+  outbound?: ChatMessage[];
   id: string;
   title: string;
   messages: ChatMessage[];

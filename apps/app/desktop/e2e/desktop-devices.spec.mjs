@@ -20,6 +20,10 @@ function fixturePng() {
 class DeviceGateway extends DeterministicGateway {
   calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0; draftRequests=[];
   acceptedSessions=new Set();
+  receivedTurns=[];
+  sharedRevision=0;
+  sharedTurns=[];
+  heldTurn=null;
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
@@ -54,13 +58,18 @@ class DeviceGateway extends DeterministicGateway {
     if(path==='/api/collaboration/turns'&&request.method==='POST'){
       let body='';for await(const chunk of request)body+=chunk;
       const turn=JSON.parse(body);this.acceptedSessions.add(turn.session_id);
+      this.receivedTurns.push(turn);
+      if (this.heldTurn) await this.heldTurn;
       const before = 'Session started';
       const answer = before + 'Check complete';
-      const now=Date.now();const snapshot={type:'shared_state',session_id:turn.session_id,revision:1,turns:[{id:turn.request_id,runId:'accepted-run',active:false,startedAt:now,finishedAt:now,messages:[
+      const now=Date.now()/1000;const accepted={id:turn.request_id,runId:turn.request_id,providerRunId:turn.request_id,active:this.receivedTurns.length===1,startedAt:now,messages:[
         {id:'accepted-user',role:'user',text:turn.message,timestamp:now,author:{kind:'human',handle:'alice',display:'Alice'}},
         {id:'accepted-assistant',role:'assistant',text:answer,timestamp:now,author:{kind:'agent'}},
       ], tools: [{id:'timeline-call',afterText:before.length,timestamp:now,
-        toolInfo:{tool_name:'timeline_probe',tool_call_id:'timeline-call',result:'ok'}}]}]};
+        toolInfo:{tool_name:'timeline_probe',tool_call_id:'timeline-call',result:'ok'}}]};
+      for (const previous of this.sharedTurns) previous.active=false;
+      this.sharedTurns.push(accepted);
+      const snapshot={type:'shared_state',session_id:turn.session_id,revision:++this.sharedRevision,turns:this.sharedTurns};
       for(const socket of this.collaborationServer.clients)if(socket.readyState===1)socket.send(JSON.stringify(snapshot));
       return reply({session_id:turn.session_id,request_id:turn.request_id,response:answer});
     }
@@ -74,7 +83,10 @@ class DeviceGateway extends DeterministicGateway {
       return reply({can_manage:true,members:this.members});
     }
     if(path==='/api/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',online:true,modules:['shell','editor','computer-control','agent-in-chrome'],last_seen_at:1700000000},{device_id:'two',client_instance_id:'b',label:'Home desktop',online:false,modules:['filesystem'],last_seen_at:1700000000}]});
-    if(path==='/api/devices/computer-targets')return reply({targets:[{tool_ref:'exact-owner-desktop',label:'Agent host',agent_host:true}]});
+    if(path==='/api/devices/computer-targets')return reply({
+      host: {label:'Agent computer',platform:'Linux',desktop:'available'},
+      targets:[{tool_ref:'exact-owner-desktop',label:'Agent host',agent_host:true,can_control:!this.live}],
+    });
     if(path==='/api/scheduled-tasks')return reply({tasks:[{id:'legacy-task',name:'Historical report',prompt:'Report',cron_expression:'0 10 * * *',enabled:true}]});
     if(path==='/api/scheduled-tasks/legacy-task/runs')return reply({runs:[{id:'legacy-e2e',status:'success',started_at:1793527200,started_at_iso:'2026-11-01T10:00:00Z'}]});
     if(path==='/api/scheduled-runs/legacy-e2e')return reply({id:'legacy-e2e',task_id:'legacy-task',title:'Historical report',status:'success',output_summary_safe:'Saved report output',session_id:null,started_at:'2026-11-01T10:00:00Z',finished_at:'2026-11-01T10:01:00Z'});
@@ -121,11 +133,15 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByText('Studio laptop',{exact:true})).toBeVisible();
     await expect(page.getByText('Home desktop',{exact:true})).toBeVisible();
     await expect(page.getByText('Offline',{exact:true})).toBeVisible();
-    if (!live) {
-      await page.getByLabel('Open computer Agent host',{exact:true}).click();
+    await page.getByLabel('Open computer Agent host',{exact:true}).click();
+    if (live) {
+      await expect(page.getByRole('img',{name:'View Agent host',exact:true})).toBeVisible();
+      await expect(page.getByText('View only',{exact:true})).toBeVisible();
+      await expect(page.getByLabel('Remote keyboard capture',{exact:true})).toHaveCount(0);
+    } else {
       await expect(page.getByLabel('Control Agent host. Click and type on the desktop.',{exact:true})).toBeVisible();
-      await page.getByRole('button',{name:'Close',exact:true}).click();
     }
+    await page.getByRole('button',{name:'Close',exact:true}).click();
     await page.screenshot({path:join(temporary,'devices-wide.png')});
     await page.setViewportSize({width:390,height:844});
     await expect(page.getByText('Studio laptop',{exact:true})).toBeVisible();
@@ -139,6 +155,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await page.getByLabel('Toggle session details',{exact:true}).click();
     await expect(page.getByText('Participants',{exact:true})).toBeVisible();
+    await expect(page.getByText('Session details',{exact:true})).toHaveCount(0);
     await expect(page.getByText('Participated',{exact:true})).toBeVisible();
     await page.getByRole('button',{name:'Share session',exact:true}).click();
     await page.getByRole('button',{name:'Select bob',exact:true}).click();
@@ -270,9 +287,18 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await expect(page.getByText('Update the agent server to use connected computers.',{exact:true})).toHaveCount(0);
     expect(gateway.draftRequests).toEqual([]);
-    await page.getByPlaceholder('Message OpenAgent...').fill('Start this session');
+    let releaseTurn;
+    gateway.heldTurn=new Promise(resolve=>{releaseTurn=resolve;});
+    const message='Start this session';
+    const bubble=page.getByTestId('oa-user-message').filter({hasText:message});
+    await page.getByPlaceholder('Message OpenAgent...').fill(message);
     await page.getByLabel('Send message',{exact:true}).click();
+    await expect(bubble).toHaveCount(1);
+    await expect(page.getByText('Session started',{exact:true})).toHaveCount(0);
+    releaseTurn();
     await expect(page.getByText('Session started',{exact:true})).toBeVisible();
+    await expect(bubble).toHaveCount(1);
+    await expect(page.getByRole('status',{name:'Agent is working'})).toBeVisible();
     const timeline = page.getByText('Session started', { exact: true })
       .or(page.getByText('Timeline Probe', { exact: true }))
       .or(page.getByText('Check complete', { exact: true }));
@@ -281,6 +307,16 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toBeVisible();
     await expect(page.getByLabel('Open computer Agent environment',{exact:true})).toBeVisible();
     if (!live) {
+      gateway.heldTurn=new Promise(resolve=>{releaseTurn=resolve;});
+      await page.getByPlaceholder('Message OpenAgent...').fill(message);
+      await page.getByLabel('Send message',{exact:true}).click();
+      await expect(bubble).toHaveCount(2);
+      await expect(page.getByText('Session started',{exact:true})).toHaveCount(1);
+      releaseTurn();
+      await expect(page.getByText('Session started',{exact:true})).toHaveCount(2);
+      await expect(bubble).toHaveCount(2);
+      expect(gateway.receivedTurns.map(turn=>turn.delivery)).toEqual(['steer','steer']);
+      expect(new Set(gateway.receivedTurns.map(turn=>turn.request_id)).size).toBe(2);
       await page.getByRole('button',{name:'Scheduled',exact:true}).click();
       await page.getByLabel('Run history for Historical report',{exact:true}).click();
       await page.getByLabel('Open scheduled run 2026-11-01T10:00:00Z',{exact:true}).click();

@@ -56,7 +56,7 @@ export default function ComputerMedia({sessionId,target,width,paused,send,onFram
     return()=>{alive=false;clearTimeout(renewal);ws.close();decoder.close();};
   },[sessionId,target.tool_ref,paused,onFrame,onError,generation]);
   if(!geometry)return <Text style={{color:colors.textMuted,padding:32}}>Connecting to desktop…</Text>;
-  return <ComputerSurface frame={geometry} width={width} label={target.label} send={send}>
+  return <ComputerSurface frame={geometry} width={width} label={target.label} send={send} readOnly={target.can_control === false}>
     <canvas ref={canvas} style={{display:'block',width:'100%',height:'100%',pointerEvents:'none'}} />
   </ComputerSurface>;
 }

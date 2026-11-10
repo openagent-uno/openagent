@@ -174,6 +174,22 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await toggle.click();
     expect((await drawer.boundingBox()).width).toBe(openWidth);
 
+    await expect(page.getByTestId('connection-status')).toHaveText('Ready');
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileDrawer = page.getByTestId('phone-navigation-drawer');
+    await expect(mobileDrawer).toHaveAttribute('aria-hidden', 'true');
+    await expect(mobileDrawer.getByTestId('agent-rail')).toHaveCount(1);
+    await expect(atlas).toHaveCount(0);
+    await expect.poll(async () => (await header.boundingBox()).x).toBeLessThan(3);
+    await page.getByRole('button', { name: 'Toggle navigation sidebar' }).click();
+    await expect(mobileDrawer).not.toHaveAttribute('aria-hidden', 'true');
+    await expect(atlas).toBeVisible();
+    await expect(mobileDrawer.getByTestId('connection-status')).toHaveText('Ready');
+    await atlas.click(); // active agent leaves the drawer open
+    await page.setViewportSize({ width: 1280, height: 820 });
+    await expect(page.getByTestId('phone-navigation-drawer')).toHaveCount(0);
+    await expect(atlas).toBeVisible();
+
     const plus = page.getByRole('button', { name: 'Add an agent' });
     await plus.click();
     await expect(page.getByRole('button', { name: /^join network$/i })).toBeVisible();
@@ -219,7 +235,7 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await expect(atlas.getByTestId('selected-agent-marker')).toBeVisible();
 
     gateways[0].chatSocket.close(1011);
-    const reconnect = page.getByText('Reconnecting…', { exact: true });
+    const reconnect = page.getByTestId('connection-status').getByText('Reconnecting', { exact: true });
     await expect(reconnect).toBeVisible();
     const statusBox = await reconnect.boundingBox();
     for (const name of ['Settings', 'Logs', 'System']) {

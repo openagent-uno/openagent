@@ -49,7 +49,9 @@ export class OpenAgentWS {
       const info = await response.json();
       if (info.version !== 1) throw new Error('Unsupported shared session protocol');
       if (this.sharedClosed) return null;
-      const shared = new CollaborationClient(origin, undefined, () => this.dashboardConnection());
+      const shared = new CollaborationClient(origin, undefined,
+        info.client_capabilities === true ? () => this.dashboardConnection() : undefined,
+        info.session_fork === true);
       shared.onResource = frame => this.handlers.forEach(h => h(frame as ServerMessage));
       this.collaboration = shared;
       this.sharedDiscovered = true;
@@ -490,17 +492,25 @@ export class OpenAgentWS {
       llmPin?: string;
       systemPrompt?: string;
       attachments?: Attachment[];
+      requestId?: string;
+      onLegacy?: () => boolean | void;
+      onRejected?: () => void;
+      onSettled?: () => void;
     },
   ): void {
+    const rejected = (error: unknown) => {
+      options?.onRejected?.();
+      if (!options?.onRejected) this.sharedError(sessionId, error);
+    };
     if (!this.sharedDiscovered && (!options?.source || options.source === 'user_typed')) {
       void this.enableShared().then(() => {
         if (!this.sharedClosed) this.sendMessage(text, sessionId, options);
-      }).catch(error => this.sharedError(sessionId, error));
+      }).catch(rejected);
       return;
     }
     if (this.collaboration && (!options?.source || options.source === 'user_typed')) {
       const shared = this.collaboration;
-      const requestId = sharedRequestId();
+      const requestId = options?.requestId ?? sharedRequestId();
       void this.ensureSharedSession(sessionId, text).then(async (opened) => {
         if (this.sharedClosed) return;
         if (options?.systemPrompt && opened) {
@@ -508,9 +518,11 @@ export class OpenAgentWS {
         }
         await shared.sendTurn(sessionId, requestId, text, 'steer', undefined,
           attachmentsForSend(options?.attachments || []), this.clientInstanceId || undefined);
-      }).catch(error => this.sharedError(sessionId, error));
+        options?.onSettled?.();
+      }).catch(rejected);
       return;
     }
+    if (options?.onLegacy?.() === false) return;
     if (!this.openedSessions.has(sessionId)) {
       this.sendSessionOpen(sessionId, {
         profile: 'batched',
