@@ -63,8 +63,8 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.9-beta.26', 'manifest.json', '02225965d23dfedd1902ed73c75bc59d750c956c5a53e9c348ce677add01c362', 'all'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.73', 'manifest.json', '58b291bd5f586bf23bc2efcc95cf5c0140884cd923f7c7ec905dd61d654d05f0', 'kernel'),
+    ('openagent-uno/openagent', 'v1.1.9-beta.28', 'manifest.json', '8c48e31f26cd4c0d662cade4e569cf3f9beb2a1829dc4a4f9a06de2be52bc963', 'all'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.77', 'manifest.json', '308905e191c94c075f1e746ea3fd99ee5c494652a402aa8f04c06592bd199d04', 'kernel'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.53', 'manifest.json', '6f2c22fd7de22943e0df2c93068aa057f110122f3919585047a99770ae87a23b', 'modules'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.40', 'manifest.json', '6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3', 'capability-host'),
     ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'tools-base'),
@@ -134,7 +134,7 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
     elif selection == "capability-host":
         wheel_assets = {name: url for name, url in wheel_assets.items() if name.startswith("openagent_capability_host-")}
     elif selection == "tools-base":
-        wheel_assets = {name: url for name, url in wheel_assets.items() if not name.startswith("openagent_device_tools-")}
+        wheel_assets = {name: url for name, url in wheel_assets.items() if not name.startswith(("openagent_device_tools-", "openagent_connectors-"))}
     elif selection == "kernel":
         wheel_assets = {name: url for name, url in wheel_assets.items()
                         if name.startswith(("openagent_core-", "openagent_storage_sqlite-", "openagent_gateway-", "openagent_sdk-"))}
@@ -158,6 +158,32 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
             raise SystemExit(f"Conflicting immutable artifact across releases: {name}")
         target.write_bytes(payload)
         verified += 1
+
+# The connector SDK and the native runner must come from the same release.
+# The standalone server wheel carries their exact source and artifact lock.
+framework, = destination.glob("openagent_framework-*.whl")
+with zipfile.ZipFile(framework) as archive:
+    connector = json.loads(archive.read("openagent_server/connectors.lock.json"))
+repo, tag = connector["source_repository"], connector["source_ref"]
+release = json.loads(fetch(f"https://api.github.com/repos/{repo}/releases/tags/{tag}", max_bytes=1 << 20))
+assets = {asset["name"]: asset["browser_download_url"] for asset in release["assets"]}
+manifest_bytes = fetch(assets["manifest.json"], max_bytes=1 << 20)
+if hashlib.sha256(manifest_bytes).hexdigest() != connector["manifest_sha256"]:
+    raise SystemExit("Connector release manifest checksum mismatch")
+manifest = json.loads(manifest_bytes)
+if (manifest.get("version") != connector["version"]
+        or manifest.get("source_commit") != connector["source_commit"]
+        or manifest.get("dirty_snapshot") is not False):
+    raise SystemExit("Connector release does not match the server's pinned source")
+name = f"openagent_connectors-{connector['version']}-py3-none-any.whl"
+receipt = connector["assets"][name]
+if manifest["files"].get(name) != receipt:
+    raise SystemExit("Connector SDK wheel does not match the server's lock")
+payload = fetch(assets[name], max_bytes=receipt["bytes"])
+if len(payload) != receipt["bytes"] or hashlib.sha256(payload).hexdigest() != receipt["sha256"]:
+    raise SystemExit("Connector SDK wheel checksum mismatch")
+(destination / name).write_bytes(payload)
+verified += 1
 
 # Resolve installation requirements from the exact wheel bytes just verified.
 # A separately maintained version literal can silently select an older release
