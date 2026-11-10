@@ -131,7 +131,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Chat follows new messages and tools at the bottom, completed turns expose their private fork action, and the active agent name appears in chat and the sidebar. Full-width delegation cards can open a running child session with Server beta 25. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            Chat follows new messages and tools at the bottom, completed turns expose their private fork action, and the active agent name appears in chat and the sidebar. Full-width delegation cards can open a running child session with Server beta 26. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
