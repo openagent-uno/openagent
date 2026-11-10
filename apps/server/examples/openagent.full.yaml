@@ -454,21 +454,17 @@ memory:
 #   # Pull SKILL.md skills from a shared git remote ("tap") so several
 #   # agents share one versioned source of playbooks. Additive and OFF by
 #   # default; a SECOND gate on top of skills.enabled (mirrors
-#   # curator_enabled). When enabled, two tools appear in the skills MCP:
-#   #   skill_hub_pull(tap, force=False) — shallow-clone the tap into a
-#   #     quarantine dir, safety-scan every */SKILL.md (symlink escape,
-#   #     curl|sh exfil, rm -rf /, invisible/bidi unicode, injection
-#   #     markers), and install the ones that pass — each stamped
-#   #     created_by: hub (so the curator never rewrites upstream-owned
-#   #     skills) with hub_repo / hub_commit lineage. dangerous skills are
-#   #     always refused; caution skills only with force=True. A lockfile
-#   #     at <skills-dir>/.hub/lock.json pins repo+commit+content_hash.
-#   #   skill_hub_list() — what hub skills are installed and from where.
-#   # With hub.enabled: false the two tools are never exposed and the
-#   # skills toolkit is byte-identical to its three-tool original.
+#   # curator_enabled). When enabled, the Skills Hub adds:
+#   #   skill_hub_search(query) — find skills in the configured Git catalogs.
+#   #     Returns the tap, folder, commit and scan verdict for each result.
+#   #   skill_hub_pull(tap, folder=..., commit=...) — import a selected skill.
+#   #     The importer scans it in quarantine and refuses dangerous content.
+#   #     Caution requires an explicit force=True on a foreground request.
+#   #     The lockfile pins the source, commit and content hash.
+#   #   skill_hub_list() — list installed Hub skills and their sources.
 #   hub:
 #     enabled: false          # master switch for the Skills-Hub tools
-#     taps: []                # optional default git taps to advertise, e.g.
+#     taps: []                # host-configured catalogs for search, e.g.
 #                             #   - https://git.example.com/org/skills-hub.git
 #                             #   - file:///srv/shared/skills-hub/.git
 

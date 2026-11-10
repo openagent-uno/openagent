@@ -15,7 +15,7 @@
  * the prompt.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, Pressable, TextInput } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -28,11 +28,13 @@ import EmptyState from '../../../components/EmptyState';
 import ThemedSwitch from '../../../components/ThemedSwitch';
 import { Skeleton } from '../../../components/Skeleton';
 import Notice from '../../../components/Notice';
-import { listSkills, createSkill, isUnsupportedByAgent } from '../../../services/api';
+import { useConfirm } from '../../../components/ConfirmDialog';
+import { listSkills, searchSkills, createSkill, isUnsupportedByAgent } from '../../../services/api';
 import type { SkillSummary } from '../../../../common/types';
 
 export default function SkillsScreen() {
   const router = useRouter();
+  const confirm = useConfirm();
   const headerInset = useHeaderInset();
   const [skills, setSkills] = useState<SkillSummary[] | null>(null);
   // Separates "still loading" from "the fetch failed": without it a
@@ -42,6 +44,9 @@ export default function SkillsScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [filter, setFilter] = useState('');
+  const query = filter.trim();
+  const searchKey = JSON.stringify([query, includeArchived]);
+  const [search, setSearch] = useState<{ key: string; results: SkillSummary[] } | null>(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState({ name: '', description: '', category: '', body: '' });
@@ -99,24 +104,51 @@ export default function SkillsScreen() {
     }
   }, [draft, load]);
 
+  useEffect(() => {
+    if (!query || !skills) return;
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchSkills(query, includeArchived, controller.signal);
+        if (!controller.signal.aborted) {
+          const currentSkills = new Map(skills.map((skill) => [skill.name, skill]));
+          // Older gateways return a slim hit. Use the current library's metadata
+          // and archive filter for those hits.
+          setSearch({ key: searchKey, results: results.flatMap((skill) => {
+            if (typeof skill.archived === 'boolean') return [skill];
+            const current = currentSkills.get(skill.name);
+            return current ? [current] : [];
+          }) });
+        }
+      } catch (e) {
+        if (!controller.signal.aborted) {
+          setSearch({ key: searchKey, results: [] });
+          void confirm({ title: 'Could not search skills',
+            message: e instanceof Error ? e.message : String(e),
+            confirmLabel: 'OK', cancelLabel: 'Close' });
+        }
+      }
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [confirm, includeArchived, query, searchKey, skills]);
+
+  const visibleSkills = query
+    ? (search?.key === searchKey ? search.results : null)
+    : skills;
   const grouped = useMemo(() => {
-    if (!skills) return null;
-    const q = filter.trim().toLowerCase();
-    const matching = q
-      ? skills.filter((s) =>
-          s.name.toLowerCase().includes(q)
-          || s.description.toLowerCase().includes(q)
-          || s.category.toLowerCase().includes(q))
-      : skills;
+    if (!visibleSkills) return null;
     const byCategory = new Map<string, SkillSummary[]>();
-    for (const s of matching) {
+    for (const s of visibleSkills) {
       const key = s.category || 'general';
       const bucket = byCategory.get(key);
       if (bucket) bucket.push(s);
       else byCategory.set(key, [s]);
     }
     return [...byCategory.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [skills, filter]);
+  }, [visibleSkills]);
 
   const total = skills?.length ?? 0;
 
@@ -198,7 +230,7 @@ export default function SkillsScreen() {
           </Card>
         )}
 
-        {failed ? null : skills === null ? (
+        {failed ? null : visibleSkills === null ? (
           <Card><Skeleton height={90} /></Card>
         ) : grouped && grouped.length === 0 ? (
           <EmptyState

@@ -1936,6 +1936,12 @@ export async function listSkills(includeArchived = false): Promise<SkillSummary[
   return data.skills;
 }
 
+export async function searchSkills(query: string, includeArchived = false, signal?: AbortSignal): Promise<SkillSummary[]> {
+  const qs = new URLSearchParams({ q: query, limit: "100", include_archived: includeArchived ? "1" : "0" });
+  const data = await get<{ results: SkillSummary[] }>(`/api/skills/search?${qs}`, signal);
+  return data.results;
+}
+
 /** One skill's full body plus any files bundled beside it. */
 export async function getSkill(name: string): Promise<SkillDetail> {
   return get<SkillDetail>(`/api/skills/${encodeURIComponent(name)}`);

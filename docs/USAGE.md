@@ -35,6 +35,19 @@ identity and channels. Do not run this example against an existing directory
 as an implicit migration. Preserve state, vault, keys, grants and single-writer
 ownership when upgrading; see the dated release/restore gates.
 
+## Skills
+
+Use **Skills** in the app to search by name, category, description or
+instructions. Authorized users can create and edit skills there. The agent can
+search, read and write skills through its native tools when `skills.enabled`
+is active. Skill files saved from the app carry user authorship. The agent
+can read a new skill immediately with the tools. Its cached prompt index refreshes at boot or reload.
+
+For published skills, enable `skills.hub.enabled` and configure
+`skills.hub.taps` in the agent configuration. Ask the agent to search those
+Git catalogs with `skill_hub_search` and import the chosen folder at the
+reported commit. Catalogs are optional and selected by the operator.
+
 ## Ephemeral task runner
 
 For on-demand execution (one container or job per task, nothing left running),

@@ -25,6 +25,7 @@ public versioned capabilities to consumers; product-local patches are prohibited
 - [Python beta12: revision integrity and bounded summaries](releases/v1.1.9-beta.12.md).
 
 - Architecture: [v1 boundaries](architecture-v1.md), [modules](modules-v1.1.md), [application composition](site/guide/application-composition.md).
+- [Skills in the app and agent tools](USAGE.md#skills).
 - Public guides: [site](site/index.md), [client capabilities](site/guide/client-capabilities.md), [channels](site/guide/channels.md), [MCP Apps](site/guide/mcp-apps.md).
 - Connectors: [operations](site/guide/connector-operations.md), [status and remaining gates](site/guide/connector-status.md), [privacy](site/privacy.md).
 - Distribution: [build/release](build-and-release.md), [runtime qualification](runtime-and-verification.md), [repository/updater transition](repository-transition.md).

@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-10",
+  "scope": "Source adoption of shared skill authoring and discovery",
+  "core_version": "1.1.0b70",
+  "core_commit": "930ff0057bdd18a514a696a6510bf5bd51bc609a",
+  "core_qualification_run": "https://github.com/openagent-uno/openagent-core/actions/runs/42775538315",
+  "verification": {
+    "dependency_locks": ["server", "cli", "host-tools"],
+    "app_typecheck": "pass",
+    "standalone_rest_skill_cases_with_published_core": 4
+  },
+  "limitations": "Source qualification. No new standalone installer or live provider acceptance."
+}

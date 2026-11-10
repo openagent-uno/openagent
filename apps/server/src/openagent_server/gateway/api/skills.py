@@ -44,28 +44,6 @@ from openagent_core.core.logging import elog
 _WRITABLE = ("description", "category", "body")
 
 
-def _meta_to_dict(meta) -> dict:
-    """One skill's metadata, without its body.
-
-    ``created_by`` / ``status`` are surfaced raw AND as the two booleans the
-    registry derives from them, because the distinction is load-bearing for a
-    client: an archived skill still exists on disk but is absent from the
-    prompt index, and an agent-authored skill is the only kind the curator is
-    allowed to consolidate.
-    """
-    return {
-        "name": meta.name,
-        "description": meta.description,
-        "category": meta.category,
-        "path": str(meta.path),
-        "created_by": meta.created_by,
-        "status": meta.status,
-        "agent_authored": meta.is_agent_authored,
-        "archived": meta.is_archived,
-        "from_hub": meta.is_hub,
-    }
-
-
 def _registry():
     from openagent_core.mcp.servers.skills.handlers import _registry as build
 
@@ -83,7 +61,7 @@ async def handle_list(request):
     include_archived = request.query.get("include_archived", "").lower() in ("1", "true", "yes")
     skills = _registry().skills()
     rows = [
-        _meta_to_dict(m) for m in skills
+        m.summary() for m in skills
         if include_archived or not m.is_archived
     ]
     rows.sort(key=lambda r: (r["category"] or "", r["name"] or ""))
@@ -105,7 +83,8 @@ async def handle_search(request):
         limit = max(1, min(int(request.query.get("limit", "20")), 100))
     except (TypeError, ValueError):
         limit = 20
-    return web.json_response(await skill_search(query, limit))
+    include_archived = request.query.get("include_archived", "1").lower() in ("1", "true", "yes")
+    return web.json_response(await skill_search(query, limit, include_archived=include_archived))
 
 
 async def handle_get(request):
@@ -155,7 +134,9 @@ async def _write(request, action: str, name: str, payload: dict):
 
     body = payload
     fields = {k: body[k] for k in _WRITABLE if k in body}
-    markdown = (fields.get("body") or "").strip()
+    if any(not isinstance(value, str) for value in fields.values()):
+        return web.json_response({"error": "Skill fields must be strings"}, status=400)
+    markdown = fields.get("body", "").strip()
     if action == "create" and not markdown:
         return web.json_response({"error": "body is required to create a skill"}, status=400)
 
@@ -165,9 +146,10 @@ async def _write(request, action: str, name: str, payload: dict):
         body=fields.get("body"),
         description=fields.get("description"),
         category=fields.get("category"),
+        human_authored=True,
     )
     if not result.get("ok"):
-        return web.json_response(result, status=400)
+        return web.json_response(result, status=409 if result.get("refused") == "conflict" else 400)
 
     elog(f"skill.{action}", name=name)
     gw = request.app.get("gateway")

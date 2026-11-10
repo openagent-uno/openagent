@@ -73,11 +73,17 @@ async def t_round_trip(ctx: TestContext) -> None:
         assert len(body["skills"]) == 1
         row = body["skills"][0]
         assert row["name"] == "Release check" and row["category"] == "ops"
-        assert row["agent_authored"] is True and row["archived"] is False
+        assert row["created_by"] == "user" and not row["agent_authored"] and not row["archived"]
 
         status, body = await _json(
             await api.handle_get(_FakeRequest(match={"name": "Release check"})))
         assert status == 200 and "1. Tests" in body["body"]
+        status, body = await _json(await api.handle_search(_FakeRequest(query={
+            "q": "Changelog", "include_archived": "0",
+        })))
+        assert status == 200
+        [hit] = body["results"]
+        assert hit["name"] == "Release check" and hit["created_by"] == "user"
 
         status, _ = await _json(await api.handle_update(
             _FakeRequest(match={"name": "Release check"},
