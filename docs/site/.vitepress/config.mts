@@ -97,7 +97,7 @@ export default withMermaid(defineConfig({
     nav: [
       { text: "Home", link: "/" },
       { text: "Download", link: "/downloads" },
-      { text: "Connectors", link: "/guide/connectors" },
+      { text: "Connectors", link: "/connectors" },
       { text: "Privacy", link: "/privacy" },
       { text: "Docs", link: "/guide/" },
       { text: "Changelog", link: "/guide/changelog" },
