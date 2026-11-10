@@ -16,7 +16,8 @@
  */
 
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { usePathname, useRouter, withLayoutContext } from 'expo-router';
+import { StackActions } from '@react-navigation/native';
+import { useNavigation, usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import AgentSwitcher, { AGENT_RAIL_WIDTH } from '../../components/AgentSwitcher';
@@ -80,6 +81,7 @@ async function initializeAccountSearch(accountId: string, force = false): Promis
 
 export default function AppDrawerLayout() {
   const layout = useLayout();
+  const navigation = useNavigation();
   const router = useRouter();
   const pathname = usePathname();
   const accountId = useConnection((state) => state.activeAccountId);
@@ -92,8 +94,10 @@ export default function AppDrawerLayout() {
     && !(typeof window !== 'undefined' && (window as any).desktop?.isChild);
   const openChat = useCallback(() => {
     useNavHistory.getState().reset();
-    router.replace('/(tabs)/chat');
-  }, [router]);
+    // The agent change replaces the drawer. Target the parent stack so the
+    // destination cannot be lost with the outgoing drawer's navigation state.
+    navigation.dispatch(StackActions.replace('(tabs)', { screen: 'chat' }));
+  }, [navigation]);
   const ws = useConnection((state) => state.ws);
   const wideSidebarOpen = useNavigationSidebar((state) => state.isOpen);
   const navigationWidth = useDrawerPreferences((state) => state.navigationWidth);

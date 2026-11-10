@@ -8,8 +8,22 @@ import { DeterministicGateway } from './fixtures.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 class RailGateway extends DeterministicGateway {
+  viewRequests = [];
+
   async handleHttp(request, response) {
     const path = new URL(request.url, 'http://fixture').pathname;
+    const viewId = `${this.accountId.toLowerCase()}-dashboard`;
+    const view = { id: viewId, title: `${this.accountId} dashboard`, surface: 'sidebar', revision: 1, status: 'active' };
+    if (request.method === 'GET' && path.startsWith('/api/ui/views/')) {
+      const requested = path.slice('/api/ui/views/'.length);
+      this.viewRequests.push(requested);
+      const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+      if (requested !== viewId) return response.writeHead(404, headers).end('{}');
+      return response.writeHead(200, headers).end(JSON.stringify({ view: {
+        ...view,
+        spec: { schemaVersion: 1, root: { type: 'text', props: { text: `Dashboard data from ${this.accountId}` } } },
+      } }));
+    }
     if (path === '/api/agent/identity' && request.method !== 'OPTIONS') {
       if (request.method === 'PATCH') {
         const chunks = [];
@@ -36,6 +50,8 @@ class RailGateway extends DeterministicGateway {
       return;
     }
     const empty = {
+      '/api/ui/capabilities': {},
+      '/api/ui/views': { views: [view] },
       '/api/sessions/e2e-session/participants': { participants: [] },
       '/api/sessions/e2e-session/devices': { devices: [] },
       '/api/sessions/e2e-session/computer-targets': { targets: [] },
@@ -127,6 +143,17 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await expect(page.getByText('Conversation from Atlas')).toHaveCount(0);
     await atlas.click();
     await expect(page.getByText('Conversation from Atlas')).toBeVisible();
+    for (const [source, destination, button] of [['Atlas', 'Nova', nova], ['Nova', 'Atlas', atlas]]) {
+      const viewId = `${source.toLowerCase()}-dashboard`;
+      await page.getByRole('button', { name: `${source} dashboard`, exact: true }).click();
+      await expect(page).toHaveURL(new RegExp(`/views/${viewId}(?:\\?|$)`));
+      await expect(page.getByText(`Dashboard data from ${source}`)).toBeVisible();
+      await button.click();
+      await expect(page).toHaveURL(/\/chat(?:\?|$)/);
+      await expect(page.getByText(`Conversation from ${destination}`)).toBeVisible();
+      await expect(page.getByText(`Dashboard data from ${source}`)).not.toBeVisible();
+      expect(gateways.find(gateway => gateway.accountId === destination).viewRequests).not.toContain(viewId);
+    }
     for (const gateway of gateways) {
       expect(gateway.chatFrames.filter(frame => frame.type === 'auth')).toHaveLength(1);
     }

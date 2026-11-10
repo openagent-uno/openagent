@@ -140,8 +140,10 @@ different evidence levels.
 ## Switch agents in the App
 
 After adding an agent, use the avatar rail to the left of navigation to switch
-in the same window. Hover or focus an avatar to identify the agent; the rail
-shows the thumbnail or an initial. Use **+** to sign in with another invite.
+in the same window. Switching opens Chat for the selected agent, including
+when a dashboard was open for the previous agent. Hover or focus an avatar
+to identify the agent. The rail shows the thumbnail or an initial. Use **+**
+to sign in with another invite.
 Double-click an avatar on desktop or hold it on mobile to remove its saved
 login. Removing a login leaves the agent and conversations on the server.
 With no saved logins, the full-screen sign-in form opens.
