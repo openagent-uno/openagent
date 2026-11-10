@@ -16,7 +16,6 @@ from openagent_core.contracts import IdempotencyConflict, RunRequest
 from openagent_core.engine import AgentExecutor, AgentModelCatalog
 from openagent_core.core.on_behalf_context import current_on_behalf_identity
 from openagent_storage_sqlite import SqliteRuntimeStore
-from openagent_server.device_directory import AGENT_COMPUTER_CONTEXT, AGENT_COMPUTER_SOURCE
 from openagent_server.runtime_access import NativeRuntimeAuthorizer
 
 
@@ -25,6 +24,7 @@ class PreparedRun:
     request: Any
     context: Any
     cancel_on_detach: bool = True
+    on_child: Any = None
 
 
 class RuntimeAgentFacade:
@@ -296,6 +296,26 @@ class NativeRuntimeService:
         cursor = 0
         completed_frame = False
         tool_statuses = {}
+        provider_calls = {}
+        child_links = {}
+        import json
+
+        async def status_update(tool, *, provider_id=None):
+            call_id = tool.get("tool_call_id")
+            if not call_id:
+                await on_status(json.dumps(tool))
+                return
+            provider_id = provider_id or call_id
+            if call_id != provider_id:
+                provider_calls[provider_id] = call_id
+            previous = tool_statuses.get(call_id, {})
+            child = child_links.get(provider_id)
+            tool = {**previous, **tool}
+            if child:
+                tool["child_session_id"] = child
+            tool_statuses[call_id] = tool
+            await on_status(json.dumps(tool))
+
         try:
             while True:
                 for event in await self.runtime.events(identifier, cursor, context):
@@ -306,54 +326,50 @@ class NativeRuntimeService:
                             completed_frame or payload.get("kind") == "done"
                         )
                         yield payload
+                    elif event.kind == "run.child":
+                        child_id = event.payload.get("child_session_id")
+                        child_run = event.payload.get("child_run_id")
+                        provider_id = event.payload.get("provider_tool_call_id")
+                        if not all(isinstance(value, str) and value for value in (child_id, child_run)):
+                            continue
+                        if prepared.on_child is not None:
+                            prepared.on_child(identifier, child_id, child_run)
+                        if on_status is not None and isinstance(provider_id, str) and provider_id:
+                            # Parallel children must never bind by timing or
+                            # by tool name. A catalog call may use its own ID.
+                            child_links[provider_id] = child_id
+                            current = tool_statuses.get(provider_calls.get(provider_id, provider_id))
+                            if current is not None:
+                                await status_update(current, provider_id=provider_id)
                     elif event.kind == "run.status" and on_status is not None:
                         text = str(event.payload.get("text") or "")
-                        import json
-
                         try:
                             status = json.loads(text)
                         except (ValueError, TypeError):
                             status = None
-                        # The public catalog emits the actual invocation with
-                        # a durable call ID and a verified destination.
-                        if (
-                            not isinstance(status, dict)
-                            or status.get("tool_name") != "tool_search_call_tool"
-                        ):
+                        if isinstance(status, dict):
+                            if status.get("tool_name") != "tool_search_call_tool":
+                                await status_update(status)
+                        else:
                             await on_status(text)
-                    elif (
-                        event.kind in {"tool.invoking", "tool.completed"}
-                        and on_status is not None
-                    ):
-                        import json
-
+                    elif event.kind in {"tool.invoking", "tool.completed"} and on_status is not None:
                         call_id = event.payload["call_id"]
-                        if (
-                            event.kind == "tool.invoking"
-                            or call_id not in tool_statuses
-                        ):
-                            binding = event.payload["binding"]
-                            tool_statuses[call_id] = {
-                                "tool_call_id": call_id,
-                                "tool_name": binding["name"],
-                                "tool_server": binding["source_id"],
-                                "tool_ref": binding["tool_ref"],
-                                "metadata": binding.get("metadata", {}),
-                                "tool_args": event.payload["arguments"],
-                                "execution_host": binding.get("execution_host"),
-                                "result": None,
-                            }
+                        binding = event.payload["binding"]
+                        status = tool_statuses.get(call_id) or {
+                            "tool_call_id": call_id,
+                            "tool_name": binding["name"],
+                            "tool_server": binding["source_id"],
+                            "tool_ref": binding["tool_ref"],
+                            "metadata": binding.get("metadata", {}),
+                            "tool_args": event.payload["arguments"],
+                            "execution_host": binding.get("execution_host"),
+                            "result": None,
+                        }
                         if event.kind == "tool.completed":
-                            status = tool_statuses.get(call_id)
-                            if status is None:
-                                continue
-                            status["result"] = json.dumps(
-                                event.payload.get("result", event.payload.get("error"))
-                            )
-                            status["tool_call_error"] = (
-                                event.payload.get("status") != "success"
-                            )
-                        await on_status(json.dumps(tool_statuses[call_id]))
+                            status = {**status, "result": json.dumps(
+                                event.payload.get("result", event.payload.get("error"))),
+                                "tool_call_error": event.payload.get("status") != "success"}
+                        await status_update(status, provider_id=binding.get("provider_call_id"))
                 record = await self.runtime.get_run(identifier, context)
                 if record.terminal:
                     if record.status != "success":
@@ -720,13 +736,6 @@ class NativeRuntimeService:
     async def _authorize_source(self, context, action, resource, *, audience=()):
         # This policy is host-owned. No MCP row or client-provided ownership
         # field can promote a personal capability into a shared-data source.
-        if context.session_id == AGENT_COMPUTER_CONTEXT:
-            if action not in {"tool.discover", "tool.call", "tool.publish"}:
-                return False
-            source = resource.resource_id.rsplit("/", 1)[0] if resource.kind == "tool" else resource.resource_id
-            if source != AGENT_COMPUTER_SOURCE or context.audience != (context.initiator,):
-                return False
-            return action != "tool.call" or context.initiator.subject_id == await self.directory.owner_handle()
         if self.dashboards is not None:
             result = self.dashboards.authorize_source(
                 context, action, resource, audience=audience

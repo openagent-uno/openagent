@@ -135,12 +135,7 @@ test('the shared transcript renderer applies grouped headers and the user surfac
   assert.match(source, /testID="oa-agent-message-header"/);
   assert.match(source, /testID="oa-agent-message-label"/);
   assert.match(source, /testID="oa-human-message-header"/);
-  assert.match(source, /\{actions\}\s*<TurnTime timestamp=\{timestamp\} \/>/);
-  assert.match(source, /<TurnTime timestamp=\{timestamp\} flushToTranscriptEdge \/>/);
-  assert.match(source, /turnTimeFlushRight:\s*\{ marginRight: -12 \}/);
   assert.doesNotMatch(source, /assistantDot/);
-  assert.match(source, /!showHeader && styles\.continuationActions/);
-  assert.match(source, /!showHeader && styles\.continuationBody/);
   assert.doesNotMatch(source, /styles\.userRule/);
   const userBlock = source.match(
     /userBlock:\s*\{([\s\S]*?)\n\s*\},\n\s*userContinuation:/,

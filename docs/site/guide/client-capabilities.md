@@ -255,10 +255,20 @@ is online here while its consented capability connection is live; opening an
 App without enabling its local tools does not grant the agent those tools.
 Offline inventory is descriptive and cannot authorize execution.
 
-The **Agent computer** card opens the configured host desktop directly. The
-gateway checks the current owner and exact `computer-control` capability for
-direct input and streaming, independently of conversation ownership. A headless
-agent without a configured desktop has no remote-control target.
+**Agent computer** identifies the host running the agent. It remains visible
+when the host is headless, the desktop is unavailable, or the current login
+cannot view it. The gateway uses the installed native desktop helper directly
+with the display available to the agent service. The MCP catalog and any tools
+shared by connected clients are independent of this path. A host with no
+physical or virtual display cannot produce desktop frames.
+
+The primary agent owner can view and control the host desktop. An operator can
+set `OPENAGENT_DESKTOP_VIEWERS` in the agent service environment to a
+comma-separated list of active network handles that may view the screen.
+These viewers can take snapshots and open the live stream. Mouse and keyboard
+input require primary ownership. The gateway checks the current certificate
+and membership separately from permissions to read chats and browse management
+pages.
 
 Session details contain **Participants** (current presence and authors retained
 across the authorized session, independently of loaded transcript pages) and **Devices** used by client-tool invocations.
@@ -268,16 +278,13 @@ older history. The standalone keeps this metadata beside its main database in
 It contains device identities, labels, module names and timestamps, never tool
 arguments, file contents or screenshots.
 
-**Open a computer** lists currently authorized `computer` capabilities, including
-the agent environment when its configured tool source provides a real desktop.
-Scheduled runs, event deliveries and workflows expose the same control in their
-details. When the gateway returns a visible session link, its device history is
-queried separately. A missing historical transcript does not prevent the agent
-owner from opening the current host desktop.
-It opens a responsive modal with screen refresh, pointer actions, scrolling,
-keyboard shortcuts and direct typing. It uses the same public capability catalog
-and exact references as agent execution, with current session/device checks on
-every request. Interaction is deterministic and does not start a model turn.
+The session and run inspectors include the **Agent computer** entry alongside
+eligible connected computers. Client computer requests use the exact tool
+references from the capability catalog and recheck the session and device on
+every request. Host desktop requests use a separate endpoint and an exact
+display on the execution host. Both use the same viewer with live video or
+snapshots. Opening either viewer does not start a model turn.
+
 Qualified desktop hosts advertise optional `openagent-video/1` support. Their
 view receives continuous H.264 video over the authenticated session connection,
 with bounded encoding/decoding queues and current authorization on every packet.

@@ -437,6 +437,39 @@ async def handle_get_runs(request):
     return web.json_response(transcript)
 
 
+async def handle_fork(request):
+    """POST /api/sessions/{session_id}/fork — create a private text branch."""
+    from aiohttp import web
+    from openagent_core.workspace_administration import SessionInspection
+
+    gateway = request.app["gateway"]
+    service = getattr(gateway, "runtime_service", None)
+    operation = getattr(SessionInspection, "fork_text", None)
+    if service is None or service.runtime is None or operation is None:
+        return web.json_response({"error": "Conversation forks are unavailable"}, status=501)
+    db = gateway.agent.memory_db
+    session_id = request.match_info["session_id"]
+    _, _, _, problem = await _authorized_session(request, db, session_id, permission="admin")
+    if problem is not None:
+        return problem
+    try:
+        body = await request.json()
+        message = body.get("message_id") if isinstance(body, dict) else None
+        if not isinstance(message, str) or not 1 <= len(message) <= 512:
+            raise ValueError()
+    except (ValueError, TypeError):
+        return web.json_response({"error": "A valid message ID is required"}, status=400)
+    try:
+        context = await service.context(request, session_id)
+        result = await operation(SessionInspection(db, service.authorizer), context, session_id, message)
+    except (LookupError, PermissionError):
+        return web.json_response({"error": "Conversation or message unavailable to fork"}, status=404)
+    except ValueError:
+        return web.json_response({"error": "This conversation prefix cannot be forked"}, status=422)
+    gateway.broadcast_session("created", result["session_id"])
+    return web.json_response(result, status=201)
+
+
 async def handle_get_events(request):
     """GET /api/sessions/{session_id}/events?after=<seq>&limit=<n>
 

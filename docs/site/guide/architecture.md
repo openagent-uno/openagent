@@ -154,6 +154,26 @@ from another participant create a separately authorized turn and do not reuse
 the preceding author's credentials. Child sessions keep the authorized
 delegation of their parent turn while retaining agent authorship.
 
+## Chat and the agent switcher
+
+Typed messages appear in the transcript immediately, including a follow-up
+sent while the agent is working. The app matches the local message to server
+admission by its request ID. A failed submission stays visible so its text can
+be recovered. Typing a follow-up makes Send available alongside Stop.
+
+Message footers show the send time and copy action. With a compatible server,
+messages in persisted history can start a new private conversation at that
+point. The fork carries the text through the selected message; files, tool
+executions and sharing permissions remain in the original conversation. Running
+tool cards show a moving highlight. An authorized sub-agent card links to its
+live child transcript once the child is admitted. The app respects reduced
+motion preferences.
+
+The transcript supports tables, nested and task lists, links, images, file
+attachments, color samples and syntax-highlighted code. On phones the agent
+switcher is part of the navigation drawer, which leaves the full chat width
+available while closed. The sidebar footer shows the current connection state.
+
 ## Prompt composition
 
 Every agent run composes, in order:

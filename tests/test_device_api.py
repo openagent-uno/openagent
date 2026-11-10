@@ -118,36 +118,87 @@ class DeviceApi(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(403, response.status)
         self.assertFalse(self.sent)
 
-    async def test_agent_desktop_uses_owner_authority_without_borrowing_a_session(self):
-        from openagent_core.capabilities import FunctionSource, ToolDefinition
+    async def test_agent_desktop_uses_native_host_and_separates_view_from_control(self):
+        import sys
+        from unittest.mock import patch
 
-        async def active(principal): return principal.subject_id == 'alice'
-        async def owner(): return self.owner
-        self.owner = 'alice'
+        from openagent_server.agent_desktop import AgentDesktop
+
+        async def active(principal):
+            return principal.subject_id == "alice"
+
+        async def owner():
+            return self.owner
+
+        self.owner = "alice"
         self.service.directory.principal_active = active
         self.service.directory.owner_handle = owner
-        schema = {'type': 'object', 'properties': {'action': {'type': 'string'}}}
-        calls = []
+        self.agent.product_environment = dict(os.environ, OPENAGENT_DESKTOP_VIEWERS="")
+        fixture = Path(self.temp.name) / "native-desktop.py"
+        fixture.write_text("""
+import json
+import pathlib
+import sys
 
-        async def screenshot(arguments, context):
-            calls.append((arguments, context.session_id))
-            return {'content': []}
+role, log = sys.argv[1:3]
+request = json.loads(sys.stdin.readline())
+with pathlib.Path(log).open("a") as file:
+    file.write(json.dumps([role, request]) + chr(10))
+action = request["action"]
+if action == "monitors":
+    result = {"monitors": [{"id": "7", "width": 800, "height": 600}]}
+elif action == "screenshot":
+    result = {"width": 400, "height": 300, "mimeType": "image/png", "data": "iVBORw0KGgo="}
+else:
+    result = {}
+print(json.dumps({"id": request["id"], "ok": True, "result": result}))
+""")
+        log = Path(self.temp.name) / "native-desktop.ndjson"
+        control = (sys.executable, str(fixture), "control", str(log))
+        view = (sys.executable, str(fixture), "view", str(log))
+        endpoint = "/api/devices/computer"
+        with patch.object(AgentDesktop, "_commands", return_value=(control, view)):
+            response = await self.client.get(endpoint + "-targets")
+            self.assertEqual(200, response.status, await response.text())
+            inventory = await response.json()
+            self.assertEqual("available", inventory["host"]["desktop"])
+            target, = inventory["targets"]
+            self.assertTrue(target["agent_host"])
+            self.assertTrue(target["can_control"])
+            reference = target["tool_ref"]
 
-        host = FunctionSource((ToolDefinition('computer', 'Desktop', schema),), {'computer': screenshot})
-        self.service.runtime.capabilities.register('computer-control', host, host, target_label='Agent desktop')
-        response = await self.client.get('/api/devices/computer-targets')
-        self.assertEqual(200, response.status, await response.text())
-        target, = (await response.json())['targets']
-        self.assertTrue(target['agent_host'])
-        response = await self.client.get('/api/sessions/session/computer-targets')
-        personal = next(row for row in (await response.json())['targets'] if not row['agent_host'])
-        for reference, expected in [(personal['tool_ref'], 409), (target['tool_ref'], 200)]:
-            response = await self.client.post('/api/devices/computer', json={'tool_ref': reference, 'action': 'get_screenshot'})
-            self.assertEqual(expected, response.status, await response.text())
-        self.owner = 'bob'
-        response = await self.client.post('/api/devices/computer', json={'tool_ref': target['tool_ref'], 'action': 'get_screenshot'})
-        self.assertEqual(403, response.status)
-        self.assertEqual([({'action': 'get_screenshot'}, '__agent_computer__')], calls)
+            personal = (await (await self.client.get("/api/sessions/session/computer-targets")).json())["targets"][0]
+            response = await self.client.post(endpoint, json={"tool_ref": personal["tool_ref"], "action": "get_screenshot"})
+            self.assertEqual(409, response.status)
+            response = await self.client.post(endpoint, json={"tool_ref": reference, "action": "get_screenshot"})
+            self.assertEqual(200, response.status, await response.text())
+            self.assertEqual("image", (await response.json())["content"][1]["type"])
+            click = {"tool_ref": reference, "action": "left_click", "coordinate": [399, 299], "screen_size": [400, 300]}
+            response = await self.client.post(endpoint, json=click)
+            self.assertEqual(200, response.status, await response.text())
+
+            self.owner = "bob"
+            inventory = await (await self.client.get(endpoint + "-targets")).json()
+            self.assertEqual("restricted", inventory["host"]["desktop"])
+            self.assertEqual([], inventory["targets"])
+            response = await self.client.post(endpoint, json={"tool_ref": reference, "action": "get_screenshot"})
+            self.assertEqual(403, response.status)
+            self.agent.product_environment["OPENAGENT_DESKTOP_VIEWERS"] = "alice"
+            inventory = await (await self.client.get(endpoint + "-targets")).json()
+            self.assertFalse(inventory["targets"][0]["can_control"])
+            response = await self.client.post(endpoint, json={"tool_ref": reference, "action": "get_screenshot"})
+            self.assertEqual(200, response.status)
+            response = await self.client.post(endpoint, json=click)
+            self.assertEqual(403, response.status)
+            self.authorized = False
+            response = await self.client.post(endpoint, json={"tool_ref": reference, "action": "get_screenshot"})
+            self.assertEqual(403, response.status)
+
+        actions = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertEqual(["monitors", "screenshot", "click", "screenshot"], [call["action"] for _, call in actions])
+        self.assertEqual(["view", "view", "control", "view"], [role for role, _ in actions])
+        self.assertEqual((1.0, 1.0), (actions[2][1]["x"], actions[2][1]["y"]))
+        self.assertEqual([], self.sent)
 
     async def test_authoritative_session_participants(self):
         response = await self.client.get('/api/sessions/session/participants')

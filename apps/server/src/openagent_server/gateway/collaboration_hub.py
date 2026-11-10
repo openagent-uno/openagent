@@ -36,6 +36,23 @@ def target_key(target):
     return target["kind"], target["id"]
 
 
+def _child_link(tool):
+    sid = tool.get("child_session_id")
+    if isinstance(sid, str) and IDENTIFIER.fullmatch(sid):
+        return sid
+    # Legacy dispatcher results carry the link in the JSON result.
+    raw = tool.get("result")
+    if isinstance(raw, str) and "child_session_id" in raw:
+        try:
+            result = json.loads(raw)
+            sid = result.get("child_session_id") if isinstance(result, dict) else None
+        except ValueError:
+            return None
+        if isinstance(sid, str) and IDENTIFIER.fullmatch(sid):
+            return sid
+    return None
+
+
 @dataclass(eq=False)
 class Observer:
     ws: object
@@ -170,12 +187,12 @@ class SharedAgentHub:
         elif kind == "status":
             # Tool status is a JSON envelope in OpenAgent; plain statuses are
             # separate from transcript messages (no fabricated tool results).
-            turn["status"] = text[:16384]
             try:
                 tool = json.loads(text)
             except (ValueError,TypeError):
                 tool = None
             if isinstance(tool,dict) and tool.get('tool_name') and tool.get('tool_call_id'):
+                turn["status"] = "Using " + str(tool["tool_name"])[:256]
                 tool = dict(tool)
                 if tool.get('result') is not None:
                     result = tool['result'] if isinstance(tool['result'],str) else json.dumps(tool['result'])
@@ -185,7 +202,7 @@ class SharedAgentHub:
                 tools = turn.setdefault('tools',[])
                 existing = next((item for item in tools if item['id']==tool['tool_call_id']),None)
                 if existing is not None:
-                    existing['toolInfo'] = tool
+                    existing['toolInfo'] = {**existing['toolInfo'], **tool}
                 else:
                     if len(tools) >= 128:
                         tools.pop(0)
@@ -199,6 +216,8 @@ class SharedAgentHub:
                 while len(json.dumps(tools)) > 131072:
                     tools.pop(0)
                     turn['truncated'] = True
+            else:
+                turn["status"] = text[:16384]
         elif kind == "reasoning":
             turn["reasoning"] = frame.get("active") is True
         elif kind == "error":
@@ -297,15 +316,48 @@ class SharedAgentHub:
                 await client.ws.send_json({"type": "shared_revoked", "session_id": sid})
                 client.sent.pop(sid, None)
                 continue
+            # Revalidate each link separately from the parent session. Do not
+            # expose a child to a parent-only viewer, even in a cached snapshot.
+            # Copy before awaiting; only the exact tool links in this copy can
+            # be serialized under the resulting authorization.
             state = self.sessions.get(sid, {"revision": self.revision, "turns": []})
-            if client.sent.get(sid) != state["revision"]:
-                # Copy synchronously after authorization. Producers can run
-                # while socket I/O is suspended without mutating this payload.
+            tools = [row["toolInfo"] for turn in state["turns"] for row in turn.get("tools", ())]
+            linked = list(dict.fromkeys(link for tool in tools if (link := _child_link(tool))))
+            visible = frozenset()
+            payload = None
+            if linked:
                 payload = copy.deepcopy(state)
-                client.sent[sid] = state["revision"]
-                await client.ws.send_json(
-                    {"type": "shared_state", "session_id": sid, **payload}
-                )
+                child_targets = [{"kind": "session", "id": child} for child in linked[:64]]
+                async with self.authorization_limit:
+                    child_access = await authorize(client.actor, child_targets)
+                    current_access = await authorize(client.actor, [{"kind": "session", "id": sid}])
+                if client.generation != generation:
+                    client.wake.set()
+                    return
+                if {"kind": "session", "id": sid} not in current_access["allowed"]:
+                    await client.ws.send_json({"type": "shared_revoked", "session_id": sid})
+                    client.sent.pop(sid, None)
+                    continue
+                visible = frozenset(item["id"] for item in child_access["allowed"])
+            snapshot = (state["revision"] if payload is None else payload["revision"], visible)
+            previous = client.sent.get(sid)
+            if previous is None or previous[:2] != snapshot:
+                payload = copy.deepcopy(state) if payload is None else payload
+                # An ACL-only update still needs a larger revision for this
+                # observer. Keep that offset local to this session and socket.
+                if previous is not None:
+                    payload["revision"] = max(payload["revision"], previous[2] + 1)
+                for turn in payload["turns"]:
+                    for row in turn.get("tools", ()):
+                        tool = row["toolInfo"]
+                        link = _child_link(tool)
+                        if link and link not in visible:
+                            for field in ("child_session_id", "child_run_id", "child_session_title", "child_model"):
+                                tool.pop(field, None)
+                            if isinstance(tool.get("result"), str) and "child_session_id" in tool["result"]:
+                                tool["result"] = "Delegated execution completed"
+                client.sent[sid] = (*snapshot, payload["revision"])
+                await client.ws.send_json({"type": "shared_state", "session_id": sid, **payload})
         resources, client.resources = client.resources, {}
         for frame in resources.values():
             if frame["resource"] in KINDS and frame.get("id"):

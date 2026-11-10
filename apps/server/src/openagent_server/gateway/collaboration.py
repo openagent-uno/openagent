@@ -59,6 +59,7 @@ class Collaboration:
         self.hub = SharedAgentHub()
         self.runtimes = {}
         self.requests = {}
+        self.child_observers = {}
         self.registry_lock = asyncio.Lock()
         self.reaper = None
         self.closed = False
@@ -67,9 +68,10 @@ class Collaboration:
         return sid in self.runtimes
 
     async def handle_info(self, request):
-        return web.json_response(
-            {"version": 1, "attachments": True, "client_capabilities": True}
-        )
+        from openagent_core.workspace_administration import SessionInspection
+
+        return web.json_response({"version": 1, "attachments": True, "client_capabilities": True,
+                                  "session_fork": hasattr(SessionInspection, "fork_text")})
 
     async def handle_commands(self, request):
         sid = request.match_info["session_id"]
@@ -152,7 +154,7 @@ class Collaboration:
         if self.reaper is not None:
             self.reaper.cancel()
             await asyncio.gather(self.reaper, return_exceptions=True)
-        tasks = [entry[1] for entry in self.requests.values()]
+        tasks = [entry[1] for entry in self.requests.values()] + list(self.child_observers.values())
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
@@ -306,6 +308,56 @@ class Collaboration:
             else "Model: " + (result.get("runtime_id") or "Auto")
         )
 
+    def _observe_child(self, actor, parent_run_id, session_id, run_id):
+        if self.closed or run_id in self.child_observers or len(self.child_observers) >= 128:
+            return
+        task = asyncio.create_task(self._relay_child(actor, parent_run_id, session_id, run_id))
+        self.child_observers[run_id] = task
+        task.add_done_callback(lambda _: self.child_observers.pop(run_id, None))
+
+    async def _relay_child(self, actor, parent_run_id, session_id, run_id):
+        from openagent_server.runtime_service import PreparedRun
+        service = self.gateway.runtime_service
+        began = False
+
+        def publish(kind, **fields):
+            self.hub.publish({"type": kind, "session_id": session_id, **fields})
+
+        async def on_status(text):
+            publish("status", text=text)
+
+        try:
+            context = await service.context(actor, session_id)
+            record = await service.runtime.get_run(run_id, context)
+            if record.session_id != session_id or record.parent_run_id != parent_run_id:
+                return
+            accepted = await service.runtime.accepted_request(run_id, context)
+            mission = accepted.request.input
+            began = self.hub.begin(session_id, mission if isinstance(mission, str) else "",
+                                  {"kind": "agent", "display": "Mission"}, run_id)
+            if not began:
+                return
+            self.hub.sessions[session_id]["turns"][-1]["providerRunId"] = run_id
+            prepared = PreparedRun(accepted.request, context, cancel_on_detach=False,
+                on_child=lambda parent, sid, rid: self._observe_child(actor, parent, sid, rid))
+            async for frame in service.observe_run(prepared, on_status=on_status):
+                if frame.get("kind") == "delta":
+                    publish("delta", text=frame.get("text") or "")
+                elif frame.get("kind") == "done":
+                    publish("response", text=frame.get("text") or "", model=frame.get("model"),
+                            attachments=frame.get("attachments"), parts=frame.get("parts"))
+                elif frame.get("kind") == "reasoning":
+                    publish("reasoning", active=frame.get("active") is True)
+        except (PermissionError, LookupError):
+            pass
+        except Exception:
+            if began:
+                publish("error", text="Delegated execution did not complete.")
+        finally:
+            if began:
+                publish("turn_complete")
+                self.hub.resource("session", "updated", session_id)
+
     async def _run(
         self,
         request,
@@ -415,6 +467,7 @@ class Collaboration:
                     steer_run_id=target,
                 )
                 prepared.cancel_on_detach = False
+                prepared.on_child = lambda parent, child, run: self._observe_child(request, parent, child, run)
                 if target is not None:
                     previous = service.prepared_runs.get(target)
                     if previous is not None:

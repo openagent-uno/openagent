@@ -7,10 +7,6 @@ from pathlib import Path
 import time
 import aiosqlite
 
-AGENT_COMPUTER_SOURCE = 'computer-control'
-AGENT_COMPUTER_CONTEXT = '__agent_computer__'
-
-
 class DeviceDirectory:
     def __init__(self, path):
         self.path = str(path)
