@@ -54,7 +54,7 @@ import UIViewSurface from './ui/UIViewSurface';
 import McpAppSurface from './McpAppSurface';
 import { mcpAppHint } from '../services/mcp-apps';
 import { useChat } from '../stores/chat';
-import { useConnection } from '../stores/connection';
+import { activeAgentName, useConnection } from '../stores/connection';
 import { useReducedMotion } from '../hooks/useDrawerMotion';
 
 // How many trailing messages to render before "Load earlier". Caps the
@@ -108,6 +108,7 @@ function MessageListBase({
   const activeId = useChat(state => state.activeSessionId);
   const activeMessages = useChat(state => state.sessions.find(session => session.id === state.activeSessionId)?.messages);
   const accountId = useConnection(state => state.activeAccountId);
+  const agentName = useConnection(activeAgentName);
   const appSessionId = sessionId ?? (transcript === activeMessages ? activeId ?? undefined : undefined);
   const messages = useMemo(() => placeSharedTools(transcript), [transcript]);
   const reducedMotion = useReducedMotion();
@@ -123,14 +124,34 @@ function MessageListBase({
     for (const run of repeated) unique.delete(run);
     return unique;
   }, [transcript]);
-  const assistantActions = useMemo(() => {
+  const { assistantActions, turnForks } = useMemo(() => {
     const last = new Map<string, ChatMessage>();
+    const assistantRows = new Map<string, ChatMessage>();
+    const runs = new Map<string, { prompt?: ChatMessage; hasAnswer?: boolean; tool?: ChatMessage }>();
     for (const row of messages) {
-      if (row.role !== 'assistant') continue;
-      const source = canonical.get(row.id) ?? canonical.get(row.id.split(':after:')[0]);
-      if (source) last.set(source.id, row);
+      const source = row.role === 'assistant'
+        ? canonical.get(row.id) ?? canonical.get(row.id.split(':after:')[0])
+        : row.toolPosition && canonical.get(row.toolPosition.messageId);
+      if (source) {
+        last.set(source.id, row);
+        if (row.role === 'assistant') assistantRows.set(source.id, row);
+      }
+
+      if (!row.providerRunId) continue;
+      const run = runs.get(row.providerRunId) ?? {};
+      runs.set(row.providerRunId, run);
+      if (row.role === 'user') run.prompt = canonical.get(row.id);
+      if (row.role === 'assistant') run.hasAnswer = true;
+      if (row.role === 'tool') run.tool = row;
     }
-    return new Map([...last].map(([id, row]) => [row.id, canonical.get(id)!]));
+    const actions = new Map([...last].map(([id, row]) => [row.id, canonical.get(id)!]));
+    for (const run of runs.values()) {
+      if (!run.hasAnswer && run.prompt && run.tool) actions.set(run.tool.id, run.prompt);
+    }
+    return {
+      assistantActions: new Map([...assistantRows].map(([id, row]) => [row.id, canonical.get(id)!])),
+      turnForks: actions,
+    };
   }, [canonical, messages]);
   // Windowing: render only the last `shown` messages. With bottom-pinned
   // scroll the tail is what the user sees; a long transcript otherwise
@@ -253,14 +274,26 @@ function MessageListBase({
       // conversation", with the run/token stats in the expanded body.
       return wrap(<CompactionCard info={msg.compactionInfo} />);
     }
+    const source = msg.role === 'user' ? canonical.get(msg.id) : assistantActions.get(msg.id);
+    const boundary = msg.role === 'user' ? source : turnForks.get(msg.id);
+    const fork = onFork && boundary?.ordinal != null && !boundary.delivery && !boundary.streaming
+      ? () => onFork(boundary.id) : undefined;
     if (msg.role === 'tool') {
+      const showFork = fork && !(isProcessing && msg.id === messages.at(-1)?.id)
+        && (msg.toolInfo ? toolPhase(msg.toolInfo) !== 'running' : msg.durableStatus !== 'streaming');
+      const renderTool = (card: ReactNode) => wrap(
+        <>
+          {card}
+          {showFork && <View style={styles.msgActions}><ForkButton onFork={fork} /></View>}
+        </>,
+      );
       // A delegation renders as a card (deep-links into the sub-agent's
       // child session, OpenCode-style) instead of an inline tool chip —
       // as soon as an authorized child session is available, so the parent never shows
       // the raw delegate-tool prompt or the sub-agent's own work inline.
       if (isDelegationTool(msg.toolInfo)) {
         const eff = effectiveTool(msg.toolInfo)!;
-        return wrap(
+        return renderTool(
           <DelegationCard
             childSessionId={eff.child_session_id}
             title={delegationTitle(msg.toolInfo)}
@@ -275,9 +308,9 @@ function MessageListBase({
       // deep-links into that run's execution screen (not an inline tool chip).
       const runTarget = runLaunchTarget(msg.toolInfo);
       if (runTarget) {
-        return wrap(<RunLaunchCard target={runTarget} onOpen={onOpenRun} />);
+        return renderTool(<RunLaunchCard target={runTarget} onOpen={onOpenRun} />);
       }
-      return wrap(
+      return renderTool(
         <ToolCard
           sessionId={appSessionId}
           appScopeKey={accountId ?? ""}
@@ -289,9 +322,6 @@ function MessageListBase({
         />,
       );
     }
-    const source = msg.role === 'assistant' ? assistantActions.get(msg.id) : canonical.get(msg.id);
-    const fork = onFork && source?.ordinal != null && !source.delivery && !source.streaming
-      ? () => onFork(source.id) : undefined;
     if (msg.role === 'user') {
       // An agent-self seed (a delegated task / scheduled mission / workflow
       // node prompt the agent gave itself) renders as a Mission block,
@@ -300,7 +330,7 @@ function MessageListBase({
         return wrap(
           <SelfPromptBlock
             text={msg.text}
-            label={msg.author.display}
+            label={msg.author.display?.trim().toLowerCase() === 'openagent' ? agentName : msg.author.display}
             onFork={fork}
             timestamp={msg.timestamp}
           />,
@@ -323,7 +353,7 @@ function MessageListBase({
       <AssistantMessage
         text={msg.text} model={msg.model} attachments={msg.attachments}
         parts={msg.parts}
-        streaming={msg.streaming} author={msg.author}
+        streaming={msg.streaming} author={msg.author} agentName={agentName}
         showHeader={showAuthorHeader}
         timestamp={msg.timestamp}
         actionText={source?.text}
@@ -462,7 +492,7 @@ const UserMessage = memo(function UserMessage({
 });
 
 const AssistantMessage = memo(function AssistantMessage({
-  text, model, attachments, parts, streaming, author, showHeader, timestamp, actionText, onRegenerate, onFork,
+  text, model, attachments, parts, streaming, author, agentName, showHeader, timestamp, actionText, onRegenerate, onFork,
 }: {
   text: string;
   model?: string;
@@ -470,13 +500,16 @@ const AssistantMessage = memo(function AssistantMessage({
   parts?: MessagePart[];
   streaming?: boolean;
   author?: MessageAuthor;
+  agentName?: string;
   showHeader: boolean;
   timestamp?: number;
   actionText?: string;
   onRegenerate?: () => void;
   onFork?: () => Promise<void>;
 }) {
-  const label = author?.display || 'OpenAgent';
+  const display = author?.display?.trim();
+  const label = display && display.toLowerCase() !== 'openagent'
+    ? display : agentName || 'Agent';
   const actions = !streaming && actionText != null ? (
     <View style={styles.msgActions}>
       <CopyButton text={actionText} />

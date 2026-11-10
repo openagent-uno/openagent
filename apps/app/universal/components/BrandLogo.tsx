@@ -15,7 +15,7 @@ export default function BrandLogo({
   wordmark = false,
 }: {
   size?: number;
-  wordmark?: boolean;
+  wordmark?: boolean | string;
 }) {
   const bird = (
     <Image
@@ -28,7 +28,9 @@ export default function BrandLogo({
   return (
     <View style={styles.row}>
       {bird}
-      <Text style={[styles.word, { fontSize: size * 0.52 }]}>OPENAGENT</Text>
+      <Text numberOfLines={1} style={[styles.word, { fontSize: size * 0.52 }]}>{
+        typeof wordmark === 'string' ? wordmark : 'OPENAGENT'
+      }</Text>
     </View>
   );
 }
@@ -36,6 +38,7 @@ export default function BrandLogo({
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   word: {
+    flexShrink: 1,
     fontFamily: font.display,
     fontWeight: '600',
     color: colors.text,

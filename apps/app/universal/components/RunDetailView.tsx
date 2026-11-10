@@ -489,7 +489,9 @@ export function RunDetailView({
   const {
     scrollRef,
     onScroll,
+    scrollInteraction,
     onContentSizeChange,
+    onLayout: onTranscriptLayout,
     isPinned,
     scrollToBottom,
   } = useAutoScroll({ trackDeps: scrollTrackDeps });
@@ -554,8 +556,10 @@ export function RunDetailView({
         style={styles.scroll}
         contentContainerStyle={styles.messagesContent}
         onScroll={onScroll}
+        {...scrollInteraction}
         onContentSizeChange={onContentSizeChange}
-        scrollEventThrottle={100}
+        onLayout={onTranscriptLayout}
+        scrollEventThrottle={16}
         // Always show the scrollbar so the user sees there's
         // scrollable content even when the transcript is short.
         // @ts-ignore — RN Web prop, no-op on native

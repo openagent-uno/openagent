@@ -112,6 +112,36 @@ test('live chat preserves AI account errors, navigation and child reasoning', as
     const user = page.getByTestId('oa-user-message').filter({ hasText: 'latest live request' });
     await expect(user.getByLabel('Copy message')).toBeVisible();
     await expect(user.getByTestId('oa-message-turn-time')).toBeVisible();
+
+    const agentName = 'Deterministic E2E Agent';
+    await expect(page.getByText(agentName, { exact: true }).first()).toBeVisible();
+    await expect(page.getByTestId('oa-agent-message-label').first()).toHaveText(agentName);
+
+    // Consecutive layout events include insertions and a grow-on-send.
+    // The footer stays visible without waiting for an animation guard.
+    const transcript = page.getByTestId('chat-transcript');
+    const gap = () => transcript.evaluate(el => el.scrollHeight - el.clientHeight - el.scrollTop);
+    for (let i = 0; i < 32; i++) {
+      gateway.sendChatFrame({ type: 'status', session_id: 'e2e-session', text: JSON.stringify({
+        tool_name: 'inspect', tool_call_id: 'scroll-fixture-' + i, tool_args: { index: i }, result: 'done',
+      }) });
+    }
+    await expect(page.getByText('Inspect', { exact: true })).toHaveCount(32);
+    await expect.poll(() => transcript.evaluate(el => el.scrollTop)).toBeGreaterThan(320);
+    await expect.poll(gap).toBeLessThanOrEqual(2);
+    const box = await transcript.boundingBox();
+    await page.mouse.move(box.x + box.width - 24, box.y + box.height / 2);
+    await page.mouse.wheel(0, -320);
+    await expect(page.getByLabel('Jump to bottom')).toBeVisible();
+    gateway.sendChatFrame({ type: 'status', session_id: 'e2e-session', text: JSON.stringify({
+      tool_name: 'inspect_more', tool_call_id: 'scroll-fixture-more', result: 'done',
+    }) });
+    await expect(page.getByText('Inspect More', { exact: true })).toHaveCount(1);
+    await expect.poll(gap).toBeGreaterThan(100);
+    await page.getByPlaceholder('Message OpenAgent...').fill('follow from the composer');
+    await page.getByLabel('Send message', { exact: true }).click();
+    await expect(page.getByText('follow from the composer', { exact: true })).toBeVisible();
+    await expect.poll(gap).toBeLessThanOrEqual(2);
     // Reproduce the sub-agent case: reasoning is the child's first frame,
     // before its sidebar metadata exists. Open it through the production
     // delegation card and verify the animated state survived routing.
@@ -132,7 +162,9 @@ test('live chat preserves AI account errors, navigation and child reasoning', as
       }),
     });
     await expect(page.getByTestId('running-tool-shine')).toBeVisible();
-    await page.getByRole('button', { name: 'Open sub-agent session Research child' }).click();
+    const childCard = page.getByRole('button', { name: 'Open sub-agent session Research child' });
+    expect((await childCard.boundingBox()).width).toBeGreaterThan(690);
+    await childCard.click();
     await expect(page).toHaveURL(/session=e2e-session%3A%3Asub%3A%3Aresearcher%3A%3Arun-1/);
     await expect(page.getByRole('status', { name: 'Agent is working' })).toBeVisible();
     gateway.sendChatFrame({ type: 'delta', session_id: childId, text: [

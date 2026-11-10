@@ -11,6 +11,7 @@ const leases = new Map<symbol, { sessions: string[]; focus: SharedTarget | null 
 let client: CollaborationClient | null = null;
 const revisions = new Map<string, number>();
 const active = new Map<string, boolean>();
+const latestFinished = new Map<string, string>();
 // Bumped whenever a session's shared state is dropped. Async follow-ups
 // (durable commands, model pin) captured before a revoke/regrant must not
 // apply their older answer on top of the state that replaced it.
@@ -27,7 +28,7 @@ export function observeShared(sessions: string[], focus: SharedTarget | null) {
   return () => { leases.delete(key); observe(); };
 }
 export function bindShared(next: CollaborationClient | null) {
-  client = next; revisions.clear(); active.clear(); generations.clear();
+  client = next; revisions.clear(); active.clear(); latestFinished.clear(); generations.clear();
   useCollaboration.setState({ client, people: [] });
   if (!next) return () => {};
   const unsubscribe = next.subscribe(() => {
@@ -43,6 +44,7 @@ export function bindShared(next: CollaborationClient | null) {
         const withdrawn = next.revoked(id);
         if (revisions.delete(id) || (withdrawn && !sessionIsRevoked(id))) {
           generations.set(id, (generations.get(id) ?? 0) + 1);
+          latestFinished.delete(id);
           // A withdrawn grant (or logout) must drop the cached snapshot AND the
           // visible text: a history fetch still in flight would otherwise merge
           // the revoked transcript back in. A socket that merely dropped keeps
@@ -78,6 +80,10 @@ export function bindShared(next: CollaborationClient | null) {
         sharedSnapshot: snapshot, outbound: unconfirmedMessages(se.outbound, se.messages, snapshot),
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));
+      const finished = snapshot.turns.findLast(turn => !turn.active && turn.providerRunId)?.id;
+      const newFinish = finished !== undefined && latestFinished.get(id) !== finished;
+      if (finished) latestFinished.set(id, finished);
+      if (newFinish && running) void useChat.getState().reconcileSession(id);
       if (!running && (active.get(id) !== false || snapshot.turns.length)) {
         const generation = generations.get(id) ?? 0;
         const current = () => client === next && !!next.snapshot(id) && (generations.get(id) ?? 0) === generation;

@@ -71,6 +71,8 @@ export default DelegationCard;
 
 const styles = StyleSheet.create({
   card: {
+    width: '100%',
+    alignSelf: 'stretch',
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',

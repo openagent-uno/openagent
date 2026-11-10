@@ -6,7 +6,7 @@
  * Virgil desktop shell in the JARVIS skin:
  *
  *   ┌──────────────┐
- *   │ ⌖ OPENAGENT  │  bird logo + wordmark
+ *   │ ⌖ Agent name │  bird logo + active agent name
  *   │ ▸ jarvis  ▾  │  connected agent (tap → switch / add modal)
  *   │ + New session│  styled like a nav row
  *   │ ▸ Memory     │  workspace nav — a cyan rail glides to the active row
@@ -40,7 +40,7 @@ import { useChat } from '../stores/chat';
 import SharedPresence from './SharedPresence';
 import { isHiddenChildSession } from '../../common/types';
 import { useActivity, type ActivityRun } from '../stores/activity';
-import { useConnection } from '../stores/connection';
+import { activeAgentName, useConnection } from '../stores/connection';
 import { globalSearchAvailable, useSearch } from '../stores/search';
 import { openSearchTarget } from '../services/searchNavigation';
 import { sessionEntryFromActivity } from '../services/api';
@@ -119,6 +119,7 @@ export default function Sidebar({
   showWindowControls?: boolean;
 }) {
   const router = useRouter();
+  const agentName = useConnection(activeAgentName);
   const segments = useSegments();
   const routeParams = useGlobalSearchParams<{ id?: string }>();
   // macOS shows native traffic lights over the sidebar's top-left, so the
@@ -175,7 +176,7 @@ export default function Sidebar({
           isMac && Platform.OS === 'web' ? ({ WebkitAppRegion: 'drag' } as any) : null,
         ]}
       >
-        <BrandLogo size={22} wordmark />
+        <BrandLogo size={22} wordmark={agentName || true} />
       </View>
 
       {/* ── Primary actions ── */}

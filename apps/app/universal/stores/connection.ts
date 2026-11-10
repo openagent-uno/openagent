@@ -22,6 +22,7 @@ import { sessionDiscoveryStrategy } from '../../common/history-feed-policy';
 import { createLatestAttemptGate } from '../../common/latest-attempt';
 import { persistAccountAdditionWhileCurrent } from '../../common/guarded-account-persistence';
 import {
+  accountAgentPresentation,
   accountLoopbackTarget,
   withVerifiedAccountTarget,
   type PublicAccountTarget,
@@ -381,6 +382,15 @@ interface ConnectionState {
    *  account's already-running loopback with no password. No-op when the
    *  loopback isn't up (the window falls back to the login screen). */
   connectDirected: (accountId: string) => Promise<void>;
+}
+
+export function activeAgentName(state: Pick<ConnectionState, 'agentName' | 'accounts' | 'activeAccountId'>) {
+  const account = state.accounts.find(account => account.id === state.activeAccountId);
+  const display = state.agentName?.trim() || account?.agentDisplayName?.trim();
+  if (display && display.toLowerCase() !== 'openagent') return display;
+  if (!account) return display;
+  const { alias, primary } = accountAgentPresentation(account);
+  return alias && alias.toLowerCase() !== 'openagent' ? alias : primary;
 }
 
 export const useConnection = create<ConnectionState>((set, get) => {

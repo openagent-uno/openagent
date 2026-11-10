@@ -285,6 +285,16 @@ every request. Host desktop requests use a separate endpoint and an exact
 display on the execution host. Both use the same viewer with live video or
 snapshots. Opening either viewer does not start a model turn.
 
+Chat follows new messages and tool cards when the transcript is at the bottom.
+Scrolling up pauses following. Sending a message brings the composer and latest
+turn back into view. The active agent's name labels the navigation sidebar and
+its replies. Named participants keep their own author labels.
+
+A completed turn offers a private fork from its durable text boundary, including
+when its final card is a tool. A delegation card uses the authorized child link
+as soon as the Runtime admits the child, so you can open the child while it
+streams.
+
 Qualified desktop hosts advertise optional `openagent-video/1` support. Their
 view receives continuous H.264 video over the authenticated session connection,
 with bounded encoding/decoding queues and current authorization on every packet.

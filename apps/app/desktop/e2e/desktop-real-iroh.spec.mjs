@@ -103,6 +103,7 @@ test('real Electron enrolls and executes filesystem through the uniform catalog 
     // same handleJoin callback and is stable across its generated DOM.
     await password.press('Enter');
 
+    await page.getByRole('button', { name: 'New session', exact: true }).click({ timeout: 30_000 });
     await expect(page.getByPlaceholder('Message OpenAgent...')).toBeVisible({ timeout: 30_000 });
     await expect.poll(
       async () => (await page.evaluate(() => window.desktop.getCapabilityStatus())).phase,
@@ -187,6 +188,16 @@ test('real Electron enrolls and executes filesystem through the uniform catalog 
     const screenshot = test.info().outputPath('desktop-success.png');
     await page.screenshot({ path: screenshot });
     await test.info().attach('Authenticated desktop after reload', { path: screenshot, contentType: 'image/png' });
+
+    const fork = page.getByTestId('oa-assistant-message').getByRole('button', {
+      name: 'Fork conversation from this message',
+    });
+    await expect(fork).toBeVisible();
+    const sourceUrl = page.url();
+    await fork.click();
+    await expect.poll(() => page.url()).not.toBe(sourceUrl);
+    await expect(page.getByTestId('oa-assistant-message')
+      .getByText('desktop file written', { exact: true })).toBeVisible();
   } catch (error) {
     const electronOutput = mainOutput.join('').trim();
     if (electronOutput) error.message += `\n\nElectron main output:\n${electronOutput}`;

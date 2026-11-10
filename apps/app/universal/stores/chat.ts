@@ -43,6 +43,7 @@ import {
 export type SessionHistoryMode = 'unknown' | 'legacy' | 'v2';
 const SESSION_MESSAGE_PAGE_SIZE = 60;
 const earlierPageLoads = new Map<string, Promise<void>>();
+const latestReconciliation = new Map<string, symbol>();
 
 let nextMsgId = 1;
 const genId = () => `msg-${nextMsgId++}-${Date.now()}`;
@@ -1710,15 +1711,18 @@ export const useChat = create<ChatState>((set, get) => ({
 
   reconcileSession: async (sessionId) => {
     const ses = get().sessions.find((s) => s.id === sessionId);
-    // Only reconcile a session we know about and that isn't mid-turn. (A new
-    // turn flips isProcessing true; clobbering it would drop the just-typed
-    // message.)
-    if (!ses || ses.isProcessing) return;
+    // A shared snapshot can reapply its live turn on top of durable history.
+    // Without one, replacing the transcript mid-turn loses the live rows.
+    const canReconcile = (session: ChatSession) => !session.isProcessing
+      || session.sharedSnapshot?.turns.some(turn => turn.active && turn.runId);
+    if (!ses || !canReconcile(ses)) return;
     const mode = get().sessionHistoryMode;
     const current = sessionReadGuard(sessionId);
+    const request = Symbol();
+    latestReconciliation.set(sessionId, request);
     return loadSessionTranscript(sessionId, mode)
       .then((loaded) => {
-        if (!current()) return;
+        if (!current() || latestReconciliation.get(sessionId) !== request) return;
         // Empty result → keep the optimistic transcript (the runs may not be
         // flushed yet); never wipe a visible conversation to nothing.
         const hasMessages = loaded.kind === 'v2'
@@ -1729,13 +1733,16 @@ export const useChat = create<ChatState>((set, get) => ({
           sessions: s.sessions.map((se) => {
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
-            if (se.isProcessing) return se;
+            if (!canReconcile(se)) return se;
             const patch = transcriptPatch(loaded, se.messages, se.sharedSnapshot);
             return { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) };
           }),
         }));
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (latestReconciliation.get(sessionId) === request) latestReconciliation.delete(sessionId);
+      });
   },
 
   applyContextReport: (sessionId, report) => set((s) => {
@@ -1776,6 +1783,7 @@ export const useChat = create<ChatState>((set, get) => ({
   clearAll: () => {
     resetSessionReadAccess();
     earlierPageLoads.clear();
+    latestReconciliation.clear();
     set({
       sessions: [],
       activeSessionId: null,

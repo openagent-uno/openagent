@@ -10,7 +10,7 @@ import McpAppDraftReview from '../../components/McpAppDraftReview';
  * the transcript and streams the mic through the active chat session.
  */
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import {
@@ -595,16 +595,25 @@ export default function ChatScreen() {
   const {
     scrollRef,
     onScroll,
+    scrollInteraction,
     onContentSizeChange,
+    onLayout: onTranscriptLayout,
     isPinned,
     scrollToBottom,
+    pauseFollowing,
   } = useAutoScroll({
     trackDeps: [
+      activeSessionId,
       displayMessages.length,
       activeSession?.statusText,
       displayMessages.at(-1)?.text.length,
     ],
   });
+
+  useLayoutEffect(() => {
+    if (anchorMessage || anchorToolInvocation) pauseFollowing();
+    else scrollToBottom(false);
+  }, [activeSessionId, anchorMessage, anchorToolInvocation, pauseFollowing, scrollToBottom]);
 
   // Shared upload pipeline used by every file-source surface (native
   // file dialog on desktop, hidden ``<input type=file>`` on plain web,
@@ -1096,7 +1105,7 @@ export default function ChatScreen() {
       systemPrompt: activeSession?.systemPrompt,
       attachments,
     });
-    if (!isPinned) scrollToBottom(false);
+    scrollToBottom(false);
     setInput('');
     // Drop only the chips we actually sent; keep failed + still-uploading
     // entries visible so the user notices them (and the next Enter can
@@ -1566,6 +1575,7 @@ export default function ChatScreen() {
             )}
 
             <ScrollView
+              testID="chat-transcript"
               ref={scrollRef}
               // Pull up behind the transparent header (its empty top padding
               // is transparent, so any banners above still show through) and
@@ -1573,8 +1583,10 @@ export default function ChatScreen() {
               style={[styles.messages, { marginTop: -headerInset }]}
               contentContainerStyle={[styles.messagesContent, { paddingTop: headerInset + 12 }]}
               onScroll={onScroll}
+              {...scrollInteraction}
               onContentSizeChange={onContentSizeChange}
-              scrollEventThrottle={100}
+              onLayout={onTranscriptLayout}
+              scrollEventThrottle={16}
               // Always show the scrollbar so the user sees there's
               // scrollable content even when the transcript is short.
               // @ts-ignore — RN Web prop, no-op on native
@@ -1841,7 +1853,7 @@ const styles = StyleSheet.create({
   },
 
   messages: { flex: 1 },
-  messagesContent: { paddingVertical: 12, paddingBottom: 12 },
+  messagesContent: { paddingVertical: 12, paddingBottom: 22 },
   messagesInner: { maxWidth: 760, width: '100%', alignSelf: 'center', paddingHorizontal: 20 },
 
   // Loading placeholder while sessions hydrate from the server.

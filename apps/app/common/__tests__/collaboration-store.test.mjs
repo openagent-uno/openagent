@@ -164,3 +164,31 @@ test('revocation clears pagination and rejects a page started under the old gran
   await pending;
   assert.deepEqual(texts(), []);
 });
+
+test('a completed turn receives its durable fork anchor while the next turn streams', async t => {
+  const { sockets } = setup(t);
+  useChat.setState({ sessionHistoryMode: 'v2' });
+  globalThis.__sharedPage = async () => ({
+    revision: 'test-revision',
+    messages: [{
+      id: 'durable-answer', run_id: 'first-run', ordinal: 3, status: 'complete',
+      role: 'assistant', text: 'Earlier answer', created_at: '2026-01-01T00:00:00Z',
+      author: { kind: 'agent' },
+    }],
+  });
+  const now = Date.parse('2026-01-01T00:00:00Z') / 1000;
+  sockets[0].receive({
+    type: 'shared_state', session_id: 'chat', revision: 1, turns: [
+      { id: 'first-turn', runId: 'first-run', providerRunId: 'first-run', active: false,
+        startedAt: now, messages: [{ ...message('Earlier answer'), timestamp: now }] },
+      { id: 'second-turn', runId: 'second-run', providerRunId: 'second-run', active: true,
+        startedAt: now + 1, messages: [{ ...message('Still streaming'), timestamp: now + 1 }] },
+    ],
+  });
+  await flush();
+  const session = useChat.getState().sessions[0];
+  assert.equal(session.isProcessing, true);
+  assert.deepEqual(session.messages.map(row => [row.id, row.ordinal, !!row.streaming]), [
+    ['durable-answer', 3, false], ['shared:second-turn:reply', undefined, true],
+  ]);
+});

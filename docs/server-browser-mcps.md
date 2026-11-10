@@ -7,11 +7,14 @@ channel turn through its explicit identity/device-owner policy; see
 sources are distinct from the agent's own `server_host_tools.tools`. A missing
 client destination must never be substituted with the server desktop.
 
-## Full desktop rather than a browser-only display
+## Provisioning a full Linux desktop
 
 A screenshot/stream captures the complete display. Xvfb plus Chromium alone
 contains no window manager: there are no managed window decorations, taskbar or
-application switcher to capture. Provision an X11 window manager and panel (for
+application switcher to capture. A window manager on its own may display only
+the wallpaper until a window opens. Provide a visible panel and application
+launchers to make the desktop usable immediately. Provision an X11 window
+manager and panel (for
 example `openbox` and `tint2`) in the **same** display, Xauthority and mount
 namespace as the supervised browser. Preserve its profile and display; attaching
 a shell does not require restarting Chromium or signing in again.
