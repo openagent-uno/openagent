@@ -188,6 +188,7 @@ function registerDialogHandlers(): void {
 
 const isDev = !app.isPackaged;
 const packagedSmoke = process.argv.includes('--packaged-smoke');
+if (packagedSmoke) app.disableHardwareAcceleration();
 const localE2EProfile = resolveLocalE2EProfile(process.argv);
 const localE2E = localE2EProfile != null;
 const runtimePolicy = desktopRuntimePolicy({
@@ -848,7 +849,8 @@ app.whenReady().then(async () => {
         if (!fs.existsSync(required)) throw new Error(`missing packaged resource: ${required}`);
       }
       console.log(`packaged-smoke ok ${app.getVersion()} ${process.platform} ${process.arch}`);
-      app.exit(0);
+      // Let Electron finish its normal shutdown after native initialization.
+      app.quit();
     } catch (error) {
       console.error(`packaged-smoke failed: ${error instanceof Error ? error.message : String(error)}`);
       app.exit(1);
