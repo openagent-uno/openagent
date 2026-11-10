@@ -1856,7 +1856,7 @@ export function sendTypedChat(
   options: { llmPin?: string; systemPrompt?: string; attachments?: Attachment[]; legacyEditMessageId?: string } = {},
 ) {
   const current = sessionReadGuard(sessionId);
-  if (!current()) return;
+  if (!current()) return false;
   const requestId = globalThis.crypto?.randomUUID?.() ?? genId();
   const { attachments, llmPin, systemPrompt, legacyEditMessageId } = options;
   const message: ChatMessage = {
@@ -1881,6 +1881,14 @@ export function sendTypedChat(
   });
   connection.sendMessage(text, sessionId, {
     requestId, llmPin, systemPrompt, attachments: attachmentsForSend(attachments),
+    onSessionReady: () => {
+      if (!current()) return;
+      useChat.setState(state => {
+        if (!state.sessions.some(session => session.id === sessionId && session.localDraft)) return state;
+        return { sessions: state.sessions.map(session => session.id === sessionId
+          ? { ...session, localDraft: false } : session) };
+      });
+    },
     onLegacy: () => {
       update(outbound => outbound.filter(item => item.id !== requestId));
       if (!current()) return false;
@@ -1897,4 +1905,5 @@ export function sendTypedChat(
       if (current()) void useChat.getState().reconcileSession(sessionId);
     },
   });
+  return true;
 }

@@ -57,23 +57,25 @@ export default function RootLayout() {
     void ws.enableShared().then(shared => {
       if (!current || !shared || useConnection.getState().ws !== ws) return;
       unbind = bindShared(shared);
-      const update = () => {
-        const state = useChat.getState();
+      let key: string | undefined;
+      const update = (state: ReturnType<typeof useChat.getState>) => {
+        const active = state.sessions.find(session => session.id === state.activeSessionId);
+        const recent = state.sessions.slice(0, 15).filter(session => !session.localDraft);
+        const ids = [active?.localDraft ? null : state.activeSessionId, ...recent.map(session => session.id)]
+          .filter((id): id is string => !!id);
+        const nextKey = ids.join(',');
+        if (key === nextKey) return;
+        key = nextKey;
         // Take the new lease before dropping the old one: releasing first
-        // would briefly leave a session unobserved, and the client discards
-        // the snapshot of anything outside the current observation.
-        const next = observeShared([state.activeSessionId, ...state.sessions.slice(0, 15).map(s => s.id)].filter((id): id is string => !!id), null);
+        // would briefly discard a still-observed session's live snapshot.
+        const next = observeShared(ids, null);
         release();
         release = next;
       };
-      let key = '';
-      const unsub = useChat.subscribe(state => {
-        const nextKey = state.activeSessionId + ':' + state.sessions.slice(0, 15).map(s => s.id).join(',');
-        if (key !== nextKey) { key = nextKey; update(); }
-      });
+      const unsub = useChat.subscribe(update);
       const oldUnbind = unbind;
       unbind = () => { unsub(); oldUnbind(); };
-      update();
+      update(useChat.getState());
     }).catch(error => {
       if (current) useConnection.setState({ error: String(error) });
     });

@@ -494,6 +494,7 @@ export class OpenAgentWS {
       attachments?: Attachment[];
       requestId?: string;
       onLegacy?: () => boolean | void;
+      onSessionReady?: () => void;
       onRejected?: () => void;
       onSettled?: () => void;
     },
@@ -513,6 +514,7 @@ export class OpenAgentWS {
       const requestId = options?.requestId ?? sharedRequestId();
       void this.ensureSharedSession(sessionId, text).then(async (opened) => {
         if (this.sharedClosed) return;
+        options?.onSessionReady?.();
         if (options?.systemPrompt && opened) {
           await shared.sendTurn(sessionId, sharedRequestId(), `[system] ${options.systemPrompt}`);
         }

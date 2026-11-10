@@ -1100,11 +1100,11 @@ export default function ChatScreen() {
       return f.remotePath ? [{ type: f.kind, path: f.remotePath, filename: f.filename }] : [];
     });
 
-    sendTypedChat(ws, activeSessionId, text, {
+    if (!sendTypedChat(ws, activeSessionId, text, {
       llmPin: activeSession?.llmPin,
       systemPrompt: activeSession?.systemPrompt,
       attachments,
-    });
+    })) return;
     scrollToBottom(false);
     setInput('');
     // Drop only the chips we actually sent; keep failed + still-uploading

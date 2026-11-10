@@ -20,6 +20,7 @@ function fixturePng() {
 class DeviceGateway extends DeterministicGateway {
   calls=[]; offline=false; live=false; streamCloses=0; streamHellos=[]; members=[]; inputDelay=0; draftRequests=[];
   acceptedSessions=new Set();
+  draftObservations=[];
   receivedTurns=[];
   sharedRevision=0;
   sharedTurns=[];
@@ -32,8 +33,18 @@ class DeviceGateway extends DeterministicGateway {
       if(new URL(request.url,this.baseUrl).pathname==='/ws/collaboration'){
         this.collaborationServer.handleUpgrade(request,socket,head,ws=>{
           ws.send(JSON.stringify({type:'auth_ok',shared:true}));
-          ws.on('message',raw=>{const observation=JSON.parse(raw);for(const id of observation.sessions||[])
-            if(id.startsWith('session-')&&!this.acceptedSessions.has(id))ws.send(JSON.stringify({type:'shared_state',session_id:id,revision:0,turns:[]}));});
+          ws.on('message', raw => {
+            const observation = JSON.parse(raw);
+            for (const id of observation.sessions || []) {
+              if (!id.startsWith('session-')) continue;
+              if (this.acceptedSessions.has(id)) {
+                ws.send(JSON.stringify({type:'shared_state',session_id:id,revision:0,turns:[]}));
+              } else {
+                this.draftObservations.push(id);
+                ws.send(JSON.stringify({type:'shared_revoked',session_id:id}));
+              }
+            }
+          });
         });return;
       }
       if(new URL(request.url,this.baseUrl).pathname==='/api/sessions/e2e-session/computer-stream'){
@@ -54,6 +65,18 @@ class DeviceGateway extends DeterministicGateway {
     if (/^\/api\/sessions\/session-[^/]+\/(?:devices|computer-targets|participants|descendants|related-runs)(?:\/|$)/.test(path)
         || /^\/api\/collaboration\/session-[^/]+\/members$/.test(path)) this.draftRequests.push(path);
     const reply=(value,status=200)=>{response.writeHead(status,{'Content-Type':'application/json'}).end(JSON.stringify(value));};
+    const draft = /^\/api\/sessions\/(session-[^/]+)$/.exec(path);
+    if (draft && request.method === 'GET') {
+      return this.acceptedSessions.has(draft[1])
+        ? reply({session_id:draft[1]}) : reply({error:'session not found'},404);
+    }
+    if (draft && request.method === 'PATCH') {
+      let body = '';
+      for await (const chunk of request) body += chunk;
+      if (!JSON.parse(body).title) return reply({error:'title required'},400);
+      this.acceptedSessions.add(draft[1]);
+      return reply({session_id:draft[1]});
+    }
     if(path==='/api/collaboration')return reply({version:1});
     if(path==='/api/collaboration/turns'&&request.method==='POST'){
       let body='';for await(const chunk of request)body+=chunk;
@@ -287,6 +310,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByRole('button',{name:'Share session',exact:true})).toHaveCount(0);
     await expect(page.getByText('Update the agent server to use connected computers.',{exact:true})).toHaveCount(0);
     expect(gateway.draftRequests).toEqual([]);
+    expect(gateway.draftObservations).toEqual([]);
     let releaseTurn;
     gateway.heldTurn=new Promise(resolve=>{releaseTurn=resolve;});
     const message='Start this session';
@@ -297,6 +321,7 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByText('Session started',{exact:true})).toHaveCount(0);
     releaseTurn();
     await expect(page.getByText('Session started',{exact:true})).toBeVisible();
+    expect(gateway.draftObservations).toEqual([]);
     await expect(bubble).toHaveCount(1);
     await expect(page.getByRole('status',{name:'Agent is working'})).toBeVisible();
     const timeline = page.getByText('Session started', { exact: true })

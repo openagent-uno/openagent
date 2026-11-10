@@ -9,11 +9,12 @@ import type { SharedTarget } from '../../common/collaboration';
 import { colors } from '../theme';
 
 export function useSharedView(kind: SharedTarget['kind'], id: string | undefined, sessions: string[] = []) {
+  const localDraft = useChat(s => kind === 'session' && s.sessions.some(session => session.id === id && session.localDraft));
   const key = sessions.join(',');
   useFocusEffect(useCallback(() => {
-    if (!id) return;
+    if (!id || localDraft) return;
     return observeShared(kind === 'session' ? [id] : key ? key.split(',') : [], { kind, id });
-  }, [kind, id, key]));
+  }, [kind, id, key, localDraft]));
 }
 
 export default function SharedPresence({ kind = 'session', id, compact = false, detailed = false }: { kind?: SharedTarget['kind']; id?: string; compact?: boolean; detailed?: boolean }) {
