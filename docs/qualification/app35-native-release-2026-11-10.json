@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "1.1.0-beta.35",
+  "source_commit": "944e7ef9b978962cf60ff8d1adf1d6e0a10e9b13",
+  "build_run": "https://github.com/openagent-uno/openagent/actions/runs/42769366856",
+  "publication_run": "https://github.com/openagent-uno/openagent/actions/runs/42769437750",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/app-v1.1.0-beta.35",
+  "qualified_targets": 6,
+  "public_assets": 36,
+  "macos_signed_notarized_stapled": true,
+  "mac_arm64_zip_sha256": "6f52aedfc3afa8f337a6abae91680a672be04cbe0b406ce193eeaf65a6339327",
+  "public_beta_feeds_verified": [
+    "beta-mac.yml",
+    "beta.yml",
+    "beta-linux.yml",
+    "beta-linux-arm64.yml"
+  ],
+  "public_beta_feed_sha256": {
+    "beta-mac.yml": "afb6d110113e6e40e87e4b14e22f2905188a5d689258463ce1708a0a382b6163",
+    "beta.yml": "b9e52aa20f7c75433f71dd1aac0471e9f774ac928cf3de34e17ee5e612362f36",
+    "beta-linux.yml": "c7435623aab35651d643e45583672c25bc393bb6f683dcae693751f0df4174a8",
+    "beta-linux-arm64.yml": "431b1e7bb27ecc76359f57d2df6c3c6c1c168344bd9640440d40560defc9ff5c"
+  },
+  "companion_server_version": "1.1.9b23"
+}
