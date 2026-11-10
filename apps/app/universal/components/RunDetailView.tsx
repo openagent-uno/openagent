@@ -536,11 +536,11 @@ export function RunDetailView({
   // The session that owns this run. Its context and related-session metadata
   // live in the shared right navigation drawer; the transcript/composer still
   // use this id directly.
-  const ownerSessionId =
-    targetSessionId
-    ?? taskRun?.session_id
-    ?? delivery?.session_id
-    ?? (hasLiveEventSession ? fallbackEventSessionId : undefined);
+  // The scheduled-run resolver checks session access. A session from a
+  // cached activity item must never replace its authorized link.
+  const ownerSessionId = taskRun
+    ? taskRun.session_id
+    : targetSessionId ?? delivery?.session_id ?? (hasLiveEventSession ? fallbackEventSessionId : undefined);
   const ownerLive = (taskRun ?? delivery)
     ? run.status === 'running' || run.status === 'received'
     : false;
@@ -580,7 +580,7 @@ export function RunDetailView({
             />
           ) : taskRun ? (
             <TaskBody
-              run={{ ...taskRun, session_id: targetSessionId || taskRun.session_id }}
+              run={taskRun}
               messageId={messageId}
               toolInvocationId={toolInvocationId}
             />

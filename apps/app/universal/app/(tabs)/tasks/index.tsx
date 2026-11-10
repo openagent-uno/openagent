@@ -28,13 +28,14 @@ import { TileGridScreen, CONTENT_MAX_WIDTH } from '../../../components/TileGrid'
 import { useConnection } from '../../../stores/connection';
 import { useEvents } from '../../../stores/events';
 import { useTasks } from '../../../stores/tasks';
-import { setBaseUrl } from '../../../services/api';
+import { currentAgentScope, setBaseUrl } from '../../../services/api';
 import { openDetached } from '../../../services/windows';
 import { useConfirm } from '../../../components/ConfirmDialog';
 import EmptyState from '../../../components/EmptyState';
 import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import TaskTile from '../../../components/tasks/TaskTile';
 import { Skeleton } from '../../../components/Skeleton';
+import ManagementOverview from '../../../components/ManagementOverview';
 import type { ScheduledTask } from '../../../../common/types';
 
 export default function TasksScreen() {
@@ -42,7 +43,12 @@ export default function TasksScreen() {
   const navigation = useNavigation();
   const headerInset = useHeaderInset();
   const connConfig = useConnection((s) => s.config);
-  const { tasks, loaded, error, loadTasks, deleteTask, toggleTask, runTask, stopTask } = useTasks();
+  const { tasks: storedItems, loaded: listLoaded, error: listError, listScope, listCanManage, summaries, loadTasks, deleteTask, toggleTask, runTask, stopTask } = useTasks();
+  const current = listScope === currentAgentScope();
+  const tasks = current ? storedItems : [];
+  const loaded = current && listLoaded;
+  const error = current ? listError : null;
+  const canManage = current && listCanManage;
   const confirm = useConfirm();
 
   const handleAdd = useCallback(() => {
@@ -55,9 +61,9 @@ export default function TasksScreen() {
   // Workflows / Connectors).
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderAction icon="plus" label="New task" onPress={handleAdd} />,
+      headerRight: canManage ? () => <HeaderAction icon="plus" label="New task" onPress={handleAdd} /> : undefined,
     });
-  }, [navigation, handleAdd]);
+  }, [navigation, handleAdd, canManage]);
 
   useEffect(() => {
     if (connConfig) {
@@ -100,6 +106,10 @@ export default function TasksScreen() {
     openDetached(router, `tasks/${t.id}`);
   };
 
+  if (current && summaries !== null) {
+    return <ManagementOverview items={summaries} title="No scheduled tasks yet" icon="clock" />;
+  }
+
   return (
     <View style={styles.root}>
       {error && (
@@ -116,7 +126,7 @@ export default function TasksScreen() {
           icon="clock"
           title="No scheduled tasks yet"
           message="Schedule a recurring prompt — or ask OpenAgent to set one up for you."
-          action={{ label: 'New task', icon: 'plus', onPress: handleAdd }}
+          action={canManage ? { label: 'New task', icon: 'plus', onPress: handleAdd } : undefined}
         />
       ) : (
         <TileGridScreen headerInset={headerInset}>

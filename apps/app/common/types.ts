@@ -1496,10 +1496,11 @@ export interface AgentConfig {
 export interface AgentIdentity {
   name: string;
   thumbnail?: string | null;
+  can_manage?: boolean;
   channel_presentation?: Record<string, string>;
   /** User-defined persona layer, never OpenAgent's framework prompt. */
-  system_prompt: string;
-  revision: string;
+  system_prompt?: string;
+  revision?: string;
   framework_prompt_mutable: false;
   restart_required?: boolean;
   effective?: 'next_turn';
@@ -2146,39 +2147,6 @@ export interface LogEntry {
   event: string;
   level: string;
   [key: string]: unknown;
-}
-
-// ── Quality report (/api/quality) ──
-//
-// The correctness meter beside the spend meter: where budgets answer "how
-// much did we spend", this answers "were the answers any good". Derived
-// from the event log alone (quality.score, router.cost_recorded,
-// recall.metric), so it is read-only and always renderable — a window with
-// no data returns zeros and nulls, never an error.
-
-export interface QualityReport {
-  window_seconds: number;
-  /** False when the quality monitor is off: the sections are all zero and
-   *  the UI must say "not running" rather than "quality is 0". */
-  enabled?: boolean;
-  quality: {
-    judged: number;
-    avg_score: number | null;
-    verdicts: { good: number; warn: number; bad: number };
-    fabrication_flagged: number;
-  };
-  usage: {
-    turns: number;
-    cost_usd: number;
-    input_tokens: number;
-    output_tokens: number;
-  };
-  recall: {
-    turns: number;
-    used_rate: number | null;
-    hit_rate: number | null;
-    avg_top_score: number | null;
-  };
 }
 
 // ── Slash-command registry (/api/commands) ──

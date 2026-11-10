@@ -433,10 +433,49 @@ class CoordinatorStore:
         await self._conn.commit()
         return (cur.rowcount or 0) > 0
 
-    async def remove_agent(self, handle: str) -> bool:
+    async def transfer_agent_owner(
+        self, node_id: str, new_owner: str, *, current_owner: str | None = None,
+    ) -> bool:
+        """Assign an active user without changing the gateway identity.
+
+        Remote callers must supply their verified handle as ``current_owner``.
+        Only a local host operator can omit it for initial ownership or recovery.
+        """
+        if not node_id or not new_owner or new_owner == "system" or current_owner == "system":
+            return False
+        cursor = await self._conn.execute(
+            "UPDATE network_agents SET owner_handle=? WHERE node_id=? "
+            "AND (SELECT count(*) FROM network_agents WHERE node_id=?) = 1 "
+            "AND EXISTS (SELECT 1 FROM network_users WHERE handle=? AND status='active') "
+            "AND (? IS NULL OR (owner_handle=? AND EXISTS "
+            "(SELECT 1 FROM network_users WHERE handle=? AND status='active')))",
+            (new_owner, node_id, node_id, new_owner, current_owner, current_owner, current_owner),
+        )
+        await self._conn.commit()
+        return bool(cursor.rowcount)
+
+    async def enroll_agent(self, *, handle: str, node_id: str, owner_handle: str, label: str | None) -> bool:
+        """An enrollment invitation cannot replace an existing identity or owner."""
+        cursor = await self._conn.execute(
+            "INSERT INTO network_agents (handle, node_id, label, owner_handle, added_at) "
+            "SELECT ?, ?, ?, ?, ? WHERE NOT EXISTS "
+            "(SELECT 1 FROM network_agents WHERE node_id=? COLLATE NOCASE) "
+            "ON CONFLICT(handle) DO NOTHING",
+            (handle, node_id, label, owner_handle, time.time(), node_id),
+        )
+        await self._conn.commit()
+        if cursor.rowcount:
+            return True
+        # Permit a rejoin with the same key without rewriting the assigned owner.
+        cursor = await self._conn.execute(
+            "SELECT 1 FROM network_agents WHERE handle=? AND node_id=? COLLATE NOCASE", (handle, node_id),
+        )
+        return await cursor.fetchone() is not None
+
+    async def remove_agent(self, handle: str, *, expected_owner: str | None = None) -> bool:
         cur = await self._conn.execute(
-            "DELETE FROM network_agents WHERE handle=?",
-            (handle,),
+            "DELETE FROM network_agents WHERE handle=? AND (? IS NULL OR owner_handle=?)",
+            (handle, expected_owner, expected_owner),
         )
         await self._conn.commit()
         return cur.rowcount > 0

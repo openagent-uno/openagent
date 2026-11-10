@@ -13,6 +13,7 @@ import hashlib
 import hmac
 import json
 import logging
+import re
 import secrets
 import time
 from dataclasses import dataclass
@@ -3111,6 +3112,18 @@ async def decorate_workflow_run_detail(request: web.Request, row: dict[str, Any]
     return out
 
 
+def _scheduled_error_summary(error: str | None) -> str | None:
+    if not error:
+        return None
+    timeout = re.match(
+        r"^TimeoutError(?: \(caused by [^)\n]{1,120}\))? — scheduler budget was ([1-9][0-9]{0,4})s(?:$| \|)",
+        error,
+    )
+    if timeout:
+        return f"Scheduled execution exceeded its {timeout[1]} second time limit."
+    return "Scheduled execution failed; sensitive details are redacted"
+
+
 async def handle_scheduled_run(request: web.Request) -> web.Response:
     try:
         access = AccessContext.from_request(request)
@@ -3143,7 +3156,7 @@ async def handle_scheduled_run(request: web.Request) -> web.Response:
                 "trigger": str(row["trigger"]) if row["trigger"] else None,
                 "session_id": visible_session_id,
                 "output_summary_safe": _redacted_summary(row["output"]),
-                "error_safe": "Scheduled execution failed; sensitive details are redacted" if row["error"] else None,
+                "error_safe": _scheduled_error_summary(row["error"]),
                 "caused_by": None,
                 "started_at": _iso(int(float(row["started_at"]) * 1000)),
                 "finished_at": _iso(int(float(row["finished_at"]) * 1000)) if row["finished_at"] else None,

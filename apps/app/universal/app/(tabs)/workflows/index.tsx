@@ -20,11 +20,12 @@ import { colors, font, radius } from '../../../theme';
 import { useConnection } from '../../../stores/connection';
 import { useEvents } from '../../../stores/events';
 import { useWorkflows } from '../../../stores/workflows';
-import { setBaseUrl } from '../../../services/api';
+import { currentAgentScope, setBaseUrl } from '../../../services/api';
 import { useConfirm } from '../../../components/ConfirmDialog';
 import Button from '../../../components/Button';
 import EmptyState from '../../../components/EmptyState';
 import { Skeleton } from '../../../components/Skeleton';
+import ManagementOverview from '../../../components/ManagementOverview';
 import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import WorkflowTile from '../../../components/workflow/WorkflowTile';
 import { TileGridScreen, CONTENT_MAX_WIDTH } from '../../../components/TileGrid';
@@ -52,7 +53,7 @@ export default function WorkflowsScreen() {
   const headerInset = useHeaderInset();
   const connConfig = useConnection((s) => s.config);
   const {
-    workflows, loaded, error, runs, runningId,
+    workflows: storedItems, loaded: listLoaded, error: listError, listScope, listCanManage, summaries, runs, runningId,
     loadWorkflows, createWorkflow, deleteWorkflow, toggleWorkflow, runWorkflow, stopWorkflow, clearError,
   } = useWorkflows();
 
@@ -62,6 +63,11 @@ export default function WorkflowsScreen() {
   // value (unlimited).
   const [maxConcurrentInput, setMaxConcurrentInput] = useState('');
   const [createError, setCreateError] = useState<string | null>(null);
+  const current = listScope === currentAgentScope();
+  const workflows = current ? storedItems : [];
+  const loaded = current && listLoaded;
+  const error = current ? listError : null;
+  const canManage = current && listCanManage;
   const confirm = useConfirm();
 
   const openCreate = useCallback(() => {
@@ -73,11 +79,11 @@ export default function WorkflowsScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
+      headerRight: canManage ? () => (
         <HeaderAction icon="plus" label="New workflow" onPress={openCreate} />
-      ),
+      ) : undefined,
     });
-  }, [navigation, openCreate]);
+  }, [navigation, openCreate, canManage]);
 
   useEffect(() => {
     if (connConfig) {
@@ -136,7 +142,7 @@ export default function WorkflowsScreen() {
 
   const isEmpty = loaded && workflows.length === 0 && !creating;
 
-  const createForm = creating ? (
+  const createForm = canManage && creating ? (
     <View style={styles.form}>
       <Text style={styles.formTitle}>New workflow</Text>
       <TextInput
@@ -204,6 +210,10 @@ export default function WorkflowsScreen() {
     </View>
   ) : null;
 
+  if (current && summaries !== null) {
+    return <ManagementOverview items={summaries} title="No workflows yet" icon="git-merge" />;
+  }
+
   return (
     <View style={styles.root}>
       {error && (
@@ -220,7 +230,7 @@ export default function WorkflowsScreen() {
           icon="git-merge"
           title="No workflows yet"
           message="Create one to get started, or ask OpenAgent to build one for you."
-          action={{ label: 'New workflow', icon: 'plus', onPress: openCreate }}
+          action={canManage ? { label: 'New workflow', icon: 'plus', onPress: openCreate } : undefined}
         />
       ) : (
         <TileGridScreen headerInset={headerInset} header={createForm}>

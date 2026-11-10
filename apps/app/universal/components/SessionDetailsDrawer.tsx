@@ -985,9 +985,9 @@ function primaryRunSession(
   target: SessionDetailsRunTarget,
   detail: ResolvedRunDetail | null,
 ): string | undefined {
+  if (target.kind === 'task') return (detail as ScheduledRunDetail | null)?.session_id || undefined;
   if (target.sessionId) return target.sessionId;
   if (!detail) return undefined;
-  if (target.kind === 'task') return (detail as ScheduledRunDetail).session_id || undefined;
   if (target.kind === 'event') return eventTargetSession(detail as EventDeliveryDetail);
   return undefined;
 }

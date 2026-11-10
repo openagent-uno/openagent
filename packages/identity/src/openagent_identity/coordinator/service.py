@@ -448,9 +448,10 @@ class CoordinatorService:
         handle = _required(params, "handle", str).strip().lower()
         node_id = _required(params, "node_id", str)
         label = params.get("label")
-        await self._store.register_agent(
-            handle=handle, node_id=node_id, owner_handle=owner_handle, label=label,
-        )
+        if cert_wire:
+            await self._store.register_agent(handle=handle, node_id=node_id, owner_handle=owner_handle, label=label)
+        elif not await self._store.enroll_agent(handle=handle, node_id=node_id, owner_handle=owner_handle, label=label):
+            raise _CoordinatorRpcError("conflict", "Agent handle or node is already registered")
         return {"ok": True}
 
     async def _m_agent_login(self, params: dict, *, peer_node_id: str) -> dict:
@@ -491,10 +492,11 @@ class CoordinatorService:
 
         owner_handle = inv.bind_to_handle or "system"
 
-        # Upsert the agent in the directory.
-        await self._store.register_agent(
+        # A new invitation cannot rewrite an assigned owner or gateway key.
+        if not await self._store.enroll_agent(
             handle=handle, node_id=node_id, owner_handle=owner_handle, label=label,
-        )
+        ):
+            raise _CoordinatorRpcError("conflict", "Agent handle or node is already registered")
 
         # Derive the 32-byte Ed25519 pubkey from the Iroh node_id.
         # ``coordinator_node_id_to_pubkey_bytes`` is defined in peers.py but

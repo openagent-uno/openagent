@@ -17,11 +17,12 @@ import { useConfirm } from './ConfirmDialog';
 import Button from './Button';
 import Card from './Card';
 import TabStrip from './TabStrip';
+import AgentAccessPanel from './AgentAccessPanel';
 import {
   listNetworkUsers, listNetworkAgents, listNetworkInvitations,
   mintNetworkInvitation, revokeNetworkInvitation,
   patchNetworkUser, deleteNetworkUser,
-  patchNetworkAgent, deleteNetworkAgent,
+  patchNetworkAgent, deleteNetworkAgent, transferFederatedAgentOwner, currentAgentScope,
   type NetworkUser, type NetworkAgent, type NetworkInvitation,
   type MintInvitationResult,
 } from '../services/api';
@@ -107,8 +108,9 @@ export default function MembersPanel() {
   return (
     <>
       <Text style={styles.sectionTitle}>Members</Text>
+      <AgentAccessPanel />
 
-      {error && (
+      {memberMode && (
         <Card>
           <Text style={styles.fieldHint}>
             This agent is a member, not a coordinator. User and invite
@@ -117,6 +119,7 @@ export default function MembersPanel() {
           </Text>
         </Card>
       )}
+      {error && <Text accessibilityRole="alert" style={[styles.fieldHint, { color: colors.error }]}>{error}</Text>}
 
       <TabStrip
         tabs={SUB_TABS}
@@ -298,6 +301,8 @@ function AgentsPanel({
   const [copied, setCopied] = useState(false);
   const [editingHandle, setEditingHandle] = useState<string | null>(null);
   const [editingLabel, setEditingLabel] = useState('');
+  const [editingOwner, setEditingOwner] = useState('');
+  const currentHandle = useConnection(s => s.config?.handle);
 
   const handleMintAgent = async () => {
     setMinting(true);
@@ -323,6 +328,7 @@ function AgentsPanel({
   const startEdit = (a: NetworkAgent) => {
     setEditingHandle(a.handle);
     setEditingLabel(a.label || '');
+    setEditingOwner(a.owner_handle);
   };
 
   const cancelEdit = () => {
@@ -331,7 +337,16 @@ function AgentsPanel({
 
   const saveEdit = async (a: NetworkAgent) => {
     try {
-      await patchNetworkAgent(a.handle, { label: editingLabel });
+      const scope = currentAgentScope();
+      const owner = editingOwner.trim().toLowerCase().replace(/^@/, '');
+      const transfer = a.owner_handle === currentHandle && owner !== a.owner_handle;
+      if (transfer && (!owner || !await confirm({ title: 'Transfer primary ownership?',
+        message: `@${owner} will become the owner of ${a.handle}.`, confirmLabel: 'Transfer ownership' }))) return;
+      if (scope !== currentAgentScope()) return;
+      if (transfer) await transferFederatedAgentOwner(a.handle, owner);
+      if (scope === currentAgentScope() && editingLabel !== (a.label || '')) {
+        await patchNetworkAgent(a.handle, { label: editingLabel });
+      }
       setEditingHandle(null);
       void refresh();
     } catch (e: any) {
@@ -394,6 +409,9 @@ function AgentsPanel({
                       placeholderTextColor={colors.textMuted}
                       style={[styles.input, { flex: 1 }]}
                     />
+                    {a.owner_handle === currentHandle && <TextInput value={editingOwner} onChangeText={setEditingOwner}
+                      accessibilityLabel="New owner's username" autoCapitalize="none" autoCorrect={false}
+                      placeholder="Owner username" placeholderTextColor={colors.textMuted} style={[styles.input, { flex: 1 }]} />}
                     <TouchableOpacity onPress={() => saveEdit(a)} style={styles.actionBtn}>
                       <Feather name="check" size={16} color={colors.success} />
                     </TouchableOpacity>
@@ -403,7 +421,7 @@ function AgentsPanel({
                   </View>
                 ) : (
                   <Text style={styles.listMeta} numberOfLines={1}>
-                    {a.label || a.owner_handle} · {a.node_id.slice(0, 16)}…
+                    {a.label ? `${a.label} · ` : ''}{a.owner_handle === 'system' ? 'Owner not assigned' : `Owner: @${a.owner_handle}`} · {a.node_id.slice(0, 16)}…
                     {a.last_seen ? ` · seen ${fmtAge(a.last_seen)}` : ''}
                   </Text>
                 )}
@@ -412,16 +430,16 @@ function AgentsPanel({
                 <View style={styles.actions}>
                   <TouchableOpacity
                     onPress={() => startEdit(a)} style={styles.actionBtn}
-                    accessibilityLabel="Edit agent label"
+                    accessibilityLabel="Edit agent"
                   >
                     <Feather name="edit-2" size={16} color={colors.accent} />
                   </TouchableOpacity>
-                  <TouchableOpacity
+                  {(a.owner_handle === currentHandle || a.owner_handle === 'system') && <TouchableOpacity
                     onPress={() => handleDelete(a)} style={styles.actionBtn}
                     accessibilityLabel="Remove agent"
                   >
                     <Feather name="trash-2" size={16} color={colors.error} />
-                  </TouchableOpacity>
+                  </TouchableOpacity>}
                 </View>
               )}
             </View>

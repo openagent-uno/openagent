@@ -18,13 +18,15 @@ type MicrosoftPage = MicrosoftConnectorResources & { connectionId: string; kind:
 const microsoftFiles = (id: string) => id === 'onedrive' || id === 'sharepoint';
 const validSiteQuery = (value: string) => value.trim().length >= 1 && value.trim().length <= 120 && !Array.from(value).some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127 || character === "*");
 
-export default function OfficialConnectorsPane({ query = '', cols = 1, registryResults = [], registryInstalledNames = new Set<string>(), onInstallRegistry }: { query?: string; cols?: number; registryResults?: MarketplaceCard[]; registryInstalledNames?: Set<string>; onInstallRegistry?: (card: MarketplaceCard) => void }) {
+export default function OfficialConnectorsPane({ query = '', cols = 1, registryResults = [], registryInstalledNames = new Set<string>(), onInstallRegistry, readOnly = false }: { query?: string; cols?: number; registryResults?: MarketplaceCard[]; registryInstalledNames?: Set<string>; onInstallRegistry?: (card: MarketplaceCard) => void; readOnly?: boolean }) {
   const config = useConnection(s => s.config);
   const activeAccountId = useConnection(s => s.activeAccountId);
   const target = config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
   const boundTarget = useRef('');
   const [catalog, setCatalog] = useState<OfficialConnector[]>([]);
   const [connections, setConnections] = useState<OfficialConnection[]>([]);
+  const [serverReadOnly, setServerReadOnly] = useState(false);
+  const canManage = !readOnly && !serverReadOnly;
   const [available, setAvailable] = useState(true);
   const [selected, setSelected] = useState<OfficialConnector | null>(null);
   const [token, setToken] = useState('');
@@ -69,7 +71,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     const expected = boundTarget.current;
     const epoch = generation.current;
     if (!expected || expected !== currentTarget()) return;
-    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return; setCatalog(c.connectors); setConnections(i.connections); setAvailable(c.available && i.available); setError(''); }
+    try { const [c, i] = await Promise.all([api.catalog(), api.list()]); if (epoch !== generation.current || expected !== currentTarget() || expected !== boundTarget.current) return; setCatalog(c.connectors); setConnections(i.connections); setServerReadOnly(!!(c.read_only || i.read_only)); setAvailable(c.available && i.available); setError(''); }
     catch { if (epoch === generation.current && expected === currentTarget() && expected === boundTarget.current) setError('The server could not load connectors. Try again.'); }
   }
   async function loadSites(id: string, expected = boundTarget.current) {
@@ -179,7 +181,7 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     } finally { finishOperation(id); }
   }
   function select(item: OfficialConnector) {
-    if (busyRef.current) return;
+    if (busyRef.current || !canManage) return;
     clearMicrosoft();
     setSelected(item); setShowSetup(!connections.some(c => c.catalog_id === item.id && c.status !== 'disconnected'));
     setSites(null); setAllowWrite(false); setAccount(''); setToken(''); setMail({ mailbox: 'INBOX' }); setError(''); setNotice('');
@@ -217,28 +219,29 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
     ...registryResults.map(item => ({ key: `registry:${item.name}@${item.version || 'latest'}`, name: item.title || item.name, connector: undefined as OfficialConnector | undefined, registry: item })),
   ].sort((a, b) => a.name.localeCompare(b.name));
   return <View style={styles.root}>
+    {serverReadOnly && <Text style={styles.subtitle}>Only the agent owner can install or manage connectors.</Text>}
     {!!error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
     {!!notice && <Text accessibilityRole="alert" style={styles.subtitle}>{notice}</Text>}
-    {!selected && <Grid cols={cols}>{items.map(entry => {
+    {(!canManage || !selected) && <Grid cols={cols}>{items.map(entry => {
       const item = entry.connector;
       const installed = item ? connections.some(c => c.catalog_id === item.id && c.status !== 'disconnected') : registryInstalledNames.has(entry.registry!.name);
       return <View key={entry.key} style={{ flex: 1 }}>
         <MarketplaceTile card={item ? { name: item.name, title: item.name, description: item.description } : entry.registry!} installed={installed}
           icon={item ? <ConnectorLogo id={item.id} logoSvg={item.logoSvg} /> : undefined}
-          disabled={item ? busy || !item.available : false}
-          unavailableReason={item && !item.available ? item.unavailableReason || 'Not available yet' : undefined}
-          onManage={item ? () => { if (!busy) select(item); } : undefined}
+          readOnly={!canManage} disabled={!!item && (busy || !item.available)}
+          unavailableReason={canManage && item && !item.available ? item.unavailableReason || 'Not available yet' : undefined}
+          onManage={canManage && item ? () => { if (!busy) select(item); } : undefined}
           onInstall={() => item ? select(item) : onInstallRegistry?.(entry.registry!)} style={{ height: '100%' }} />
       </View>;
     })}</Grid>}
     {!selected && !items.length && catalog.length > 0 && <Text style={styles.subtitle}>No connectors match your search.</Text>}
-    {selected && <>
+    {canManage && selected && <>
       <Button variant="ghost" size="sm" label="Back to marketplace" icon="arrow-left" disabled={busy} onPress={() => { if (busyRef.current) return; clearMicrosoft(); setSelected(null); setToken(''); setMail({ mailbox: 'INBOX' }); }} />
       <View style={styles.row}><ConnectorLogo id={selected.id} logoSvg={selected.logoSvg} /><Text style={styles.title}>{selected.name}</Text></View>
       <Text style={styles.subtitle}>{selected.description} {selected.auth === 'none' ? 'Your server connects directly to this service without an API key.' : 'Your server stores credentials and connects directly to the service.'}</Text>
       {!available && <Text style={styles.subtitle}>This server cannot manage these connections yet.</Text>}
     </>}
-    {selected && connections.filter(c => c.catalog_id === selected.id && c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
+    {canManage && selected && connections.filter(c => c.catalog_id === selected.id && c.status !== 'disconnected').map(c => <View key={c.id} style={styles.card}>
       <Text style={styles.name}>{c.display_name}</Text><Text style={styles.subtitle}>{c.status}</Text>
       <View style={styles.row}><Text style={styles.label}>Enabled</Text><Switch accessibilityLabel={`Enable ${c.display_name}`} disabled={busy} value={!!c.enabled} onValueChange={enabled => void action(() => { setSites(null); clearMicrosoft(); return api.update(c.id, { enabled }); })} /></View>
       {selected.agentTools.length > 0 && <View style={styles.row}><Text style={styles.label}>Allow changes</Text><Switch accessibilityLabel={`Allow changes with ${c.display_name}`} disabled={busy} value={!!c.allow_write} onValueChange={allow_write => void action(() => { setSites(null); clearMicrosoft(); return api.update(c.id, { allow_write }); })} /></View>}
@@ -256,9 +259,9 @@ export default function OfficialConnectorsPane({ query = '', cols = 1, registryR
       {microsoftFiles(selected.id) && c.status === 'connected' && microsoftControls(c)}
       {selected.auth === 'oauth' && <Text style={styles.subtitle}>Removing OpenAgent in the provider's settings can affect your other connected products.</Text>}
     </View>)}
-    {selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label={selected.auth === 'none' ? 'Add another connection' : 'Connect another account'} disabled={busy} onPress={() => { if (busyRef.current) return; clearMicrosoft(); setShowSetup(true); }} />}
-    {pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; operation.current++; busyRef.current = false; clearMicrosoft(); setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
-    {selected && showSetup && !pending && <View style={styles.card}>
+    {canManage && selected && !showSetup && !pending && selected.available && <Button variant="secondary" size="sm" label={selected.auth === 'none' ? 'Add another connection' : 'Connect another account'} disabled={busy} onPress={() => { if (busyRef.current) return; clearMicrosoft(); setShowSetup(true); }} />}
+    {canManage && pending && <View style={styles.card}><ActivityIndicator /><Text style={styles.name}>Complete authorization in your browser</Text><Pressable accessibilityRole="button" onPress={() => void Linking.openURL(pending.authorization_url!)}><Text style={styles.link}>Open authorization</Text></Pressable><Pressable accessibilityRole="button" onPress={() => { generation.current++; operation.current++; busyRef.current = false; clearMicrosoft(); setPending(null); setBusy(false); }}><Text style={styles.link}>Stop waiting</Text></Pressable></View>}
+    {canManage && selected && showSetup && !pending && <View style={styles.card}>
       <Text style={styles.name}>Connect {selected.name}</Text>
       {selected.auth === 'token' && !!selected.setupInstructions && <Text style={styles.subtitle}>{selected.setupInstructions}</Text>}
       {selected.auth === 'token' && !!safeConnectorSetupUrl(selected.setupUrl) && <Pressable accessibilityRole="link" disabled={busy} onPress={() => void Linking.openURL(safeConnectorSetupUrl(selected.setupUrl)!)}><Text style={styles.link}>Provider API setup</Text></Pressable>}

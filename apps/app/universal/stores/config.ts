@@ -12,6 +12,7 @@ interface ConfigState {
   error: string | null;
   identityLoading: boolean;
   identityError: string | null;
+  identityReadOnly: boolean;
   identityRevision: string | null;
   thumbnail: string | null | undefined;
   channelPresentation: Record<string, string>;
@@ -30,6 +31,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
   error: null,
   identityLoading: false,
   identityError: null,
+  identityReadOnly: false,
   identityRevision: null,
   thumbnail: undefined,
   channelPresentation: {},
@@ -46,6 +48,7 @@ export const useConfig = create<ConfigState>((set, get) => ({
       let channelPresentation: Record<string, string> = {};
       let identityRevision: string | null = null;
       let identityError: string | null = null;
+      let identityReadOnly = false;
       try {
         const identity = await api.getAgentIdentity();
         config = {
@@ -53,19 +56,22 @@ export const useConfig = create<ConfigState>((set, get) => ({
           name: identity.name,
           system_prompt: identity.system_prompt,
         };
-        identityRevision = identity.revision;
+        identityReadOnly = identity.can_manage === false;
+        identityRevision = identity.revision ?? null;
         thumbnail = identity.thumbnail;
         channelPresentation = identity.channel_presentation ?? {};
       } catch (identityFailure) {
         // Old gateways have no owner-scoped identity endpoint; their generic
         // config surface remains the compatibility source during the rollout.
         if (!api.isUnsupportedByAgent(identityFailure)) {
+          identityReadOnly = identityFailure instanceof api.ApiError && identityFailure.status === 403;
+          if (identityReadOnly) config = { ...config, system_prompt: undefined };
           identityError = identityFailure instanceof Error
             ? identityFailure.message
             : String(identityFailure);
         }
       }
-      if (current()) set({ config, loading: false, identityRevision, identityError, thumbnail, channelPresentation });
+      if (current()) set({ config, loading: false, identityRevision, identityError, identityReadOnly, thumbnail, channelPresentation });
     } catch (e: any) {
       if (current()) set({ error: e.message, loading: false });
     }

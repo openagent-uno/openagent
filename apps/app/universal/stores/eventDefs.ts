@@ -22,6 +22,9 @@ import * as api from '../services/api';
 interface EventDefsState {
   events: AgentEvent[];
   types: EventTypeSpec[];
+  listScope: number;
+  listCanManage: boolean;
+  summaries: api.ManagementSummary[] | null;
   loading: boolean;
   loaded: boolean;
   error: string | null;
@@ -44,18 +47,31 @@ interface EventDefsState {
 export const useEventDefs = create<EventDefsState>((set, get) => ({
   events: [],
   types: [],
+  listScope: -1,
+  listCanManage: false,
+  summaries: null,
   loading: false,
   loaded: false,
   error: null,
   saved: false,
 
   loadEvents: async () => {
-    set({ loading: true, error: null });
+    const listScope = api.currentAgentScope();
+    set({ loading: true, error: null, ...(get().listScope === listScope ? {} : {
+      listScope, listCanManage: false, events: [], summaries: null, loaded: false,
+    }) });
     try {
-      const events = await api.getEvents();
-      set({ events, loading: false, loaded: true });
-    } catch (e: any) {
-      set({ error: e.message, loading: false, loaded: true });
+      const { events, summaries } = await api.getEventList();
+      if (listScope === api.currentAgentScope()) {
+        set({ events, summaries: summaries ?? null, listCanManage: summaries === undefined, loading: false, loaded: true });
+      }
+    } catch (e) {
+      if (listScope === api.currentAgentScope()) {
+        const restricted = e instanceof api.ApiError && e.status === 403;
+        set({ ...(restricted ? { events: [], summaries: null, listCanManage: false } : {}),
+          error: restricted ? 'Only the agent owner can view this page.' : String(e instanceof Error ? e.message : e),
+          loading: false, loaded: true });
+      }
     }
   },
 

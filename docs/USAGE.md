@@ -81,6 +81,10 @@ commands are not signed installers, not a second agent server and not native
 device acceptance. Build/check scripts and capabilities are in the respective
 package.json files and [client guide](site/guide/client-capabilities.md).
 
+Scheduled run details show the run's available summary when its transcript is
+missing or the signed-in account lacks access to the linked session. Known
+scheduler timeouts include the time limit in the run's error message.
+
 ## MCP bridge
 
 `openagent-mcp` serves MCP over stdio and connects to explicitly configured peer
@@ -145,3 +149,35 @@ presentation to authenticated clients. An older server allows the app to
 keep the thumbnail on that device until the server is upgraded. See
 [bot profile synchronization](site/guide/channels.md#bot-profile-synchronization)
 for the provider requirements.
+
+In **Settings → Members → Agent access**, the primary owner can choose who
+can consult Scheduled, Workflows, Events, Connectors and Agent Identity.
+**All members** is the default: active network members see automation names
+and status, connector summaries and the agent's name and thumbnail. Full
+definitions, run history, provider connections and edits retain their owner
+permissions. **Owner only** disables the member views.
+
+Use **Transfer ownership** to assign the coordinator agent to another active
+username. For federated agents, edit the owner in the coordinator's
+**Members → Agents** list. The equivalent remote CLI commands are:
+
+```sh
+openagent-cli agent-access show
+openagent-cli agent-access visibility members
+openagent-cli agent-access transfer-owner USERNAME
+openagent-cli agent-access transfer-owner USERNAME --federated-agent AGENT_HANDLE
+```
+
+If the agent has no primary owner, the coordinator host operator must assign
+one first using `openagent network set-owner USERNAME` (add `--agent AGENT_HANDLE`
+for a federated agent). This changes the registered owner without replacing
+the agent's handle, keys, or login. It does not move personal provider
+credentials to the new owner.
+
+**Models & Providers** includes subscription accounts and provider-reported
+usage windows alongside model and provider setup. **Costs** includes both
+usage and budget limits. Standalone no longer seeds or runs the legacy
+quality scorer, quality digest or cost observability tasks. Upgrade disables
+those reserved tasks and keeps their run history and existing custom tasks.
+Use private custom dashboards and explicitly granted schedules for domain
+observability.

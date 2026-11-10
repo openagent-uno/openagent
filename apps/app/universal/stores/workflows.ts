@@ -21,6 +21,9 @@ import * as api from '../services/api';
 
 interface WorkflowsState {
   workflows: WorkflowTask[];
+  listScope: number;
+  listCanManage: boolean;
+  summaries: api.ManagementSummary[] | null;
   loading: boolean;
   /** True once the first load attempt resolves (success or error). Lets
    *  the UI show a skeleton until then instead of flashing "no workflows". */
@@ -77,6 +80,9 @@ interface WorkflowsState {
 
 export const useWorkflows = create<WorkflowsState>((set, get) => ({
   workflows: [],
+  listScope: -1,
+  listCanManage: false,
+  summaries: null,
   loading: false,
   loaded: false,
   error: null,
@@ -88,12 +94,22 @@ export const useWorkflows = create<WorkflowsState>((set, get) => ({
   stats: {},
 
   loadWorkflows: async () => {
-    set({ loading: true, error: null });
+    const listScope = api.currentAgentScope();
+    set({ loading: true, error: null, ...(get().listScope === listScope ? {} : {
+      listScope, listCanManage: false, workflows: [], summaries: null, loaded: false, runs: {}, stats: {}, runningId: null,
+    }) });
     try {
-      const workflows = await api.getWorkflows();
-      set({ workflows, loading: false, loaded: true });
-    } catch (e: any) {
-      set({ error: e?.message ?? String(e), loading: false, loaded: true });
+      const { workflows, summaries } = await api.getWorkflowList();
+      if (listScope === api.currentAgentScope()) {
+        set({ workflows, summaries: summaries ?? null, listCanManage: summaries === undefined, loading: false, loaded: true });
+      }
+    } catch (e) {
+      if (listScope === api.currentAgentScope()) {
+        const restricted = e instanceof api.ApiError && e.status === 403;
+        set({ ...(restricted ? { workflows: [], summaries: null, listCanManage: false } : {}),
+          error: restricted ? 'Only the agent owner can view this page.' : String(e instanceof Error ? e.message : e),
+          loading: false, loaded: true });
+      }
     }
   },
 

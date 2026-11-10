@@ -16,6 +16,9 @@ import * as api from '../services/api';
 
 interface TasksState {
   tasks: ScheduledTask[];
+  listScope: number;
+  listCanManage: boolean;
+  summaries: api.ManagementSummary[] | null;
   loading: boolean;
   /** True after the first load attempt resolves (success or error). Lets
    *  the UI show a skeleton until then instead of flashing "no tasks". */
@@ -39,18 +42,31 @@ interface TasksState {
 
 export const useTasks = create<TasksState>((set, get) => ({
   tasks: [],
+  listScope: -1,
+  listCanManage: false,
+  summaries: null,
   loading: false,
   loaded: false,
   error: null,
   saved: false,
 
   loadTasks: async () => {
-    set({ loading: true, error: null });
+    const listScope = api.currentAgentScope();
+    set({ loading: true, error: null, ...(get().listScope === listScope ? {} : {
+      listScope, listCanManage: false, tasks: [], summaries: null, loaded: false,
+    }) });
     try {
-      const tasks = await api.getScheduledTasks();
-      set({ tasks, loading: false, loaded: true });
-    } catch (e: any) {
-      set({ error: e.message, loading: false, loaded: true });
+      const { tasks, summaries } = await api.getScheduledTaskList();
+      if (listScope === api.currentAgentScope()) {
+        set({ tasks, summaries: summaries ?? null, listCanManage: summaries === undefined, loading: false, loaded: true });
+      }
+    } catch (e) {
+      if (listScope === api.currentAgentScope()) {
+        const restricted = e instanceof api.ApiError && e.status === 403;
+        set({ ...(restricted ? { tasks: [], summaries: null, listCanManage: false } : {}),
+          error: restricted ? 'Only the agent owner can view this page.' : String(e instanceof Error ? e.message : e),
+          loading: false, loaded: true });
+      }
     }
   },
 

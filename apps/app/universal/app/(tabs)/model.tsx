@@ -19,6 +19,8 @@ import { colors, font, radius } from '../../theme';
 
 import Feather from '@expo/vector-icons/Feather';
 import { useCallback, useEffect, useState } from 'react';
+import AccountsPanel from '../../components/AccountsPanel';
+import BudgetsPanel from '../../components/BudgetsPanel';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native';
@@ -902,10 +904,16 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
     >
       {error && <Text style={styles.error}>{error}</Text>}
       {view === 'costs' ? (
-        renderCosts()
+        <>
+          {renderCosts()}
+          <View style={{ height: 28 }} />
+          <BudgetsPanel />
+        </>
       ) : (
         <>
           {renderProviders()}
+          <View style={{ height: 28 }} />
+          <AccountsPanel />
           <View style={{ height: 28 }} />
           {renderModels()}
         </>

@@ -734,6 +734,36 @@ async def _run_agents(ctx):
             await db._conn.close()
 
 
+@network_group.command("set-owner")
+@click.argument("user_handle")
+@click.option("--agent", "agent_handle", help="Registered agent handle (default: the coordinator).")
+@click.pass_context
+def cmd_set_owner(ctx, user_handle: str, agent_handle: str | None):
+    """Assign or recover primary ownership from the coordinator host."""
+    asyncio.run(_run_set_owner(ctx.obj["config"], user_handle, agent_handle))
+
+
+async def _run_set_owner(config, user_handle, agent_handle):
+    db = await _open_db(config)
+    try:
+        store = CoordinatorStore(db)
+        network = await store.get_network_role()
+        if not network or network["role"] != "coordinator":
+            raise click.ClickException("Run this command on the network coordinator.")
+        handle = user_handle.strip().lower().removeprefix("@")
+        agents = await store.list_agents()
+        if agent_handle:
+            node_id = next((a.node_id for a in agents if a.handle == agent_handle.lower()), None)
+        else:
+            node_id = network["coordinator_node_id"]
+        if not node_id or not await store.transfer_agent_owner(node_id, handle):
+            raise click.ClickException("Select a registered agent and an active network user.")
+        click.echo(f"Primary owner: @{handle}")
+    finally:
+        if db._conn is not None:
+            await db._conn.close()
+
+
 @network_group.command("revoke")
 @click.option("--device", "device_pubkey_hex", required=True, help="Hex-encoded device pubkey")
 @click.pass_context

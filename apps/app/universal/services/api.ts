@@ -16,7 +16,7 @@ import type {
   ChatMessage, Attachment, ToolInfo, MessageAuthor, CompactionInfo,
   SessionContext, SessionModelPin,
   BudgetRule, BudgetUsage, CreateBudgetInput, UpdateBudgetInput,
-  LogEntry, QualityReport, GatewayCommandSpec,
+  LogEntry, GatewayCommandSpec,
   SkillSummary, SkillDetail, SkillWriteResult, CreateSkillInput,
   ProviderAccounts, AgentEvent, CreateEventInput, UpdateEventInput, EventDelivery, EventTypeSpec,
   AutomationKind, AutomationAuthorization, AutomationAuthorizationApproval,
@@ -523,22 +523,28 @@ export async function approveAutomationAuthorization(
   );
 }
 
-export async function getScheduledTasks(
+export type ManagementSummary = { id: string; name: string; enabled: boolean };
+type ManagementList<K extends string, T> = Record<K, T[]> & { summaries?: ManagementSummary[] };
+
+export async function getScheduledTaskList(
   enabledOnly: boolean = false,
   // Include framework built-ins (dream-mode, auto-update) in the result.
   // Off by default so the Scheduled-tasks management screen stays clean;
   // the sidebar "Recent" activity feed opts in so a dream-mode firing
   // surfaces there like any other scheduled run.
   includeBuiltin: boolean = false,
-): Promise<ScheduledTask[]> {
+) {
   const params = new URLSearchParams();
   if (enabledOnly) params.set('enabled_only', 'true');
   if (includeBuiltin) params.set('include_builtin', '1');
   const q = params.toString();
-  const data = await get<{ tasks: ScheduledTask[] }>(
+  return get<ManagementList<'tasks', ScheduledTask>>(
     `/api/scheduled-tasks${q ? `?${q}` : ''}`,
   );
-  return data.tasks;
+}
+
+export async function getScheduledTasks(enabledOnly = false, includeBuiltin = false) {
+  return (await getScheduledTaskList(enabledOnly, includeBuiltin)).tasks;
 }
 
 export async function getScheduledTask(id: string): Promise<ScheduledTask> {
@@ -607,10 +613,13 @@ export async function getScheduledTaskRuns(
 
 // ── Events API (webhook channel) ──
 
-export async function getEvents(enabledOnly: boolean = false): Promise<AgentEvent[]> {
+export async function getEventList(enabledOnly = false) {
   const q = enabledOnly ? '?enabled_only=true' : '';
-  const data = await get<{ events: AgentEvent[] }>(`/api/events${q}`);
-  return data.events;
+  return get<ManagementList<'events', AgentEvent>>(`/api/events${q}`);
+}
+
+export async function getEvents(enabledOnly = false) {
+  return (await getEventList(enabledOnly)).events;
 }
 
 export async function getEvent(id: string): Promise<AgentEvent> {
@@ -671,17 +680,20 @@ export async function getEventTypes(): Promise<EventTypeSpec[]> {
 
 // ── Workflows API ──
 
-export async function getWorkflows(
+export async function getWorkflowList(
   opts: { enabledOnly?: boolean; hasTriggerType?: string } = {}
-): Promise<WorkflowTask[]> {
+) {
   const params = new URLSearchParams();
   if (opts.enabledOnly) params.set('enabled_only', 'true');
   if (opts.hasTriggerType) params.set('has_trigger_type', opts.hasTriggerType);
   const qs = params.toString();
-  const data = await get<{ workflows: WorkflowTask[] }>(
+  return get<ManagementList<'workflows', WorkflowTask>>(
     `/api/workflows${qs ? `?${qs}` : ''}`
   );
-  return data.workflows;
+}
+
+export async function getWorkflows(opts?: Parameters<typeof getWorkflowList>[0]) {
+  return (await getWorkflowList(opts)).workflows;
 }
 
 export async function getWorkflow(id: string): Promise<WorkflowTask> {
@@ -954,6 +966,21 @@ export async function getAgentIdentity(): Promise<AgentIdentity> {
   return get<AgentIdentity>('/api/agent/identity');
 }
 
+export type AgentPageVisibility = 'members' | 'owner';
+export interface AgentAccessSettings {
+  owner_handle: string | null;
+  visibility: AgentPageVisibility;
+  can_manage: boolean;
+  can_transfer: boolean;
+}
+export const getAgentAccess = () => get<AgentAccessSettings>('/api/agent/access');
+export const updateAgentAccess = (visibility: AgentPageVisibility) =>
+  patch<AgentAccessSettings>('/api/agent/access', { visibility });
+export const transferAgentOwner = (owner_handle: string) =>
+  patch<AgentAccessSettings>('/api/agent/access/owner', { owner_handle });
+export const transferFederatedAgentOwner = (agentHandle: string, owner_handle: string) =>
+  patch<{ updated: boolean }>(`/api/agent/access/owner/${encodeURIComponent(agentHandle)}`, { owner_handle });
+
 /** Atomically update the agent name and/or user-defined persona. */
 export async function updateAgentIdentity(data: {
   name?: string;
@@ -1093,9 +1120,10 @@ export async function getAvailableProviders(): Promise<string[]> {
 // is live without a process restart.
 
 export async function listMcps(): Promise<MCPEntry[]> {
-  const data = await get<{ mcps: MCPEntry[] }>('/api/mcps');
-  return data.mcps;
+  return (await getMcpList()).mcps;
 }
+
+export const getMcpList = () => get<ManagementList<'mcps', MCPEntry>>('/api/mcps');
 
 export async function getMcp(name: string): Promise<MCPEntry> {
   const data = await get<{ mcp: MCPEntry }>(`/api/mcps/${encodeURIComponent(name)}`);
@@ -1835,15 +1863,6 @@ export async function clearLogs(): Promise<void> {
   await del('/api/logs');
 }
 
-// ── Quality report (/api/quality) ──
-
-/** Quality / cost / recall over the last `windowSeconds` (default 24h,
- *  server-capped at 90 days). One reverse scan of the event log. */
-export async function getQualityReport(windowSeconds?: number): Promise<QualityReport> {
-  const qs = windowSeconds ? `?window=${Math.round(windowSeconds)}` : '';
-  return get<QualityReport>(`/api/quality${qs}`);
-}
-
 // Hard-stop in-flight run(s) of a workflow. The mirror of
 // ``stopScheduledTask`` — the server deliberately gives the two the same
 // status codes and envelope so the app can treat them as one gesture —
@@ -1950,8 +1969,8 @@ export interface MicrosoftConnectorResource { id: string; name: string; drive_ty
 export interface MicrosoftConnectorResources { items: MicrosoftConnectorResource[]; next_page_token?: string; selected_site_id: string | null; selected_drive_id: string | null }
 export interface MicrosoftConnectorSelection { ok: true; selected_site_id: string | null; selected_drive_id: string | null }
 export const officialConnectorsAPI = {
- catalog: () => get<{ available: boolean; connectors: OfficialConnector[] }>('/api/marketplace/official'),
- list: () => get<{ available: boolean; connections: OfficialConnection[] }>('/api/connectors'),
+ catalog: () => get<{ available: boolean; connectors: OfficialConnector[]; read_only?: boolean }>('/api/marketplace/official'),
+ list: () => get<{ available: boolean; connections: OfficialConnection[]; read_only?: boolean }>('/api/connectors'),
  create: (body: object) => post<OfficialConnectorSetup>('/api/connectors', body),
  connect: (id: string) => post<OfficialConnectorSetup>(`/api/connectors/${encodeURIComponent(id)}/connect`),
  poll: (id: string) => post<{ status: string; connection?: OfficialConnection }>(`/api/connectors/${encodeURIComponent(id)}/poll`),

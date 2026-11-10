@@ -24,9 +24,10 @@ interface Props {
   disabled?: boolean;
   unavailableReason?: string;
   onManage?: () => void;
+  readOnly?: boolean;
 }
 
-export default function MarketplaceTile({ card, installed, onInstall, style, icon, disabled, unavailableReason, onManage }: Props) {
+export default function MarketplaceTile({ card, installed, onInstall, style, icon, disabled, unavailableReason, onManage, readOnly }: Props) {
   const hasDistinctTitle = !!(card.title && card.title !== card.name);
 
   return (
@@ -68,7 +69,7 @@ export default function MarketplaceTile({ card, installed, onInstall, style, ico
         {unavailableReason ? <Text style={styles.description} numberOfLines={2}>{unavailableReason}</Text> : null}
       </View>
 
-      <View style={styles.footer}>
+      {(!readOnly || installed) && <View style={styles.footer}>
         {installed && onManage ? <Button variant="primary" size="sm" label="Manage" icon="settings" iconPosition="right" onPress={onManage} /> : installed ? (
           <View style={styles.installedStamp}>
             <Feather name="check-circle" size={12} color={colors.success} />
@@ -85,7 +86,7 @@ export default function MarketplaceTile({ card, installed, onInstall, style, ico
             onPress={onInstall}
           />
         )}
-      </View>
+      </View>}
     </View>
   );
 }

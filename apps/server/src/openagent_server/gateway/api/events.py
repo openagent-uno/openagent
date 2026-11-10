@@ -98,6 +98,9 @@ async def handle_list(request):
         return err
     enabled_only = request.query.get("enabled_only", "").lower() in ("1", "true", "yes")
     rows = await db.list_events(enabled_only=enabled_only)
+    from openagent_server.management_access import MEMBER_OVERVIEW, member_overview
+    if request.get(MEMBER_OVERVIEW):
+        return web.json_response(member_overview("events", rows))
     from openagent_server.automation_management import authorized_definition_ids
     authorized = await authorized_definition_ids(request, "event")
     return web.json_response({

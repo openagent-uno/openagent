@@ -4073,6 +4073,8 @@ async def _send_files(client: GatewayClient, filepaths: list[str], session_id: s
 
 from .connectors import register as _register_connectors
 _register_connectors(cli, _open_gateway_for_rest, _disconnect_remote, console)
+from .agent_access import register as _register_agent_access
+_register_agent_access(cli, _open_gateway_for_rest, _disconnect_remote)
 
 
 def main():

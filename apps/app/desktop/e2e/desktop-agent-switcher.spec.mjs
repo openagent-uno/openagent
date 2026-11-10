@@ -23,13 +23,32 @@ class RailGateway extends DeterministicGateway {
       }));
       return;
     }
+    if (path === '/api/agent/access' && request.method !== 'OPTIONS') {
+      if (request.method === 'PATCH') {
+        const chunks = [];
+        for await (const chunk of request) chunks.push(chunk);
+        this.visibility = JSON.parse(Buffer.concat(chunks).toString()).visibility;
+      }
+      const owner = this.accountId === 'Atlas';
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify({ owner_handle: owner ? 'e2e-user' : 'other-user',
+        visibility: this.visibility || 'members', can_manage: owner, can_transfer: owner }));
+      return;
+    }
     const empty = {
       '/api/sessions/e2e-session/participants': { participants: [] },
       '/api/sessions/e2e-session/devices': { devices: [] },
       '/api/sessions/e2e-session/computer-targets': { targets: [] },
       '/api/collaboration': { version: 0 },
+      '/api/scheduled-tasks': this.accountId === 'Nova' ? { tasks: [], summaries: [{ id: 'daily', name: 'Daily report', enabled: true }] } : { tasks: [] },
+      '/api/network/users': { users: [] },
+      '/api/network/agents': { agents: [] },
+      '/api/network/invitations': { invitations: [] },
+      '/api/accounts': { providers: [] },
+      '/api/budgets/usage': { usage: [] },
+      '/api/usage/daily': { entries: [] },
     }[path];
-    if (!empty) return super.handleHttp(request, response);
+    if (!empty || request.method === 'OPTIONS') return super.handleHttp(request, response);
     response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     response.end(JSON.stringify(empty));
   }
@@ -151,6 +170,26 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await page.getByRole('button', { name: /^save identity$/i }).click();
     await expect.poll(() => gateways[0].profile?.thumbnail).toMatch(/^data:image\/jpeg;base64,/);
     await expect(atlas.locator('img').first()).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Members', exact: true }).click();
+    await expect(page.getByText('Primary owner: @e2e-user')).toBeVisible();
+    await page.getByRole('button', { name: /^owner only$/i }).click();
+    await expect.poll(() => gateways[0].visibility).toBe('owner');
+    await page.getByRole('button', { name: /^all members$/i }).click();
+    await expect.poll(() => gateways[0].visibility).toBe('members');
+    await page.getByRole('tab', { name: 'Models & Providers', exact: true }).click();
+    await expect(page.getByText('Accounts', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Accounts', exact: true })).toHaveCount(0);
+    await page.getByRole('tab', { name: 'Costs', exact: true }).click();
+    await expect(page.getByText('Budgets', { exact: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Quality', exact: true })).toHaveCount(0);
+
+    await nova.click();
+    await page.getByRole('button', { name: 'Scheduled', exact: true }).click();
+    await expect(page.getByText('Daily report', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^new task$/i })).toHaveCount(0);
+    await atlas.click();
+    await expect(atlas.getByTestId('selected-agent-marker')).toBeVisible();
 
     gateways[0].chatSocket.close(1011);
     const reconnect = page.getByText('Reconnecting…', { exact: true });

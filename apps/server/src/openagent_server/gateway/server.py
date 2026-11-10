@@ -33,7 +33,8 @@ from openagent_server.gateway.capabilities import (
     ClientCapabilityError,
 )
 from openagent_server.gateway.api import official_connectors as official_connectors_api
-from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, quality as quality_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
+from openagent_server.gateway.api import management_access as management_access_api
+from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
 from openagent_identity import peers as peers_api
 from openagent_identity.auth.middleware import make_auth_middleware
 from openagent_identity.transport.aiohttp_iroh_site import IrohSite
@@ -1458,6 +1459,10 @@ class Gateway:
             ("PATCH", "/api/config/{section}", config.handle_patch),
             ("GET", "/api/agent/identity", agent_identity_api.handle_get),
             ("PATCH", "/api/agent/identity", agent_identity_api.handle_patch),
+            ("GET", "/api/agent/access", management_access_api.handle_get),
+            ("PATCH", "/api/agent/access", management_access_api.handle_patch),
+            ("PATCH", "/api/agent/access/owner", management_access_api.handle_owner),
+            ("PATCH", "/api/agent/access/owner/{handle}", management_access_api.handle_owner),
             ("GET", "/api/scheduled-tasks", scheduled_tasks.handle_list),
             ("POST", "/api/scheduled-tasks", scheduled_tasks.handle_create),
             ("GET", "/api/scheduled-tasks/{id}", scheduled_tasks.handle_get),
@@ -1504,9 +1509,6 @@ class Gateway:
             ("GET", "/api/usage", usage.handle_get),
             ("GET", "/api/usage/daily", usage.handle_daily),
             ("GET", "/api/usage/pricing", usage.handle_pricing),
-            # Quality meter — the correctness companion to /api/usage: LLM-judge
-            # scores + recall hit-rate + spend over a window, from events.jsonl.
-            ("GET", "/api/quality", quality_api.handle_report),
             # Budgets (per-scope spend caps). Static ``/usage`` BEFORE the
             # ``{id}`` wildcard so the meter view isn't captured as an id.
             ("GET", "/api/accounts", accounts_api.handle_list),

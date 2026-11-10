@@ -146,6 +146,9 @@ async def handle_list(request):
     # READ only; mutations still 403 via ``_reject_if_builtin``.
     include_builtin = request.query.get("include_builtin", "").lower() in ("1", "true", "yes")
     rows = await db.get_tasks(enabled_only=enabled_only)
+    from openagent_server.management_access import MEMBER_OVERVIEW, member_overview
+    if request.get(MEMBER_OVERVIEW):
+        return web.json_response(member_overview("tasks", (r for r in rows if not _is_builtin(r))))
     if not include_builtin:
         rows = [r for r in rows if not _is_builtin(r)]
     # One query for the whole list tells each tile whether a firing is in

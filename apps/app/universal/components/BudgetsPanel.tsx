@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, font, radius } from '../theme';
 import Card from './Card';
@@ -196,7 +196,7 @@ export default function BudgetsPanel() {
   }, [confirm, refresh]);
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <View style={styles.content}>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Budgets</Text>
@@ -416,13 +416,12 @@ export default function BudgetsPanel() {
         })
       )}
       <View style={{ height: 40 }} />
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1 },
-  content: { padding: 16, gap: 12 },
+  content: { gap: 12 },
   headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   title: {
     fontSize: 16, fontWeight: '600', color: colors.text,

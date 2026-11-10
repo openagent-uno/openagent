@@ -22,7 +22,7 @@ import { colors, radius } from '../../../theme';
 import { useConnection } from '../../../stores/connection';
 import { useEvents } from '../../../stores/events';
 import { useEventDefs } from '../../../stores/eventDefs';
-import { setBaseUrl } from '../../../services/api';
+import { currentAgentScope, setBaseUrl } from '../../../services/api';
 import { openDetached } from '../../../services/windows';
 import { useConfirm } from '../../../components/ConfirmDialog';
 import EmptyState from '../../../components/EmptyState';
@@ -30,6 +30,7 @@ import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import EventTile from '../../../components/events/EventTile';
 import { TileGridScreen, CONTENT_MAX_WIDTH } from '../../../components/TileGrid';
 import { Skeleton } from '../../../components/Skeleton';
+import ManagementOverview from '../../../components/ManagementOverview';
 import type { AgentEvent } from '../../../../common/types';
 
 export default function EventsScreen() {
@@ -37,7 +38,12 @@ export default function EventsScreen() {
   const navigation = useNavigation();
   const headerInset = useHeaderInset();
   const connConfig = useConnection((s) => s.config);
-  const { events, loaded, error, loadEvents, toggleEvent, deleteEvent, testEvent } = useEventDefs();
+  const { events: storedItems, loaded: listLoaded, error: listError, listScope, listCanManage, summaries, loadEvents, toggleEvent, deleteEvent, testEvent } = useEventDefs();
+  const current = listScope === currentAgentScope();
+  const events = current ? storedItems : [];
+  const loaded = current && listLoaded;
+  const error = current ? listError : null;
+  const canManage = current && listCanManage;
   const confirm = useConfirm();
 
   const handleAdd = useCallback(() => {
@@ -48,9 +54,9 @@ export default function EventsScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderAction icon="plus" label="New event" onPress={handleAdd} />,
+      headerRight: canManage ? () => <HeaderAction icon="plus" label="New event" onPress={handleAdd} /> : undefined,
     });
-  }, [navigation, handleAdd]);
+  }, [navigation, handleAdd, canManage]);
 
   useEffect(() => {
     if (connConfig) {
@@ -78,6 +84,10 @@ export default function EventsScreen() {
     if (ok) await deleteEvent(ev.id);
   };
 
+  if (current && summaries !== null) {
+    return <ManagementOverview items={summaries} title="No events yet" icon="zap" />;
+  }
+
   return (
     <View style={styles.root}>
       {error && (
@@ -94,7 +104,7 @@ export default function EventsScreen() {
           icon="zap"
           title="No events yet"
           message="Create an event to let an external service — or a peer agent — trigger a workflow, a scheduled task, or a chat session over a webhook."
-          action={{ label: 'New event', icon: 'plus', onPress: handleAdd }}
+          action={canManage ? { label: 'New event', icon: 'plus', onPress: handleAdd } : undefined}
         />
       ) : (
         <TileGridScreen headerInset={headerInset}>

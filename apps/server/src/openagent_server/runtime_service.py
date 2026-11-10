@@ -183,6 +183,9 @@ class NativeRuntimeService:
         from openagent_server.catalog_service import NativeCatalogService
 
         self.catalog_management = NativeCatalogService(agent, self.authorizer)
+        from openagent_server.management_access import ManagementAccess
+
+        self.management_access = ManagementAccess(self)
         from openagent_server.official_connectors import OfficialConnectors
         self.official_connectors = OfficialConnectors(self)
         self.store = SqliteRuntimeStore(agent.memory_db.db_path)
@@ -377,8 +380,11 @@ class NativeRuntimeService:
         from openagent_core import DelegationService, ModelCatalog
         from openagent_core.code_execution import CodeExecutor
         from openagent_core.memory_access import MemoryAccess
+        from openagent_server.automation_management import park_retired_observability_tasks
 
+        await park_retired_observability_tasks(self.agent.memory_db)
         await self.catalog_management.start()
+        await self.management_access.start()
         await self.official_connectors.start()
         await self.automations.start()
         executor = AgentExecutor(self.agent, owns_agent=False)
@@ -832,7 +838,9 @@ async def bind_runtime_identity(request, handler):
         if service is None:
             raise web.HTTPServiceUnavailable(text="Automation management is not ready")
         from openagent_core.contracts import ResourceRef, require_authorized
+        from openagent_server.management_access import AUTOMATION_COLLECTIONS, MEMBER_OVERVIEW
 
+        context = None
         try:
             context = await service.context(request, "__automation_management__")
             await require_authorized(
@@ -842,9 +850,10 @@ async def bind_runtime_identity(request, handler):
                 ResourceRef("automation", context.tenant_id, request.path),
             )
         except PermissionError:
-            raise web.HTTPForbidden(
-                text="Automation access is not authorized"
-            ) from None
+            if (context is None or request.method != "GET" or request.path not in AUTOMATION_COLLECTIONS
+                    or not await service.management_access.can_browse(context)):
+                raise web.HTTPForbidden(text="Automation access is not authorized") from None
+            request[MEMBER_OVERVIEW] = True
     if request.path.startswith(("/api/providers", "/api/models")):
         from openagent_server.provider_management import authorize_request
 

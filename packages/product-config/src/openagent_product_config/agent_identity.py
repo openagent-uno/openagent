@@ -249,6 +249,12 @@ class AgentIdentityService:
             result["channel_presentation"] = sync.status.copy() if sync else {}
             return result
 
+    async def presentation(self) -> dict[str, Any]:
+        """Name and thumbnail only; callers authorize their own audience."""
+        async with _lock_for(self.config_path):
+            snapshot = self._snapshot(_read_raw_config(self.config_path))
+            return {"name": snapshot.name, "thumbnail": snapshot.thumbnail}
+
     async def update(
         self,
         actor: OnBehalfIdentity | None,

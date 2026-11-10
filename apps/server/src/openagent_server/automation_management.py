@@ -51,6 +51,14 @@ _TABLE = {
 }
 
 
+async def park_retired_observability_tasks(db):
+    """Stop previously seeded observability tasks without erasing run history."""
+    retired = {"quality-scorer", "quality-digest", "cost-observability"}
+    for task in await db.get_tasks(enabled_only=True):
+        if task["name"] in retired:
+            await db.update_task(task["id"], enabled=0, next_run=None)
+
+
 class AutomationRevisionChanged(ValueError):
     """The reviewed digest no longer names the current persisted revision."""
 

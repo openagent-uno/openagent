@@ -29,9 +29,9 @@ import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { useConnection } from '../../../stores/connection';
 import { useEvents } from '../../../stores/events';
 import {
-  setBaseUrl, listMcps, createMcp, deleteMcp, enableMcp, disableMcp,
+  setBaseUrl, getMcpList, ApiError, createMcp, deleteMcp, enableMcp, disableMcp,
   searchMcpMarketplace,
-  type MarketplaceCard,
+  type MarketplaceCard, type ManagementSummary,
 } from '../../../services/api';
 import type { MCPEntry } from '../../../../common/types';
 import { colors, font, radius, tracking } from '../../../theme';
@@ -41,9 +41,10 @@ import { HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import { useConfirm } from '../../../components/ConfirmDialog';
 import McpTile from '../../../components/mcps/McpTile';
 import Grid from '../../../components/mcps/MarketplaceGrid';
+import { ManagementSummaryTile } from '../../../components/ManagementOverview';
 import McpConfigForm, { type McpSubmitPayload } from '../../../components/mcps/McpConfigForm';
 
-type Mode = 'builtin' | 'custom' | 'browse' | 'new';
+type Mode = 'builtin' | 'custom' | 'browse' | 'new' | 'installed';
 
 const MARKETPLACE_SOURCE_PREFIX = 'marketplace:registry.modelcontextprotocol.io/';
 const SEARCH_DEBOUNCE_MS = 300;
@@ -87,15 +88,20 @@ export default function McpsScreen() {
   const target = config?.sidecarPort ? JSON.stringify([activeAccountId, config.sidecarPort, config.network, config.handle, config.agentHandle]) : '';
   const confirm = useConfirm();
 
-  const [mode, setMode] = useState<Mode>('browse');
+  const [requestedMode, setMode] = useState<Mode>('browse');
+  const [access, setAccess] = useState<'owner' | 'member' | 'restricted' | null>(null);
+  const [summaries, setSummaries] = useState<ManagementSummary[]>([]);
+  const canManage = access === 'owner';
+  const mode = canManage ? (requestedMode === 'installed' ? 'browse' : requestedMode)
+    : access === 'member' && requestedMode === 'installed' ? 'installed' : 'browse';
 
   // Unified "create" control in the navigator header (same position as
   // Workflows / Scheduled) — jumps to the "New" connector form.
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => <HeaderAction icon="plus" label="New connector" onPress={() => setMode('new')} />,
+      headerRight: canManage ? () => <HeaderAction icon="plus" label="New connector" onPress={() => setMode('new')} /> : undefined,
     });
-  }, [navigation]);
+  }, [navigation, canManage]);
 
   const [installed, setInstalled] = useState<MCPEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -134,11 +140,16 @@ export default function McpsScreen() {
   // ── Data loading ──
   const refresh = useCallback(async () => {
     try {
-      const rows = await listMcps();
-      setInstalled(rows);
+      const { mcps, summaries } = await getMcpList();
+      setInstalled(mcps);
+      setSummaries(summaries ?? []);
+      setAccess(summaries ? 'member' : 'owner');
       setError(null);
     } catch (e: any) {
-      setError(e?.message || String(e));
+      if (e instanceof ApiError && e.status === 403) {
+        setAccess('restricted'); setInstalled([]); setSummaries([]);
+        setError('Only the agent owner can view this page.');
+      } else setError(e?.message || String(e));
     }
   }, []);
 
@@ -298,9 +309,12 @@ export default function McpsScreen() {
   return (
     <View style={[styles.root, { paddingTop: headerInset }]}>
       <SectionTabs<Mode>
-        tabs={[
+        tabs={canManage ? [
           { id: 'builtin', label: `Builtin · ${builtinRows.length}`, icon: 'package' },
           { id: 'custom', label: `Custom · ${customRows.length}`, icon: 'sliders' },
+          { id: 'browse', label: 'Browse', icon: 'compass' },
+        ] : [
+          ...(access === 'member' ? [{ id: 'installed' as const, label: `Installed · ${summaries.length}`, icon: 'package' as const }] : []),
           { id: 'browse', label: 'Browse', icon: 'compass' },
         ]}
         active={mode}
@@ -345,7 +359,12 @@ export default function McpsScreen() {
             onTilePress={onTilePress}
           />
         )}
-        {mode === 'browse' && (
+        {mode === 'installed' && (
+          summaries.length
+            ? <Grid cols={cols}>{summaries.map(item => <ManagementSummaryTile key={item.id} item={item} />)}</Grid>
+            : <Text style={styles.errorText}>No installed connectors.</Text>
+        )}
+        {mode === 'browse' && access !== 'restricted' && (
           <View style={{ gap: 24 }}>
           <View style={[styles.searchBox, styles.searchBoxLarge]}>
             <Feather name="search" size={15} color={colors.textMuted} />
@@ -353,7 +372,7 @@ export default function McpsScreen() {
             {mktLoading && <ActivityIndicator size="small" color={colors.primary} />}
           </View>
           {mktError && <View style={styles.errorBanner}><Text style={styles.errorText}>Some marketplace results could not load.</Text><Button variant="ghost" size="sm" label="Retry" onPress={() => runSearch(mktQuery.trim())} /></View>}
-          <OfficialConnectorsPane query={mktQuery} cols={cols} registryResults={mktResults} registryInstalledNames={installedRegistryNames} onInstallRegistry={onInstallClick} />
+          <OfficialConnectorsPane query={mktQuery} cols={cols} registryResults={mktResults} registryInstalledNames={installedRegistryNames} onInstallRegistry={canManage ? onInstallClick : undefined} readOnly={!canManage} />
           {mktCursor && !mktLoading && <View style={styles.loadMore}><Button variant="ghost" size="sm" label="Load more results" icon="chevron-down" onPress={() => runSearch(mktQuery.trim(), mktCursor, true)} /></View>}
           </View>
         )}

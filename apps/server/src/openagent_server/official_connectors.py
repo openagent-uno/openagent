@@ -231,16 +231,31 @@ class OfficialConnectors:
     def public(row):
         return {key: row[key] for key in ("id", "catalog_id", "display_name", "enabled", "allow_write", "status", "app_id", "created_at")}
 
-    async def list(self, context):
-        await self.check(context)
+    async def _page_read_only(self, context, browse):
+        try:
+            await self.check(context)
+        except PermissionError:
+            if not browse or not await self.runtime.management_access.can_browse(context):
+                raise
+            return True
+        return False
+
+    async def list(self, context, *, browse=False):
+        if await self._page_read_only(context, browse):
+            return {"available": self.available, "connections": [], "read_only": True}
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
             rows = await (await db.execute("SELECT * FROM official_connector_connections WHERE tenant_id=? AND owner_key=? ORDER BY created_at",
                                           (context.tenant_id, context.initiator.key))).fetchall()
         return {"available": self.available, "connections": [self.public(row) for row in rows]}
 
-    async def catalog(self, context):
-        await self.check(context)
+    async def catalog(self, context, *, browse=False):
+        if await self._page_read_only(context, browse):
+            from openagent_connectors.catalog import bundled_catalog
+            return {"available": self.available, "read_only": True, "connectors": [
+                {**item, "available": False, "unavailableReason": "Only the agent owner can connect accounts."}
+                for item in bundled_catalog() if not item.get("nativeKind")
+            ]}
         if not self.runner:
             from openagent_connectors.catalog import bundled_catalog
             items = bundled_catalog()

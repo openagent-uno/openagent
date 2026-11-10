@@ -402,14 +402,23 @@ async def handle_patch_agent(request: "web.Request") -> "web.Response":
             status=400,
         )
 
-    updated = await store.update_agent(
-        handle,
-        label=label.strip() if isinstance(label, str) else None,
-        owner_handle=(owner_handle.strip().lower()
-                      if isinstance(owner_handle, str) and owner_handle.strip()
-                      else None),
-    )
-    if not updated:
+    row = next((row for row in await store.list_agents() if row.handle == handle), None)
+    if row is None:
+        return web.json_response({"error": f"agent {handle!r} not found"}, status=404)
+    if owner_handle is not None:
+        runtime = getattr(request.app["gateway"], "runtime_service", None)
+        if runtime is None:
+            raise web.HTTPServiceUnavailable(text="Agent access settings are not ready")
+        try:
+            context = await runtime.context(request, "__agent_access__")
+            await runtime.management_access.transfer_registered_agent(
+                context, store, row.node_id, owner_handle,
+            )
+        except PermissionError as exc:
+            raise web.HTTPForbidden(text=str(exc)) from None
+        except ValueError as exc:
+            raise web.HTTPBadRequest(text=str(exc)) from None
+    if label is not None and not await store.update_agent(handle, label=label.strip()):
         return web.json_response({"error": f"agent {handle!r} not found"}, status=404)
     return web.json_response({"updated": True, "handle": handle})
 
@@ -420,9 +429,8 @@ async def handle_delete_agent(request: "web.Request") -> "web.Response":
     Guard: the agent whose ``node_id`` matches this coordinator's own
     NodeId is the network's only working gateway — deleting it
     strands every client (list_agents returns empty → no agent to
-    pick → WS dials fail). Block that path. Foreign-network rows
-    (the failure mode that surfaced as WS code 1006) can be
-    removed freely.
+    pick → WS dials fail). Block that path. A human-owned peer can
+    be removed by its current owner only.
     """
     from aiohttp import web
 
@@ -454,7 +462,18 @@ async def handle_delete_agent(request: "web.Request") -> "web.Response":
             status=409,
         )
 
-    deleted = await store.remove_agent(handle)
+    if target.owner_handle != "system":
+        runtime = getattr(request.app["gateway"], "runtime_service", None)
+        if runtime is None:
+            raise web.HTTPServiceUnavailable(text="Agent access settings are not ready")
+        try:
+            context = await runtime.context(request, "__agent_access__")
+            if (context.initiator.subject_id != target.owner_handle
+                    or not await runtime.management_access.verified_member(context)):
+                raise PermissionError
+        except PermissionError:
+            raise web.HTTPForbidden(text="Only the current owner can remove this agent") from None
+    deleted = await store.remove_agent(handle, expected_owner=target.owner_handle)
     return web.json_response({"deleted": deleted, "handle": handle})
 
 

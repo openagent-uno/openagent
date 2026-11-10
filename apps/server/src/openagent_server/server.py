@@ -56,11 +56,8 @@ except Exception:  # noqa: BLE001 — best-effort, never block startup
 from openagent_core.core.builtin_tasks import (
     AUTO_UPDATE_TASK_NAME,
     BUILTIN_TASK_NAMES,
-    COST_OBSERVABILITY_TASK_NAME,
     DREAM_MODE_TASK_NAME,
     ESCALATION_AUDIT_TASK_NAME,
-    QUALITY_DIGEST_TASK_NAME,
-    QUALITY_SCORER_TASK_NAME,
     SKILL_CURATOR_TASK_NAME,
     SKILL_DISTILLER_TASK_NAME,
 )
@@ -309,266 +306,12 @@ skill because nothing new recurred is a correct, valid outcome, not a
 failure. Writing a marginal skill just to have written one is the failure.
 """
 
-# Every 2 hours at :23 by default. The scorer grades a short window of the agent's own
-# recent output, so it runs frequently and cheaply — a regression should surface
-# within a couple of hours, not the next day. The offset keeps it from colliding
-# with the hourly cost watcher. Overridable via ``self_improvement.scorer_schedule``.
-QUALITY_SCORER_DEFAULT_CRON = "23 */2 * * *"
-
-QUALITY_SCORER_PROMPT = """\
-You are running as the Quality Scorer — OpenAgent's INTRINSIC self-improvement
-pass. Every couple of hours you look back at what THIS agent itself just
-produced, grade it honestly against the agent's OWN rules, and write a grounded
-correction for anything weak so the same mistake does not recur. This is
-role-agnostic: if the agent answers customers, its outputs are the replies it
-sent; if the agent runs ops, its outputs are the actions, decisions, and edits
-it made. Grade whatever this agent actually produces.
-
-You are a STRICT, INDEPENDENT judge of your own work — not a cheerleader. A
-clean run that finds nothing wrong is the EXPECTED, normal outcome: do NOT
-invent faults to look busy, and do NOT fabricate work that did not happen.
-Equally, do not wave through a real error to be kind to yourself. Stay SILENT
-unless there is a real regression (STEP 4) — no per-run status message.
-
-## STEP 1 — Gather this agent's OWN recent outputs (since the last run, ~2h)
-
-Read the agent's own recent COMPLETED sessions for the window and extract what
-it actually PRODUCED — the customer-facing replies it sent, and/or the ops
-actions / decisions / edits it took. Use the tools OpenAgent already gives you,
-never shell out:
-   - `search_past_conversations` — keyword recall over what was said/done in
-     recent sessions; probe for the outbound work of the last ~2 hours.
-   - the `logs` MCP — `logs_summary(since="2h")` for the shape of the window,
-     then `logs_query` / `logs_context` to pull the specific outputs and the
-     context around them (what was asked, what the agent answered or did).
-If there is NOTHING new to grade in the window, STOP — a quiet window is a valid
-outcome. Do not manufacture a batch.
-
-## STEP 2 — Ground in the agent's OWN rules FIRST, then grade
-
-Before scoring anything, SEARCH AND READ the agent's OWN vault for the
-rules, procedures, and quality-bar that apply to this work — use the `vault`
-MCP (`search_notes`, `read_note`) to find the standing rules, the
-anti-fabrication discipline, the product/ops facts, and any escalation policy.
-You grade against the agent's OWN documented bar, not a generic one.
-
-Then grade EACH output GOOD / OK / BAD with a 0..1 score and short per-dimension
-notes:
-   - **correctness** — is the substance right for the real situation?
-   - **grounding / no-fabrication** — every claim true and verifiable; NO
-     invented state (no "we've logged/escalated/fixed it" that never happened,
-     no facts the agent could not have known). Fabrication is the cardinal sin:
-     a fabricated claim caps the verdict at BAD.
-   - **follows-own-rules** — does it obey the standing rules you just read from
-     the vault, or does it violate one?
-   - **tone** — appropriate and, where a human is involved, warm/empathetic —
-     especially with a frustrated user.
-   - **completeness** — does it actually resolve the ask / finish the action,
-     or leave it dangling?
-The overall score is your honest weighting of these (weight correctness and
-grounding highest). Verdict: GOOD >= 0.8, OK 0.5–0.8, BAD < 0.5.
-
-## STEP 3 — Write a grounded correction for each weak output
-
-For every BAD output — and every OK one with a real, nameable flaw — write ONE
-grounded CORRECTION tied to that specific work, via the `vault` MCP
-(`write_note`, or `patch_note` to extend a matching note). Each correction
-states plainly: WHAT was wrong, WHICH of the agent's own rules it violated (cite
-the note/rule), and HOW to do it right next time. Keep it about procedure and
-discipline — a repeatable lesson — not a new product fact you are unsure of. If
-what's missing is a FACT you cannot verify, record it as a "grounding gap" to
-review rather than asserting it as truth. File corrections under a stable
-folder (e.g. `quality-corrections/`) with frontmatter `type: quality-correction`
-and `date:` today, so the daily digest can find them.
-
-## STEP 4 — Save, stay quiet, and alert ONLY on a real regression
-
-SAVE the scores and corrections and STOP. Do NOT send a per-run message — a
-clean or ordinary batch produces no notification at all; the daily digest is
-where routine results are summarised.
-
-Send the operator EXACTLY ONE short alert — via whatever operator-notification
-tool this agent has (its Telegram / Slack / messaging tool) — ONLY when THIS
-batch is a genuine regression: the batch average falls below the quality bar
-(~0.65) OR there are >= 2 BAD outputs. The alert names the batch average, how
-many BAD, and the single worst item with a one-line reason. In every other case
-send nothing.
-
-## Log the pass
-
-Write a concise note via the `vault` MCP under
-`quality-scorer-logs/quality-scorer-YYYY-MM-DD.md` (frontmatter
-`type: quality-scorer-log`, `date:` today): how many outputs you graded, the
-GOOD/OK/BAD split and average, the corrections you wrote, and whether you
-alerted. If the window was empty or clean, log that too — it is a correct
-outcome, not a failure.
-"""
-
-# Daily at 09:41 by default. The digest CONSOLIDATES what the every-2h scorer
-# found, so it runs on a slower cadence — one operator-facing recap a day.
-# Its offset avoids the hourly cost watcher. Overridable via
-# ``self_improvement.digest_schedule``.
-QUALITY_DIGEST_DEFAULT_CRON = "41 9 * * *"
-
-QUALITY_DIGEST_PROMPT = """\
-You are running as the Quality Digest — the daily synthesis half of OpenAgent's
-intrinsic self-improvement loop. The quality-scorer grades the agent's own work
-every couple of hours and files corrections; ONCE a day you roll those findings
-into concrete, grounded improvements, apply the safe ones yourself, propose the
-risky ones, and send the operator a single short recap. Cheap by design: no
-fan-out, one pass. A quiet day is the normal outcome — say so in one line and
-stop.
-
-## STEP 1 — Read the recent quality findings (read-only)
-
-Gather what the scorer produced over roughly the last 7 days via the `vault`
-MCP: the corrections it filed (`search_notes` for `type: quality-correction`)
-and the scorer logs (`type: quality-scorer-log`). Compute the trend — is the
-average holding, rising, or falling? — and group the corrections by RECURRING
-PATTERN (e.g. fabricated state, ignored attachment/context, wrong procedure,
-tone with a frustrated user, incomplete action). Count each pattern.
-
-## STEP 2 — Turn recurring patterns into improvements
-
-For each pattern that recurs (roughly 3+ times), decide the concrete fix and
-split by SAFETY:
-   - **AUTO-APPLY — only SAFE, grounded fixes.** A tightening of an existing
-     vault rule / doc, or a small new procedural rule that is clearly grounded
-     in the corrections and does not assert an unverified fact. Apply it with
-     the `vault` MCP (`patch_note` to extend an existing rule — prefer this — or
-     `write_note` for a genuinely new one). Before writing: DEDUP against the
-     existing rules so you extend rather than duplicate, and keep always-injected
-     standing rules LEAN (they cost tokens on every run) — cap yourself at a few
-     changes per day and prefer editing an existing rule over adding another.
-   - **PROPOSE — everything risky.** Anything that asserts a NEW product/ops
-     fact you cannot fully verify, changes behaviour beyond a doc/rule, or that
-     you are unsure about: do NOT apply it. Write the exact proposed change and
-     hand it to the operator in the recap. Never ship a code/release/behaviour
-     change autonomously from here.
-
-## STEP 3 — One short operator recap, then stop
-
-Send the operator EXACTLY ONE short, scannable message via whatever
-operator-notification tool this agent has (Telegram / Slack / messaging): the
-7-day average and its trend, the GOOD/OK/BAD counts, the weakest area, the rules
-you auto-improved today (by title), the recurring patterns with counts, and any
-proposals or grounding-gaps that need the operator's decision. If the day is
-quiet — quality stable and nothing to promote — send only a single line, e.g.
-"Quality stable: avg <X>, 0 changes.", and stop. No walls of text, no second
-message.
-
-## Log the digest
-
-Write a concise note via the `vault` MCP under
-`quality-digest-logs/quality-digest-YYYY-MM-DD.md` (frontmatter
-`type: quality-digest-log`, `date:` today): the trend, the patterns you found
-with counts, what you auto-applied, what you proposed, and what still needs the
-operator. A quiet day is a valid, correct outcome — log it as such.
-"""
-
-
-def _is_custom_quality_scorer_name(name: str) -> bool:
-    """A NON-builtin scheduled-task name that serves the quality-scorer
-    purpose — an agent's own tuned grader. Matches when
-    the name mentions quality AND scoring, case-insensitively."""
-    low = name.lower()
-    return "quality" in low and ("scor" in low or "score" in low)
-
-
-def _is_custom_quality_digest_name(name: str) -> bool:
-    """A NON-builtin scheduled-task name that serves the quality-digest
-    purpose — an agent's own tuned synthesis pass. Matches when the name
-    mentions quality AND digest/improvement, case-insensitively."""
-    low = name.lower()
-    return "quality" in low and ("digest" in low or "improve" in low)
-
-
-# Hourly at :07 by default: a cheap check that pages only on a genuine,
-# CACHE-AWARE cost anomaly. Running off the hour is load-bearing: several other
-# builtin maintenance jobs used to start at :00, creating competing full agent
-# loops that could exhaust or starve a single-concurrency model provider.
-# Overridable via ``self_improvement.cost_observability_schedule``.
-COST_OBSERVABILITY_DEFAULT_CRON = "7 * * * *"
-
-COST_OBSERVABILITY_PROMPT = """\
-You are running as Cost Observability — the CONSUMPTION arm of OpenAgent's
-intrinsic self-improvement loop. Where the quality pass grades what this agent
-PRODUCES, you watch what it SPENDS, and you page the operator ONLY when spend is
-genuinely anomalous. Cheap by design: a couple of reads, no fan-out. A quiet
-hour is the normal, expected outcome — stay SILENT.
-
-## The cardinal rule: be CACHE-AWARE — never alert on raw token counts
-
-An agentic run makes many model calls, each re-sending the growing conversation
-prefix (system prompt + memory + tool schemas). That prefix is CACHED, so each
-re-send is a cheap cache-READ — but the raw summed ``input_tokens`` counts it at
-full face value, so an ordinary run shows a six-figure "input" while ~85-90% is
-cached and the real cost is a fraction of a cent. NEVER alert on that raw number:
-it is noise, and paging on it is exactly the nonsense this task exists to avoid.
-Alert only on signals that track ACTUAL spend:
-   - **real cost** (``cost_usd`` — already cache-discounted); and
-   - **FRESH / non-cached tokens** = ``input_tokens - cache_read_tokens`` — the
-     tokens genuinely re-processed (a real loop or a truly huge fresh prompt),
-     not the cached prefix re-sent each step.
-The engine already does this math for you and emits a ``router.cost_anomaly``
-event (carrying ``cost_usd`` and ``uncached_input_tokens``) ONLY when a run
-crosses a real-cost or fresh-token threshold. Your job is to surface those —
-never to re-derive an alarm from raw input.
-
-## STEP 1 — Check for genuine cost anomalies since the last run (~1h)
-
-Using the `logs` MCP, look for any ``router.cost_anomaly`` warning in the last
-~65 minutes with exactly ``logs_query(event="router.cost_anomaly",
-since="65m")``; use ``logs_summary(since="1h")`` only when the first call
-found an anomaly and you need the window shape. Each carries the real ``cost_usd``, the
-``uncached_input_tokens`` (fresh), the model, and the session id — the engine
-already did the cache-aware math. If there are NONE, the hour is clean: send
-nothing and go to STEP 2.
-
-If one or more fired, send the operator EXACTLY ONE short alert via whatever
-operator-notification tool this agent has (its Telegram / Slack / messaging
-tool). For each anomaly name the REAL cost, the FRESH (non-cached) token count,
-the model, and the session — and say plainly whether it is paid-model spend or a
-possible context loop. Report cost and FRESH tokens ONLY — NEVER the raw summed
-input. If a flagged session is still RUNNING (a live runaway), say so first:
-that is the one worth stopping.
-
-## STEP 2 — Daily cost recap (ONLY once a day, near 08:00 local time)
-
-Only when it is roughly 08:00 in this agent's local timezone (otherwise SKIP
-entirely — no message): send the operator ONE short line summarising the last
-24h of real spend. State the real cost for the day (metered models only — a
-flat-rate / subscription proxy logs $0, which is correct, not a bug) and, if you
-can get it cheaply, the cache hit-rate as context (raw input vs fresh). One
-scannable line, e.g. "Cost 24h: $X real (local proxy $0); ~P% cached." No walls
-of text, no second message.
-
-## Nothing else
-
-Do not fan out and do not touch customer/billing state. If STEP 1 found no
-anomaly and it is not the daily-recap hour, send NOTHING at all — a silent hour
-is a correct, healthy outcome, not a failure to report.
-"""
-
-
-def _is_custom_cost_observability_name(name: str) -> bool:
-    """A NON-builtin scheduled-task name that serves the cost-observability
-    purpose — an agent's own tuned cost/spend watcher.
-    Matches when the name mentions cost AND observe/anomaly/monitor,
-    case-insensitively, so the builtin defers to it rather than double-running."""
-    low = name.lower()
-    return "cost" in low and ("observ" in low or "anomal" in low or "monitor" in low)
-
-
 # Daily at 08:47 by default: a cheap self-audit of the agent's own handoffs.
-# The stagger leaves room around the :07 cost watcher and :23 scorer.
 # Overridable via ``self_improvement.escalation_audit_schedule``.
 ESCALATION_AUDIT_DEFAULT_CRON = "47 8 * * *"
 
 ESCALATION_AUDIT_PROMPT = """\
-You are running as the Escalation Audit — the HANDOFF arm of OpenAgent's
-intrinsic self-improvement loop. The quality-scorer grades what this agent
-PRODUCES and cost-observability watches what it SPENDS; you audit what it HANDS
+You are running as the Escalation Audit. Audit what the agent HANDS
 OFF — the things it escalated to a human, flagged as needing a human, or left
 unresolved — and ask, honestly, whether each GENUINELY needed a human or was an
 OVER-ESCALATION the agent could have handled itself. Agents routinely have more
@@ -616,9 +359,8 @@ If over-escalations recur, write ONE grounded correction via the `vault` MCP
 `type: quality-correction`, `date:` today): NAME the pattern (e.g. "asked-nothing,
 escalated instead of requesting the missing id"; "had a tool that resolves this,
 didn't use it"), CITE the agent's own rule/tool that should prevent it, and state
-the fix. Keep it a repeatable lesson, not a new unverified fact. The daily
-quality-digest promotes it. Do NOT mass-mutate the individual handed-off items
-here — correct the RULE; the normal flow re-processes them.
+the fix. Keep it a repeatable lesson for a human reviewer, not a new unverified
+fact. Do NOT mass-mutate the individual handed-off items.
 
 ## STEP 4 — Save, stay quiet, alert ONLY on a real regression
 
@@ -1020,49 +762,10 @@ def _build_agent(config: dict, *, engine_extensions=None) -> Agent:
     for _origin, _ocfg in (_ar_cfg.get("by_origin") or {}).items():
         if isinstance(_ocfg, dict) and str(_origin).strip():
             _export_recall_scoping(_ocfg, "_" + str(_origin).strip().upper())
-    # Quality monitor (opt-in): an LLM-as-judge grades a SAMPLED fraction of
-    # completed turns for correctness, logged as ``quality.score`` beside the
-    # ``router.cost_recorded`` spend events — usage AND quality in one place.
-    # Maps ``quality_monitor.*`` (top-level, or under ``memory:``) to the env
-    # vars ``src/core/quality_monitor.py`` reads. OFF unless enabled (§17).
-    _qm_cfg = (config.get("quality_monitor") or memory_cfg.get("quality_monitor") or {})
-    if "enabled" in _qm_cfg:
-        environment["OPENAGENT_QUALITY_MONITOR_ENABLED"] = (
-            "1" if bool(_qm_cfg["enabled"]) else "0"
-        )
-    for _k, _env in (
-        ("sample_rate", "OPENAGENT_QUALITY_MONITOR_SAMPLE_RATE"),
-        ("model",       "OPENAGENT_QUALITY_MONITOR_MODEL"),
-        ("timeout",     "OPENAGENT_QUALITY_MONITOR_TIMEOUT"),
-        ("min_len",     "OPENAGENT_QUALITY_MONITOR_MIN_LEN"),
-    ):
-        if _k in _qm_cfg:
-            try:
-                environment[_env] = str(_qm_cfg[_k])
-            except (TypeError, ValueError):
-                pass
-    # ``quality_monitor.digest.*`` → the scheduled digest/alerting loop
-    # (``src/core/quality_digest.py``). Defaults ON when the monitor is on.
-    _qd_cfg = (_qm_cfg.get("digest") or {})
-    if "enabled" in _qd_cfg:
-        environment["OPENAGENT_QUALITY_DIGEST_ENABLED"] = (
-            "1" if bool(_qd_cfg["enabled"]) else "0"
-        )
-    for _k, _env in (
-        ("interval_hours",       "OPENAGENT_QUALITY_DIGEST_INTERVAL_HOURS"),
-        ("min_score_alert",      "OPENAGENT_QUALITY_DIGEST_MIN_SCORE_ALERT"),
-        ("recall_timeout_alert", "OPENAGENT_QUALITY_DIGEST_RECALL_TIMEOUT_ALERT"),
-        ("embed_error_alert",    "OPENAGENT_QUALITY_DIGEST_EMBED_ERROR_ALERT"),
-    ):
-        if _k in _qd_cfg:
-            try:
-                environment[_env] = str(_qd_cfg[_k])
-            except (TypeError, ValueError):
-                pass
     # Anti-fabrication reply guard (``src/core/reply_guard.py``). OFF by default.
     # Maps ``reply_guard.*`` (top-level, or under ``memory:``) to the env vars
     # the guard reads: a boolean gate and an optional backing-tool substring
-    # list. Needs the quality monitor on for tool-trace grounding visibility.
+    # list.
     _rg_cfg = (config.get("reply_guard") or memory_cfg.get("reply_guard") or {})
     if "enabled" in _rg_cfg:
         environment["OPENAGENT_REPLY_GUARD_ENABLED"] = (
@@ -1952,17 +1655,6 @@ class AgentServer:
             logger.warning("Semantic index builder failed to start: %s", e)
             self._semantic_index_task = None
 
-        # 9. Quality digest — a periodic aggregate of quality/recall/cost with
-        # a flagged-sessions review list + threshold alerts (incl. embedder-down
-        # via semantic.embed_error spikes). No-op when the quality monitor is off
-        # (start() returns None); reads events.jsonl only, no agent/db needed.
-        try:
-            from openagent_core.core.quality_digest import start as _quality_digest_start
-            self._quality_digest_task = _quality_digest_start()
-        except Exception as e:  # noqa: BLE001
-            logger.warning("Quality digest failed to start: %s", e)
-            self._quality_digest_task = None
-
     async def _build_bridge_session_and_bridges(self) -> None:
         """Provision the in-process bridge sessions + concrete bridges.
 
@@ -2125,7 +1817,7 @@ class AgentServer:
 
         # 1c. Vault autocommit loop. ``_vault_maint_task`` used to be cancelled
         # here too; that loop is gone (v0.16.1 — see ``_build_agent``).
-        for _attr in ("_vault_autocommit_task", "_semantic_index_task", "_quality_digest_task"):
+        for _attr in ("_vault_autocommit_task", "_semantic_index_task"):
             _vt = getattr(self, _attr, None)
             if _vt is not None:
                 _vt.cancel()
@@ -2253,9 +1945,6 @@ class AgentServer:
         await self._sync_auto_update(scheduler)
         await self._sync_skill_curator(scheduler)
         await self._sync_skill_distiller(scheduler)
-        await self._sync_quality_scorer(scheduler)
-        await self._sync_quality_digest(scheduler)
-        await self._sync_cost_observability(scheduler)
         await self._sync_escalation_audit(scheduler)
 
         if not automation_runtime.running:
@@ -2349,22 +2038,11 @@ class AgentServer:
             gw.broadcast_resource_sync("scheduled_task", "updated")
 
         async def _self_improvement(patch: dict, context=None) -> None:
-            # The ``self_improvement`` section carries the master ``enabled``
-            # switch plus the per-task ``scorer_enabled`` / ``digest_enabled``
-            # gates and optional schedule overrides; re-sync both built-in
-            # tasks so a runtime flip enables/disables (or reschedules) either
-            # without a restart. The dedup against a tuned custom task is
-            # re-evaluated on every sync, preserving configured custom tasks.
+            # Re-sync the remaining opt-in escalation audit.
             self.config["self_improvement"] = patch or {}
-            await self._sync_quality_scorer(scheduler)
-            await self._sync_quality_digest(scheduler)
-            await self._sync_cost_observability(scheduler)
             await self._sync_escalation_audit(scheduler)
             await _capture(
                 {
-                    QUALITY_SCORER_TASK_NAME,
-                    QUALITY_DIGEST_TASK_NAME,
-                    COST_OBSERVABILITY_TASK_NAME,
                     ESCALATION_AUDIT_TASK_NAME,
                 },
                 context,
@@ -2427,20 +2105,6 @@ class AgentServer:
             elif "cron_expression" in updates or "timezone" in updates:
                 await scheduler.reschedule_task(existing["id"])
         elif existing["enabled"]:
-            # Un built-in acceso a mano muore al PRIMO riavvio, e finora
-            # moriva in silenzio. Osservato in produzione: quality-scorer,
-            # quality-digest, cost-observability ed escalation-audit erano
-            # stati creati il 21-22 luglio con enabled=1 — la config non li
-            # ha mai chiesti (``self_improvement`` non compare in nessun
-            # backup del file) — e hanno funzionato fino all'11-12 agosto,
-            # cioe' fino al riavvio successivo. Poi questo ramo li ha
-            # riparcheggiati e nessuno lo ha saputo: undici giorni di
-            # sorveglianza spenta scoperti per caso il 26 agosto, dal
-            # distiller, mentre cercava altro.
-            #
-            # Riparcheggiarli e' giusto — la config e' la fonte di verita' —
-            # ma farlo zitti no: chi lo aveva acceso merita di sapere sia che
-            # e' stato spento sia quale chiave lo riaccende.
             elog(
                 "builtin_task.parked",
                 level="warning",
@@ -2671,222 +2335,14 @@ class AgentServer:
 
         self._install_task_hook(scheduler, SKILL_DISTILLER_TASK_NAME, _distiller_run)
 
-    async def _sync_quality_scorer(self, scheduler) -> None:
-        """Seed/enable the ``quality-scorer`` built-in self-improvement grader.
-        It is opt-in (``self_improvement.enabled`` AND ``scorer_enabled``):
-        each firing is a full agent loop, so operators explicitly budget its
-        background model capacity instead of letting it compete with user turns.
-
-        DEDUP — the one thing that makes "intrinsic" safe on tuned agents: an
-        agent that already ships a NON-builtin, hand-tuned quality-scorer
-        keeps it. Before seeding the builtin we scan
-        ``scheduled_tasks`` for a non-builtin task whose name serves the same
-        purpose (mentions quality + scoring); if one exists we DEFER — park any
-        stray builtin row disabled and install no hook — so we never double-run.
-        Fresh agents get the generic builtin.
-
-        Which branch was taken is logged so a firing's provenance is auditable.
-        """
-        from openagent_core.core.config import self_improvement_settings
-
-        settings = self_improvement_settings(self.config)
-        enabled = settings.enabled and settings.scorer_enabled
-
-        tasks = await self.agent._db.get_tasks()
-        existing = next(
-            (t for t in tasks if t["name"] == QUALITY_SCORER_TASK_NAME), None,
-        )
-
-        # DEDUP: defer to an agent's own tuned, non-builtin quality-scorer.
-        custom = next(
-            (t for t in tasks
-             if t["name"] not in BUILTIN_TASK_NAMES
-             and _is_custom_quality_scorer_name(t["name"])),
-            None,
-        )
-        if custom is not None:
-            elog("quality_scorer.deferred_to_custom", custom_task=custom["name"])
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, QUALITY_SCORER_TASK_NAME, None)
-            return
-
-        if not enabled:
-            # OFF → disable a surviving row so the scheduler stops firing it.
-            elog("quality_scorer.disabled")
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, QUALITY_SCORER_TASK_NAME, None)
-            return
-
-        elog("quality_scorer.enabled_builtin")
-        cron_expr = settings.scorer_schedule or QUALITY_SCORER_DEFAULT_CRON
-        # Same timezone treatment as the skill builtins: an untagged cron
-        # evaluates in UTC, so inherit the box's configured zone (falls back to
-        # UTC) so a 2-hour cadence remains anchored to the local wall-clock.
-        scorer_tz = default_timezone_name()
-
-        await self._sync_scheduled_task(
-            scheduler,
-            name=QUALITY_SCORER_TASK_NAME,
-            enabled=True,
-            cron_expr=cron_expr,
-            prompt=QUALITY_SCORER_PROMPT,
-            timezone=scorer_tz,
-        )
-
-        async def _scorer_run(task, _orig):
-            if task["name"] == QUALITY_SCORER_TASK_NAME:
-                elog("quality_scorer.start")
-                await _orig(task)
-                elog("quality_scorer.done")
-            else:
-                await _orig(task)
-
-        self._install_task_hook(scheduler, QUALITY_SCORER_TASK_NAME, _scorer_run)
-
-    async def _sync_quality_digest(self, scheduler) -> None:
-        """Seed/enable the ``quality-digest`` built-in — the daily synthesis
-        half of the intrinsic loop. Sibling of ``_sync_quality_scorer`` and
-        identical in discipline: opt-in (``self_improvement.enabled`` AND
-        ``digest_enabled``), and it DEFERS to an agent's own tuned, non-builtin
-        quality-digest (name mentions quality + digest/improvement) so
-        configured agents keep their custom pass while fresh agents get the builtin.
-
-        Independent of the scorer's toggle — either half may run alone.
-        """
-        from openagent_core.core.config import self_improvement_settings
-
-        settings = self_improvement_settings(self.config)
-        enabled = settings.enabled and settings.digest_enabled
-
-        tasks = await self.agent._db.get_tasks()
-        existing = next(
-            (t for t in tasks if t["name"] == QUALITY_DIGEST_TASK_NAME), None,
-        )
-
-        # DEDUP: defer to an agent's own tuned, non-builtin quality-digest.
-        custom = next(
-            (t for t in tasks
-             if t["name"] not in BUILTIN_TASK_NAMES
-             and _is_custom_quality_digest_name(t["name"])),
-            None,
-        )
-        if custom is not None:
-            elog("quality_digest.deferred_to_custom", custom_task=custom["name"])
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, QUALITY_DIGEST_TASK_NAME, None)
-            return
-
-        if not enabled:
-            elog("quality_digest.disabled")
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, QUALITY_DIGEST_TASK_NAME, None)
-            return
-
-        elog("quality_digest.enabled_builtin")
-        cron_expr = settings.digest_schedule or QUALITY_DIGEST_DEFAULT_CRON
-        digest_tz = default_timezone_name()
-
-        await self._sync_scheduled_task(
-            scheduler,
-            name=QUALITY_DIGEST_TASK_NAME,
-            enabled=True,
-            cron_expr=cron_expr,
-            prompt=QUALITY_DIGEST_PROMPT,
-            timezone=digest_tz,
-        )
-
-        async def _digest_run(task, _orig):
-            if task["name"] == QUALITY_DIGEST_TASK_NAME:
-                elog("quality_digest.start")
-                await _orig(task)
-                elog("quality_digest.done")
-            else:
-                await _orig(task)
-
-        self._install_task_hook(scheduler, QUALITY_DIGEST_TASK_NAME, _digest_run)
-
-    async def _sync_cost_observability(self, scheduler) -> None:
-        """Seed/enable the ``cost-observability`` built-in — the CONSUMPTION arm
-        of the intrinsic loop. Sibling of the quality builtins and identical in
-        discipline: opt-in (``self_improvement.enabled`` AND
-        ``cost_observability_enabled``), and it DEFERS to an agent's own tuned,
-        non-builtin cost watcher (name mentions cost + observe/anomaly/monitor)
-        so configured agents keep their custom, more-sensitive pass while fresh
-        agents get the generic builtin.
-
-        The builtin is CACHE-AWARE by construction: its prompt pages only on the
-        engine's own ``router.cost_anomaly`` signal (real cost + fresh/non-cached
-        tokens), never on raw summed input. Independent of the scorer/digest
-        toggles — any of the three halves may run alone.
-        """
-        from openagent_core.core.config import self_improvement_settings
-
-        settings = self_improvement_settings(self.config)
-        enabled = settings.enabled and settings.cost_observability_enabled
-
-        tasks = await self.agent._db.get_tasks()
-        existing = next(
-            (t for t in tasks if t["name"] == COST_OBSERVABILITY_TASK_NAME), None,
-        )
-
-        # DEDUP: defer to an agent's own tuned, non-builtin cost watcher.
-        custom = next(
-            (t for t in tasks
-             if t["name"] not in BUILTIN_TASK_NAMES
-             and _is_custom_cost_observability_name(t["name"])),
-            None,
-        )
-        if custom is not None:
-            elog("cost_observability.deferred_to_custom", custom_task=custom["name"])
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, COST_OBSERVABILITY_TASK_NAME, None)
-            return
-
-        if not enabled:
-            elog("cost_observability.disabled")
-            if existing is not None and existing["enabled"]:
-                await scheduler.disable_task(existing["id"])
-            self._install_task_hook(scheduler, COST_OBSERVABILITY_TASK_NAME, None)
-            return
-
-        elog("cost_observability.enabled_builtin")
-        cron_expr = settings.cost_observability_schedule or COST_OBSERVABILITY_DEFAULT_CRON
-        cost_tz = default_timezone_name()
-
-        await self._sync_scheduled_task(
-            scheduler,
-            name=COST_OBSERVABILITY_TASK_NAME,
-            enabled=True,
-            cron_expr=cron_expr,
-            prompt=COST_OBSERVABILITY_PROMPT,
-            timezone=cost_tz,
-        )
-
-        async def _cost_run(task, _orig):
-            if task["name"] == COST_OBSERVABILITY_TASK_NAME:
-                elog("cost_observability.start")
-                await _orig(task)
-                elog("cost_observability.done")
-            else:
-                await _orig(task)
-
-        self._install_task_hook(scheduler, COST_OBSERVABILITY_TASK_NAME, _cost_run)
-
     async def _sync_escalation_audit(self, scheduler) -> None:
         """Seed/enable the ``escalation-audit`` built-in — the HANDOFF arm of the
-        intrinsic loop. Sibling of the quality/cost builtins and identical in
-        discipline: opt-in (``self_improvement.enabled`` AND
+        intrinsic loop. It is opt-in (``self_improvement.enabled`` AND
         ``escalation_audit_enabled``), and it DEFERS to an agent's own tuned,
         non-builtin escalation auditor (name mentions escalation/handoff + audit)
         so configured agents keep their tuned ``support-escalation-audit`` while fresh
         agents get the generic, ROLE-/TOOL-agnostic builtin.
 
-        Independent of the other self_improvement toggles — any arm may run alone.
         """
         from openagent_core.core.config import self_improvement_settings
 

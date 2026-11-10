@@ -1,4 +1,4 @@
-"""Owner-only REST surface for the agent's editable name, thumbnail and persona."""
+"""Member presentation and owner management of the agent's persona."""
 
 from __future__ import annotations
 
@@ -45,10 +45,20 @@ def error_response(exc: Exception):
 async def handle_get(request):
     from aiohttp import web
 
+    service = service_for_request(request)
     try:
-        return web.json_response(
-            await service_for_request(request).get(actor_for_request(request)),
-        )
+        try:
+            data = await service.get(actor_for_request(request))
+        except AgentIdentityPermissionError:
+            runtime = getattr(request.app["gateway"], "runtime_service", None)
+            if runtime is None:
+                raise
+            context = await runtime.context(request, "__agent_identity__")
+            if not await runtime.management_access.can_browse(context):
+                raise
+            data = {**await service.presentation(), "can_manage": False,
+                    "framework_prompt_mutable": False}
+        return web.json_response(data)
     except Exception as exc:  # noqa: BLE001
         return error_response(exc)
 

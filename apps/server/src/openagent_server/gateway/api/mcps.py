@@ -2,14 +2,19 @@
 from aiohttp import web
 
 
-async def _call(request, operation, *, write=False):
+async def _call(request, operation, *, write=False, overview=None):
     runtime = getattr(request.app['gateway'], 'runtime_service', None)
     if runtime is None:
         raise web.HTTPServiceUnavailable(text='Runtime catalog is not ready')
     try:
         context = await runtime.context(request, '__catalog_management__')
         service = runtime.catalog_management
-        result = await operation(service, context)
+        try:
+            result = await operation(service, context)
+        except PermissionError:
+            if overview is None or not await runtime.management_access.can_browse(context):
+                raise
+            return await overview(service)
         if write:
             await request.app['gateway'].broadcast_resource('mcp', 'updated', request.match_info.get('name'))
         return result
@@ -22,8 +27,15 @@ async def _call(request, operation, *, write=False):
 
 
 async def handle_list(request):
-    rows = await _call(request, lambda service, context: service.list(context))
-    return web.json_response({'mcps': rows})
+    from openagent_server.management_access import member_overview
+
+    async def full_list(service, context):
+        return {"mcps": await service.list(context)}
+
+    async def summary_list(service):
+        return member_overview("mcps", await service.db.list_mcps())
+
+    return web.json_response(await _call(request, full_list, overview=summary_list))
 
 
 async def handle_get(request):
