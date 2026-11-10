@@ -1501,6 +1501,11 @@ class AgentServer:
         except Exception as e:  # noqa: BLE001
             logger.warning("orphan workflow_run reap failed: %s", e)
 
+        # Park retired built-ins before the gateway starts its scheduler worker.
+        from openagent_server.automation_management import park_retired_observability_tasks
+
+        await park_retired_observability_tasks(self.agent.memory_db)
+
         # 2. Build NetworkState now that the DB is open. iroh-py 0.35
         #    bakes the ALPN handler dict into NodeOptions at node
         #    construction time — every handler must be registered

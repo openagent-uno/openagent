@@ -380,9 +380,6 @@ class NativeRuntimeService:
         from openagent_core import DelegationService, ModelCatalog
         from openagent_core.code_execution import CodeExecutor
         from openagent_core.memory_access import MemoryAccess
-        from openagent_server.automation_management import park_retired_observability_tasks
-
-        await park_retired_observability_tasks(self.agent.memory_db)
         await self.catalog_management.start()
         await self.management_access.start()
         await self.official_connectors.start()
