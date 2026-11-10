@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "version": "1.1.9b22",
+  "product_config_version": "1.1.0b24",
+  "channel_bridges_version": "0.1.0b22",
+  "source_commit": "ff077ee5c221b91f446ff34fdffe4c1ab2724c1b",
+  "manifest_sha256": "2b5aa1539acaf465fef5db114a3f00a6e14fe4e250aedd17f0f87833403e27dc",
+  "core_version": "1.1.0b53",
+  "remote_qualification_run": "https://github.com/openagent-uno/openagent/actions/runs/42754833839",
+  "root_tests_passed": 512,
+  "root_tests_skipped": 1,
+  "subtests_passed": 84,
+  "custom_view_protocol_scenarios_passed": 20,
+  "native_host_lock_platforms": [
+    "Linux",
+    "macOS",
+    "Windows"
+  ],
+  "installed_dependency_check": "passed",
+  "installer": {
+    "public_asset_sha256": "56e78d2aaeb4977d916304577b769e6246e54b2df4057a091b10618398b01c7b",
+    "public_wheels_verified": 39,
+    "fixture_scenarios_passed": 4
+  }
+}
