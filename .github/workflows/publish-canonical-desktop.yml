@@ -131,11 +131,11 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Switch between saved agents from the avatar rail. The desktop app reuses ready connections and shares an Iroh endpoint across agent tunnels to keep certificate renewal reliable. Settings can save an agent thumbnail, and the session details drawer opens at full height with a fixed content width. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            Open the configured agent desktop from Devices or from the details of a chat, scheduled run, event delivery or workflow. Agent owners can open it even when a historical run has no available transcript. Interactive custom dashboards support bundled HTML, JavaScript, Canvas, SVG and WebGL in the desktop sandbox. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
-            Builds using retired repository updater URLs require a manual upgrade. Replace the existing installation without erasing its profile. Historical releases are being discarded by explicit owner decision.
+            Builds using retired repository updater URLs require a manual upgrade. Replace the existing installation without erasing its profile.
 
             Build source: ${{ inputs.source_sha }}; run ${{ inputs.build_run_id }}. Optional five-target baseline: ${{ env.BASELINE_SOURCE }}; run ${{ inputs.baseline_build_run_id }}. Reuse is permitted only when runtime, renderer, package, dependency lock and native bundle inputs are unchanged; the diff gate permits acceptance/publication helper changes only.
           draft: true
