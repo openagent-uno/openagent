@@ -297,6 +297,13 @@ hosting. Enabling common OAuth does not turn it into a cloud account service.
 
 ## Pinning the shared implementation
 
+
+The [Connector SDK 0.1.15](https://github.com/openagent-uno/openagent-tools/releases/tag/connectors-v0.1.15)
+adds BuddyBooks to the official directory. A host connects a company-scoped token for
+document, invoice and contact reads. Accounting previews and approved writes use
+separate grants.
+
+
 A Go host consumes
 `github.com/openagent-uno/openagent-tools/packages/connectors@v0.1.8`; its
 `go.mod`/`go.sum` must resolve the published module, rather than an accidental

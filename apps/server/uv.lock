@@ -20,7 +20,7 @@ resolution-markers = [
 constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1" },
-    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
+    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
     { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.70/openagent_core-1.1.0b70-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
@@ -2318,12 +2318,12 @@ requires-dist = [
 [[package]]
 name = "openagent-connectors"
 version = "0.1.15"
-source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" }
+source = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-tool-protocol" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1", hash = "sha256:a67a7a963cc63fcfdd7c80cddc8783773eebdcffdb0fd2354d8064f84e475cb6" },
+    { url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1", hash = "sha256:8f97d588289f042e33310a857cbeef1c593103e97c002a661cb4dffae21573e3" },
 ]
 
 [package.metadata]
@@ -2572,7 +2572,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24" },
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
-    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
+    { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
     { name = "openagent-core", extras = ["engine"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.70/openagent_core-1.1.0b70-py3-none-any.whl?download=1" },
     { name = "openagent-dashboards", directory = "../../packages/dashboards" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
