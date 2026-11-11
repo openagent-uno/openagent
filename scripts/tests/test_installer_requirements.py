@@ -32,6 +32,28 @@ class InstallerRequirementsTests(unittest.TestCase):
             with self.subTest(product=product), tempfile.TemporaryDirectory() as directory:
                 destination = Path(directory)
                 payloads = {}; replaced=[]
+                # The server wheel owns the independently pinned connector SDK.
+                # Keep this fixture on that public lock contract too.
+                sdk_name = 'openagent_connectors-0.1.9-py3-none-any.whl'
+                sdk = io.BytesIO()
+                with zipfile.ZipFile(sdk, 'w') as archive:
+                    archive.writestr('openagent_connectors-0.1.9.dist-info/METADATA',
+                                     'Name: openagent-connectors\nVersion: 0.1.9\n')
+                sdk_bytes = sdk.getvalue()
+                sdk_receipt = {'sha256': __import__('hashlib').sha256(sdk_bytes).hexdigest(), 'bytes': len(sdk_bytes)}
+                sdk_manifest = json.dumps({'version': '0.1.9', 'source_commit': 'a'*40,
+                    'dirty_snapshot': False, 'files': {sdk_name: sdk_receipt}}).encode()
+                sdk_base = 'https://github.com/openagent-uno/openagent-tools/releases/download/connector-fixture/'
+                payloads[sdk_base + sdk_name] = sdk_bytes
+                payloads[sdk_base + 'manifest.json'] = sdk_manifest
+                payloads['https://api.github.com/repos/openagent-uno/openagent-tools/releases/tags/connector-fixture'] = json.dumps({'assets': [
+                    {'name': sdk_name, 'browser_download_url': sdk_base + sdk_name},
+                    {'name': 'manifest.json', 'browser_download_url': sdk_base + 'manifest.json'},
+                ]}).encode()
+                sdk_lock = {'version': '0.1.9', 'source_repository': 'openagent-uno/openagent-tools',
+                    'source_ref': 'connector-fixture', 'source_commit': 'a'*40,
+                    'manifest_sha256': __import__('hashlib').sha256(sdk_manifest).hexdigest(),
+                    'assets': {sdk_name: sdk_receipt}}
                 for index, (repo, tag, manifest_name, _, selection) in enumerate(releases):
                     if selection in ('kernel', 'modules') and tag != 'fixture-modules':
                         # One immutable release may supply both selections;
@@ -60,7 +82,10 @@ class InstallerRequirementsTests(unittest.TestCase):
                         filename=name.replace('-','_')+'-'+version+'-py3-none-any.whl'
                         buf=io.BytesIO()
                         metadata = zipfile.ZipInfo(name.replace('-','_')+'-'+version+'.dist-info/METADATA', date_time=(1980,1,1,0,0,0))
-                        with zipfile.ZipFile(buf,'w') as archive:archive.writestr(metadata,'Name: '+name+'\nVersion: '+version+'\n')
+                        with zipfile.ZipFile(buf,'w') as archive:
+                            archive.writestr(metadata,'Name: '+name+'\nVersion: '+version+'\n')
+                            if name == 'openagent-framework':
+                                archive.writestr('openagent_server/connectors.lock.json', json.dumps(sdk_lock))
                         data=buf.getvalue();url='https://github.com/'+repo+'/releases/download/'+tag+'/'+filename
                         payloads[url]=data;rows.append({'file':filename,'sha256':__import__('hashlib').sha256(data).hexdigest()});assets.append({'name':filename,'browser_download_url':url})
                     manifest=json.dumps({'artifacts':rows} if manifest_name=='upstream-ownership-manifest.json' else {'wheels':rows}).encode();digest=__import__('hashlib').sha256(manifest).hexdigest();replaced.append((repo,tag,manifest_name,digest,selection))
@@ -72,6 +97,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                     exec(compile(fixture_code,'installer-fixture','exec'),{'__name__':'__main__'})
                 self.assertFalse((destination/'openagent_device_tools-1.0.0b8-py3-none-any.whl').exists())
                 self.assertTrue((destination/'openagent_device_tools-1.0.0b10-py3-none-any.whl').exists())
+                self.assertEqual((destination/sdk_name).read_bytes(), sdk_bytes)
                 expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,modules]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
                 self.assertEqual((destination/'install-requirements.txt').read_text().splitlines(),expected)
                 constraints = (destination/'first-party-constraints.txt').read_text().splitlines()
