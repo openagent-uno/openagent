@@ -318,13 +318,13 @@ def test_calendar_mail_own_apps_do_not_enable_other_providers_or_common_oauth(tm
 
 
 @pytest.mark.asyncio
-async def test_sdk18_offline_catalog_retains_114_entries_without_enabling_connections(fixture):
+async def test_pinned_offline_catalog_retains_115_entries_without_enabling_connections(fixture):
     service, context, runner, _ = fixture
     service.runner = None
     catalog = await service.catalog(context)
     assert catalog["available"] is False
-    assert len(catalog["connectors"]) == 114
-    assert len({item["id"] for item in catalog["connectors"]}) == 114
+    assert len(catalog["connectors"]) == 115
+    assert len({item["id"] for item in catalog["connectors"]}) == 115
     assert all(item["available"] is False for item in catalog["connectors"])
     by_id = {item["id"]: item for item in catalog["connectors"]}
     for identifier, provider, capability in (("google-calendar", "google_calendar", "files"),
