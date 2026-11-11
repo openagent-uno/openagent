@@ -2334,7 +2334,7 @@ name = "openagent-core"
 version = "1.1.0b78"
 source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:49a82460817f43a83da68ac4995256b0d8406509c377079d622f42cb09270ca3" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:71fd2456fbedd76366ee5d0231453f8d6f22ef606f586a39a8339058e7a25fb7" },
 ]
 
 [package.optional-dependencies]
@@ -2995,7 +2995,7 @@ dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:b5c1c907b2eb891276c72dfff38b70be60a2015e36bce5bd0c8e5360b8f80b75" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:5179efd5b20d2b3352d73df1108b6f44566164562d89f2984fd4571e29e8b220" },
 ]
 
 [package.metadata]
