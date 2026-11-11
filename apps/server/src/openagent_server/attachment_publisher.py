@@ -6,6 +6,7 @@ App/device, grant a different session, or broaden the configured reader roots.
 from __future__ import annotations
 
 import base64
+import logging
 import mimetypes
 from pathlib import Path
 
@@ -49,14 +50,27 @@ class ServerAttachmentPublisher:
 
     async def publish(self, context, path):
         await self.authorize(context)
-        result = await self.reader.call("read_media_file", {"path": path})
+        from openagent_tool_protocol.types import HostError
+        try:
+            result = await self.reader.call("read_media_file", {"path": path})
+        except HostError as exc:
+            # Reader diagnostics must not abort an otherwise valid answer or
+            # disclose a private host path. Core handles unavailable publication.
+            logging.getLogger(__name__).warning("Attachment reader unavailable (%s)", exc.code)
+            raise LookupError("The server attachment could not be read") from exc
         if result.is_error or not result.content:
             raise LookupError("The server attachment could not be read")
         block = result.content[0]
         content = base64.b64decode(block.get("data") or block["text"], validate=True)
         filename = Path(path).name
+        return await self.publish_content(context, content, filename=filename,
+            mime_type=mimetypes.guess_type(filename)[0] or "application/octet-stream")
+
+    async def publish_content(self, context, content, *, filename, mime_type):
+        """Publish admitted tool bytes without granting filesystem access."""
+        await self.authorize(context)
         reference = await self.artifacts.upload(context, content, filename=filename,
-            mime_type=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+            mime_type=mime_type,
             session_id=context.session_id)
         await self.authorize(context)
         return reference

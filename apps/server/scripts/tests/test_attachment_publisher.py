@@ -73,9 +73,31 @@ async def t_server_attachment_publisher_disabled_and_roots(ctx: TestContext) -> 
                 await publisher.publish(context, "../outside.csv")
             except Exception as exc:
                 from openagent_tool_protocol.types import HostError
-                assert isinstance(exc, HostError) and exc.code == "access_denied"
+                assert isinstance(exc, LookupError)
+                assert isinstance(exc.__cause__, HostError) and exc.__cause__.code == "access_denied"
+                assert "outside.csv" not in str(exc)
             else:
                 raise AssertionError("Reader roots were bypassed")
+
+
+@test("attachment_publisher", "admitted tool pixels publish without reading host files and honor revocation")
+async def t_server_attachment_publisher_content(ctx: TestContext) -> None:
+    from openagent_core.runtime import execution_scope
+    async with _fixture() as (_db, _conn, gateway, request):
+        service, context, record, workspace, publisher = await _setup(gateway, request)
+        async def forbidden(*_args, **_kwargs):
+            raise AssertionError("Admitted image bytes must not read the filesystem")
+        publisher.reader.call = forbidden
+        with execution_scope(service.runtime, context, record.run_id):
+            ref = await publisher.publish_content(context, b"image bytes", filename="screenshot.png", mime_type="image/png")
+            assert ref["filename"] == "screenshot.png" and ref["size_bytes"] == 11, ref
+            gateway.allowed = False
+            try:
+                await publisher.publish_content(context, b"private", filename="denied.png", mime_type="image/png")
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError("Revoked execution published image bytes")
 
 
 @test("attachment_publisher", "view-only, stale execution, different session and mid-read revocation cannot publish")

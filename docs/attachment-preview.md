@@ -25,6 +25,15 @@ file/image/audio/video attachment component for both user and assistant rows.
 
 ## Host-selected output publication
 
+The selected publisher also accepts admitted image bytes from successful tool
+results through Core's optional `publish_content` contract. It checks the same
+current execution, run, session and recipient authority before and after the CAS
+upload. This gives screenshots from connected computers a session-linked marker
+the model can explicitly include in its final answer, without interpreting a
+device path on the server. Filesystem reader failures are normalized to an
+unavailable attachment; they cannot abort a valid text answer. Reader roots and
+revocation checks continue to apply.
+
 The standard Core attachment sender uses the optional `attachments.publisher` runtime service. Standalone configures its server-host publisher only when `server_host_tools` selects `filesystem`. It uses the same `FilesystemServer` composition and database-parent working directory as the server-host filesystem capability; connected App/device sources cannot be selected through a path. The standalone default filesystem capability has OS-user scope, not a sandbox root. Hosts that select bounded filesystem readers retain those reader bounds.
 
 Publication checks the current Core execution, exact agent/session/run and fresh `run.publish` authority before reading and again while storing through the public `ArtifactRepository`. A view-only session grant does not grant publication. File bytes become an authorized session-linked CAS reference before the shared sender and transcript expose file cards or media previews. Disabling filesystem leaves the publisher service absent. The beta52 public-wheel installation passed the focused CAS and authority checks; this does not imply a native or real-provider qualification.
