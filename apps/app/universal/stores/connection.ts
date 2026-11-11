@@ -263,14 +263,22 @@ export interface RememberedCredentialFailure {
 }
 
 function desktop(): DesktopAPI | null {
-  // ``window.desktop`` is exposed by the Electron preload. On web this
-  // is undefined — the connection flow surfaces a clear error and we
-  // skip the sidecar altogether.
-  if (typeof window === 'undefined') return null;
-  // @ts-ignore — runtime-injected
-  const d = (window as any).desktop;
-  if (!d || typeof d.startLoopback !== 'function') return null;
-  return d as DesktopAPI;
+  // Delegate to the platform transport layer which returns:
+  // - Electron: ``window.desktop`` preload bridge
+  // - React Native: ``NativeModules.OpenAgentTransport`` native module
+  // - Web browser: null
+  const transport = _getTransport();
+  if (!transport || typeof transport.startLoopback !== 'function') return null;
+  return transport as unknown as DesktopAPI;
+}
+
+function _getTransport() {
+  try {
+    const { getTransport } = require('../services/transport');
+    return getTransport();
+  } catch {
+    return null;
+  }
 }
 
 const DIRECTED_ACCOUNT_KEY = 'openagent:directedAccount';
@@ -624,7 +632,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
       if (attempt.isCurrent()) {
         set({
           isConnecting: false,
-          error: 'Joining a network requires the desktop app — the loopback sidecar is unavailable here.',
+          error: 'Joining a network requires a transport backend — the loopback transport is unavailable here.',
         });
       }
       return;
@@ -753,7 +761,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
       if (attempt.isCurrent()) {
         set({
           isConnecting: false,
-          error: 'Connecting requires the desktop app — the loopback sidecar is unavailable here.',
+          error: 'Connecting requires a transport backend — the loopback transport is unavailable here.',
         });
       }
       return;

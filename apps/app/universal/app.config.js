@@ -14,6 +14,7 @@
  * supported location is `experiments.baseUrl`.
  */
 const baseUrl = process.env.EXPO_BASE_URL;
+const appVersion = require('./package.json').version;
 
 module.exports = ({ config }) => ({
   ...config,
@@ -22,8 +23,16 @@ module.exports = ({ config }) => ({
     description:
       'Persistent AI agent framework with MCP tools, long-term memory, and multi-channel support.',
     slug: 'openagent',
-    version: '0.1.0',
+    version: appVersion.split('-')[0],
     scheme: 'openagent',
+    ios: {
+      bundleIdentifier: 'ai.openagent.app',
+      buildNumber: appVersion.match(/beta\.(\d+)$/)?.[1] || '1',
+      supportsTablet: true,
+      ...(process.env.OPENAGENT_APPLE_TEAM_ID
+        ? { appleTeamId: process.env.OPENAGENT_APPLE_TEAM_ID }
+        : {}),
+    },
     userInterfaceStyle: 'dark',
     icon: './assets/app-icon.png',
     splash: {
@@ -47,6 +56,7 @@ module.exports = ({ config }) => ({
         cameraPermission: false,
         microphonePermission: false,
       }],
+      'expo-secure-store',
     ],
     experiments: baseUrl ? { baseUrl } : {},
   },

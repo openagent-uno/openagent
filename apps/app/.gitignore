@@ -9,7 +9,7 @@ web-build/
 test-results/
 playwright-report/
 
-# Android / iOS
+# Android / iOS (expo prebuild output; native modules force-added)
 android/
 ios/
 

@@ -9,7 +9,7 @@ set -euo pipefail
 #   ./build.sh macos        Build Electron .dmg for macOS
 #   ./build.sh windows      Build Electron .exe/.nsis for Windows
 #   ./build.sh linux        Build Electron .AppImage for Linux
-#   ./build.sh ios          Build iOS archive (requires Xcode)
+#   ./build.sh ios          Build and run iOS Release (requires Xcode)
 #   ./build.sh android      Build Android APK/AAB
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -97,7 +97,7 @@ case "$PLATFORM" in
         ;;
     ios)
         cd "$SCRIPT_DIR/universal"
-        npx expo build:ios
+        npx expo run:ios --configuration Release "${@:2}"
         ;;
     android)
         cd "$SCRIPT_DIR/universal"

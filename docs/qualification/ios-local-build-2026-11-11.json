@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-11",
+  "scope": "Local development-signed iOS installation only",
+  "source_commit": "69b50dac746ec8a12eda347aca1d5cd9ff563131",
+  "app_source_release": "app-v1.1.0-beta.39",
+  "local_changes": {
+    "apps/app/build.sh": "de5a5844e528c9050efb627373dc8e77301337246baf048e6d47d3b33022a936",
+    "apps/app/universal/app.config.js": "5151f881c2fca46e237bb00ddcac9b20d5479d50b70ac5e1f41b0f50bb19ad46",
+    "apps/app/universal/package.json": "c9b63933803c0e0c72095169bc4612793d88e00361028145a7f02990677010cf",
+    "apps/app/universal/package-lock.json": "bf3a50817bd0c641ec542601b73f1d1f679c0e825de351d5338d9b72d24e1651",
+    "docs/build-and-release.md": "8ee7d828c9fc68f9f1d40e6c98acfb445f58a42c5948ad84f1f3dae89e863d3a"
+  },
+  "artifact": {
+    "bundle_id": "ai.openagent.app",
+    "version": "1.1.0",
+    "build": "39",
+    "configuration": "Release",
+    "bundled_javascript": true,
+    "development_signed": true
+  },
+  "checks": {
+    "expo_dependency_check": "passed",
+    "ios_bundle_export": "passed",
+    "web_bundle_export": "passed",
+    "cocoapods_install": "passed",
+    "xcodebuild_release": "passed",
+    "codesign_verify_deep_strict": "passed",
+    "physical_iphone_install": "pending: device unavailable at build time",
+    "physical_iphone_launch": "pending",
+    "native_transport_build": "passed: iroh-ffi v1.1.0 linked, Swift bridge compiled",
+    "protocol_tests": "passed: encoding, identity, srp-client, ticket",
+    "web_regression": "passed: no breakage from transport abstraction",
+    "visual_acceptance": "pending: requires device connection"
+  },
+  "limits": [
+    "No App Store or TestFlight publication",
+    "On-device login verification pending: iPhone 14 Pro was unavailable during build session",
+    "Shared dependency changes are local and unpublished"
+  ]
+}

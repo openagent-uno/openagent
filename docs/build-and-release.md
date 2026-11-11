@@ -62,6 +62,35 @@ qualification scopes; the App preserves the original signed computer helper. The
 old distribution repositories are retired. Historical recipes below retain
 original attribution and are not current release destinations.
 
+## Local iOS device build
+
+The universal client can be compiled locally with Xcode and CocoaPods. Use the
+Expo SDK-compatible React Native dependency versions in the App lockfile. From
+`apps/app/universal`, run `npm ci`, then from `apps/app`:
+
+```sh
+./build.sh ios --device <device-udid>
+```
+
+This runs `expo run:ios --configuration Release`: it generates the ignored
+native project, signs and installs a Release app with its JavaScript bundled,
+so launching it does not require a Metro development server. Set
+`OPENAGENT_APPLE_TEAM_ID` to an existing authorized Apple development team when
+generating the project. Signing credentials remain in Xcode/the keychain. The
+iOS bundle identifier is `ai.openagent.app`; the marketing version and beta
+build number come from `universal/package.json`. Install updates in place to
+preserve any existing application data.
+
+The iOS build includes native iroh-ffi transport (v1.1.0) with SRP-6a
+authentication, CBOR coordinator RPC, and Keychain credential storage via
+expo-secure-store. The native transport is abstracted behind `PlatformTransport`
+so the desktop Electron path remains unchanged. The shared protocol code lives
+in `apps/app/common/network/`; native Swift modules are in the Xcode project
+under `ios/OpenAgent/`.
+
+This is a local development-signed installation, not an App Store or TestFlight
+release.
+
 ## Local macOS qualification reference
 
 This local developer route is separate from the historical B6 remote CI release

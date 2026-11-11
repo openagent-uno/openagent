@@ -32,25 +32,40 @@ config.watchFolders = [
   path.resolve(__dirname, '..', 'common'),
 ];
 
+// Files in ../common/ import npm packages installed in universal/node_modules.
+// Metro's default resolution walks up from the source file, so it would miss
+// them. Adding this ensures packages resolve correctly from both directories.
+config.resolver.nodeModulesPaths = [
+  ...(config.resolver.nodeModulesPaths || []),
+  path.resolve(__dirname, 'node_modules'),
+];
+
 config.resolver.unstable_enablePackageExports = false;
 
+const cryptoShimPath = path.resolve(__dirname, '..', 'common', 'network', 'crypto-shim');
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  // xterm.js is DOM-only — the terminal surface uses it on web/Electron
-  // and a line-mode fallback on native. The web variant pulls xterm via
-  // a dynamic ``import()`` that never executes on native, but Metro
-  // would still bundle it; stub it to an empty module off-web so the
-  // native bundle never has to resolve or carry browser-only code.
+  // xterm.js is DOM-only — stub it on native.
   if (
     platform !== 'web' &&
     (moduleName === '@xterm/xterm' || moduleName.startsWith('@xterm/'))
   ) {
     return { type: 'empty' };
   }
+  // Node's ``crypto`` is unavailable on React Native. Redirect to our
+  // minimal shim that implements only what @windwalker-io/srp needs.
+  if (platform !== 'web' && moduleName === 'crypto') {
+    return context.resolveRequest(context, cryptoShimPath, platform);
+  }
   if (
     moduleName.startsWith('@openagent/desktop-tools/') ||
     moduleName === 'shiki' ||
     moduleName.startsWith('shiki/') ||
-    moduleName.startsWith('@shikijs/')
+    moduleName.startsWith('@shikijs/') ||
+    moduleName === 'cbor2' ||
+    moduleName.startsWith('cbor2/') ||
+    moduleName === 'rfc4648' ||
+    moduleName.startsWith('rfc4648/')
   ) {
     return context.resolveRequest(
       { ...context, unstable_enablePackageExports: true },
