@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { SharedPerson, SharedTarget } from '../../common/collaboration';
+import type { SharedPerson, SharedSnapshot, SharedTarget } from '../../common/collaboration';
 import { mergeSharedTranscript, unconfirmedMessages } from '../../common/shared-transcript';
 import { CollaborationClient } from '../services/collaboration';
 import { useChat } from './chat';
@@ -9,7 +9,9 @@ import { getSessionModelPin } from '../services/api';
 export const useCollaboration = create<{ client: CollaborationClient | null; people: readonly SharedPerson[] }>(() => ({ client: null, people: [] }));
 const leases = new Map<symbol, { sessions: string[]; focus: SharedTarget | null }>();
 let client: CollaborationClient | null = null;
-const revisions = new Map<string, number>();
+// Wire revisions are fenced by CollaborationClient. An exact terminal HTTP
+// receipt can also replace a projection at the same wire revision.
+const projections = new Map<string, SharedSnapshot>();
 const active = new Map<string, boolean>();
 const latestFinished = new Map<string, string>();
 // Bumped whenever a session's shared state is dropped. Async follow-ups
@@ -28,7 +30,7 @@ export function observeShared(sessions: string[], focus: SharedTarget | null) {
   return () => { leases.delete(key); observe(); };
 }
 export function bindShared(next: CollaborationClient | null) {
-  client = next; revisions.clear(); active.clear(); latestFinished.clear(); generations.clear();
+  client = next; projections.clear(); active.clear(); latestFinished.clear(); generations.clear();
   useCollaboration.setState({ client, people: [] });
   if (!next) return () => {};
   const unsubscribe = next.subscribe(() => {
@@ -42,9 +44,12 @@ export function bindShared(next: CollaborationClient | null) {
       const snapshot = next.snapshot(id);
       if (!snapshot) {
         const withdrawn = next.revoked(id);
-        if (revisions.delete(id) || (withdrawn && !sessionIsRevoked(id))) {
+        if (projections.delete(id) || (withdrawn && !sessionIsRevoked(id))) {
           generations.set(id, (generations.get(id) ?? 0) + 1);
           latestFinished.delete(id);
+          // A fresh attachment (including an empty/pruned projection) must
+          // reconcile once even if the old attachment already appeared idle.
+          active.delete(id);
           // A withdrawn grant (or logout) must drop the cached snapshot AND the
           // visible text: a history fetch still in flight would otherwise merge
           // the revoked transcript back in. A socket that merely dropped keeps
@@ -65,8 +70,8 @@ export function bindShared(next: CollaborationClient | null) {
         setSessionRevoked(id, false);
         useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id ? { ...se, accessRevoked: false } : se) }));
       }
-      if (revisions.get(id) === snapshot.revision) continue;
-      revisions.set(id, snapshot.revision);
+      if (projections.get(id) === snapshot) continue;
+      projections.set(id, snapshot);
       // Native audio/automation turns already arrive through OpenAgentWS.
       // Only HTTP-owned turns use this transcript reducer; presence is common.
       if (snapshot.turns.length && !snapshot.turns.at(-1)?.runId) continue;

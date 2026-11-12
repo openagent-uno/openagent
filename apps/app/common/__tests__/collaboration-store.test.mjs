@@ -192,3 +192,47 @@ test('a completed turn receives its durable fork anchor while the next turn stre
     ['durable-answer', 3, false], ['shared:second-turn:reply', undefined, true],
   ]);
 });
+
+test('six parallel tool completions replace a frozen live projection after the terminal HTTP receipt', async t => {
+  const { client, sockets } = setup(t);
+  useChat.setState({ sessionHistoryMode: 'v2' });
+  const calls = Array.from({ length: 6 }, (_, i) => ({ tool_name: 'vault_write_note', tool_call_id: `save-${i}` }));
+  const live = { id: 'turn', runId: 'request', providerRunId: 'request', active: true, startedAt: 1,
+    messages: [{ id: 'input', role: 'user', text: 'Save notes', timestamp: 1 }],
+    tools: calls.map((toolInfo, i) => ({ id: toolInfo.tool_call_id, timestamp: 1, afterText: 0,
+      toolInfo: i < 2 ? { ...toolInfo, result: 'Saved' } : toolInfo })) };
+  sockets[0].receive({ type: 'shared_state', session_id: 'chat', revision: 1, turns: [live] });
+  const rows = calls.map((toolInfo, i) => ({ id: `durable-${i}`, run_id: 'request', ordinal: i + 1,
+    status: 'complete', role: 'tool', text: '', tool_summary: { ...toolInfo, status: 'success' },
+    created_at: '2026-01-01T00:00:00Z', author: { kind: 'agent' } }));
+  globalThis.__sharedPage = async () => ({ revision: 'finished', messages: [...rows, {
+    id: 'final-answer', run_id: 'request', ordinal: 7, status: 'complete', role: 'assistant',
+    text: 'All notes saved', created_at: '2026-01-01T00:00:01Z', author: { kind: 'agent' },
+  }] });
+  const posts = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    posts.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ session_id: 'chat', request_id: 'request', response: 'All notes saved' }) };
+  });
+  await client.sendTurn('chat', 'request', 'Save notes');
+  // The exact terminal receipt must retire the old live overlay immediately,
+  // before the read socket is repaired or a final snapshot arrives.
+  await useChat.getState().reconcileSession('chat');
+  assert.equal(useChat.getState().sessions[0].isProcessing, false);
+  assert.equal(useChat.getState().sessions[0].messages.filter(row => row.toolInfo?.status === 'success').length, 6);
+  sockets[0].receive({ type: 'shared_state', session_id: 'chat', revision: 2, turns: [live] });
+  await flush();
+  assert.equal(useChat.getState().sessions[0].isProcessing, false);
+  assert.equal(useChat.getState().sessions[0].messages.filter(row => row.toolInfo?.status === 'success').length, 6);
+  t.mock.timers.tick(500); t.mock.timers.tick(250);
+  sockets[1].receive({ type: 'auth_ok', shared: true });
+  // Completed projections may already have been pruned after one minute.
+  sockets[1].receive({ type: 'shared_state', session_id: 'chat', revision: 3, turns: [] });
+  await flush();
+  const session = useChat.getState().sessions[0];
+  assert.equal(session.isProcessing, false);
+  assert.equal(session.messages.filter(row => row.toolInfo?.status === 'success').length, 6);
+  assert.equal(session.messages.some(row => row.text === 'All notes saved'), true);
+  assert.equal(session.messages.some(row => row.streaming), false);
+  assert.equal(posts.length, 1);
+});

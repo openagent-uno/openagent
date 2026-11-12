@@ -129,3 +129,135 @@ test('invalid snapshots close the observer and discard cached content', t => {
   assert.equal(value.snapshot('chat'), undefined);
   assert.equal(sockets[0].readyState, 3);
 });
+
+test('a terminal HTTP reply recovers a stale observer without resending the turn', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const posts = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    posts.push(JSON.parse(init.body));
+    return { ok: true, json: async () => ({ session_id: 'chat', request_id: 'request', response: 'Saved' }) };
+  });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1, 'Memorizing'));
+  // Simulate a black hole: close() never dispatches onclose either.
+  sockets[0].close = function () { this.readyState = 2; };
+  await value.sendTurn('chat', 'request', 'Save notes');
+  t.mock.timers.tick(500);
+  assert.equal(value.snapshot('chat'), undefined);
+  t.mock.timers.tick(250);
+  assert.equal(sockets.length, 2);
+  sockets[1].receive({ type: 'auth_ok', shared: true });
+  sockets[1].receive({ ...snapshot(2, 'Saved'), turns: [{ ...snapshot(2).turns[0], active: false }] });
+  sockets[0].receive(snapshot(100, 'Obsolete running turn'));
+  assert.equal(value.snapshot('chat').turns[0].active, false);
+  assert.equal(posts.length, 1);
+  assert.deepEqual(sockets[1].sent, [{ type: 'observe', sessions: ['chat'], focus: null }]);
+});
+
+test('terminal recovery preserves a newer running turn and cancels on logout', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  t.mock.method(globalThis, 'fetch', async () => ({ ok: true,
+    json: async () => ({ session_id: 'chat', request_id: 'request', response: 'Done' }) }));
+  const { value, sockets } = client();
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  await value.sendTurn('chat', 'request', 'First');
+  sockets[0].receive({ ...snapshot(2), turns: [{ ...snapshot(2).turns[0], runId: 'newer' }] });
+  t.mock.timers.tick(750);
+  assert.equal(sockets.length, 1);
+  assert.equal(value.snapshot('chat').turns[0].active, true);
+  await value.sendTurn('chat', 'request', 'First');
+  value.dispose();
+  t.mock.timers.tick(60_000);
+  assert.equal(sockets.length, 1);
+});
+
+test('heartbeat timeout replaces a half-open reader, while a long tool keeps running', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  const errors = []; value.onError = error => errors.push(error.message);
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true, heartbeat: true });
+  sockets[0].receive(snapshot(1));
+  t.mock.timers.tick(15_000);
+  const ping = sockets[0].sent.at(-1);
+  assert.deepEqual(ping, { type: 'ping', id: 1 });
+  sockets[0].receive({ type: 'pong', id: 1 });
+  t.mock.timers.tick(15_000);
+  assert.equal(sockets[0].sent.at(-1).id, 2);
+  assert.equal(value.snapshot('chat').turns[0].active, true);
+  sockets[0].receive({ type: 'pong', id: 1 }); // a stale pong is not a fresh acknowledgement
+  sockets[0].close = function () { this.readyState = 2; };
+  t.mock.timers.tick(10_000);
+  assert.equal(value.snapshot('chat'), undefined);
+  t.mock.timers.tick(250);
+  sockets[1].receive({ type: 'auth_ok', shared: true, heartbeat: true });
+  sockets[1].receive(snapshot(1)); // reader replacement never declares a tool successful
+  assert.equal(value.snapshot('chat').turns[0].active, true);
+  assert.ok(errors.includes('Shared observer heartbeat timed out'));
+  assert.equal(sockets.flatMap(ws => ws.sent).some(frame => frame.type === 'stop'), false);
+});
+
+test('a silent legacy reader and a hung greeting recover even without onclose', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  sockets[0].close = function () { this.readyState = 2; };
+  t.mock.timers.tick(45_000); t.mock.timers.tick(250);
+  assert.equal(sockets.length, 2);
+  sockets[1].close = function () { this.readyState = 2; };
+  t.mock.timers.tick(10_000); t.mock.timers.tick(500);
+  assert.equal(sockets.length, 3);
+});
+
+test('a throwing listener or diagnostic callback cannot strand the observer', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.subscribe(() => { if (value.snapshot('chat')?.revision === 1) throw new Error('render failed'); });
+  value.onError = () => { throw new Error('diagnostic failed'); };
+  let delivered = 0; value.subscribe(() => delivered++);
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  assert.equal(value.snapshot('chat'), undefined);
+  t.mock.timers.tick(250);
+  assert.equal(sockets.length, 2);
+  sockets[1].receive({ type: 'auth_ok', shared: true });
+  sockets[1].receive(snapshot(2));
+  assert.equal(value.snapshot('chat').revision, 2);
+  assert.ok(delivered >= 3);
+});
+
+test('an HTTP reply from before revoke/regrant cannot refresh a replacement grant', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let finish;
+  t.mock.method(globalThis, 'fetch', () => new Promise(resolve => { finish = resolve; }));
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  const pending = value.sendTurn('chat', 'request', 'Save');
+  await Promise.resolve();
+  sockets[0].receive({ type: 'shared_revoked', session_id: 'chat' });
+  sockets[0].receive(snapshot(2, 'Regranted live view'));
+  finish({ ok: true, json: async () => ({ session_id: 'chat', request_id: 'request', response: 'Old grant' }) });
+  await pending;
+  t.mock.timers.tick(1000);
+  assert.equal(sockets.length, 1);
+  assert.equal(value.snapshot('chat').turns[0].messages[0].text, 'Regranted live view');
+});
+
+test('an account switch retires pending health checks and cannot reopen the old client', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const old = client(), next = client(); t.after(() => next.value.dispose());
+  old.value.observe(['chat']); old.sockets[0].receive({ type: 'auth_ok', shared: true, heartbeat: true });
+  old.sockets[0].receive(snapshot(1, 'Old account'));
+  old.value.dispose();
+  old.value.observe(['chat']); // late lease cleanup/navigation after logout
+  await assert.rejects(old.value.sendTurn('chat', 'request', 'Late submission'), /disposed/);
+  next.value.observe(['chat']); next.sockets[0].receive({ type: 'auth_ok', shared: true, heartbeat: true });
+  next.sockets[0].receive(snapshot(1, 'New account'));
+  t.mock.timers.tick(15_000);
+  assert.equal(old.sockets.length, 1);
+  assert.equal(old.sockets[0].sent.some(frame => frame.type === 'ping'), false);
+  assert.equal(next.value.snapshot('chat').turns[0].messages[0].text, 'New account');
+});

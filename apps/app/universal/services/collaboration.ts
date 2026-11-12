@@ -12,6 +12,13 @@ export class CollaborationClient {
   private ready = false;
   private reconnect: ReturnType<typeof setTimeout> | null = null;
   private greeting: ReturnType<typeof setTimeout> | null = null;
+  private health: ReturnType<typeof setTimeout> | null = null;
+  private heartbeat = false;
+  private ping = 0;
+  private awaitingPong: number | null = null;
+  private settlements = new Map<string, ReturnType<typeof setTimeout>>();
+  private completed = new Map<string, { sessionId: string; requestId: string; finishedAt: number; awaitingSnapshot: boolean }>();
+  private accessGeneration = 0;
   private retry = 0;
   private sessions: string[] = [];
   private focus: SharedTarget | null = null;
@@ -51,22 +58,81 @@ export class CollaborationClient {
   }
 
   observe(sessions: string[], focus: SharedTarget | null = null): void {
+    if (this.disposed) return;
     if (sessions.length > 16 || sessions.some(id => !validSharedTarget({ kind: 'session', id }))
         || (focus !== null && !validSharedTarget(focus))) throw new Error('Invalid observation');
     this.sessions = [...new Set(sessions)];
     this.focus = focus;
     for (const id of this.states.keys()) if (!this.sessions.includes(id)) this.states.delete(id);
     for (const id of [...this.revokedIds]) if (!this.sessions.includes(id)) this.revokedIds.delete(id);
+    for (const [key, receipt] of this.completed) if (!this.sessions.includes(receipt.sessionId)) this.completed.delete(key);
     this.changed();
     if (this.stopped) { this.stopped = false; this.connect(); }
     else this.sendObservation();
   }
 
-  private changed(): void { for (const listener of this.listeners) listener(); }
+  private changed(): void {
+    let failed = false;
+    for (const listener of this.listeners) {
+      try { listener(); } catch { failed = true; }
+    }
+    if (failed && this.ws) this.retire(this.ws, 'Shared observer listener failed');
+  }
+  private report(reason: string): void {
+    // Diagnostics never include transcript data or a malformed frame's body.
+    try { this.onError?.(new Error(reason)); } catch { /* diagnostics cannot block recovery */ }
+  }
   private clear(): void { this.states.clear(); this.people = []; this.changed(); }
+
+  private terminalSnapshot(snapshot: SharedSnapshot): SharedSnapshot {
+    let changed = false;
+    const turns = snapshot.turns.map(turn => {
+      const receipt = this.completed.get(JSON.stringify([snapshot.session_id, turn.runId]));
+      if (!receipt || !turn.active) return turn;
+      changed = true;
+      return { ...turn, active: false, finishedAt: receipt.finishedAt, reasoning: false, status: undefined };
+    });
+    return changed ? { ...snapshot, turns } : snapshot;
+  }
   private sendObservation(): void {
-    if (this.ready && this.ws?.readyState === 1)
-      this.ws.send(JSON.stringify({ type: 'observe', sessions: this.sessions, focus: this.focus }));
+    const ws = this.ws;
+    if (this.ready && ws?.readyState === 1) {
+      try { ws.send(JSON.stringify({ type: 'observe', sessions: this.sessions, focus: this.focus })); }
+      catch { this.retire(ws, 'Shared observer send failed'); }
+    }
+  }
+
+  private retire(ws: WebSocket, reason?: string): void {
+    if (this.ws !== ws) return;
+    // Do not wait for onclose: a half-open transport can stay CLOSING forever.
+    this.ws = null;
+    this.ready = false;
+    if (this.greeting) clearTimeout(this.greeting);
+    if (this.health) clearTimeout(this.health);
+    this.greeting = this.health = null;
+    this.awaitingPong = null;
+    this.scheduleReconnect();
+    this.clear();
+    if (reason) this.report(reason);
+    try { ws.close(); } catch { /* the local reader has already been retired */ }
+  }
+
+  private armHealth(ws: WebSocket): void {
+    if (this.ws !== ws || !this.ready) return;
+    if (this.health) clearTimeout(this.health);
+    if (!this.heartbeat) {
+      // Older gateways only have protocol-level pings, invisible to JS.
+      // Renew a silent read attachment; silence never means a run finished.
+      this.health = setTimeout(() => this.retire(ws, 'Shared observer silent; refreshing'), 45_000);
+      return;
+    }
+    this.health = setTimeout(() => {
+      if (this.ws !== ws) return;
+      this.awaitingPong = ++this.ping;
+      try { ws.send(JSON.stringify({ type: 'ping', id: this.awaitingPong })); }
+      catch { this.retire(ws, 'Shared observer heartbeat send failed'); return; }
+      this.health = setTimeout(() => this.retire(ws, 'Shared observer heartbeat timed out'), 10_000);
+    }, 15_000);
   }
 
   private connect(): void {
@@ -77,7 +143,8 @@ export class CollaborationClient {
     catch { this.scheduleReconnect(); return; }
     this.ws = ws;
     this.ready = false;
-    this.greeting = setTimeout(() => { if (this.ws === ws) ws.close(); }, 10_000);
+    this.heartbeat = false;
+    this.greeting = setTimeout(() => this.retire(ws, 'Shared observer greeting timed out'), 10_000);
     ws.onmessage = event => {
       if (this.ws !== ws || this.stopped) return;
       try {
@@ -88,17 +155,28 @@ export class CollaborationClient {
           if (this.greeting) clearTimeout(this.greeting);
           this.greeting = null;
           this.ready = true;
+          this.heartbeat = frame.heartbeat === true;
           this.retry = 0;
           this.sendObservation();
+          this.armHealth(ws);
+        } else if (frame.type === 'pong' && this.ready) {
+          if (this.awaitingPong !== null && frame.id === this.awaitingPong) {
+            this.awaitingPong = null;
+            this.armHealth(ws);
+          }
         } else if (frame.type === 'shared_state' && this.ready) {
           if (!validSharedSnapshot(frame)) throw new Error('Invalid shared snapshot');
           if (!this.sessions.includes(frame.session_id)) return;
           const previous = this.states.get(frame.session_id);
           if (previous && previous.revision >= frame.revision) return;
+          for (const receipt of this.completed.values()) if (receipt.sessionId === frame.session_id)
+            receipt.awaitingSnapshot = frame.turns.some(turn => turn.runId === receipt.requestId && turn.active);
           this.revokedIds.delete(frame.session_id);
-          this.states.set(frame.session_id, frame);
+          this.states.set(frame.session_id, this.terminalSnapshot(frame));
           this.changed();
         } else if (frame.type === 'shared_revoked') {
+          this.accessGeneration++;
+          for (const [key, receipt] of this.completed) if (receipt.sessionId === frame.session_id) this.completed.delete(key);
           this.revokedIds.add(frame.session_id);
           this.states.delete(frame.session_id);
           this.people = this.people.filter(person => !(person.target.kind === 'session' && person.target.id === frame.session_id));
@@ -112,41 +190,66 @@ export class CollaborationClient {
           this.changed();
         } else if (frame.type === 'resource_event' && this.ready) this.onResource?.(frame);
         else if (frame.type === 'auth_error') {
+          this.accessGeneration++;
+          this.completed.clear();
           // The device itself lost access: every observed transcript goes.
           for (const id of this.sessions) this.revokedIds.add(id);
-          this.clear();
-          ws.close();
+          this.retire(ws, 'Shared observer access unavailable');
         }
-      } catch (error) {
-        this.onError?.(error instanceof Error ? error : new Error('Invalid shared frame'));
-        this.clear();
-        ws.close();
+        if (!this.heartbeat) this.armHealth(ws);
+      } catch {
+        this.retire(ws, 'Invalid shared observer frame');
       }
     };
-    ws.onerror = () => { if (this.ws === ws) ws.close(); };
-    ws.onclose = () => {
-      if (this.ws !== ws) return;
-      if (this.greeting) clearTimeout(this.greeting);
-      this.greeting = null;
-      this.ws = null;
-      this.ready = false;
-      this.clear();
-      this.scheduleReconnect();
-    };
+    ws.onerror = () => this.retire(ws, 'Shared observer socket failed');
+    ws.onclose = () => this.retire(ws);
   }
 
   private scheduleReconnect(): void {
-    if (!this.stopped) this.reconnect = setTimeout(() => {
+    if (!this.stopped && !this.reconnect) this.reconnect = setTimeout(() => {
       this.reconnect = null; this.connect();
     }, Math.min(8000, 250 * 2 ** Math.min(this.retry++, 5)));
   }
 
   async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal, attachments?: Attachment[], clientInstanceId?: string): Promise<SharedTurnResult> {
+    if (this.disposed) throw new Error('Shared client disposed');
+    const generation = this.accessGeneration;
     const appConnectionId = await this.appConnection?.();
-    return this.post('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
+    if (this.disposed) throw new Error('Shared client disposed');
+    const result = await this.post<SharedTurnResult>('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
       ...(attachments?.length ? { attachments } : {}), ...(clientInstanceId ? { client_instance_id: clientInstanceId } : {}),
       ...(appConnectionId ? { app_connection_id: appConnectionId } : {}),
     }, signal);
+    if (!this.disposed && generation === this.accessGeneration
+        && result.session_id === sessionId && result.request_id === requestId && this.sessions.includes(sessionId)) {
+      // This response is terminal, not an admission ACK. Give the coalesced
+      // final snapshot time to arrive, then replace a stale live attachment.
+      // Never fabricate tool success or stop a newer/long-running execution.
+      const key = JSON.stringify([sessionId, requestId]);
+      const snapshot = this.states.get(sessionId);
+      if (this.completed.size >= 128) this.completed.delete(this.completed.keys().next().value!);
+      this.completed.set(key, { sessionId, requestId, finishedAt: Date.now() / 1000,
+        awaitingSnapshot: !snapshot || snapshot.turns.some(turn => turn.runId === requestId && turn.active) });
+      if (snapshot) {
+        // The HTTP result proves only this exact run is terminal. Stop the
+        // old live overlay immediately so canonical results can replace it.
+        this.states.set(sessionId, this.terminalSnapshot(snapshot));
+        this.changed();
+      }
+      const previous = this.settlements.get(key);
+      if (previous) clearTimeout(previous);
+      if (this.settlements.size >= 128) {
+        const [oldest, timer] = this.settlements.entries().next().value!;
+        clearTimeout(timer); this.settlements.delete(oldest);
+      }
+      this.settlements.set(key, setTimeout(() => {
+        this.settlements.delete(key);
+        if (this.disposed || generation !== this.accessGeneration || !this.sessions.includes(sessionId)) return;
+        if (this.completed.get(key)?.awaitingSnapshot && this.ws)
+          this.retire(this.ws, 'Shared observer missed terminal state; refreshing');
+      }, 500));
+    }
+    return result;
   }
 
   async stopTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<{ stopped: boolean; request_id: string }> {
@@ -167,7 +270,11 @@ export class CollaborationClient {
     this.disposed = true;
     if (this.reconnect) clearTimeout(this.reconnect);
     if (this.greeting) clearTimeout(this.greeting);
-    this.reconnect = this.greeting = null;
+    if (this.health) clearTimeout(this.health);
+    for (const timer of this.settlements.values()) clearTimeout(timer);
+    this.settlements.clear();
+    this.completed.clear();
+    this.reconnect = this.greeting = this.health = null;
     const ws = this.ws;
     this.ws = null;
     this.ready = false;

@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-12",
+  "status": "source-qualified-unreleased",
+  "components": ["app", "server"],
+  "related_core_source": {
+    "repository": "https://github.com/openagent-uno/openagent-core",
+    "commit": "792e198496cd8f15726d3e023a84f11e70189275",
+    "status": "pushed-main-source-only",
+    "tests_passed": 70,
+    "subtests_passed": 30,
+    "adoption": "Product remains pinned to the existing published Core beta81; no unpublished dependency pin or installed overlay is introduced."
+  },
+  "findings": [
+    "A terminal HTTP response previously only triggered history reconciliation; a cached active shared snapshot could overwrite that history again.",
+    "The shared observer had no application-level health recovery and depended on onclose even after a greeting timeout or socket error.",
+    "A throwing observer callback could also prevent cleanup from reaching close/reconnect.",
+    "Deferred catalog delegation could clear provider tool provenance inside Core, leaving an admitted child without a live card link."
+  ],
+  "changes": [
+    "An exact terminal receipt retires only the matching active projection, allowing canonical tool results and final replies to replace it immediately.",
+    "Account/grant-scoped bounded receipts prevent late active frames from reopening completed requests.",
+    "Missing terminal state triggers a read-only reattachment after 500 ms.",
+    "Negotiated numbered health checks refresh authorized snapshots after 15 seconds and retire an unresponsive reader after a further 10 seconds; legacy gateways renew after 45 silent seconds.",
+    "Greeting timeout, socket failure and listener failure retire the reader independently of onclose; diagnostics contain no transcript or malformed-frame content.",
+    "Health refresh preserves observer-local ACL revision offsets and rechecks child access."
+  ],
+  "incident_evidence": {
+    "read_only_production_audit": "The identified turn persisted run.success, all 18 tool completions and its final reply; no server restart or incomplete vault write explained the stale UI.",
+    "anonymized_replay": {"events_replayed": 461, "snapshots_accepted_by_app_validator": 461, "tools_completed": 18},
+    "replay_boundary": "Replay retains event order, tool IDs, lifecycle and message lengths; private arguments/results and message text are removed. It is not a packet capture.",
+    "unresolved_historical_boundary": "The original observer packet/error trace was not retained before the view reload. The exact initial network/transport interruption cannot be attributed retrospectively."
+  },
+  "checks": {
+    "app_common": {"passed": 162},
+    "observer_tool_and_child_projection": {"passed": 20, "subtests_passed": 15},
+    "session_sharing_and_child_progress": {"passed": 8, "subtests_passed": 4},
+    "typescript": "universal noEmit and desktop build:test",
+    "electron_mac": {"passed": 2, "scenarios": [
+      "Six parallel vault writes: four frozen running cards recover all canonical completions and the final reply, exactly one HTTP submission.",
+      "A silent observer recovers another participant's completed turn without any local terminal HTTP receipt.",
+      "A running delegated card opens its child immediately after the child link arrives; ongoing tool status and subsequent streamed text remain visible.",
+      "Agent switching, saved logins and drawer layout remain functional."
+    ]}
+  },
+  "boundaries": [
+    "Electron tests run real production renderer/main/preload against a deterministic local gateway in a separate temporary profile, not the installed production profile.",
+    "No user prompt was resent, production run cancelled, agent restarted, credentials changed or data/retention policy modified.",
+    "Core's deferred-dispatch provenance source fix is separately qualified upstream; adopting it requires a future published Core version.",
+    "No App/server release, installed-app update or production rollout is asserted by this source push."
+  ]
+}

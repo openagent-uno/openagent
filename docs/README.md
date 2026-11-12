@@ -13,6 +13,9 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Unreleased live transcript recovery](site/guide/client-capabilities.md#recovering-the-live-transcript-unreleased-source)
+  ([source and Mac Electron qualification](qualification/shared-observer-recovery-2026-11-12.json)).
+
 - [Python beta18: explicit legacy private conversation continuity](releases/v1.1.9-beta.18.md)
   ([public qualification](qualification/python-product-b18-2026-11-07.json)).
 

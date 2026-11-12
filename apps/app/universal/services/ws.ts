@@ -53,6 +53,7 @@ export class OpenAgentWS {
         info.client_capabilities === true ? () => this.dashboardConnection() : undefined,
         info.session_fork === true);
       shared.onResource = frame => this.handlers.forEach(h => h(frame as ServerMessage));
+      shared.onError = error => console.warn('[shared-observer]', error.message);
       this.collaboration = shared;
       this.sharedDiscovered = true;
       return shared;

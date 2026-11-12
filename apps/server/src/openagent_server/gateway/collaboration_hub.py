@@ -66,6 +66,8 @@ class Observer:
     roster: str = ""
     resources: dict = field(default_factory=dict)
     generation: int = 0
+    pong: int | None = None
+    refresh: bool = False
 
 
 class SharedAgentHub:
@@ -254,6 +256,7 @@ class SharedAgentHub:
     async def deliver(self, client):
         self.prune()
         generation = client.generation
+        refresh, client.refresh = client.refresh, False
         targets = [{"kind": "session", "id": sid} for sid in client.sessions]
         for peer in list(self.clients):
             if peer.focus and peer.focus not in targets:
@@ -341,12 +344,13 @@ class SharedAgentHub:
                 visible = frozenset(item["id"] for item in child_access["allowed"])
             snapshot = (state["revision"] if payload is None else payload["revision"], visible)
             previous = client.sent.get(sid)
-            if previous is None or previous[:2] != snapshot:
+            unchanged = previous is not None and previous[:2] == snapshot
+            if refresh or not unchanged:
                 payload = copy.deepcopy(state) if payload is None else payload
                 # An ACL-only update still needs a larger revision for this
                 # observer. Keep that offset local to this session and socket.
                 if previous is not None:
-                    payload["revision"] = max(payload["revision"], previous[2] + 1)
+                    payload["revision"] = previous[2] if unchanged else max(payload["revision"], previous[2] + 1)
                 for turn in payload["turns"]:
                     for row in turn.get("tools", ()):
                         tool = row["toolInfo"]
@@ -384,6 +388,11 @@ class SharedAgentHub:
                 await asyncio.sleep(0.04)
                 client.wake.clear()
                 await asyncio.wait_for(self.deliver(client), 10)
+                # Application-level health is visible to browser/native JS.
+                # Ack only after fresh authorization and snapshot delivery.
+                if client.pong is not None:
+                    pong, client.pong = client.pong, None
+                    await asyncio.wait_for(client.ws.send_json({"type": "pong", "id": pong}), 10)
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -424,7 +433,7 @@ class SharedAgentHub:
             await ws.close(code=1013)
             return ws
         self.clients.add(client)
-        await ws.send_json({"type": "auth_ok", "shared": True})
+        await ws.send_json({"type": "auth_ok", "shared": True, "heartbeat": True})
         task = asyncio.create_task(
             self.pump(client), context=__import__("contextvars").Context()
         )
@@ -437,6 +446,14 @@ class SharedAgentHub:
                     if not isinstance(frame, dict):
                         raise ValueError("Invalid observation")
                     if frame.get("type") == "ping":
+                        nonce = frame.get("id")
+                        if nonce is not None:
+                            if set(frame) != {"type", "id"} or type(nonce) is not int or not 0 <= nonce <= 2**53 - 1:
+                                raise ValueError("Invalid heartbeat")
+                            client.pong = nonce
+                            # Rebuild the authorized projection even when its
+                            # source revision did not change. No run is sent.
+                            client.refresh = True
                         client.wake.set()
                         continue
                     if frame.get("type") != "observe" or set(frame) - {

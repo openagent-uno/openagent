@@ -129,6 +129,44 @@ including attachments and rich parts. The App reuses the live positions during
 history reconciliation when the canonical reply matches the observed text.
 History without recorded positions keeps its durable order.
 
+### Recovering the live transcript (unreleased source)
+
+The shared transcript has its own read-only WebSocket, separate from the main
+App connection. A healthy main connection alone does not prove that this
+observer is still receiving changes. The App now checks both the terminal HTTP
+result and observer health instead of leaving an old running snapshot in place.
+
+`/api/collaboration/turns` returns after execution, not merely admission. Its
+successful response proves that the exact `session_id` / `request_id` is terminal,
+including error or interruption outcomes. The App retires that run's active
+overlay immediately and rereads canonical history. Late active snapshots for
+the same request cannot reopen it. Other active turns remain live. A terminal
+receipt never fabricates a tool result; only authorized history supplies it.
+Receipts are bounded and scoped to the observed account/session and grant.
+
+If the final shared snapshot is still missing after 500 ms, the App replaces
+only the observer. Current gateways advertise `heartbeat: true` in its greeting.
+The App sends a numbered ping after 15 seconds; the gateway refreshes authorized
+snapshots and then acknowledges it. A missing acknowledgement after 10 seconds
+retires the reader even if its underlying socket never raises `onclose`.
+Observer-local ACL revision offsets survive a refresh. Older gateways use a
+45-second silent-reader renewal; the authentication greeting also has a bounded
+10-second deadline. A long-running tool remains active after reconnection when
+the server still reports it active. Recovery never resends a user message,
+starts a new run or stops one already executing.
+
+Observer failures use content-free diagnostic reasons. Logout/account switching
+cancels its timers and prevents an old client or grant from reopening a view.
+See the [source and isolated Mac Electron qualification](../../qualification/shared-observer-recovery-2026-11-12.json).
+
+The separate deferred-delegation link defect is owned by Core: its internal
+tool dispatcher must retain the originating provider call ID so a `run.child`
+event can link an already running child to its card. The App already opens that
+authorized child without waiting for the tool result. Adoption of the upstream
+source fix requires the next published Core dependency; the currently pinned
+Core beta81 does not include it. No timing/name inference or local runtime
+override supplies a missing link.
+
 ### Desktop host transport lifecycle
 
 The Desktop bridge binds stdout, stderr, pending responses and cancellation to
