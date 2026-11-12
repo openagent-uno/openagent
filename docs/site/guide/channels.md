@@ -223,3 +223,41 @@ handle and channel bindings stay the same.
   icon in Slack app settings.
 - Channels that do not expose a managed bot profile leave their provider
   identity unchanged.
+
+
+## Editable live turns (beta23)
+
+Live text turns use one editable main provider message for narration, tool
+progress, compaction and the final answer. Each actual child session has one
+separate editable message headed `Delegated to sub-agent`, with only its own
+current operation and terminal outcome. Updates are coalesced into a bounded
+latest-value mailbox and throttled across the turn; every send/edit retains
+fresh audience and host authorization. An explicit provider rate-limit
+rejection has at most two bounded retries. An uncertain initial send is never
+blindly repeated. Final answers exceeding a provider's size limit use
+continuation messages; files retain the normal attachment path. Quiet and
+voice delivery keep their existing semantics.
+
+Hosts may advertise `child` in `progress_kinds` and emit `BridgeEvent("child",
+json_frame)` with exact `session_id`, `type` (`status`, `turn_complete`, `error`)
+and optional `text`/terminal `reason`. Only the host's admitted child events may
+be forwarded; stale events must not attach to a later turn. Hosts that do not
+provide child events retain the main edited reply.
+
+Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
+acceptance for this revision is tested separately; live QA is limited to
+Telegram. Offline SDK fixtures do not establish live provider acceptance.
+
+
+## Outgoing tool messages and conversation history
+
+The standalone Telegram and WhatsApp messaging tools retain the provider's
+native receipt and add `openagent_session` after an accepted private message.
+The matching configured bot must attest the exact recipient, and the host
+resolves its normal conversation and current network-user authorization. The
+confirmed text is recorded as an assistant message through Core beta80; the
+next reply can refer to it even when the send originated in a scheduled job.
+No fake user turn or extra model run is created. If recording fails after
+provider acceptance, the result explicitly reports `message_sent: true` and
+`recorded: false` with a do-not-resend notice. Shared/group destinations without
+a complete authorized mapping are not silently filed in a private session.

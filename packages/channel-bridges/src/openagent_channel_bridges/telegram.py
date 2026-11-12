@@ -226,6 +226,7 @@ class _TypingAnimator:
 
 
 class TelegramBridge(BaseBridge):
+    editable_turns = True
     name = "telegram"
     message_limit = TELEGRAM_MSG_LIMIT
 
@@ -1570,6 +1571,28 @@ class TelegramBridge(BaseBridge):
             await msg.reply_text("Scegli:", reply_markup=InlineKeyboardMarkup(rows))
         except Exception:
             pass
+
+    async def post_turn_message(self, msg, text: str):
+        return await msg.reply_text(markdown_to_telegram_html(text), parse_mode="HTML", disable_web_page_preview=True)
+
+    async def update_turn_message(self, msg, handle, text: str):
+        if str(handle.chat_id) != self._resolve_context().conversation_id:
+            raise PermissionError("Telegram edit destination differs from context")
+        try:
+            await handle.edit_text(markdown_to_telegram_html(text), parse_mode="HTML", disable_web_page_preview=True)
+        except Exception as exc:
+            from telegram.error import BadRequest
+            if isinstance(exc, BadRequest) and "message is not modified" in str(exc).lower():
+                return
+            raise
+
+    async def set_turn_choices(self, msg, handle, choices):
+        if str(handle.chat_id) != self._resolve_context().conversation_id:
+            raise PermissionError("Telegram choices destination differs from context")
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        turn_id = str(getattr(msg, 'message_id', '0'))
+        rows = [[InlineKeyboardButton(option[:64], callback_data=f'choice:{turn_id}:{option[:48]}')] for option in choices[:8]]
+        await handle.edit_reply_markup(reply_markup=InlineKeyboardMarkup(rows))
 
     async def send_text_chunk(self, msg, chunk: str) -> None:
         # Render once per chunk so a giant reply doesn't pay the cost

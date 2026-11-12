@@ -339,3 +339,27 @@ for capability negotiation, strict DTOs and nested authorization. Deterministic
 SDK/stdio tests do not qualify a live provider, deployment or published wheel.
 
 [Local beta18 source evidence](../../docs/qualification/channel-context-attestation-2026-11-04.json).
+
+
+## Editable live turns (beta23)
+
+Live text turns use one editable main provider message for narration, tool
+progress, compaction and the final answer. Each actual child session has one
+separate editable message headed `Delegated to sub-agent`, with only its own
+current operation and terminal outcome. Updates are coalesced into a bounded
+latest-value mailbox and throttled across the turn; every send/edit retains
+fresh audience and host authorization. An explicit provider rate-limit
+rejection has at most two bounded retries. An uncertain initial send is never
+blindly repeated. Final answers exceeding a provider's size limit use
+continuation messages; files retain the normal attachment path. Quiet and
+voice delivery keep their existing semantics.
+
+Hosts may advertise `child` in `progress_kinds` and emit `BridgeEvent("child",
+json_frame)` with exact `session_id`, `type` (`status`, `turn_complete`, `error`)
+and optional `text`/terminal `reason`. Only the host's admitted child events may
+be forwarded; stale events must not attach to a later turn. Hosts that do not
+provide child events retain the main edited reply.
+
+Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
+acceptance for this revision is tested separately; live QA is limited to
+Telegram. Offline SDK fixtures do not establish live provider acceptance.

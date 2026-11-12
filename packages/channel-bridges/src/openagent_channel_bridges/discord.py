@@ -146,6 +146,7 @@ class _DiscordTypingAnimator:
 
 
 class DiscordBridge(BaseBridge):
+    editable_turns = True
     name = "discord"
     message_limit = DISCORD_MSG_LIMIT
 
@@ -930,6 +931,16 @@ class DiscordBridge(BaseBridge):
             await animator.stop()
         except Exception:
             pass
+
+    async def post_turn_message(self, channel, text: str):
+        self._assert_channel_target(channel)
+        return await channel.send(text)
+
+    async def update_turn_message(self, channel, handle, text: str):
+        self._assert_channel_target(channel)
+        if str(handle.channel.id) != str(channel.id):
+            raise PermissionError("Discord edit destination differs from context")
+        await handle.edit(content=text)
 
     async def send_text_chunk(self, channel, chunk: str) -> None:
         self._assert_channel_target(channel)

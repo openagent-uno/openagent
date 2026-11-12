@@ -126,6 +126,7 @@ class _PublicAddressResolver:
 
 
 class WhatsAppBridge(BaseBridge):
+    editable_turns = True
     """WhatsApp (Green API) ↔ Gateway bridge."""
 
     name = "whatsapp"
@@ -385,6 +386,29 @@ class WhatsAppBridge(BaseBridge):
 
     async def post_status(self, chat_id, text: str):
         return None
+
+    async def post_turn_message(self, chat_id, text: str):
+        if str(chat_id) != self._resolve_context().conversation_id:
+            raise PermissionError("WhatsApp reply target differs from its context")
+        result = await asyncio.to_thread(self._greenapi.sending.sendMessage, chat_id, markdown_to_whatsapp(text))
+        data = getattr(result, "data", result)
+        if not isinstance(data, dict) or not isinstance(data.get("idMessage"), str):
+            raise RuntimeError("WhatsApp did not acknowledge the message")
+        return {"chat_id": str(chat_id), "message_id": data["idMessage"]}
+
+    async def update_turn_message(self, chat_id, handle, text: str):
+        if handle["chat_id"] != self._resolve_context().conversation_id or str(chat_id) != handle["chat_id"]:
+            raise PermissionError("WhatsApp edit destination differs from context")
+        import aiohttp
+        url = f"https://api.green-api.com/waInstance{self.instance_id}/editMessage/{self.api_token}"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as client:
+            async with client.post(url, json={"chatId": str(chat_id), "idMessage": handle["message_id"],
+                                               "message": markdown_to_whatsapp(text)}, allow_redirects=False) as response:
+                if response.status != 200:
+                    raise RuntimeError("WhatsApp rejected the message edit")
+                data = await response.json()
+                if not isinstance(data, dict) or not data.get("idMessage"):
+                    raise RuntimeError("WhatsApp did not acknowledge the edit")
 
     async def send_text_chunk(self, chat_id, chunk: str) -> None:
         await self._send_text(chat_id, markdown_to_whatsapp(chunk))

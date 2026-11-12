@@ -211,6 +211,8 @@ class BaseBridge:
     message_limit = 4000
     _personality_directive = None
     _live = True
+    editable_turns = False
+    turn_edit_interval = 1.1
 
     def __init__(self, *, transport: BridgeTransport, binding_id: str | None = None,
                  personality: str | None = None, live: bool | None = None,
@@ -253,7 +255,8 @@ class BaseBridge:
         # task's authenticated context immediately before every outbound IO.
         for name in ("send_text_chunk", "send_attachment", "post_status", "update_status",
                      "clear_status", "stream_text", "send_choice_buttons", "render_picker",
-                     "post_compaction_notice", "resolve_compaction_notice", "ack_follower"):
+                     "post_compaction_notice", "resolve_compaction_notice", "ack_follower",
+                     "post_turn_message", "update_turn_message", "set_turn_choices"):
             method = cls.__dict__.get(name)
             if method is None or getattr(method, "_context_guarded", False):
                 continue
@@ -525,7 +528,7 @@ class BaseBridge:
                           path=path, filename=attachment.filename, mime_type=attachment.mime_type)
 
     async def send_message(self, text: str, session_id: str | None = None, *, target=None,
-                           on_status=None, on_delta=None, on_compaction=None, input_was_voice=False,
+                           on_status=None, on_delta=None, on_compaction=None, on_child=None, input_was_voice=False,
                            source="user_typed", attachments=None, author=None,
                            context: BridgeContext | None = None,
                            history: tuple[BridgeHistoryMessage, ...] | None = None) -> dict:
@@ -546,6 +549,12 @@ class BaseBridge:
             await self._authorize_generation(current, generation)
             if event.kind == "status" and on_status is not None:
                 await on_status(event.text)
+            elif event.kind == "child" and on_child is not None:
+                import json
+                value = json.loads(event.text)
+                if not isinstance(value, dict):
+                    raise TypeError("invalid child progress")
+                await on_child(value)
             elif event.kind in ("text", "delta", "text_delta") and on_delta is not None:
                 await on_delta(event.text)
             elif event.kind == "compaction" and on_compaction is not None:
@@ -583,6 +592,7 @@ class BaseBridge:
         await self._authorize_generation(current, generation)
         current = await self._prepare_delivery_context(current)
         legacy = {"type": "duplicate" if reply.status == "coalesced" else "error" if reply.status in ("failed", "cancelled") else "response",
+                  "status": reply.status,
                   "text": "\n".join(part.text for part in reply.parts if part.text is not None),
                   "model": reply.model, "attachments": [], "target": latest_target or target,
                   "_typed_parts": reply.parts}
@@ -866,6 +876,15 @@ class BaseBridge:
         far — the bridge doesn't have to maintain its own buffer."""
         return None
 
+    async def post_turn_message(self, target, text: str):
+        raise NotImplementedError("The provider does not support editable turns")
+
+    async def update_turn_message(self, target, handle, text: str):
+        raise NotImplementedError("The provider does not support editable turns")
+
+    async def set_turn_choices(self, target, handle, choices):
+        await self.send_choice_buttons(target, choices)
+
 
     async def post_compaction_notice(self, target):
         """Post the "Compacting conversation" start notice and return a
@@ -999,7 +1018,9 @@ class BaseBridge:
         # intermediate text bubbles (the spoken answer still lands via
         # the normal final-reply path below).
         live_active = self._live and not voice_detected
-        live = _LiveProgress() if live_active else None
+        from .turn_messages import EditableTurn
+        editable = EditableTurn(self, target) if self.editable_turns and live_active else None
+        live = _LiveProgress() if live_active and editable is None else None
 
         async def _live_flush_text(accumulated: str) -> None:
             """Post the span of narration produced since the last flush.
@@ -1026,6 +1047,9 @@ class BaseBridge:
                     pass
 
         async def on_status(raw: str) -> None:
+            if editable is not None:
+                await editable.status(raw)
+                return
             if live is not None:
                 # Flush narration that preceded this tool call, then post
                 # the tool-usage line as its own message. Read the raw
@@ -1052,6 +1076,9 @@ class BaseBridge:
                 pass
 
         async def on_delta(running_text: str) -> None:
+            if editable is not None:
+                await editable.delta(running_text)
+                return
             if live is not None:
                 # Keep the latest accumulated text as a fallback for
                 # ``on_status`` / the end-of-turn flush. Don't post here —
@@ -1082,6 +1109,10 @@ class BaseBridge:
             if voice_detected or not self._live:
                 return
             phase = str(data.get("phase") or "done")
+            if editable is not None:
+                await editable.status("Compacting conversation…" if phase == "running" else
+                                      "Compacted conversation" if phase != "error" else "Compaction skipped")
+                return
             if phase == "running":
                 try:
                     compaction_handle["h"] = await self.post_compaction_notice(target)
@@ -1140,12 +1171,17 @@ class BaseBridge:
                 on_status=on_status,
                 on_delta=on_delta,
                 on_compaction=on_compaction,
+                **({"on_child": editable.child_frame} if editable is not None else {}),
                 # Voice notes bypass the typed-burst coalescence window
                 # for instant barge-in (StreamSession STT-bypass path).
                 source="stt" if voice_detected else "user_typed",
                 attachments=attachments,
                 author=author,
             )
+        except asyncio.CancelledError:
+            if editable is not None:
+                await editable.cancel()
+            raise
         except Exception as e:  # noqa: BLE001
             # Hard failure of the gateway round-trip (network drop,
             # protocol error, etc.). The user previously saw nothing
@@ -1175,6 +1211,8 @@ class BaseBridge:
         # Concurrent message in the same burst — the owner posts the
         # merged reply; followers exit so the user sees ONE response.
         if response.get("type") == "duplicate":
+            if editable is not None:
+                await editable.cancel()
             # Tell the user we saw the follow-up so they don't think
             # the bot ignored their second message. Bridge-specific
             # primitive (Telegram → 👀 reaction; others no-op).
@@ -1190,6 +1228,9 @@ class BaseBridge:
         # payload — with a friendly + actionable message and bail out
         # before the normal attachment / chunking path tries to render
         # it as a regular reply.
+        if editable is not None and response.get("status") == "cancelled":
+            await editable.finish("Stopped", child_outcome="Stopped")
+            return
         if response.get("type") == "error":
             from openagent_core.core.public_errors import PUBLIC_MESSAGES
             text = (response.get("text") or "").strip()
@@ -1199,7 +1240,10 @@ class BaseBridge:
             public = text if text in PUBLIC_MESSAGES.values() else PUBLIC_MESSAGES["generic"]
             user_msg = "⚠️ " + public
             try:
-                await self.send_response_text(target, user_msg)
+                if editable is not None:
+                    await editable.finish(user_msg, child_outcome="Failed")
+                else:
+                    await self.send_response_text(target, user_msg)
             except Exception:
                 pass
             return
@@ -1212,6 +1256,13 @@ class BaseBridge:
         post_target = response.get("target") or target
 
         if "_typed_parts" in response:
+            if editable is not None:
+                parts = response["_typed_parts"]
+                text = "\n\n".join(part.text for part in parts if part.text is not None)
+                clean, _ = parse_response_markers(text)
+                await editable.finish(self.append_model_feedback(clean, response.get("model")))
+                await self._deliver_typed_parts(post_target, tuple(part for part in parts if part.attachment is not None))
+                return
             await self._deliver_typed_parts(post_target, response["_typed_parts"], model=response.get("model"),
                                             voice_detected=voice_detected, live=live)
             return
@@ -1221,7 +1272,12 @@ class BaseBridge:
         )
         marker_attachments: list[Attachment] = []
 
-        if live is not None and live.posted_any:
+        if editable is not None:
+            clean, marker_attachments = parse_response_markers(response.get("text") or "")
+            if not getattr(self.transport, "legacy_markers", False):
+                marker_attachments = []
+            await editable.finish(self.append_model_feedback(clean, response.get("model")))
+        elif live is not None and live.posted_any:
             # Live mode already streamed the tool calls + narration as
             # their own messages. Post ONLY the still-unposted tail (the
             # final answer) so nothing is duplicated. ``accumulated`` is

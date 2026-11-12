@@ -103,6 +103,7 @@ def _build_picker_blocks(picker: dict | None) -> list | None:
 
 
 class SlackBridge(BaseBridge):
+    editable_turns = True
     name = "slack"
     message_limit = SLACK_MSG_LIMIT
 
@@ -819,6 +820,20 @@ class SlackBridge(BaseBridge):
         # Legacy live-progress hook stays silent. Native assistant-thread
         # status uses the independent authorized processing lifecycle above.
         return None
+
+    async def post_turn_message(self, target, text: str):
+        current = self._resolve_context()
+        if str(target.channel) != current.conversation_id or target.thread_ts != current.thread_id:
+            raise PermissionError("Slack text destination differs from context")
+        result = await target.client.chat_postMessage(channel=target.channel, text=text,
+            **({"thread_ts": target.thread_ts} if target.thread_ts else {}))
+        return {"channel": result["channel"], "ts": result["ts"]}
+
+    async def update_turn_message(self, target, handle, text: str):
+        current = self._resolve_context()
+        if str(handle["channel"]) != current.conversation_id or target.thread_ts != current.thread_id:
+            raise PermissionError("Slack edit destination differs from context")
+        await target.client.chat_update(channel=handle["channel"], ts=handle["ts"], text=text)
 
     async def send_text_chunk(self, target, chunk: str) -> None:
         # Slack mrkdwn is close enough to plain markdown that the
