@@ -59,7 +59,7 @@ class GatewayBridgeTransport:
         return BridgeCapabilities(commands=tuple(BridgeCommandDefinition(spec.name, spec.description) for spec in COMMAND_SPECS),
                                   input_media=("image", "file", "voice", "audio", "video"),
                                   output_media=("image", "file", "voice", "audio", "video"),
-                                  progress_kinds=("status", "text", "compaction"))
+                                  progress_kinds=("status", "text", "compaction", "child"))
 
     async def _on_gateway_lost(self):
         bridge = getattr(self, "_bridge", None)
@@ -114,12 +114,13 @@ class GatewayBridgeTransport:
             target=_legacy_target_hint.get(), on_status=lambda text: emit("status", text),
             on_delta=lambda text: emit("text", text),
             on_compaction=lambda value: emit("compaction", json.dumps(value)),
+            on_child=lambda value: emit("child", json.dumps(value)),
             source="stt" if request.source == "voice" else "user_typed", attachments=attachments,
             author={"kind": "human", "handle": f"{request.context.provider}:{request.context.actor_id}",
                     "display": request.context.actor_id})
         _legacy_reply_target.set(response.get("target"))
         parts = []
-        if response.get("type") not in {"duplicate", "error"} and getattr(getattr(self, "_bridge", None), "_delivery_mode", "quiet") == "quiet":
+        if response.get("type") not in {"duplicate", "error"} and response.get("status") != "cancelled" and getattr(getattr(self, "_bridge", None), "_delivery_mode", "quiet") == "quiet":
             answer = terminal_answer(response)
             parts = await self._materialize_final_reply(request.context, answer)
             return BridgeReply(parts=tuple(parts), model=response.get("model"),
@@ -145,7 +146,7 @@ class GatewayBridgeTransport:
                 return getattr(raw, name, default) if isinstance(raw, Attachment) else raw.get(name, default)
             parts.append(BridgePart(attachment=BridgeAttachment(kind=field("type", "file"), filename=field("filename") or Path(path).name,
                 local_path=path, mime_type=field("mime_type") or "application/octet-stream")))
-        status = "coalesced" if response.get("type") == "duplicate" else "failed" if response.get("type") == "error" else "completed"
+        status = response.get("status") or ("coalesced" if response.get("type") == "duplicate" else "failed" if response.get("type") == "error" else "completed")
         return BridgeReply(parts=tuple(parts), status=status, model=response.get("model"), session_ref=self._session_for_context(request.context))
 
     async def _materialize_final_reply(self, context, answer):
@@ -317,6 +318,7 @@ class GatewayBridgeTransport:
     async def stop(self) -> None:
         elog("bridge.stop", name=self.name)
         self._should_stop = True
+        self.__dict__.get('_child_routes', {}).clear()
         for path in tuple(self._delivery_files):
             self._remove_delivery_file(path)
         self._cancel_gateway_loss_cleanup()
@@ -544,7 +546,31 @@ class GatewayBridgeTransport:
         sid = data.get("session_id")
         collector = self._stream_pending.get(sid) if sid else None
 
+        routes = self.__dict__.setdefault("_child_routes", {})
+        if collector is None and sid in routes:
+            parent_sid, expected_parent = routes[sid]
+            parent = self._stream_pending.get(parent_sid)
+            if parent is not expected_parent:
+                routes.pop(sid, None)
+                return
+            callback = getattr(parent, "on_child", None) if parent is not None else None
+            if callback is not None:
+                await callback(data)
+            if t == P.TURN_COMPLETE or parent is None:
+                routes.pop(sid, None)
+            return
+
         if t == P.STATUS:
+            if collector is not None:
+                try:
+                    status = json.loads(data.get("text", ""))
+                except (ValueError, TypeError):
+                    status = None
+                child = status.get("child_session_id") if isinstance(status, dict) else None
+                if isinstance(child, str) and child and child != sid:
+                    previous = routes.get(child)
+                    if previous is None or previous[1] is collector:
+                        routes[child] = (sid, collector)
             cb = collector.on_status if collector is not None else None
             if cb is not None:
                 try:
@@ -586,8 +612,12 @@ class GatewayBridgeTransport:
         evt = wire_to_event(data)
         if evt is None or collector is None:
             return
+        if t == P.TURN_COMPLETE:
+            collector.end_reason = data.get('reason')
         if fold_outbound_event(collector, evt):
             collector.done.set()
+            for child in [child for child, (_, owner) in routes.items() if owner is collector]:
+                routes.pop(child, None)
 
 
     async def _legacy_send_message(
@@ -599,6 +629,7 @@ class GatewayBridgeTransport:
         on_status: Callable[[str], Awaitable[None]] | None = None,
         on_delta: Callable[[str], Awaitable[None]] | None = None,
         on_compaction: Callable[[dict], Awaitable[None]] | None = None,
+        on_child: Callable[[dict], Awaitable[None]] | None = None,
         input_was_voice: bool = False,
         source: str = "user_typed",
         attachments: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
@@ -658,6 +689,7 @@ class GatewayBridgeTransport:
             collector.on_status = on_status
             collector.on_delta = on_delta
             collector.on_compaction = on_compaction
+            collector.on_child = on_child
             self._stream_pending[session_id] = collector
         else:
             collector = existing
@@ -699,13 +731,19 @@ class GatewayBridgeTransport:
 
         try:
             await collector.done.wait()
-            return collector.to_legacy_reply()
+            reply = collector.to_legacy_reply()
+            if getattr(collector, 'end_reason', None) in {'cancelled', 'interrupted', 'stopped'}:
+                reply['status'] = 'cancelled'
+            return reply
         finally:
             # Owner cleanup — but only if the slot still holds OUR
             # collector (a brand-new turn could have replaced it after
             # our ``done`` fired).
             if self._stream_pending.get(session_id) is collector:
                 self._stream_pending.pop(session_id, None)
+            routes = self.__dict__.get('_child_routes', {})
+            for child in [child for child, (_, owner) in routes.items() if owner is collector]:
+                routes.pop(child, None)
 
 
     def _http_base(self) -> str:

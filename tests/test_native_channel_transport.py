@@ -59,6 +59,8 @@ async def assemble(tmp_path, *, settings=None, sessions=False):
         async def execute(self, request, context, runtime):
             tools = await catalog.discover(context)
             await catalog.call_tool(tools[0].tool_ref, {"input": request.input}, context)
+            if context.parent_run_id is not None:
+                await runtime.services.store.append_event(request.run_id, "run.status", {"text": "Reading child fixture"})
             if request.input == "spawn child":
                 child = await runtime.spawn(RunRequest("child-" + request.run_id,
                     "child-session-" + sha256(request.run_id.encode()).hexdigest(), "child-key", "child input"), context)
@@ -228,11 +230,19 @@ async def test_mapped_channels_reuse_the_exact_normal_speech_factory_defaults(tm
 async def test_normal_child_tool_retains_individual_authority_and_cannot_borrow_other_lineage(tmp_path):
     service, host, bridge, context, current, calls, users, store, db = await assemble(tmp_path)
     try:
-        reply = await host.send(BridgeMessage(context, (BridgePart(text="spawn child"),)))
+        progress = []
+        async def observe(event):
+            progress.append(event)
+        reply = await host.send(BridgeMessage(context, (BridgePart(text="spawn child"),)), on_event=observe)
         assert reply.status == "completed"
         parent = await host._execution(context)
         children = await service.runtime.children(reply.run_ref, parent)
         assert len(children) == 1 and children[0].status == "success"
+        import json
+        frames = [json.loads(event.text) for event in progress if event.kind == 'child']
+        assert {frame['session_id'] for frame in frames} == {children[0].session_id}
+        assert any(frame['type'] == 'status' and frame['text'] == 'Reading child fixture' for frame in frames)
+        assert any(frame['type'] == 'turn_complete' and frame['reason'] == 'completed' for frame in frames)
         child = await store.accepted_request(children[0].run_id)
         assert child.author.kind == "agent" and child.authority == child.initiator == parent.initiator
         assert child.audience == parent.audience and child.parent_run_id == reply.run_ref

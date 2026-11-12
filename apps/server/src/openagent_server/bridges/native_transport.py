@@ -143,7 +143,7 @@ class NativeChannelTransport:
         self.enabled = True
         return BridgeCapabilities(input_media=("file", "image", "audio", "voice", "video"),
                                   output_media=("file", "image", "audio", "voice", "video"),
-                                  progress_kinds=("status", "text"), history_media=True, history_max_files=64)
+                                  progress_kinds=("status", "text", "child"), history_media=True, history_max_files=64)
 
     async def stop(self):
         self.enabled = False
@@ -221,6 +221,7 @@ class NativeChannelTransport:
             run_id, context.session_id, input_digest, text, attachments=tuple(attachments))
         await self.service.runtime.submit(submitted, context)
         cursor, final = 0, None
+        children = {}
         while True:
             for event in await self.service.runtime.events(run_id, cursor, context):
                 cursor = event.cursor
@@ -232,6 +233,24 @@ class NativeChannelTransport:
                         await on_event(BridgeEvent("text", value.get("text") or ""))
                 elif event.kind == "run.status" and on_event is not None:
                     await on_event(BridgeEvent("status", str(event.payload.get("text") or "")))
+                elif event.kind == "run.child" and on_event is not None:
+                    child_run, child_session = event.payload.get('child_run_id'), event.payload.get('child_session_id')
+                    if isinstance(child_run, str) and isinstance(child_session, str):
+                        children[child_run] = (child_session, 0)
+                        await on_event(BridgeEvent('child', json.dumps({'session_id': child_session, 'type': 'seed'})))
+            for child_run, (child_session, child_cursor) in tuple(children.items()):
+                for event in await self.service.runtime.events(child_run, child_cursor, context):
+                    child_cursor = event.cursor
+                    if event.kind == 'run.status':
+                        frame = {'session_id': child_session, 'type': 'status', 'text': str(event.payload.get('text') or '')}
+                        await on_event(BridgeEvent('child', json.dumps(frame)))
+                child = await self.service.runtime.get_run(child_run, context)
+                if child.terminal:
+                    await on_event(BridgeEvent('child', json.dumps({'session_id': child_session,
+                        'type': 'turn_complete', 'reason': 'completed' if child.status == 'success' else child.status})))
+                    children.pop(child_run)
+                else:
+                    children[child_run] = (child_session, child_cursor)
             record = await self.service.runtime.get_run(run_id, context)
             if record.terminal:
                 break
@@ -241,7 +260,8 @@ class NativeChannelTransport:
         if record.status != "success":
             from openagent_server.public_run_errors import public_run_error
             return BridgeReply(parts=(BridgePart(text=str(public_run_error(record))),),
-                               status="failed", session_ref=context.session_id, run_ref=run_id)
+                               status="cancelled" if record.status in {'cancelled', 'interrupted'} else "failed",
+                               session_ref=context.session_id, run_ref=run_id)
         answer = terminal_answer(final or {},
             require_attested=getattr(self.bridge, "_delivery_mode", "quiet") == "quiet")
         source_parts = answer.get("parts")

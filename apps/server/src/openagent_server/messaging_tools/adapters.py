@@ -42,11 +42,13 @@ async def _json_post(url: str, *, json: dict[str, Any] | None = None,
         return response.json()
 
 
-def build_runtime_toolkit(*, env: dict[str, str] | None = None) -> Any:
+def build_runtime_toolkit(*, env: dict[str, str] | None = None, pool=None) -> Any:
     """Return the messaging tools enabled by the host-supplied credentials."""
     from openagent_core.mcp._runtime import Toolkit
 
     values = dict(env or {})
+    from .recording import MessagingDeliveryRecorder
+    recorder = MessagingDeliveryRecorder(pool, values)
     telegram = values.get("TELEGRAM_BOT_TOKEN", "").strip()
     discord = values.get("DISCORD_BOT_TOKEN", "").strip()
     wa_id = values.get("GREEN_API_ID", "").strip()
@@ -70,9 +72,10 @@ def build_runtime_toolkit(*, env: dict[str, str] | None = None) -> Any:
             body: dict[str, Any] = {"chat_id": chat_id, "text": text}
             if parse_mode:
                 body["parse_mode"] = parse_mode
-            return await _json_post(
+            receipt = await _json_post(
                 f"https://api.telegram.org/bot{telegram}/sendMessage", json=body
             )
+            return await recorder.record('telegram', chat_id, text, receipt)
 
         async def telegram_send_file(chat_id: str, path: str | None = None,
                                      url: str | None = None,
@@ -91,16 +94,18 @@ def build_runtime_toolkit(*, env: dict[str, str] | None = None) -> Any:
             method, field = mapping[type]
             endpoint = f"https://api.telegram.org/bot{telegram}/{method}"
             if kind == "url":
-                return await _json_post(endpoint, json={
+                receipt = await _json_post(endpoint, json={
                     "chat_id": chat_id, field: source, "caption": caption,
                 })
+                return await recorder.record('telegram', chat_id, caption or f"Sent {type}: {Path(urlparse(source).path).name or type}", receipt)
             file_path = Path(source)
             mime = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-            return await _json_post(
+            receipt = await _json_post(
                 endpoint,
                 data={"chat_id": chat_id, **({"caption": caption} if caption else {})},
                 files={field: (file_path.name, file_path.read_bytes(), mime)},
             )
+            return await recorder.record('telegram', chat_id, caption or f"Sent {type}: {file_path.name}", receipt)
 
         toolkit.register(telegram_send_message)
         toolkit.register(telegram_send_file)
@@ -142,10 +147,11 @@ def build_runtime_toolkit(*, env: dict[str, str] | None = None) -> Any:
 
         async def whatsapp_send_message(phone: str, text: str) -> Any:
             """Send a text message through the configured WhatsApp account."""
-            return await _json_post(
+            receipt = await _json_post(
                 f"{base}/sendMessage/{wa_token}",
                 json={"chatId": chat_id(phone), "message": text},
             )
+            return await recorder.record('whatsapp', chat_id(phone), text, receipt)
 
         async def whatsapp_send_file(phone: str, path: str | None = None,
                                      url: str | None = None,
@@ -155,20 +161,22 @@ def build_runtime_toolkit(*, env: dict[str, str] | None = None) -> Any:
             kind, source = _file_source(path, url)
             if kind == "url":
                 name = filename or Path(urlparse(source).path).name or "file"
-                return await _json_post(
+                receipt = await _json_post(
                     f"{base}/sendFileByUrl/{wa_token}",
                     json={"chatId": chat_id(phone), "urlFile": source,
                           "fileName": name, "caption": caption or ""},
                 )
+                return await recorder.record('whatsapp', chat_id(phone), caption or f"Sent file: {name}", receipt)
             file_path = Path(source)
             name = filename or file_path.name
             mime = mimetypes.guess_type(name)[0] or "application/octet-stream"
-            return await _json_post(
+            receipt = await _json_post(
                 f"{base}/sendFileByUpload/{wa_token}",
                 data={"chatId": chat_id(phone), "fileName": name,
                       "caption": caption or ""},
                 files={"file": (name, file_path.read_bytes(), mime)},
             )
+            return await recorder.record('whatsapp', chat_id(phone), caption or f"Sent file: {name}", receipt)
 
         toolkit.register(whatsapp_send_message)
         toolkit.register(whatsapp_send_file)

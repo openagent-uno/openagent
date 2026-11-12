@@ -284,6 +284,22 @@ class NativeRuntimeAuthorizer:
             ingress_id=ingress_id,
         )
 
+    async def context_for_bridge_delivery(self, provider: str, session_id: str):
+        """Resolve a live bot certificate after the host attests its recipient.
+
+        This is an in-process host port, never a client-selected principal or
+        a substitute for provider account/audience verification.
+        """
+        if provider not in {"telegram", "whatsapp", "discord", "slack"}:
+            raise PermissionError("Unknown messaging provider")
+        for binding in reversed(tuple(self._bindings.values())):
+            if binding.identity.handle != "__bridge_" + provider:
+                continue
+            context = await self.context_for_identity(binding.identity, session_id)
+            if await self._binding(context) is not None:
+                return context
+        raise PermissionError("No live authenticated bot binding for this conversation")
+
     async def authorize(
         self,
         context: ExecutionContext,

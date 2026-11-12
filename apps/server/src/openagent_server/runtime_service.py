@@ -478,7 +478,7 @@ class NativeRuntimeService:
                     1, int(environment.get("OPENAGENT_CHILD_SESSION_CONCURRENCY", "16"))
                 ),
                 child_max_depth=max(
-                    1, int(environment.get("OPENAGENT_CHILD_SESSION_MAX_DEPTH", "5"))
+                    1, int(environment.get("OPENAGENT_CHILD_SESSION_MAX_DEPTH", "1"))
                 ),
                 child_chain_concurrency=max(
                     1,

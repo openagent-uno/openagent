@@ -1,32 +1,32 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "(python_full_version >= '3.14' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.13.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.12.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version < '3.12' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version >= '3.14' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "(python_full_version == '3.13.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.13.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version == '3.13.*' and platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "(python_full_version == '3.12.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.12.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version == '3.12.*' and platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "(python_full_version < '3.12' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'win32'",
 ]
 
 [manifest]
 constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.40/openagent_capability_host-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1" },
+    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.23/openagent_channel_bridges-0.1.0b23-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_core-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_execution-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_gateway-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_gateway-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-module-attachments", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_attachments-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-module-budget", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_budget-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-module-delegation", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_delegation-1.1.0b1-py3-none-any.whl?download=1" },
@@ -44,9 +44,9 @@ constraints = [
     { name = "openagent-module-workflows", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_workflows-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-modules", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_modules-1.1.0b4-py3-none-any.whl?download=1" },
     { name = "openagent-modules-full", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.53/openagent_modules_full-1.1.0b4-py3-none-any.whl?download=1" },
-    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_sdk-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_sdk-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_shell-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_storage_sqlite-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" },
 ]
 
@@ -781,13 +781,17 @@ resolution-markers = [
     "python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'win32'",
 ]
 dependencies = [
-    { name = "cffi", marker = "platform_machine == 'ARM64' and platform_python_implementation != 'PyPy' and sys_platform == 'win32'" },
+    { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9f/33/c00162f49c0e2fe8064a62cb92b93e50c74a72bc370ab92f86112b33ff62/cryptography-46.0.3.tar.gz", hash = "sha256:a8b17438104fed022ce745b362294d9ce35b4c2e45c1d958ad4a4b019285f4a1", size = 749258, upload-time = "2025-10-15T23:18:31.74Z" }
 wheels = [
+    { url = "https://files.pythonhosted.org/packages/7e/bf/80fbf45253ea585a1e492a6a17efcb93467701fa79e71550a430c5e60df0/cryptography-46.0.3-cp311-abi3-win_amd64.whl", hash = "sha256:a9a3008438615669153eb86b26b61e09993921ebdd75385ddd748702c5adfddb", size = 3514451, upload-time = "2025-10-15T23:17:16.142Z" },
     { url = "https://files.pythonhosted.org/packages/2e/af/9b302da4c87b0beb9db4e756386a7c6c5b8003cd0e742277888d352ae91d/cryptography-46.0.3-cp311-abi3-win_arm64.whl", hash = "sha256:5d7f93296ee28f68447397bf5198428c9aeeab45705a55d53a6343455dcb2c3c", size = 2928007, upload-time = "2025-10-15T23:17:18.04Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/30/640f34ccd4d2a1bc88367b54b926b781b5a018d65f404d409aba76a84b1c/cryptography-46.0.3-cp314-cp314t-win_amd64.whl", hash = "sha256:760f83faa07f8b64e9c33fc963d790a2edb24efb479e3520c14a45741cd9b2db", size = 3494315, upload-time = "2025-10-15T23:17:42.769Z" },
     { url = "https://files.pythonhosted.org/packages/ba/8b/88cc7e3bd0a8e7b861f26981f7b820e1f46aa9d26cc482d0feba0ecb4919/cryptography-46.0.3-cp314-cp314t-win_arm64.whl", hash = "sha256:516ea134e703e9fe26bcd1277a4b59ad30586ea90c365a87781d7887a646fe21", size = 2919331, upload-time = "2025-10-15T23:17:44.468Z" },
+    { url = "https://files.pythonhosted.org/packages/90/45/b0d691df20633eff80955a0fc7695ff9051ffce8b69741444bd9ed7bd0db/cryptography-46.0.3-cp38-abi3-win_amd64.whl", hash = "sha256:416260257577718c05135c55958b674000baef9a1c7d9e8f306ec60d71db850f", size = 3501720, upload-time = "2025-10-15T23:18:10.632Z" },
     { url = "https://files.pythonhosted.org/packages/e8/cb/2da4cc83f5edb9c3257d09e1e7ab7b23f049c7962cae8d842bbef0a9cec9/cryptography-46.0.3-cp38-abi3-win_arm64.whl", hash = "sha256:d89c3468de4cdc4f08a57e214384d0471911a3830fcdaf7a8cc587e42a866372", size = 2918740, upload-time = "2025-10-15T23:18:12.277Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/c3/e90f4a4feae6410f914f8ebac129b9ae7a8c92eb60a638012dde42030a9d/cryptography-46.0.3-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:6b5063083824e5509fdba180721d55909ffacccc8adbec85268b48439423d78c", size = 3438528, upload-time = "2025-10-15T23:18:26.227Z" },
 ]
 
 [[package]]
@@ -801,7 +805,7 @@ resolution-markers = [
     "python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "cffi", marker = "platform_machine == 'x86_64' and platform_python_implementation != 'PyPy' and sys_platform == 'darwin'" },
+    { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/12/45/870e7f4bef50e5f53b9f51d4428aee5290eedf58ba443f16b1ebb7ab8e66/cryptography-48.0.1.tar.gz", hash = "sha256:266f4ee051abb2f725b74ef8072b521ce1feacf685a3364fa6a6b45548db791a", size = 832989, upload-time = "2026-06-09T22:32:31.8Z" }
 wheels = [
@@ -815,13 +819,13 @@ name = "cryptography"
 version = "50.0.2"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "(python_full_version >= '3.14' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.13.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.12.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version < '3.12' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version >= '3.14' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version == '3.13.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.13.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version == '3.12.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.12.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version < '3.12' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
 ]
 dependencies = [
-    { name = "cffi", marker = "(platform_machine != 'x86_64' and platform_python_implementation != 'PyPy' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and platform_python_implementation != 'PyPy' and sys_platform == 'win32') or (platform_python_implementation != 'PyPy' and sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/9d/af/182eb91b0df3fe75c4d9f26fe70684569566745f6ba7e5c9c73a862c5252/cryptography-50.0.2.tar.gz", hash = "sha256:7b46165bb56eb4704e2eaaf86f3c940d19154535d9b0ca7d6d590b04060e00d5", size = 880623, upload-time = "2026-09-30T15:30:04.884Z" }
 wheels = [
@@ -890,9 +894,9 @@ name = "ctranslate2"
 version = "4.8.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and platform_machine != 'ARM64') or (python_full_version < '3.12' and sys_platform != 'win32')" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and platform_machine != 'ARM64') or (python_full_version >= '3.12' and sys_platform != 'win32')" },
-    { name = "pyyaml", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pyyaml" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/01/4bdbbb7f564725629dfa638c4492997e12697822d5f5855a61705d116bb3/ctranslate2-4.8.4-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d7b6cd9e832e47c00d3da14976b1621b065d8680a7d27a95a009af4a41e169ac", size = 1489306, upload-time = "2026-10-25T19:04:02.114Z" },
@@ -990,12 +994,12 @@ name = "faster-whisper"
 version = "1.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "av", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "ctranslate2", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "huggingface-hub", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "onnxruntime", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "tokenizers", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "tqdm", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
+    { name = "av" },
+    { name = "ctranslate2" },
+    { name = "huggingface-hub" },
+    { name = "onnxruntime" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/05/99/49ee85903dee060d9f08297b4a342e5e0bcfca2f027a07b4ee0a38ab13f9/faster_whisper-1.2.1-py3-none-any.whl", hash = "sha256:79a66ad50688c0b794dd501dc340a736992a6342f7f95e5811be60b5224a26a7", size = 1118909, upload-time = "2025-10-31T11:35:47.794Z" },
@@ -1191,7 +1195,7 @@ source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography", version = "46.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'ARM64' and sys_platform == 'win32'" },
     { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
-    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "pyasn1-modules" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f5/b9/4b2528f30114b106e3c3a7298ba38d85e682fd1f83fe7c4a5b77c7677082/google_auth-2.62.0.tar.gz", hash = "sha256:0bef0ce54bdf9ce226c5d66e4264413bd918141c31bbe49fb52eac882f513d69", size = 398180, upload-time = "2026-10-12T19:20:48.328Z" }
@@ -2059,7 +2063,7 @@ version = "2.4.6"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "(python_full_version < '3.12' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version < '3.12' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version < '3.12' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version < '3.12' and platform_machine == 'ARM64' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d0/ad/fed0499ce6a338d2a03ebae59cd15093910c8875328855781952abf6c2fe/numpy-2.4.6.tar.gz", hash = "sha256:f3a3570c4a2a16746ac2c31a7c7c7b0c186b95ce902e33db6f28094ed7387dda", size = 20735807, upload-time = "2026-05-18T23:37:14.07Z" }
@@ -2143,13 +2147,13 @@ version = "2.5.4"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.14' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
-    "(python_full_version >= '3.14' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.13.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
-    "(python_full_version == '3.12.*' and platform_machine != 'x86_64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine != 'ARM64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
+    "(python_full_version >= '3.14' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version >= '3.14' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version >= '3.14' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version >= '3.14' and platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "(python_full_version == '3.13.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.13.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.13.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.13.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version == '3.13.*' and platform_machine == 'ARM64' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'darwin'",
+    "(python_full_version == '3.12.*' and platform_machine != 'ARM64' and platform_machine != 'x86_64') or (python_full_version == '3.12.*' and platform_machine == 'ARM64' and sys_platform == 'darwin') or (python_full_version == '3.12.*' and platform_machine == 'x86_64' and sys_platform == 'win32') or (python_full_version == '3.12.*' and sys_platform != 'darwin' and sys_platform != 'win32')",
     "python_full_version == '3.12.*' and platform_machine == 'ARM64' and sys_platform == 'win32'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz", hash = "sha256:9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a", size = 20866315, upload-time = "2026-10-10T20:05:31.422Z" }
@@ -2226,11 +2230,11 @@ name = "onnxruntime"
 version = "1.31.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "flatbuffers", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.12' and platform_machine != 'ARM64') or (python_full_version < '3.12' and sys_platform != 'win32')" },
-    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.12' and platform_machine != 'ARM64') or (python_full_version >= '3.12' and sys_platform != 'win32')" },
-    { name = "packaging", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
+    { name = "flatbuffers" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "packaging" },
+    { name = "protobuf" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/44/e9e04a60f726d16ba3abe30ab267e1569e061f7f6f0e175ee103661e1780/onnxruntime-1.31.1-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:60b6b69bfe580eab576cacc5d132a0e9cf2a37fcfd18d46dd191042b1d1ed0d7", size = 20871676, upload-time = "2026-10-26T19:26:00.372Z" },
@@ -2275,14 +2279,14 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-channel-bridges"
-version = "0.1.0b22"
-source = { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1" }
+version = "0.1.0b23"
+source = { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.23/openagent_channel_bridges-0.1.0b23-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "aiohttp" },
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1", hash = "sha256:20b0a717f7eee53e5b7fc2c2d6cb7d18b1e83d011c4f8f112d5ccbb98071a1a0" },
+    { url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.23/openagent_channel_bridges-0.1.0b23-py3-none-any.whl?download=1", hash = "sha256:d109b0e8d9b600c147fb53af342811e7030e9aca21387adeb172fd1840fcec72" },
 ]
 
 [package.metadata]
@@ -2302,7 +2306,7 @@ provides-extras = ["discord", "slack", "telegram", "test", "whatsapp"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -2311,8 +2315,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b78" },
-    { name = "openagent-identity", specifier = "==1.1.9b29" },
+    { name = "openagent-core", specifier = "==1.1.0b80" },
+    { name = "openagent-identity", specifier = "==1.1.9b30" },
 ]
 
 [[package]]
@@ -2331,10 +2335,10 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b78"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1" }
+version = "1.1.0b80"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_core-1.1.0b80-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:71fd2456fbedd76366ee5d0231453f8d6f22ef606f586a39a8339058e7a25fb7" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_core-1.1.0b80-py3-none-any.whl?download=1", hash = "sha256:2b99f309bfa00eac31179d3d9e473d674eab284ecdf0e3e6ed0d59e274e671a5" },
 ]
 
 [package.optional-dependencies]
@@ -2386,7 +2390,7 @@ provides-extras = ["capabilities", "engine", "providers", "audio", "retrieval", 
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2399,8 +2403,8 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
-    { name = "openagent-core", specifier = "==1.1.0b78" },
-    { name = "openagent-identity", specifier = "==1.1.9b29" },
+    { name = "openagent-core", specifier = "==1.1.0b80" },
+    { name = "openagent-identity", specifier = "==1.1.9b30" },
 ]
 
 [[package]]
@@ -2461,7 +2465,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2474,7 +2478,7 @@ dependencies = [
     { name = "croniter" },
     { name = "cryptography", version = "46.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'ARM64' and sys_platform == 'win32'" },
     { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
-    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "email-validator" },
     { name = "faster-whisper", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
     { name = "filelock" },
@@ -2553,7 +2557,7 @@ requires-dist = [
     { name = "certifi", specifier = ">=2026.10.19" },
     { name = "click", specifier = ">=8.1.0" },
     { name = "croniter", specifier = ">=2.0.0" },
-    { name = "cryptography", marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')", specifier = ">=50.0.2" },
+    { name = "cryptography", marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')", specifier = ">=50.0.2" },
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "discord-py", marker = "extra == 'all'", specifier = ">=2.3.0" },
@@ -2570,10 +2574,10 @@ requires-dist = [
     { name = "litellm", specifier = ">=1.50.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.0.0,<2" },
     { name = "numpy", specifier = ">=1.24" },
-    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.22/openagent_channel_bridges-0.1.0b22-py3-none-any.whl?download=1" },
+    { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.23/openagent_channel_bridges-0.1.0b23-py3-none-any.whl?download=1" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", extras = ["engine"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_core-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-core", extras = ["engine"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_core-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-dashboards", directory = "../../packages/dashboards" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.6/openagent_execution-1.0.0b3-py3-none-any.whl?download=1" },
@@ -2582,7 +2586,7 @@ requires-dist = [
     { name = "openagent-mcp", directory = "../mcp-bridge" },
     { name = "openagent-modules", specifier = "==1.1.0b4" },
     { name = "openagent-product-config", directory = "../../packages/product-config" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_storage_sqlite-1.1.0b80-py3-none-any.whl?download=1" },
     { name = "openagent-support-integration", directory = "../../packages/integrations/support" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "packaging", specifier = ">=21.0" },
@@ -2633,14 +2637,14 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
     { name = "cbor2" },
     { name = "cryptography", version = "46.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'ARM64' and sys_platform == 'win32'" },
     { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
-    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "iroh" },
     { name = "openagent-core" },
     { name = "srptools" },
@@ -2650,24 +2654,24 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.4" },
     { name = "cbor2", specifier = ">=5.5" },
-    { name = "cryptography", marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')", specifier = ">=50.0.2" },
+    { name = "cryptography", marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')", specifier = ">=50.0.2" },
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b78" },
+    { name = "openagent-core", specifier = "==1.1.0b80" },
     { name = "srptools", specifier = ">=1.0.1,<3" },
 ]
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
     { name = "cbor2" },
     { name = "cryptography", version = "46.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'ARM64' and sys_platform == 'win32'" },
     { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
-    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
     { name = "iroh" },
     { name = "openagent-identity" },
 ]
@@ -2679,7 +2683,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.9b29" },
+    { name = "openagent-identity", specifier = "==1.1.9b30" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2989,28 +2993,28 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-storage-sqlite"
-version = "1.1.0b78"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1" }
+version = "1.1.0b80"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_storage_sqlite-1.1.0b80-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.78/openagent_storage_sqlite-1.1.0b78-py3-none-any.whl?download=1", hash = "sha256:5179efd5b20d2b3352d73df1108b6f44566164562d89f2984fd4571e29e8b220" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.80/openagent_storage_sqlite-1.1.0b80-py3-none-any.whl?download=1", hash = "sha256:acdba446e922c9fdd44e83df40828f9b7c6adce27b559bcac142f754f4b8c3ad" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b78" }]
+requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b80" }]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.9b29"
+version = "1.1.9b30"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b78" }]
+requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b80" }]
 
 [[package]]
 name = "openagent-tool-protocol"
@@ -3170,8 +3174,8 @@ name = "piper-tts"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "onnxruntime", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
-    { name = "pathvalidate", marker = "platform_machine != 'ARM64' or sys_platform != 'win32'" },
+    { name = "onnxruntime" },
+    { name = "pathvalidate" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/02/cc/95b18b58d9c235d8e0bcece7321b7a7347873c14f9fea2c734b31ef04ff2/piper_tts-1.8.0.tar.gz", hash = "sha256:830588aded347df579c91a32703e0fc2a3685d84f1e3533b14f2de69135d4904", size = 24276117, upload-time = "2026-09-04T16:47:31.908Z" }
 wheels = [
@@ -3572,7 +3576,7 @@ wheels = [
 crypto = [
     { name = "cryptography", version = "46.0.3", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'ARM64' and sys_platform == 'win32'" },
     { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'" },
-    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'x86_64' and sys_platform == 'darwin') or (platform_machine != 'ARM64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
+    { name = "cryptography", version = "50.0.2", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'ARM64' and platform_machine != 'x86_64') or (platform_machine == 'ARM64' and sys_platform == 'darwin') or (platform_machine == 'x86_64' and sys_platform == 'win32') or (sys_platform != 'darwin' and sys_platform != 'win32')" },
 ]
 
 [[package]]

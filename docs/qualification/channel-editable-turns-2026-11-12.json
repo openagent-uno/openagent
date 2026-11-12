@@ -1,0 +1,14 @@
+{
+  "component": "openagent-channel-bridges",
+  "version": "0.1.0b23",
+  "source": "ff127708b84b3102cd5ebc35e4e8b868b6a00509",
+  "qualification": "normally installed wheel; full provider-free component suite",
+  "tests": 458,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "workflow": "https://github.com/openagent-uno/openagent/actions/runs/43217359151",
+  "release": "https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.23",
+  "live_provider_acceptance": false,
+  "deployment": false
+}
