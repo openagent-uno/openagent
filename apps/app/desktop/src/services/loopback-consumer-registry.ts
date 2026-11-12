@@ -20,6 +20,7 @@ export interface LoopbackConsumerRegistry {
   /** Opaque lifetime of this renderer's current claim, renewed after logout. */
   consumerLifetime(accountId: string, rendererId: number): object | undefined;
   hasConsumers(accountId: string): boolean;
+  hasConsumersExcept(accountId: string, rendererId: number): boolean;
   consumerCount(accountId: string): number;
   clearAccount(accountId: string): void;
 }
@@ -88,6 +89,9 @@ export function createLoopbackConsumerRegistry(
 
     hasConsumers(accountId) {
       return (accounts.get(accountId)?.size ?? 0) > 0;
+    },
+    hasConsumersExcept(accountId, rendererId) {
+      return [...(accounts.get(accountId)?.keys() ?? [])].some(id => id !== rendererId);
     },
 
     consumerCount(accountId) {

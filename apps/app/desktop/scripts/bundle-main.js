@@ -5,6 +5,7 @@
 const esbuild = require('esbuild');
 const path = require('node:path');
 const fs = require('node:fs');
+require('./build-mac-power.js');
 
 // Externals = deps we DON'T want bundled:
 //   electron          built into Electron, never bundled

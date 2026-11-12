@@ -23,7 +23,8 @@
     "start": "tsc && node ./scripts/bundle-main.js && electron .",
     "build:test": "tsc && node ./scripts/bundle-main.js",
     "build:e2e": "npm --prefix ../universal run build:web && npm run build:test",
-    "test": "npm run test:iroh-runtime && npm run build:test && node --test src/capabilities/__tests__/*.test.mjs src/network/__tests__/*.test.mjs scripts/__tests__/*.test.mjs",
+    "test:mac-power": "node scripts/test-mac-power.js",
+    "test": "npm run test:iroh-runtime && npm run build:test && npm run test:mac-power && node --test src/capabilities/__tests__/*.test.mjs src/network/__tests__/*.test.mjs src/services/__tests__/*.test.mjs scripts/__tests__/*.test.mjs",
     "test:iroh-runtime": "node ./scripts/smoke-iroh-electron.js",
     "test:capabilities": "npm run build:test && node --test src/capabilities/__tests__/*.test.mjs",
     "test:e2e": "npm run build:e2e && playwright test --config=playwright.config.mjs",
@@ -94,6 +95,12 @@
     },
     "afterSign": "scripts/after-sign-host-tools.js",
     "mac": {
+      "extraFiles": [
+        { "from": "native-build/${arch}/openagent-power-client", "to": "MacOS/openagent-power-client" },
+        { "from": "native-build/${arch}/openagent-power-guard", "to": "Library/LaunchServices/openagent-power-guard" },
+        { "from": "native/ai.openagent.desktop.power-guard.plist", "to": "Library/LaunchDaemons/ai.openagent.desktop.power-guard.plist" }
+      ],
+      "binaries": ["Contents/MacOS/openagent-power-client", "Contents/Library/LaunchServices/openagent-power-guard"],
       "artifactName": "openagent-app-${version}-macos-${arch}.${ext}",
       "forceCodeSigning": true,
       "sign": "scripts/sign-with-timestamp-retry.js",

@@ -842,6 +842,36 @@ async def handle_capabilities(request: web.Request) -> web.Response:
         return _problem(ApiProblem(500, "internal_error", "Capabilities are temporarily unavailable"))
 
 
+async def handle_active_history(request: web.Request) -> web.Response:
+    """Stateless, viewer-authorized existence probe for desktop power policy."""
+    try:
+        access = AccessContext.from_request(request)
+        db = gateway_db(request)
+        if db is None:
+            raise ApiProblem(501, "unsupported", "Session activity is unavailable")
+        conn = await db._ensure_connected()
+        # Canonical Runtime admission/state is authoritative even before the
+        # derived history/search projection catches up. No cursor is allocated.
+        async with conn.execute(
+            "SELECT DISTINCT s.id AS resource_id, 'session' AS resource_type, "
+            "s.tenant_id,s.owner_principal_id,s.visibility,s.acl_version "
+            "FROM session_runs r JOIN sessions_v2 s ON s.id=r.session_id AND s.tenant_id=r.tenant_id "
+            "WHERE r.tenant_id=? AND r.status IN ('pending','queued','received','running') "
+            "AND s.deleted_at_ms IS NULL AND s.visibility<>'quarantined'", (access.tenant_id,)
+        ) as cursor:
+            while rows := await cursor.fetchmany(100):
+                for row in rows:
+                    if await resource_is_visible(conn, row, access):
+                        return _json({"active": True})
+        return _json({"active": False})
+    except PermissionError:
+        return _problem(ApiProblem(401, "unauthorized", "Authentication required"))
+    except ApiProblem as exc:
+        return _problem(exc)
+    except Exception:
+        return _problem(ApiProblem(503, "degraded", "Activity state is temporarily unavailable"))
+
+
 async def handle_history(request: web.Request) -> web.Response:
     try:
         access = AccessContext.from_request(request)

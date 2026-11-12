@@ -6,6 +6,7 @@ interface ThemedSwitchProps {
   value: boolean;
   onValueChange: (value: boolean) => void;
   disabled?: boolean;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -13,6 +14,7 @@ export default function ThemedSwitch({
   value,
   onValueChange,
   disabled = false,
+  accessibilityLabel,
   style,
 }: ThemedSwitchProps) {
   if (Platform.OS !== 'web') {
@@ -21,6 +23,7 @@ export default function ThemedSwitch({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
+        accessibilityLabel={accessibilityLabel}
         trackColor={{ false: colors.border, true: colors.primary }}
         thumbColor={colors.surface}
       />
@@ -30,6 +33,9 @@ export default function ThemedSwitch({
   return (
     <Pressable
       accessibilityRole="switch"
+      aria-checked={value}
+      aria-disabled={disabled}
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => onValueChange(!value)}

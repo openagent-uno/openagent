@@ -79,3 +79,13 @@ name or business rule must never become a conditional here.
 For use and commands follow [USAGE](USAGE.md). For package boundaries read
 [Core components](https://github.com/openagent-uno/openagent-core/blob/main/docs/COMPONENTS.md)
 and [Tools components](https://github.com/openagent-uno/openagent-tools/blob/main/docs/COMPONENTS.md).
+
+## Desktop power lifecycle
+
+The App owns automatic idle-sleep assertions, local power preferences and its
+optional signed macOS closed-lid service (`apps/app/desktop/native`). The service
+accepts only renewable boolean leases from the same-team signed bundled client;
+no renderer, remote agent or MCP tool can execute a privileged command. A root
+journal restores only the service's own global sleep change after daemon restart.
+The standalone server exposes an ACL-filtered canonical activity existence query;
+Core remains the owner of run state. See [desktop power behavior](site/guide/desktop-app.md#keep-sessions-running).

@@ -8,4 +8,5 @@ dist/
 node_modules/
 .DS_Store
 .workspace/
+apps/app/desktop/native-build/
 

@@ -227,7 +227,7 @@ interface DesktopAPI {
   credentialsAvailable?: () => Promise<boolean>;
   forgetCredential?: (accountId: string) => Promise<void>;
   releaseLoopbackAttempt?: (args: { accountId: string; attemptToken: number }) => Promise<void>;
-  stopLoopback: (args: { accountId: string }) => Promise<void>;
+  stopLoopback: (args: { accountId: string; releaseBackground?: boolean }) => Promise<void>;
   setRelayAgent?: (id: string | null) => void;
   wsRelayBroadcast?: (payload: string, id: string) => void;
   getLoopbackPort: (accountId: string) => Promise<number | null>;
@@ -533,7 +533,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
     await persistAccountsSerialized(filtered);
     // Best-effort cleanup of any lingering sidecar for this account.
     try {
-      await desktop()?.stopLoopback({ accountId: id });
+      await desktop()?.stopLoopback({ accountId: id, releaseBackground: true });
     } catch {
       // ignore
     }
@@ -944,18 +944,13 @@ export const useConnection = create<ConnectionState>((set, get) => {
       rememberedFailure: null,
       error: null,
     });
-    // A standalone agent window neither owns the shared resume slot nor
-    // exclusively owns its loopback (a sibling window may be on the same
-    // account). It just drops its own WS; the loopback is reaped on app
-    // quit (stopAllLoopbacks). A primary window clears the slot and tears
-    // down its sidecar as before.
-    if (directedAccountId()) return;
-    // Clear persisted connection so a reload doesn't try to resume it.
-    await storage.removeItem(ACTIVE_CONNECTION_KEY);
+    // Only the primary owns the shared resume slot. Every window releases
+    // its own transport claim; sibling windows retain their independent one.
+    if (!directedAccountId()) await storage.removeItem(ACTIVE_CONNECTION_KEY);
     // Best-effort sidecar cleanup. Even if this fails we're already
     // disconnected from the renderer's perspective.
     if (activeAccountId) {
-      try { await desktop()?.stopLoopback({ accountId: activeAccountId }); } catch { /* ignore */ }
+      try { await desktop()?.stopLoopback({ accountId: activeAccountId, releaseBackground: true }); } catch { /* ignore */ }
     }
   },
 

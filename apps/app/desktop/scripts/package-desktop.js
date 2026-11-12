@@ -18,6 +18,7 @@ const env = {
   ...process.env,
   OPENAGENT_REQUIRE_HOST_TOOLS: '1',
   OPENAGENT_HOST_TOOLS_PLATFORM_KEY: `${platform}-${arch}`,
+  OPENAGENT_NATIVE_MAC_ARCH: arch,
 };
 
 run('stage host-tools', process.execPath, [path.join(__dirname, 'stage-host-tools.js')]);

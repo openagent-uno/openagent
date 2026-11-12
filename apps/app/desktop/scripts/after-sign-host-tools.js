@@ -31,6 +31,13 @@ module.exports = async function afterSignHostTools(context) {
   if (!outer.team || outer.team === 'not set') {
     throw new Error('The release app has no Developer ID TeamIdentifier');
   }
+  for (const relative of ['MacOS/openagent-power-client', 'Library/LaunchServices/openagent-power-guard']) {
+    const binary = path.join(app, 'Contents', relative);
+    if (signatureMetadata(binary).team !== outer.team) throw new Error('The macOS power service must be signed by the app team');
+    run('verify power service signature', 'codesign', ['--verify', '--strict', binary]);
+  }
+  const powerPlist = path.join(app, 'Contents', 'Library', 'LaunchDaemons', 'ai.openagent.desktop.power-guard.plist');
+  if (!fs.existsSync(powerPlist)) throw new Error('Signed app is missing the macOS power service registration');
   for (const key of platformKeys) {
     const locked = consumerManifest.bundles[key];
     const bundle = path.join(root, key);

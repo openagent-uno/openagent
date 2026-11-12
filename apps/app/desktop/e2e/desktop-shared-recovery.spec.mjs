@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import { _electron as electron, expect, test } from '@playwright/test';
 import { DeterministicGateway } from './fixtures.mjs';
@@ -59,6 +60,7 @@ class RecoveryGateway extends DeterministicGateway {
     const json = value => response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' })
       .end(JSON.stringify(value));
     if (path === '/api/collaboration') return json({ version: 1 });
+    if (path === '/api/history/active') return json({ active: [...this.current.turns, ...(this.child?.turns || [])].some(turn => turn.active) });
     if (path.endsWith('/commands')) return json({ turns: [] });
     if (path === '/api/collaboration/turns') {
       const chunks = [];
@@ -112,11 +114,19 @@ test('recovers missing terminal frames and a silent observer in the real Mac ren
     await page.getByPlaceholder('Message OpenAgent...').fill('Save these six notes');
     await page.getByLabel('Send message', { exact: true }).click();
     await expect(page.getByText('running', { exact: true })).toHaveCount(4);
+    await expect.poll(() => page.evaluate(async () => (await window.desktop.getPowerStatus()).blocking)).toBe(true);
+    if (process.platform === 'darwin') {
+      const pid = app.process().pid;
+      const ownsAssertion = () => execFileSync('/usr/bin/pmset', ['-g', 'assertions'], { encoding: 'utf8' })
+        .split('\n').some(line => line.includes(`pid ${pid}(`) && /NoIdleSleepAssertion|PreventUserIdleSystemSleep/.test(line));
+      await expect.poll(ownsAssertion).toBe(true);
+    }
     const readers = gateway.readers.length;
     gateway.pendingReply();
     await expect(page.getByText('All six notes were saved', { exact: true })).toBeVisible();
     await expect(page.getByText('running', { exact: true })).toHaveCount(0);
     await expect(page.getByText('done', { exact: true })).toHaveCount(6);
+    await expect.poll(() => page.evaluate(async () => (await window.desktop.getPowerStatus()).blocking)).toBe(false);
     const answer = page.getByTestId('oa-assistant-message').filter({ hasText: 'All six notes were saved' });
     const model = answer.getByTestId('oa-message-turn-model');
     await expect(model).toHaveText('local:turn-specialist');
@@ -137,6 +147,7 @@ test('recovers missing terminal frames and a silent observer in the real Mac ren
       tools: [{ id: 'remote-tool', timestamp: Date.now() / 1000, afterText: 0,
         toolInfo: { tool_name: 'inspect', tool_call_id: 'remote-tool' } }] });
     await expect(page.getByText('running', { exact: true })).toHaveCount(1);
+    await expect.poll(() => page.evaluate(async () => (await window.desktop.getPowerStatus()).blocking)).toBe(true);
     gateway.ignorePing = true;
     gateway.runMessages = [...gateway.runMessages, { id: 'remote-final', role: 'assistant', text: 'Remote work completed', timestamp: Date.now() }];
     gateway.current = { ...gateway.current, revision: gateway.current.revision + 1, turns: [] };
@@ -177,6 +188,15 @@ test('recovers missing terminal frames and a silent observer in the real Mac ren
     expect(gateway.child.turns[0].active).toBe(true);
     expect(gateway.current.turns[0].active).toBe(true);
     expect(gateway.turns).toHaveLength(1);
+    await page.getByLabel('Settings', { exact: true }).first().click();
+    await page.getByText('Controls', { exact: true }).first().click();
+    const keepAwake = page.getByRole('switch', { name: 'Keep computer awake during active sessions', exact: true });
+    await expect(keepAwake).toBeChecked();
+    await keepAwake.click();
+    await expect.poll(() => page.evaluate(async () => (await window.desktop.getPowerStatus()).blocking)).toBe(false);
+    await keepAwake.click();
+    await expect.poll(() => page.evaluate(async () => (await window.desktop.getPowerStatus()).blocking)).toBe(true);
+    if (process.platform === 'darwin') await expect(page.getByRole('switch', { name: 'Continue with lid closed', exact: true })).not.toBeChecked();
   } finally {
     if (app) await app.close();
     await gateway.close();

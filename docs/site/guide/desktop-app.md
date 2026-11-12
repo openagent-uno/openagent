@@ -36,6 +36,46 @@ product releases are published from
 `openagent-app` endpoints remain available only for the verified updater
 transition; they are not the source repository for new development.
 
+## Keep sessions running
+
+In **Settings → Controls**, **Keep computer awake during active sessions** is
+on by default in the desktop app. It prevents idle system sleep while visible
+or background work is running on connected agents. The display may turn off,
+and screen locking is unchanged. Disable the option to follow ordinary system
+sleep preferences. It does not keep an explicitly quit app running.
+
+On macOS 13 or later, **Continue with lid closed** is a separate opt-in. macOS
+must approve the bundled OpenAgent power service in System Settings → General →
+Login Items & Extensions. The app requests registration only when you enable
+this setting. Until approved, ordinary idle-sleep protection still works but
+closed-lid operation is unavailable. Revoke the service in macOS settings when
+needed; switching the option off releases its power override immediately.
+
+The closed-lid service temporarily disables system sleep while work is active.
+It restores the preceding setting when work ends, on disconnect or app exit,
+and after a lost client lease (at most 47 seconds). It also releases its own
+override at critical thermal pressure or 5% battery while unplugged. An existing
+global sleep override remains unchanged: OpenAgent cannot restore ordinary sleep
+if it was already disabled by another application or administrator. Avoid changing
+the same global sleep flag from another utility while OpenAgent owns an override.
+
+Activity belongs to the desktop main process, so changing agent, opening another
+window or navigating away from Chat does not stop protection. Active accounts
+retain their transport until work ends; explicit logout releases the background
+hold without disconnecting sibling windows. A failed observation preserves the
+last known running state until activity can be verified again or you disconnect.
+
+Current servers expose the stateless, authenticated `GET /api/history/active`
+boolean probe. It checks canonical run state against the viewer's current session
+permissions and creates no history pagination snapshots. Older servers fall back
+to a bounded recent-session list and local renderer activity; remote work outside
+that legacy list cannot be discovered reliably. Upgrade the server for complete
+background activity detection.
+
+The feature's [qualification receipt](../../qualification/desktop-power-2026-11-12.json)
+distinguishes source tests from signed-service and physical closed-lid validation.
+A source change does not update an already installed app.
+
 ## Architecture
 
 The standalone monorepo keeps the App sources together:

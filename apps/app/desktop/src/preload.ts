@@ -70,6 +70,9 @@ contextBridge.exposeInMainWorld('desktop', {
   // Read-only boot identity. It binds renderer-originated session_open frames
   // to the Electron-main capability channel; it grants no local authority.
   clientInstanceId,
+  getPowerStatus: () => ipcRenderer.invoke('power:status'),
+  setPowerPreferences: (input: { preventSleep?: boolean; closedLid?: boolean }) => ipcRenderer.invoke('power:preferences', input),
+  reportSessionActivity: (accountId: string | null, active: boolean) => ipcRenderer.send('power:activity', accountId, active),
 
   browserControl: Object.freeze({
     inventory:(accountId:string)=>ipcRenderer.invoke('browser:inventory',accountId),
@@ -226,7 +229,7 @@ contextBridge.exposeInMainWorld('desktop', {
   releaseLoopbackAttempt: (args: { accountId: string; attemptToken: number }): Promise<void> =>
     ipcRenderer.invoke('loopback:releaseAttempt', args),
 
-  stopLoopback: (args: { accountId: string }): Promise<void> =>
+  stopLoopback: (args: { accountId: string; releaseBackground?: boolean }): Promise<void> =>
     ipcRenderer.invoke('loopback:stop', args),
 
   // ── Ticket introspection ──

@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-12",
+  "status": "source-qualified-unreleased",
+  "behavior": {
+    "idle_sleep": "Default-on desktop prevent-app-suspension while renderer-pending input or authorized canonical activity is active; display sleep and locking remain unchanged.",
+    "activity": "Main-owned per-account polling survives route changes, switching accounts and renderer closure. Active transport holds release on idle, explicit disconnect and quit. Observation failure retains last known activity.",
+    "closed_lid": "macOS 13+ opt-in uses a bundled same-team signed client and SMAppService daemon with explicit OS approval; never automatically registered by startup or sessions.",
+    "recovery": "Fixed boolean XPC leases expire after 45 seconds; a 2-second sweep and root-owned journal restore only the service-owned sleep change. Critical temperature or <=5 percent battery on battery power releases owned protection; pre-existing overrides are preserved."
+  },
+  "checks": {
+    "desktop_unit": "78 passed: activity ownership, stale response isolation, disconnected observations, legacy bounded-list uncertainty, sibling window and transport lifetimes, existing network/packaging contracts.",
+    "server": "27 passed and 19 subtests: real Core Runtime pending/running/completed state with current ACL grants/revocation and tenant isolation; activity probes do not allocate history snapshots.",
+    "mac_electron": "2 passed in 34.3s: agent switching, live observer recovery, native macOS NoIdleSleepAssertion owned by the exact Electron PID, automatic blocker release on completion, settings off/on while work remains active; closed-lid consent remains off.",
+    "native": "5 deterministic lease/crash-recovery policy checks passed with spoofed relative argv[0]. Read-only service status resolved the outer bundle ID from a temporary ad-hoc signed packaged layout; plist valid. Both arm64 and x86_64 native binaries compiled.",
+    "build": "Universal web export, desktop TypeScript/bundling and universal TypeScript noEmit passed."
+  },
+  "not_qualified": [
+    "Developer ID signed privileged registration and actual authenticated root XPC roundtrip",
+    "Physical closed-lid session continuity and critical-power hardware conditions",
+    "Windows/Linux OS-level execution",
+    "Release, installed-app activation or production server update"
+  ],
+  "local_policy_boundary": "The test Mac already had SleepDisabled=1. It remained unchanged. No helper was registered and no system power setting was mutated by qualification."
+}

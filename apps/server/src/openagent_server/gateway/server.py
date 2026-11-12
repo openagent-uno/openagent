@@ -1430,6 +1430,7 @@ class Gateway:
             ("DELETE", "/api/ui/views/{id}/grants", custom_views_api.handle_delete_grant),
             ("GET", "/api/ui/views/{id}/revisions/{revision}/assets/{path:.+}", custom_views_api.handle_asset),
             ("GET", "/api/history", operational_api.handle_history),
+            ("GET", "/api/history/active", operational_api.handle_active_history),
             ("POST", "/api/search", operational_api.handle_search),
             ("GET", "/api/sessions/{session_id}/messages", operational_api.handle_session_messages),
             ("GET", "/api/sessions/{session_id}/related-runs", operational_api.handle_session_related_runs),

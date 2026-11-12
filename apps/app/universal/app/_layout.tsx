@@ -48,6 +48,21 @@ function desktop(): any {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    const bridge = desktop();
+    if (!bridge?.reportSessionActivity) return;
+    let previous = '';
+    const report = () => {
+      const accountId = useConnection.getState().activeAccountId;
+      const active = useChat.getState().sessions.some(session => session.isProcessing
+        || session.outbound?.some(message => message.delivery === 'pending'));
+      const key = JSON.stringify([accountId, active]);
+      if (key !== previous) { previous = key; bridge.reportSessionActivity(accountId, active); }
+    };
+    const chat = useChat.subscribe(report), connection = useConnection.subscribe(report);
+    report();
+    return () => { chat(); connection(); bridge.reportSessionActivity(null, false); };
+  }, []);
   const ws = useConnection((s) => s.ws);
   useEffect(() => {
     if (!ws) return;

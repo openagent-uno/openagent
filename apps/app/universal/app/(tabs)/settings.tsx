@@ -1,4 +1,5 @@
 import BrowserControlPanel from '../../components/BrowserControlPanel';
+import DesktopPowerSettings from '../../components/DesktopPowerSettings';
 import { useCallback } from 'react';
 import { colors, font, radius } from '../../theme';
 /**
@@ -623,6 +624,7 @@ export default function SettingsScreen() {
   const renderControls = () => (
     <>
       <Text style={styles.sectionTitle}>Controls</Text>
+      <DesktopPowerSettings />
       <Card>
         <View style={styles.toggleRow}>
           <Text style={styles.toggleLabel}>Auto-Update</Text>

@@ -185,3 +185,18 @@ test('account and renderer retirement notify only the exact lifetimes being revo
   registry.clearAccount('one');
   assert.equal(released.length, 3);
 });
+
+
+test('explicit logout can release a background hold without retiring a sibling window', () => {
+  const registry = createLoopbackConsumerRegistry();
+  registry.claim('account', -1); // main-owned activity
+  registry.claim('account', 101);
+  registry.claim('account', 202);
+  registry.release('account', 101);
+  assert.equal(registry.hasConsumersExcept('account', -1), true);
+  registry.release('account', 202);
+  assert.equal(registry.hasConsumersExcept('account', -1), false);
+  assert.equal(registry.hasConsumers('account'), true);
+  registry.release('account', -1);
+  assert.equal(registry.hasConsumers('account'), false);
+});

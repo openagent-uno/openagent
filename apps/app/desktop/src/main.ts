@@ -28,6 +28,7 @@ import {
   transferLoopbackAttempt,
 } from './services/loopback';
 import { registerCredentialHandlers } from './services/credentials';
+import { DesktopPower, registerPowerHandlers } from './services/power';
 import { findWindowForVerifiedTarget } from './network/agent-window-routing';
 import { decodeTicket } from './network/ticket';
 import { CapabilityConsentStore } from './capabilities/consent-store';
@@ -861,6 +862,8 @@ app.whenReady().then(async () => {
   registerStorageHandlers();
   registerCredentialHandlers();
   registerDialogHandlers();
+  desktopPower = new DesktopPower();
+  registerPowerHandlers(desktopPower);
 
   capabilityManager = new CapabilityManager({
     clientInstanceId: CLIENT_INSTANCE_ID,
@@ -879,14 +882,21 @@ app.whenReady().then(async () => {
   });
   registerCapabilityHandlers(capabilityManager);
   configureLoopbackLifecycleHooks({
-    onStarted: (accountId, loopback) => capabilityManager?.addLoopback(
+    onStarted: (accountId, loopback) => {
+      desktopPower?.activity.add(accountId, loopback.baseUrl);
+      return capabilityManager?.addLoopback(
       accountId,
       loopback.baseUrl,
       loopback.agentNodeId,
       loopback.networkId,
       loopback.deviceId,
-    ),
-    onStopping: (accountId) => capabilityManager?.removeLoopback(accountId),
+      );
+    },
+    onStopping: (accountId) => {
+      desktopPower?.activity.remove(accountId);
+      return capabilityManager?.removeLoopback(accountId);
+    },
+    onExplicitDisconnect: (accountId) => desktopPower?.activity.remove(accountId),
   });
   installConfiguredTestLoopback();
   registerLoopbackHandlers();
@@ -926,6 +936,7 @@ app.whenReady().then(async () => {
 });
 
 let mcpApps:McpAppHostService|undefined;
+let desktopPower: DesktopPower | undefined;
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -942,6 +953,7 @@ app.on('before-quit', (event) => {
   // an emergency-stop retry must not reopen host-tools while Electron is
   // already committed to quitting.
   capabilityManager?.beginShutdown();
+  desktopPower?.dispose();
   void (async () => {
     try {
       // Await local-principal release before Electron tears down the main

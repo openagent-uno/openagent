@@ -44,6 +44,19 @@ interface LoopbackHandle {
 }
 
 const handles = new Map<string, LoopbackHandle>();
+
+/** A main-process activity observer can retain an executing account after its
+ * last window switches away. Renderer IDs are positive; -1 is main-owned. */
+export function retainLoopbackForPower(accountId: string, closeWhenUnclaimed = true): (() => void) | null {
+  if (!handles.has(accountId)) return null;
+  consumers.claim(accountId, -1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (consumers.release(accountId, -1) && closeWhenUnclaimed) void stopLoopbackIfUnclaimed(accountId).catch(() => {});
+  };
+}
 export interface StartedLoopback {
   port: number;
   credentialTarget: RememberedCredentialTarget;
@@ -178,6 +191,7 @@ export function getVerifiedLoopbackTarget(
 export interface LoopbackLifecycleHooks {
   onStarted?: (accountId: string, loopback: RunningLoopback) => void;
   onStopping?: (accountId: string) => void | Promise<void>;
+  onExplicitDisconnect?: (accountId: string) => void;
 }
 
 let lifecycleHooks: LoopbackLifecycleHooks = {};
@@ -527,11 +541,15 @@ export function registerLoopbackHandlers(): void {
   });
 
   handleTrustedIpc('loopback:stop', async (event, raw: unknown) => {
-    const args = raw as { accountId: string };
+    const args = raw as { accountId: string; releaseBackground?: boolean };
     if (!args || typeof args.accountId !== 'string') {
       throw new Error('loopback:stop: accountId required');
     }
     await releaseLoopbackClaim(args.accountId, event.sender.id);
+    if (args.releaseBackground === true && !consumers.hasConsumersExcept(args.accountId, -1)) {
+      lifecycleHooks.onExplicitDisconnect?.(args.accountId);
+      await stopLoopbackIfUnclaimed(args.accountId);
+    }
   });
 
   handleTrustedIpc('loopback:releaseAttempt', async (event, raw: unknown) => {
