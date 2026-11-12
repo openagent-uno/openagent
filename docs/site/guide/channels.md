@@ -261,3 +261,15 @@ No fake user turn or extra model run is created. If recording fails after
 provider acceptance, the result explicitly reports `message_sent: true` and
 `recorded: false` with a do-not-resend notice. Shared/group destinations without
 a complete authorized mapping are not silently filed in a private session.
+
+
+Canonical child runs in standalone stream channels are observed through the
+public Runtime event service. The host forwards their own tool progress to
+the child-tagged emitter while the parent is still running. Observation does
+not execute a model, open a mutable stream session, or cancel a worker when
+the observer detaches. Child/session/run lineage and read authorization are
+checked before forwarding; parent completion drains bounded pending updates.
+
+A channel input submitted immediately after an explicit stop waits for the
+old collector's cancelled terminal boundary. It cannot become a follower of
+the stopped reply or reuse that reply's provider message.

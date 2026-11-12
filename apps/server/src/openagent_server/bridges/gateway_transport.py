@@ -92,6 +92,12 @@ class GatewayBridgeTransport:
         return expand_quick_command(text) or text
 
     async def send(self, request, *, on_event=None):
+        stopping = self.__dict__.get('_stopping_sessions', {}).get(self._session_for_context(request.context))
+        if stopping is not None:
+            await asyncio.wait_for(stopping.done.wait(), timeout=15)
+            bridge = getattr(self, '_bridge', None)
+            if bridge is not None:
+                await bridge._prepare_delivery_context(request.context)
         if not await self.authorize_context(request.context):
             raise PermissionError("gateway bridge context changed")
         text = "\n".join(part.text for part in request.parts if part.text is not None)
@@ -319,6 +325,7 @@ class GatewayBridgeTransport:
         elog("bridge.stop", name=self.name)
         self._should_stop = True
         self.__dict__.get('_child_routes', {}).clear()
+        self.__dict__.get('_stopping_sessions', {}).clear()
         for path in tuple(self._delivery_files):
             self._remove_delivery_file(path)
         self._cancel_gateway_loss_cleanup()
@@ -658,6 +665,11 @@ class GatewayBridgeTransport:
         FIRST message in the burst, looking like it's "answering an
         old message".
         """
+        stopping = self.__dict__.get('_stopping_sessions', {}).get(session_id)
+        if stopping is not None:
+            # A stop acknowledgement can precede the stream's cancelled
+            # terminal. Never attach a new input to that old collector.
+            await asyncio.wait_for(stopping.done.wait(), timeout=15)
         if session_id not in self._stream_opened:
             await self._send_gateway_json(event_to_wire(SessionOpen(
                 session_id=session_id,
@@ -744,6 +756,9 @@ class GatewayBridgeTransport:
             routes = self.__dict__.get('_child_routes', {})
             for child in [child for child, (_, owner) in routes.items() if owner is collector]:
                 routes.pop(child, None)
+            stopping = self.__dict__.get('_stopping_sessions', {})
+            if stopping.get(session_id) is collector:
+                stopping.pop(session_id, None)
 
 
     def _http_base(self) -> str:
@@ -934,6 +949,10 @@ class GatewayBridgeTransport:
         gateway (e.g. the runtime_id for ``/model <id>``).
         """
         async with self._command_lock:
+            if name in {'stop', 'new', 'clear', 'reset'} and session_id is not None:
+                collector = self._stream_pending.get(session_id)
+                if collector is not None and not collector.done.is_set():
+                    self.__dict__.setdefault('_stopping_sessions', {})[session_id] = collector
             future: asyncio.Future = asyncio.get_running_loop().create_future()
             self._command_future = future
             payload: dict = {"type": P.COMMAND, "name": name}

@@ -1,4 +1,5 @@
 """Child progress belongs to the exact turn that admitted the child."""
+import asyncio
 import json
 from unittest.mock import AsyncMock
 
@@ -29,4 +30,32 @@ async def test_child_progress_never_finishes_or_pollutes_parent_and_late_frames_
     replacement.on_child.assert_not_awaited()
     assert not replacement.done.is_set()
     assert not transport._child_routes
+    await transport.stop()
+
+
+@pytest.mark.asyncio
+async def test_new_input_after_stop_waits_for_cancelled_terminal_and_gets_a_new_collector():
+    from openagent_core.stream.events import OutTextFinal, TurnComplete
+    from openagent_client_transport.stream.wire import event_to_wire
+    transport = GatewayBridgeTransport()
+    transport._send_gateway_json = AsyncMock()
+    transport._stream_opened.add('parent')
+    old = StreamCollector()
+    transport._stream_pending['parent'] = old
+    command = asyncio.create_task(transport._legacy_command_full('stop', session_id='parent'))
+    await asyncio.sleep(0)
+    fresh = asyncio.create_task(transport._legacy_send_message('new input', 'parent'))
+    await asyncio.sleep(0)
+    await transport._handle_gateway_frame(dict(type='command_result', text='Stopped'))
+    await command
+    assert transport._send_gateway_json.await_count == 1
+    assert transport._stream_pending['parent'] is old
+    await transport._handle_gateway_frame(event_to_wire(TurnComplete(session_id='parent', reason='cancelled')))
+    async with asyncio.timeout(2):
+        while transport._stream_pending['parent'] is old:
+            await asyncio.sleep(.001)
+    assert not transport._stream_pending['parent'].done.is_set()
+    await transport._handle_gateway_frame(event_to_wire(OutTextFinal(session_id='parent', text='new answer')))
+    await transport._handle_gateway_frame(event_to_wire(TurnComplete(session_id='parent')))
+    assert (await fresh)['text'] == 'new answer'
     await transport.stop()

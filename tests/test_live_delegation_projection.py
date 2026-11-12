@@ -19,6 +19,81 @@ from openagent_server.runtime_service import NativeRuntimeService, PreparedRun
 
 
 @pytest.mark.asyncio
+async def test_stream_channel_observes_child_operations_live_and_detach_does_not_cancel_execution(tmp_path):
+    from openagent_core.stream.child_stream import install_child_stream_emitter, reset_child_stream_emitter
+    actor = PrincipalRef('openagent', 'tenant', 'member')
+    context = ExecutionContext(actor, actor, actor, 'parent', 'agent', (actor,))
+    release = asyncio.Event()
+    started = []
+    store = SqliteRuntimeStore(tmp_path/'state.sqlite')
+
+    class Policy:
+        async def authorize(self, *_args, **_kwargs):
+            return True
+
+    class Executor:
+        async def execute(self, request, ctx, runtime):
+            started.append(request.run_id)
+            if request.run_id == 'parent-run':
+                await store.append_event(request.run_id, 'run.status', {'text': json.dumps({
+                    'tool_name': 'delegate_task_to_member', 'tool_call_id': 'exact-call'})})
+                with provider_tool_call_scope('exact-call'):
+                    await runtime.spawn(RunRequest('child-run', 'child', 'child-key', 'Inspect'), ctx)
+                await store.append_event(request.run_id, 'run.stream', {'kind': 'done', 'text': 'Parent complete'})
+                return 'Parent complete'
+            await store.append_event(request.run_id, 'run.status', {'text': 'First child operation'})
+            await release.wait()
+            return 'Child complete'
+
+    runtime = Runtime(RuntimeSettings('agent', tmp_path), RuntimeServices(store, Executor(), Policy()))
+    await runtime.start()
+    class Service:
+        observe_run = NativeRuntimeService.observe_run
+    service = Service()
+    service.runtime = runtime
+    request = RunRequest('parent-run', 'parent', 'parent-key', 'Delegate')
+    prepared = PreparedRun(request, context, cancel_on_detach=False)
+    frames, parent_status = [], []
+    async def emit(frame):
+        frames.append(frame)
+    async def status(text):
+        parent_status.append(json.loads(text))
+    async def observe():
+        async for _ in service.observe_run(prepared, on_status=status):
+            pass
+    token = install_child_stream_emitter(emit)
+    observer = None
+    try:
+        await runtime.submit(request, context)
+        observer = asyncio.create_task(observe())
+        async with asyncio.timeout(3):
+            while not any(f.get('text') == 'First child operation' for f in frames):
+                await asyncio.sleep(.01)
+        assert any(s.get('child_run_id') == 'child-run' for s in parent_status)
+        assert (await runtime.get_run('parent-run', context)).status == 'running'
+        await store.append_event('child-run', 'run.status', {'text': 'Second child operation'})
+        async with asyncio.timeout(3):
+            while not any(f.get('text') == 'Second child operation' for f in frames):
+                await asyncio.sleep(.01)
+        observer.cancel()
+        await asyncio.gather(observer, return_exceptions=True)
+        assert (await runtime.get_run('child-run', context)).status == 'running'
+        observer = asyncio.create_task(observe())
+        release.set()
+        await asyncio.wait_for(observer, 3)
+        assert started == ['parent-run', 'child-run']
+        assert any(f.get('kind') == 'turn_complete' and f.get('reason') == 'completed' for f in frames)
+        assert all(f['session_id'] == 'child' for f in frames)
+    finally:
+        release.set()
+        if observer is not None and not observer.done():
+            observer.cancel()
+            await asyncio.gather(observer, return_exceptions=True)
+        reset_child_stream_emitter(token)
+        await runtime.close()
+
+
+@pytest.mark.asyncio
 async def test_live_child_link_and_projection_check_child_acl(tmp_path: Path):
     actor = PrincipalRef("openagent", "tenant", "member", "user")
     context = ExecutionContext(actor, actor, actor, "parent", "agent", (actor,))

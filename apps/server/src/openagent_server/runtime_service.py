@@ -27,6 +27,36 @@ class PreparedRun:
     on_child: Any = None
 
 
+async def _mirror_runtime_child(service, context, parent_run, child_run, child_session, emit):
+    """Observe an admitted child without constructing or cancelling execution."""
+    from types import SimpleNamespace
+    record = await service.runtime.get_run(child_run, context)
+    if record.parent_run_id != parent_run or record.session_id != child_session:
+        raise PermissionError("Child stream does not belong to the observed parent")
+
+    async def status(text):
+        await emit({"kind": "status", "session_id": child_session, "text": text})
+
+    reason = "error"
+    try:
+        child = PreparedRun(SimpleNamespace(run_id=child_run), context, cancel_on_detach=False)
+        async for frame in service.observe_run(child, on_status=status):
+            if frame.get("kind") == "delta":
+                await emit({"kind": "delta", "session_id": child_session, "text": frame.get("text") or ""})
+        reason = "completed"
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        # Failure/revocation is public state, never the provider diagnostics.
+        try:
+            record = await service.runtime.get_run(child_run, context)
+            if record.status in {"cancelled", "interrupted"}:
+                reason = "cancelled"
+        except Exception:
+            pass
+    await emit({"kind": "turn_complete", "session_id": child_session, "reason": reason})
+
+
 class RuntimeAgentFacade:
     """Retain transport properties while all reasoning uses public admission."""
 
@@ -298,6 +328,9 @@ class NativeRuntimeService:
         tool_statuses = {}
         provider_calls = {}
         child_links = {}
+        child_observers = set()
+        from openagent_core.stream.child_stream import current_child_stream_emitter
+        child_emitter = current_child_stream_emitter()
         import json
 
         async def status_update(tool, *, provider_id=None):
@@ -312,7 +345,7 @@ class NativeRuntimeService:
             child = child_links.get(provider_id)
             tool = {**previous, **tool}
             if child:
-                tool["child_session_id"] = child
+                tool["child_session_id"], tool["child_run_id"] = child
             tool_statuses[call_id] = tool
             await on_status(json.dumps(tool))
 
@@ -322,6 +355,10 @@ class NativeRuntimeService:
                     cursor = event.cursor
                     if event.kind == "run.stream":
                         payload = dict(event.payload)
+                        if payload.get("kind") == "done" and child_observers:
+                            # Flush already terminal child observers before
+                            # the channel finishes its parent message.
+                            await asyncio.wait(child_observers, timeout=.25)
                         completed_frame = (
                             completed_frame or payload.get("kind") == "done"
                         )
@@ -337,10 +374,15 @@ class NativeRuntimeService:
                         if on_status is not None and isinstance(provider_id, str) and provider_id:
                             # Parallel children must never bind by timing or
                             # by tool name. A catalog call may use its own ID.
-                            child_links[provider_id] = child_id
+                            child_links[provider_id] = (child_id, child_run)
                             current = tool_statuses.get(provider_calls.get(provider_id, provider_id))
-                            if current is not None:
-                                await status_update(current, provider_id=provider_id)
+                            await status_update(current or {
+                                "tool_call_id": provider_id, "tool_name": "delegate_task_to_member",
+                            }, provider_id=provider_id)
+                        if prepared.on_child is None and child_emitter is not None:
+                            observer = asyncio.create_task(_mirror_runtime_child(
+                                self, context, identifier, child_run, child_id, child_emitter))
+                            child_observers.add(observer)
                     elif event.kind == "run.status" and on_status is not None:
                         text = str(event.payload.get("text") or "")
                         try:
@@ -389,6 +431,12 @@ class NativeRuntimeService:
             if prepared.cancel_on_detach:
                 await asyncio.shield(self.runtime.cancel(identifier, context))
             raise
+        finally:
+            for observer in child_observers:
+                if not observer.done():
+                    observer.cancel()
+            if child_observers:
+                await asyncio.gather(*child_observers, return_exceptions=True)
 
     async def start(self):
         from dataclasses import replace
