@@ -283,7 +283,7 @@ an older independently packaged wheel. Installed package and native checks
 still run before publication; source tests alone are not release acceptance.
 
 The App universal TypeScript configuration resolves its shared source package
-imports against the universal consumer's own node_modules, checking @types
-first. Icons used directly by App components are explicit locked dependencies.
+imports against the universal consumer's own node_modules using exact runtime
+package aliases. It never aliases runtime imports to type-only declarations. Icons used directly by App components are explicit locked dependencies.
 This keeps a clean CI install equivalent to development without a parent
 node_modules symlink or undeclared transitive dependency.
