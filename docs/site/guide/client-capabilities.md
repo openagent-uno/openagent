@@ -129,6 +129,12 @@ including attachments and rich parts. The App reuses the live positions during
 history reconciliation when the canonical reply matches the observed text.
 History without recorded positions keeps its durable order.
 
+Completed assistant replies show their executing model at the start of the
+footer, before copy/fork actions and the timestamp. Model and time share the
+same muted color, monospace font and size. The canonical transcript exposes an
+optional `model` from the message's exact run, so changing the session's model
+does not relabel earlier replies. Missing historical model metadata stays absent.
+
 ### Recovering the live transcript (unreleased source)
 
 The shared transcript has its own read-only WebSocket, separate from the main

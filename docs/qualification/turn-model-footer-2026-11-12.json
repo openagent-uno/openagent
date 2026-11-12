@@ -1,0 +1,13 @@
+{
+  "date": "2026-11-12",
+  "status": "source-qualified-unreleased",
+  "behavior": "Completed assistant replies place their executing model before the footer actions, sharing the timestamp's muted color, monospace font, size, weight and line height.",
+  "history": "The optional transcript model field comes from the exact tenant/session/run join, not the session's current model selection. Unknown models remain absent.",
+  "checks": {
+    "canonical_model_history": "tests/test_message_model.py: passed with two historical models and a different current session selection",
+    "client_projection": "collaboration-store.test.mjs: 12 passed, including persisted model metadata",
+    "electron_mac": "desktop-shared-recovery.spec.mjs: passed; actual computed typography matches the timestamp and model x-position precedes Copy",
+    "build": "Universal web export, desktop build:test and universal TypeScript noEmit passed"
+  },
+  "boundary": "Isolated Electron profile and deterministic local gateway; no installed-app update, release or production deployment."
+}

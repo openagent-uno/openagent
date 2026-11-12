@@ -284,7 +284,7 @@ function MessageListBase({
       const renderTool = (card: ReactNode) => wrap(
         <>
           {card}
-          {showFork && <View style={styles.msgActions}><ForkButton onFork={fork} /></View>}
+          {showFork && <View style={styles.msgActions}><TurnModel model={msg.model} /><ForkButton onFork={fork} /></View>}
         </>,
       );
       // A delegation renders as a card (deep-links into the sub-agent's
@@ -512,6 +512,7 @@ const AssistantMessage = memo(function AssistantMessage({
     ? display : agentName || 'Agent';
   const actions = !streaming && actionText != null ? (
     <View style={styles.msgActions}>
+      <TurnModel model={model} />
       <CopyButton text={actionText} />
       <ForkButton onFork={onFork} />
       {onRegenerate && (
@@ -539,7 +540,6 @@ const AssistantMessage = memo(function AssistantMessage({
       {showHeader ? (
         <View style={styles.assistantHead} testID="oa-agent-message-header">
           <Text style={styles.assistantLabel} testID="oa-agent-message-label">{label}</Text>
-          {model && <Text style={styles.modelText}>· {model}</Text>}
         </View>
       ) : null}
       <View style={styles.assistantBody}>
@@ -662,6 +662,12 @@ const SelfPromptBlock = memo(function SelfPromptBlock({
     </View>
   );
 });
+
+function TurnModel({ model }: { model?: string }) {
+  if (!model?.trim()) return null;
+  return <Text style={[styles.turnTime, styles.turnModel]} numberOfLines={1}
+    accessibilityLabel={`Model ${model}`} testID="oa-message-turn-model">{model}</Text>;
+}
 
 function TurnTime({ timestamp }: { timestamp?: number }) {
   if (!timestamp || !Number.isFinite(timestamp)) return null;
@@ -1055,6 +1061,7 @@ const styles = StyleSheet.create({
     fontSize: 9.5, lineHeight: 13,
     marginLeft: 8,
   },
+  turnModel: { marginLeft: 0, marginRight: 4, flexShrink: 1 },
   // Agent-self seed prompt (Mission / Role / Task) — an accent-ruled quote.
   selfPromptBlock: {
     flexDirection: 'row', alignItems: 'stretch',
@@ -1111,10 +1118,6 @@ const styles = StyleSheet.create({
   assistantLabel: {
     fontSize: 10, fontWeight: '600', color: colors.primary,
     textTransform: 'uppercase', letterSpacing: 0.8,
-  },
-  modelText: {
-    fontSize: 10, color: colors.textMuted, marginLeft: 4,
-    fontFamily: font.mono,
   },
   assistantBody: {},
 

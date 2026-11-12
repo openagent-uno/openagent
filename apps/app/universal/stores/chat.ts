@@ -56,6 +56,7 @@ function canonicalMessageToChat(message: SessionMessage): ChatMessage {
   return {
     id: message.id,
     providerRunId: message.run_id || undefined,
+    model: message.model || undefined,
     role: message.role,
     text: message.text,
     // Never manufacture a current time for an old/malformed row. The shared

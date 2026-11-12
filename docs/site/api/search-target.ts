@@ -585,6 +585,8 @@ export interface MessageAttachment {
 }
 
 export interface SessionMessage {
+  /** Model recorded on this executing run, independent of the current session selection. */
+  model?: string | null;
   id: OpaqueId;
   session_id: OpaqueId;
   run_id?: OpaqueId | null;

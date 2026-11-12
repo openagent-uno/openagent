@@ -75,7 +75,7 @@ class RecoveryGateway extends DeterministicGateway {
           { id: 'input', role: 'user', text: body.message, timestamp: now * 1000 },
           ...Array.from({ length: 6 }, (_, i) => ({ id: `tool-${i}`, role: 'tool', text: '', timestamp: now * 1000,
             toolInfo: { tool_name: 'vault_write_note', tool_call_id: `write-${i}`, result: 'Saved' } })),
-          { id: 'answer', role: 'assistant', text: 'All six notes were saved', timestamp: now * 1000 + 1000 },
+          { id: 'answer', role: 'assistant', text: 'All six notes were saved', model: 'local:turn-specialist', timestamp: now * 1000 + 1000 },
         ];
         // The backend completed, but this reader misses every final frame.
         this.current = { ...this.current, revision: this.current.revision + 1, turns: [] };
@@ -117,6 +117,16 @@ test('recovers missing terminal frames and a silent observer in the real Mac ren
     await expect(page.getByText('All six notes were saved', { exact: true })).toBeVisible();
     await expect(page.getByText('running', { exact: true })).toHaveCount(0);
     await expect(page.getByText('done', { exact: true })).toHaveCount(6);
+    const answer = page.getByTestId('oa-assistant-message').filter({ hasText: 'All six notes were saved' });
+    const model = answer.getByTestId('oa-message-turn-model');
+    await expect(model).toHaveText('local:turn-specialist');
+    const time = answer.getByTestId('oa-message-turn-time');
+    const typography = locator => locator.evaluate(element => {
+      const style = getComputedStyle(element);
+      return [style.color, style.fontFamily, style.fontSize, style.fontWeight, style.lineHeight];
+    });
+    expect(await typography(model)).toEqual(await typography(time));
+    expect((await model.boundingBox()).x).toBeLessThan((await answer.getByLabel('Copy message').boundingBox()).x);
     await expect(page.getByTestId('oa-user-message').filter({ hasText: 'Save these six notes' })).toHaveCount(1);
     expect(gateway.turns).toHaveLength(1);
     await expect.poll(() => gateway.readers.length).toBeGreaterThan(readers);

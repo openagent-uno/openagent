@@ -207,7 +207,7 @@ test('six parallel tool completions replace a frozen live projection after the t
     created_at: '2026-01-01T00:00:00Z', author: { kind: 'agent' } }));
   globalThis.__sharedPage = async () => ({ revision: 'finished', messages: [...rows, {
     id: 'final-answer', run_id: 'request', ordinal: 7, status: 'complete', role: 'assistant',
-    text: 'All notes saved', created_at: '2026-01-01T00:00:01Z', author: { kind: 'agent' },
+    text: 'All notes saved', model: 'provider:turn-model', created_at: '2026-01-01T00:00:01Z', author: { kind: 'agent' },
   }] });
   const posts = [];
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
@@ -233,6 +233,7 @@ test('six parallel tool completions replace a frozen live projection after the t
   assert.equal(session.isProcessing, false);
   assert.equal(session.messages.filter(row => row.toolInfo?.status === 'success').length, 6);
   assert.equal(session.messages.some(row => row.text === 'All notes saved'), true);
+  assert.equal(session.messages.find(row => row.text === 'All notes saved').model, 'provider:turn-model');
   assert.equal(session.messages.some(row => row.streaming), false);
   assert.equal(posts.length, 1);
 });

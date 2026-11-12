@@ -2115,6 +2115,7 @@ def _message_json(
             "id": str(row["id"]),
             "session_id": str(row["session_id"]),
             "run_id": str(row["run_id"]) if row["run_id"] else None,
+            "model": row["resolved_run_model"],
             "ordinal": int(row["sequence"]),
             "role": str(row["role"]),
             "status": str(row["status"]),
@@ -2190,6 +2191,7 @@ def _message_json(
         "id": str(row["id"]),
         "session_id": str(row["session_id"]),
         "run_id": str(row["run_id"]) if row["run_id"] else None,
+        "model": row["resolved_run_model"],
         "ordinal": int(row["sequence"]),
         "role": str(row["role"]),
         "status": str(row["status"]),
@@ -2289,7 +2291,7 @@ async def handle_session_messages(request: web.Request) -> web.Response:
             raise ApiProblem(400, "invalid_request", "before and after require around")
         state = _state(request)
         base_select = (
-            "SELECT m.*, t.id AS resolved_tool_id, "
+            "SELECT m.*, r.model AS resolved_run_model, t.id AS resolved_tool_id, "
             "t.tool_call_id AS resolved_tool_call_id, "
             "t.tool_server AS resolved_tool_server, "
             "t.tool_name AS resolved_tool_name, "
@@ -2304,7 +2306,9 @@ async def handle_session_messages(request: web.Request) -> web.Response:
             "t.child_run_id AS resolved_child_run_id, "
             "t.child_session_id AS resolved_child_session_id, "
             "t.completeness AS resolved_tool_completeness "
-            "FROM session_messages m LEFT JOIN tool_invocations t "
+            "FROM session_messages m LEFT JOIN session_runs r "
+            "ON r.id=m.run_id AND r.session_id=m.session_id AND r.tenant_id=m.tenant_id "
+            "LEFT JOIN tool_invocations t "
             "ON t.root_kind='session' AND t.session_id=m.session_id "
             "AND t.session_run_id=m.run_id AND t.tool_call_id=m.tool_call_id "
             "WHERE m.session_id=? AND m.visibility='user_visible' "

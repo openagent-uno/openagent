@@ -561,6 +561,8 @@ export interface SessionMessage {
   id: OpaqueId;
   session_id: OpaqueId;
   run_id?: OpaqueId | null;
+  /** Executing run's model, not the session's current model selection. */
+  model?: string | null;
   ordinal: number;
   role: 'user' | 'assistant' | 'tool' | 'compaction';
   status: MessageStatus;
