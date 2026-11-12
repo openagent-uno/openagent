@@ -247,6 +247,10 @@ provide child events retain the main edited reply.
 Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
 acceptance for this revision is tested separately; live QA is limited to
 Telegram. Offline SDK fixtures do not establish live provider acceptance.
+The [Telegram acceptance receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/telegram-turns-public-2026-11-12.json)
+records the installed product beta33/Core beta81 checks, including outgoing
+history, live child progress and a stopped turn followed immediately by a new
+message. Other providers have no live acceptance claim in this receipt.
 
 
 ## Outgoing tool messages and conversation history

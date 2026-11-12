@@ -1,0 +1,46 @@
+{
+  "date": "2026-11-12",
+  "scope": "Standalone private Telegram conversations; actual macOS Telegram client",
+  "versions": {
+    "product": "1.1.9b33",
+    "core": "1.1.0b81",
+    "channel_bridges": "0.1.0b23"
+  },
+  "source_commits": {
+    "product": "dabe058d4fbd33880ea14eb047f6894779df1438",
+    "core": "ed4b9ec33a8651fec379ceab1aa34f22fae2852c",
+    "channel_bridges": "ff127708b84b3102cd5ebc35e4e8b868b6a00509"
+  },
+  "official_qualification": {
+    "product": "https://github.com/openagent-uno/openagent/actions/runs/43227476493",
+    "core": "https://github.com/openagent-uno/openagent-core/actions/runs/43226196316",
+    "channel_bridges": "https://github.com/openagent-uno/openagent/actions/runs/43217359151",
+    "conclusion": "success"
+  },
+  "live_telegram_acceptance": {
+    "confirmed_tool_delivery_from_separate_child_recorded_once_in_recipient_history": true,
+    "next_user_reply_resolves_delivered_fact_without_repeating_it_or_using_tools": true,
+    "independent_delivery_preserved_after_server_restart": true,
+    "one_main_message_updated_through_final_answer": true,
+    "one_separate_child_message_updates_operation_while_running": true,
+    "child_message_updates_to_completed": true,
+    "one_child_no_grandchildren_in_test_run": true,
+    "stop_cancels_current_run": true,
+    "immediate_followup_completes_in_separate_reply": true,
+    "active_runs_at_end": 0
+  },
+  "deployment": {
+    "official_installed_wheels": true,
+    "healthy": true,
+    "service_restarts_after_start": 0,
+    "original_keys_preserved_in_protected_tables": 18,
+    "identity_and_configuration_preserved": true,
+    "retention_policy_changed": false
+  },
+  "limits": [
+    "No live provider tests were performed on WhatsApp, Slack or Discord.",
+    "Scheduled-source routing is covered by deterministic tests; live outreach used a separate delegated child.",
+    "Native application binaries were not released for this server-owned change.",
+    "Private chat contents, provider receipts and deployment identifiers remain in the private operational receipt."
+  ]
+}

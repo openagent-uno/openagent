@@ -19,7 +19,7 @@ public versioned capabilities to consumers; product-local patches are prohibited
 - [Python beta17: complete Core53/Sessions adoption and scoped history recovery](releases/v1.1.9-beta.17.md)
   ([public qualification](qualification/python-product-b17-2026-11-07.json)).
 
-- [Editable channel turns and confirmed outgoing history](site/guide/channels.md#editable-live-turns-beta23) ([component qualification](qualification/channel-editable-turns-2026-11-12.json)).
+- [Editable channel turns and confirmed outgoing history](site/guide/channels.md#editable-live-turns-beta23) ([component qualification](qualification/channel-editable-turns-2026-11-12.json), [live Telegram acceptance](qualification/telegram-turns-public-2026-11-12.json)).
 - [Unreleased mapped-channel history recovery](site/guide/embedded-channels.md#recovering-mapped-conversation-history-unreleased-source-fix)
   ([source qualification](qualification/channel-history-recovery-2026-11-07.json)).
 
