@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { View, StyleSheet, Text, Platform } from 'react-native';
 import Svg, { Circle, G, Line, Path, Defs, RadialGradient, Stop } from 'react-native-svg';
 import Animated, {
+  type SharedValue,
   useSharedValue,
   useAnimatedProps,
   useAnimatedStyle,
@@ -264,7 +265,7 @@ function TwinkleTick({
   x2: number;
   y2: number;
   idx: number;
-  phase: Animated.SharedValue<number>;
+  phase: SharedValue<number>;
   count: number;
 }) {
   const animatedProps = useAnimatedProps(() => {

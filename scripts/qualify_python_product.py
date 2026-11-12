@@ -68,6 +68,9 @@ def qualify(wheels: Path) -> None:
             target.write_bytes(payload)
             paths.append(str(target))
         paths.extend(str(wheels/row['file']) for row in manifest['wheels'])
+        # A bootstrap can contain an older artifact with the same version.
+        # Qualify the selected bytes, never pip's already-installed shortcut.
+        subprocess.run([sys.executable,'-m','pip','install','--force-reinstall','--no-deps',*paths],check=True)
         subprocess.run([sys.executable,'-m','pip','install','--upgrade',*paths],check=True)
     subprocess.run([sys.executable,'-m','pip','check'],check=True)
     import importlib

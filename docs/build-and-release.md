@@ -271,3 +271,19 @@ wheel digests, create the immutable tag at that exact commit, and publish those
 same artifacts. Cancel a redundant tag-triggered build rather than replacing
 the qualified wheels with a rebuild. Keep the qualification run in the public
 receipt and never overwrite a published asset.
+
+
+## Exact first-party wheel qualification
+
+The Python product qualifier verifies each selected wheel digest and normally
+reinstalls that exact first-party closure before resolving third-party
+dependencies. An already installed distribution with the same version cannot
+stand in for the reviewed artifact. This matters when the bootstrap contains
+an older independently packaged wheel. Installed package and native checks
+still run before publication; source tests alone are not release acceptance.
+
+The App universal TypeScript configuration resolves its shared source package
+imports against the universal consumer's own node_modules, checking @types
+first. Icons used directly by App components are explicit locked dependencies.
+This keeps a clean CI install equivalent to development without a parent
+node_modules symlink or undeclared transitive dependency.
