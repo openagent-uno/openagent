@@ -149,3 +149,11 @@ test('sidebar status uses hover-colored icons without separate dots', () => {
   assert.match(sidebar, /name="layout"[\s\S]*styles\.viewText/);
   assert.match(sidebar, /viewRow: \{ height: ROW_H/);
 });
+
+test('recent rows doing active work carry the running-tool shine', () => {
+  assert.match(sidebar, /running: session\.isProcessing/);
+  assert.match(sidebar, /running: item\.live/);
+  assert.match(sidebar, /running: isRunningStatus\(r\.status\)/);
+  assert.match(sidebar, /item\.running \? \(\s*<View pointerEvents="none" style=\{styles\.feedRowShine\}/);
+  assert.match(sidebar, /<ToolShine \/>/);
+});

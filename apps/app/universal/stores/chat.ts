@@ -28,6 +28,13 @@ import type { OpenAgentWS } from '../services/ws';
 import { attachmentKey, attachmentsForSend } from '../../common/attachments';
 import { isAutomaticSessionTitle, sessionTitleFromPrompt } from '../../common/session-title';
 import {
+  clipLoadedRanges,
+  hasHistoryBefore,
+  mergeLoadedRanges,
+  pageLoadedRange,
+  type LoadedRange,
+} from '../../common/transcript-window';
+import {
   toolInfoFromInvocationDetail,
   toolInfoFromSummary,
 } from '../../common/tool-presentation';
@@ -42,7 +49,11 @@ import {
 
 export type SessionHistoryMode = 'unknown' | 'legacy' | 'v2';
 const SESSION_MESSAGE_PAGE_SIZE = 60;
-const earlierPageLoads = new Map<string, Promise<void>>();
+/** Messages fetched before/after the target when jumping to an unloaded one. */
+const JUMP_CONTEXT_BEFORE = 20;
+const JUMP_CONTEXT_AFTER = 40;
+/** In-flight transcript page loads keyed by session, anchor and direction. */
+const transcriptPageLoads = new Map<string, Promise<void>>();
 const latestReconciliation = new Map<string, symbol>();
 
 let nextMsgId = 1;
@@ -108,17 +119,21 @@ function transcriptPatch(
   loaded: LoadedTranscript,
   previous: readonly ChatMessage[],
   sharedSnapshot?: ChatSession['sharedSnapshot'],
-): Pick<ChatSession, 'messages' | 'messageWindow' | 'localDraft'> {
+  previousRanges?: readonly LoadedRange[],
+  previousWindow?: ChatSession['messageWindow'],
+): Pick<ChatSession, 'messages' | 'messageWindow' | 'localDraft' | 'loadedRanges'> {
   if (loaded.kind === 'legacy') {
     return {
       ...(loaded.messages.length ? { localDraft: false } : {}),
       messages: sharedSnapshot ? mergeSharedTranscript(loaded.messages, sharedSnapshot)
         : preserveToolMetadataAcrossReplay([...previous], loaded.messages),
       messageWindow: undefined,
+      loadedRanges: undefined,
     };
   }
   const priorById = new Map(previous.map((message) => [message.id, message]));
-  const projected = loaded.page.messages.map((wire) => {
+  const page = loaded.page;
+  const projected = page.messages.map((wire) => {
     const message = canonicalMessageToChat(wire);
     const prior = priorById.get(message.id);
     return prior?.toolInfo && !message.toolInfo
@@ -129,16 +144,33 @@ function transcriptPatch(
   // durable database ids.  Merge the same call by tool_call_id as well, or a
   // post-turn reconcile can erase the trusted execution host even though the
   // user just observed it on the live frame.
-  const messages = preserveToolMetadataAcrossReplay([...previous], projected);
+  const tail = preserveToolMetadataAcrossReplay([...previous], projected);
+  // A tail reload replaces only the rows it covers. Older canonical history
+  // the reader already scrolled through stays loaded, and the ranges keep
+  // proving which part of it is contiguous with the fresh tail.
+  const pageStart = projected.length ? Math.min(...projected.map((m) => m.ordinal ?? Infinity)) : Infinity;
+  const kept = previousRanges?.length
+    ? previous.filter((message) => message.ordinal != null && message.ordinal < pageStart)
+    : [];
+  let previousMax: number | null = null;
+  for (const message of previous) {
+    if (message.ordinal != null && (previousMax == null || message.ordinal > previousMax)) previousMax = message.ordinal;
+  }
+  const loadedRanges = mergeLoadedRanges(
+    kept.length ? clipLoadedRanges(previousRanges, previousMax) : [],
+    pageLoadedRange(page),
+  );
+  const messages = [...kept, ...tail];
   return {
     localDraft: false,
     messages: sharedSnapshot ? mergeSharedTranscript(messages, sharedSnapshot) : messages,
+    loadedRanges,
     messageWindow: {
-      revision: loaded.page.revision,
-      beforeCursor: loaded.page.before_cursor,
-      afterCursor: loaded.page.after_cursor,
-      hasMoreBefore: loaded.page.has_more_before,
-      hasMoreAfter: loaded.page.has_more_after,
+      revision: page.revision,
+      beforeCursor: kept.length ? previousWindow?.beforeCursor ?? null : page.before_cursor,
+      afterCursor: page.after_cursor,
+      hasMoreBefore: hasHistoryBefore(messages, loadedRanges, page.has_more_before),
+      hasMoreAfter: page.has_more_after,
     },
   };
 }
@@ -710,6 +742,15 @@ interface ChatState {
   mergeMessageWindow: (page: SessionMessagePage, tool?: ToolInvocationDetail) => void;
   /** Fetch the previous canonical message page for the focused v2 session. */
   loadEarlierMessages: (sessionId: string) => Promise<void>;
+  /** Load one canonical page next to ``messageId`` — the rows before it,
+   *  after it, or a small window around it — and merge it with its loaded
+   *  range. Concurrent identical requests share one promise. Rejects when the
+   *  request fails so the caller can back off. */
+  loadTranscriptPage: (
+    sessionId: string,
+    messageId: string,
+    direction: 'before' | 'after' | 'around',
+  ) => Promise<void>;
   addUserMessage: (sessionId: string, text: string, attachments?: Attachment[]) => void;
   /** Replace a previous user message in place (Edit & retry).
    *  Truncates everything after the edited message so the new turn
@@ -846,7 +887,7 @@ export const useChat = create<ChatState>((set, get) => ({
               sessions: s.sessions.map((se) =>
                 se.id !== id || (se.messages.length > 0 && !se.sharedSnapshot)
                   ? se
-                  : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) },
+                  : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
               ),
             }));
           })
@@ -985,7 +1026,7 @@ export const useChat = create<ChatState>((set, get) => ({
             sessions: s.sessions.map((se) =>
               se.id !== autoSelectId || se.messages.length > 0
                 ? se
-                : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot) },
+                : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
             ),
           }));
         })
@@ -1048,14 +1089,20 @@ export const useChat = create<ChatState>((set, get) => ({
           if (b.ordinal != null) return 1;
           return a.timestamp - b.timestamp;
         });
+        const loadedRanges = mergeLoadedRanges(session.loadedRanges, pageLoadedRange(page));
+        const first = page.messages.length
+          && messages.findIndex((message) => message.ordinal != null) === messages.findIndex((message) => message.id === page.messages[0].id);
         return {
           ...session,
           messages,
+          loadedRanges,
           messageWindow: {
             revision: page.revision,
-            beforeCursor: page.before_cursor,
+            // Cursors describe the earliest/latest loaded rows, not whichever
+            // page happened to arrive last (an anchor or forward page).
+            beforeCursor: first ? page.before_cursor : session.messageWindow?.beforeCursor ?? page.before_cursor,
             afterCursor: page.after_cursor,
-            hasMoreBefore: page.has_more_before,
+            hasMoreBefore: hasHistoryBefore(messages, loadedRanges, page.has_more_before),
             hasMoreAfter: page.has_more_after,
           },
         };
@@ -1065,30 +1112,35 @@ export const useChat = create<ChatState>((set, get) => ({
 
   loadEarlierMessages: async (sessionId) => {
     const current = get().sessions.find((session) => session.id === sessionId);
-    const cursor = current?.messageWindow?.beforeCursor;
-    if (get().sessionHistoryMode !== 'v2'
-        || !current?.messageWindow?.hasMoreBefore || !cursor) return;
-    const running = earlierPageLoads.get(sessionId);
+    const first = current?.messages.find((message) => message.ordinal != null) ?? current?.messages[0];
+    if (!first || !current?.messageWindow?.hasMoreBefore) return;
+    return get().loadTranscriptPage(sessionId, first.id, 'before');
+  },
+
+  loadTranscriptPage: (sessionId, messageId, direction) => {
+    if (get().sessionHistoryMode !== 'v2') return Promise.resolve();
+    const key = `${sessionId}\u0000${messageId}\u0000${direction}`;
+    const running = transcriptPageLoads.get(key);
     if (running) return running;
     const authorized = sessionReadGuard(sessionId);
-    const request = listSessionMessages(sessionId, {
-      cursor,
-      direction: 'before',
-      limit: SESSION_MESSAGE_PAGE_SIZE,
-    })
+    // Page by message id with the around query: it needs no cursor, so any
+    // loaded row can extend history in either direction (including both
+    // sides of a gap left by a jump to a distant message).
+    const window = direction === 'before'
+      ? { before: SESSION_MESSAGE_PAGE_SIZE, after: 0 }
+      : direction === 'after'
+        ? { before: 0, after: SESSION_MESSAGE_PAGE_SIZE }
+        : { before: JUMP_CONTEXT_BEFORE, after: JUMP_CONTEXT_AFTER };
+    const request = listSessionMessages(sessionId, { around: messageId, ...window })
       .then((page) => {
         if (!authorized()) return;
-        // Ignore a page for a cursor superseded by an anchor navigation or a
-        // reconnect refresh while this request was in flight.
-        const latest = get().sessions.find((session) => session.id === sessionId);
-        if (latest?.messageWindow?.beforeCursor !== cursor) return;
+        if (page.anchor_found === false) throw new Error('Transcript anchor is no longer available');
         get().mergeMessageWindow(page);
       })
-      .catch(() => {})
       .finally(() => {
-        if (earlierPageLoads.get(sessionId) === request) earlierPageLoads.delete(sessionId);
+        if (transcriptPageLoads.get(key) === request) transcriptPageLoads.delete(key);
       });
-    earlierPageLoads.set(sessionId, request);
+    transcriptPageLoads.set(key, request);
     return request;
   },
 
@@ -1735,7 +1787,7 @@ export const useChat = create<ChatState>((set, get) => ({
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
             if (!canReconcile(se)) return se;
-            const patch = transcriptPatch(loaded, se.messages, se.sharedSnapshot);
+            const patch = transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow);
             return { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) };
           }),
         }));
@@ -1783,7 +1835,7 @@ export const useChat = create<ChatState>((set, get) => ({
 
   clearAll: () => {
     resetSessionReadAccess();
-    earlierPageLoads.clear();
+    transcriptPageLoads.clear();
     latestReconciliation.clear();
     set({
       sessions: [],

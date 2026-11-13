@@ -183,6 +183,8 @@ GET    /api/event-types               → provider presets for the picker
 
 # Sessions
 GET    /api/sessions              → list active sessions
+GET    /api/sessions/{id}/messages → canonical transcript page (latest, cursor before/after, or around a message id)
+GET    /api/sessions/{id}/turns   → compact index of human prompts: id, ordinal, author, own, 240-char preview (after_ordinal, limit ≤ 1000)
 POST   /api/sessions/{id}/pin     → pin session to a model
 POST   /api/sessions/{id}/clear   → clear session history
 

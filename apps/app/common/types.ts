@@ -1082,6 +1082,10 @@ export interface ChatSession {
     hasMoreBefore: boolean;
     hasMoreAfter: boolean;
   };
+  /** Ordinal intervals of canonical history known to be contiguously loaded
+   *  (see ``common/transcript-window``). Two loaded rows no range covers have
+   *  unloaded history between them. Absent for legacy/live-only transcripts. */
+  loadedRanges?: import('./transcript-window').LoadedRange[];
 }
 
 // ── System telemetry ──

@@ -32,6 +32,7 @@ import type {
   SearchPage,
   SearchRequest,
   SessionMessagePage,
+  SessionTurnPage,
   SessionMessagesQuery,
   SessionDescendantsPage,
   SessionRelatedRunsPage,
@@ -1526,6 +1527,22 @@ export async function listSessionMessages(
   const suffix = params.toString();
   return get<SessionMessagePage>(
     `/api/sessions/${encodeURIComponent(sessionId)}/messages${suffix ? `?${suffix}` : ''}`,
+    signal,
+  );
+}
+
+/** Compact index of the human turns of a session, oldest first. */
+export async function listSessionTurns(
+  sessionId: string,
+  query: { afterOrdinal?: number; limit?: number } = {},
+  signal?: AbortSignal,
+): Promise<SessionTurnPage> {
+  const params = new URLSearchParams();
+  if (query.afterOrdinal != null) params.set('after_ordinal', String(query.afterOrdinal));
+  if (query.limit != null) params.set('limit', String(query.limit));
+  const suffix = params.toString();
+  return get<SessionTurnPage>(
+    `/api/sessions/${encodeURIComponent(sessionId)}/turns${suffix ? `?${suffix}` : ''}`,
     signal,
   );
 }

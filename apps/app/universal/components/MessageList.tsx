@@ -12,9 +12,9 @@
  * tail-shows the last few turns); omit for the full transcript.
  */
 
-import { Fragment, memo, useEffect, useState, useMemo, type ReactNode } from 'react';
+import { Fragment, memo, useEffect, useRef, useState, useMemo, type ReactNode, type RefObject } from 'react';
 import Feather from '@expo/vector-icons/Feather';
-import { ActivityIndicator, Clipboard, View, Text, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { ActivityIndicator, Clipboard, View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, type ScrollView } from 'react-native';
 import {
   toolPhase,
   runLaunchTarget,
@@ -56,9 +56,13 @@ import { mcpAppHint } from '../services/mcp-apps';
 import { useChat } from '../stores/chat';
 import { activeAgentName, useConnection } from '../stores/connection';
 import { useReducedMotion } from '../hooks/useDrawerMotion';
+import type { LoadedRange } from '../../common/transcript-window';
+import { TranscriptController } from './transcript/TranscriptController';
+import { useTranscriptWindow } from './transcript/useTranscriptWindow';
 
-// How many trailing messages to render before "Load earlier". Caps the
-// DOM + per-delta reconciliation on long transcripts to a fixed window.
+// Without a scroll controller (embedded transcripts such as a run's detail),
+// render this many trailing rows before a local "Load earlier" control. The
+// chat screen passes a controller and gets bidirectional infinite scroll.
 const TRANSCRIPT_WINDOW = 60;
 
 export interface MessageListProps {
@@ -93,17 +97,26 @@ export interface MessageListProps {
   anchorToolInvocationId?: string;
   /** Native ScrollView owner uses the measured anchor offset to center it. */
   onAnchorLayout?: (y: number) => void;
-  /** Canonical v2 transcript pagination. Local DOM windowing is exhausted
-   * before this asks the server for the preceding page. */
+  /** Infinite scroll: the owning ScrollView's controller and ref. When set,
+   * the list renders a sliding window and pages canonical history on its own
+   * as the reader nears either edge — no "Load earlier" control. */
+  controller?: TranscriptController;
+  scrollRef?: RefObject<ScrollView | null>;
+  /** Canonical loaded-range metadata of ``messages`` (see transcript-window). */
+  loadedRanges?: readonly LoadedRange[];
+  /** Server holds older history (used before range metadata exists). */
   hasMoreBefore?: boolean;
-  onLoadEarlier?: () => Promise<void>;
+  /** Fetch one canonical page next to a loaded message. */
+  loadPage?: (messageId: string, direction: 'before' | 'after' | 'around') => Promise<void>;
 }
+
+const noPage = () => Promise.resolve();
 
 function MessageListBase({
   sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onFork,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
-  hasMoreBefore, onLoadEarlier,
+  controller, scrollRef, loadedRanges, hasMoreBefore, loadPage,
 }: MessageListProps) {
   const activeId = useChat(state => state.activeSessionId);
   const activeMessages = useChat(state => state.sessions.find(session => session.id === state.activeSessionId)?.messages);
@@ -153,20 +166,35 @@ function MessageListBase({
       turnForks: actions,
     };
   }, [canonical, messages]);
-  // Windowing: render only the last `shown` messages. With bottom-pinned
-  // scroll the tail is what the user sees; a long transcript otherwise
-  // materializes thousands of deeply-nested DOM nodes and re-maps + diffs
-  // ALL of them on every streaming delta. "Load earlier" widens the
-  // window. The Voice tab passes maxItems and keeps its own tail-slice.
+  // Windowing: a long transcript otherwise materializes thousands of
+  // deeply-nested DOM nodes and re-maps + diffs ALL of them on every
+  // streaming delta. With a controller the window slides in both directions
+  // as the reader scrolls; without one, the last `shown` rows render and a
+  // local "Load earlier" widens them. The Voice tab passes maxItems.
   const [shown, setShown] = useState(TRANSCRIPT_WINDOW);
   const capped = maxItems != null;
+  const infinite = !!controller && !!scrollRef && !capped;
+  const idleController = useMemo(() => new TranscriptController(), []);
+  const idleScrollRef = useRef<ScrollView | null>(null);
+  const transcriptWindow = useTranscriptWindow({
+    sessionId: appSessionId,
+    rows: messages,
+    ranges: loadedRanges,
+    hasMoreBeforeFallback: hasMoreBefore,
+    controller: infinite ? controller! : idleController,
+    scrollRef: infinite ? scrollRef! : idleScrollRef,
+    loadPage: loadPage ?? noPage,
+  });
   const visible = useMemo(
     () => (capped
       ? messages.slice(-maxItems!)
-      : (shown >= messages.length ? messages : messages.slice(-shown))),
-    [messages, capped, maxItems, shown],
+      : infinite ? transcriptWindow.visible
+        : (shown >= messages.length ? messages : messages.slice(-shown))),
+    [messages, capped, maxItems, shown, infinite, transcriptWindow.visible],
   );
-  const hiddenCount = capped ? 0 : Math.max(0, messages.length - visible.length);
+  const hiddenCount = capped || infinite ? 0 : Math.max(0, messages.length - visible.length);
+  const registerTurn = infinite ? transcriptWindow.registerTurn : undefined;
+  const flashId = infinite ? transcriptWindow.flashId : null;
   const headerVisibility = useMemo(
     () => messageHeaderVisibility(visible),
     [visible],
@@ -183,29 +211,21 @@ function MessageListBase({
       || message.toolInfo?.tool_invocation_id === anchorToolInvocationId
     ))?.id;
   }, [anchorMessageId, anchorToolInvocationId, messages]);
-  const [loadingEarlier, setLoadingEarlier] = useState(false);
-  const canLoadEarlier = !capped && (hiddenCount > 0 || (!!hasMoreBefore && !!onLoadEarlier));
-  const loadEarlier = async () => {
-    if (loadingEarlier) return;
-    if (hiddenCount > 0) {
-      setShown((n) => n + TRANSCRIPT_WINDOW);
-      return;
-    }
-    if (!onLoadEarlier || !hasMoreBefore) return;
-    setLoadingEarlier(true);
-    try {
-      await onLoadEarlier();
-      setShown((n) => n + TRANSCRIPT_WINDOW);
-    } finally {
-      setLoadingEarlier(false);
-    }
-  };
+  const canLoadEarlier = !capped && !infinite && hiddenCount > 0;
+  const revealedAnchor = useRef<string | null>(null);
+  const { reveal } = transcriptWindow;
   useEffect(() => {
-    if (!resolvedAnchorMessageId || capped) return;
+    if (!resolvedAnchorMessageId || capped) { revealedAnchor.current = null; return; }
     const index = messages.findIndex((message) => message.id === resolvedAnchorMessageId);
     if (index < 0) return;
+    if (infinite) {
+      if (revealedAnchor.current === resolvedAnchorMessageId) return;
+      revealedAnchor.current = resolvedAnchorMessageId;
+      reveal(resolvedAnchorMessageId);
+      return;
+    }
     setShown((current) => Math.max(current, messages.length - index));
-  }, [resolvedAnchorMessageId, capped, messages]);
+  }, [resolvedAnchorMessageId, capped, messages, infinite, reveal]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || !resolvedAnchorMessageId || typeof document === 'undefined') return;
@@ -339,6 +359,8 @@ function MessageListBase({
       return wrap(
         <UserMessage
           id={msg.id} text={msg.text} attachments={msg.attachments}
+          registerRef={registerTurn}
+          highlighted={flashId === msg.id}
           parts={msg.parts}
           author={msg.author} fallbackLabel={currentUserHandle}
           showHeader={showAuthorHeader}
@@ -367,20 +389,13 @@ function MessageListBase({
       {canLoadEarlier && (
         <TouchableOpacity
           style={styles.loadEarlier}
-          onPress={() => { void loadEarlier(); }}
-          disabled={loadingEarlier}
+          onPress={() => setShown((n) => n + TRANSCRIPT_WINDOW)}
           accessibilityLabel="Load earlier messages"
           // @ts-ignore — web hover/press affordance
           {...(Platform.OS === 'web' ? { className: 'oa-side-row oa-press' } : {})}
         >
-          {loadingEarlier
-            ? <ActivityIndicator size="small" color={colors.textMuted} />
-            : <Feather name="chevron-up" size={12} color={colors.textMuted} />}
-          <Text style={styles.loadEarlierText}>
-            {loadingEarlier
-              ? 'Loading earlier…'
-              : hiddenCount > 0 ? `Load earlier (${hiddenCount})` : 'Load earlier'}
-          </Text>
+          <Feather name="chevron-up" size={12} color={colors.textMuted} />
+          <Text style={styles.loadEarlierText}>{`Load earlier (${hiddenCount})`}</Text>
         </TouchableOpacity>
       )}
       {visible.map(renderMessage)}
@@ -401,8 +416,13 @@ export default MessageList;
 
 const UserMessage = memo(function UserMessage({
   id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, onEdit, onFork,
+  registerRef, highlighted,
 }: {
   id: string;
+  /** Registers the row with the transcript window (turn rail jumps). */
+  registerRef?: (id: string, node: unknown) => void;
+  /** Briefly emphasised after the turn rail jumped to it. */
+  highlighted?: boolean;
   text: string;
   attachments?: Attachment[];
   parts?: MessagePart[];
@@ -439,7 +459,8 @@ const UserMessage = memo(function UserMessage({
   ) : null;
   return (
     <View
-      style={[styles.userBlock, !showHeader && styles.userContinuation]}
+      ref={registerRef ? (node) => registerRef(id, node) : undefined}
+      style={[styles.userBlock, !showHeader && styles.userContinuation, highlighted && styles.userHighlighted]}
       testID="oa-user-message"
       // @ts-ignore
       {...(Platform.OS === 'web' ? { className: 'oa-row-hover' } : {})}
@@ -1047,6 +1068,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.hover,
   },
   userContinuation: { paddingTop: 8 },
+  userHighlighted: { backgroundColor: colors.primarySoft },
   userBody: { flex: 1, paddingVertical: 2 },
   userHead: {
     flexDirection: 'row', alignItems: 'center', marginBottom: 4,

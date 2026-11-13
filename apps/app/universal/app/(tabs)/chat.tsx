@@ -15,6 +15,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import {
   View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform, Image,
+  type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 
 import type { Attachment } from '../../../common/types';
@@ -31,6 +32,9 @@ import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
 import MessageComposer, { type PendingFile, type SlashCommand } from '../../components/MessageComposer';
 import MessageList from '../../components/MessageList';
+import TurnRail from '../../components/transcript/TurnRail';
+import TranscriptLoadingPill from '../../components/transcript/TranscriptLoadingPill';
+import { TranscriptController } from '../../components/transcript/TranscriptController';
 import { useSharedView } from '../../components/SharedPresence';
 import SessionDetailsDrawerShell from '../../components/SessionDetailsDrawer';
 import BrandLogo from '../../components/BrandLogo';
@@ -127,7 +131,7 @@ export default function ChatScreen() {
   const setSystemPrompt = useChat((s) => s.setSystemPrompt);
   const hydrateFromServer = useChat((s) => s.hydrateFromServer);
   const mergeMessageWindow = useChat((s) => s.mergeMessageWindow);
-  const loadEarlierMessages = useChat((s) => s.loadEarlierMessages);
+  const loadTranscriptPage = useChat((s) => s.loadTranscriptPage);
   const chatSearchDestination = useSearch((s) => s.chatDestination);
   const clearChatSearchDestination = useSearch((s) => s.clearChatDestination);
   // Delete a chat session behind a confirmation dialog (vision §16: sessions
@@ -269,10 +273,10 @@ export default function ChatScreen() {
   wsRef.current = ws;
   const routerRef = useRef(router);
   routerRef.current = router;
-  const handleLoadEarlier = useCallback(async () => {
+  const handleLoadPage = useCallback(async (messageId: string, direction: 'before' | 'after' | 'around') => {
     const sessionId = activeSessionIdRef.current;
-    if (sessionId) await loadEarlierMessages(sessionId);
-  }, [loadEarlierMessages]);
+    if (sessionId) await loadTranscriptPage(sessionId, messageId, direction);
+  }, [loadTranscriptPage]);
   // Mirrors the live composer text so the session-switch handler can flush the
   // outgoing draft synchronously (the persist write itself is debounced).
   const inputValueRef = useRef('');
@@ -587,6 +591,10 @@ export default function ChatScreen() {
     return off;
   }, [hydrateFromServer]);
 
+  // Infinite scroll: the transcript slides its rendered window and pages
+  // canonical history from these scroll metrics; the turn rail jumps through
+  // the same controller.
+  const transcript = useMemo(() => new TranscriptController(), []);
   // Auto-scroll: stick to the bottom while the agent streams live updates.
   // When the user scrolls away from the bottom, auto-scroll pauses and a
   // jump-to-bottom pill appears. Scrolling back to the very bottom
@@ -602,6 +610,7 @@ export default function ChatScreen() {
     scrollToBottom,
     pauseFollowing,
   } = useAutoScroll({
+    canPin: () => transcript.followsTail,
     trackDeps: [
       activeSessionId,
       displayMessages.length,
@@ -614,6 +623,31 @@ export default function ChatScreen() {
     if (anchorMessage || anchorToolInvocation) pauseFollowing();
     else scrollToBottom(false);
   }, [activeSessionId, anchorMessage, anchorToolInvocation, pauseFollowing, scrollToBottom]);
+
+  transcript.topInset = headerInset;
+  transcript.pinned = isPinned;
+  transcript.onDetach = pauseFollowing;
+  const handleTranscriptScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    onScroll(event);
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    transcript.update({
+      offset: Math.max(0, contentOffset.y),
+      viewport: layoutMeasurement.height,
+      content: contentSize.height,
+    }, 'scroll');
+  }, [onScroll, transcript]);
+  const handleTranscriptContentSize = useCallback((_width: number, height: number) => {
+    onContentSizeChange();
+    transcript.update({ content: height }, 'content');
+  }, [onContentSizeChange, transcript]);
+  const handleTranscriptLayout = useCallback((event: LayoutChangeEvent) => {
+    onTranscriptLayout();
+    transcript.update({ viewport: event.nativeEvent.layout.height }, 'layout');
+  }, [onTranscriptLayout, transcript]);
+  const jumpToLatest = useCallback(() => {
+    transcript.resetToTail();
+    scrollToBottom(true);
+  }, [scrollToBottom, transcript]);
 
   // Shared upload pipeline used by every file-source surface (native
   // file dialog on desktop, hidden ``<input type=file>`` on plain web,
@@ -1105,6 +1139,8 @@ export default function ChatScreen() {
       systemPrompt: activeSession?.systemPrompt,
       attachments,
     })) return;
+    // Sending always returns to the live tail, even from deep history.
+    transcript.resetToTail();
     scrollToBottom(false);
     setInput('');
     // Drop only the chips we actually sent; keep failed + still-uploading
@@ -1574,6 +1610,7 @@ export default function ChatScreen() {
               </Text>
             )}
 
+            <View style={styles.transcriptArea}>
             <ScrollView
               testID="chat-transcript"
               ref={scrollRef}
@@ -1582,10 +1619,10 @@ export default function ChatScreen() {
               // pad the content so the first message clears the header.
               style={[styles.messages, { marginTop: -headerInset }]}
               contentContainerStyle={[styles.messagesContent, { paddingTop: headerInset + 12 }]}
-              onScroll={onScroll}
+              onScroll={handleTranscriptScroll}
               {...scrollInteraction}
-              onContentSizeChange={onContentSizeChange}
-              onLayout={onTranscriptLayout}
+              onContentSizeChange={handleTranscriptContentSize}
+              onLayout={handleTranscriptLayout}
               scrollEventThrottle={16}
               // Always show the scrollbar so the user sees there's
               // scrollable content even when the transcript is short.
@@ -1660,11 +1697,24 @@ export default function ChatScreen() {
                   anchorMessageId={anchorMessage}
                   anchorToolInvocationId={anchorToolInvocation}
                   onAnchorLayout={(y) => scrollRef.current?.scrollTo({ y: Math.max(0, y - 96), animated: true })}
+                  controller={transcript}
+                  scrollRef={scrollRef}
+                  loadedRanges={activeSession.loadedRanges}
                   hasMoreBefore={activeSession.messageWindow?.hasMoreBefore}
-                  onLoadEarlier={handleLoadEarlier}
+                  loadPage={handleLoadPage}
                 />
               </View>
             </ScrollView>
+            {!activeSession.accessRevoked ? (
+              <TurnRail
+                sessionId={activeSession.id}
+                messages={displayMessages}
+                controller={transcript}
+                currentUserHandle={currentUserHandle}
+              />
+            ) : null}
+            <TranscriptLoadingPill controller={transcript} />
+            </View>
 
             {activeSession.systemPrompt ? (
               <View style={styles.systemHint}>
@@ -1687,7 +1737,7 @@ export default function ChatScreen() {
             {!isPinned && (
               <TouchableOpacity
                 style={styles.jumpToBottom}
-                onPress={() => scrollToBottom(true)}
+                onPress={jumpToLatest}
                 accessibilityLabel="Jump to bottom"
                 // @ts-ignore
                 {...(Platform.OS === 'web' ? { className: 'oa-hover-lift oa-fade-in' } : {})}
@@ -1852,6 +1902,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: colors.borderLight,
   },
 
+  transcriptArea: { flex: 1, minHeight: 0 },
   messages: { flex: 1 },
   messagesContent: { paddingVertical: 12, paddingBottom: 22 },
   messagesInner: { maxWidth: 760, width: '100%', alignSelf: 'center', paddingHorizontal: 20 },

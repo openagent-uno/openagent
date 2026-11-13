@@ -19,7 +19,9 @@ export function TranscriptEntrance({ recent, outgoing, reduced, children }: {
     return () => animation.stop();
   }, [entrance, outgoing, reduced, value]);
   if (Platform.OS === 'web') {
-    return <div className={entrance && !reduced ? outgoing ? 'oa-outgoing-in' : 'oa-transcript-in' : undefined}
+    // ``data-oa-row`` lets the transcript window find a stable on-screen row
+    // to keep in place while rows are added or trimmed above the viewport.
+    return <div data-oa-row="" className={entrance && !reduced ? outgoing ? 'oa-outgoing-in' : 'oa-transcript-in' : undefined}
       style={{ minWidth: 0 }}>{children}</div>;
   }
   return <Animated.View style={{

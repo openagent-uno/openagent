@@ -38,6 +38,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { useRouter, useSegments, useGlobalSearchParams } from 'expo-router';
 import { useChat } from '../stores/chat';
 import SharedPresence from './SharedPresence';
+import { ToolShine } from './TranscriptMotion';
 import { isHiddenChildSession } from '../../common/types';
 import { useActivity, type ActivityRun } from '../stores/activity';
 import { activeAgentName, useConnection } from '../stores/connection';
@@ -102,6 +103,9 @@ interface FeedItem {
   ts: number;
   active?: boolean;
   statusTone?: 'success' | 'error' | null;
+  /** Actively working (a turn streaming, a run in flight): the row shows the
+   *  same shine sweep as a running tool card. */
+  running?: boolean;
   onPress: () => void;
   // Set only on manual chat rows — deleting (with confirmation) a chat and
   // the sub-agent sessions it spawned. Runs (workflow / scheduled) leave it
@@ -381,6 +385,9 @@ function RecentFeed({
 
   const feed = useMemo<FeedItem[]>(() => {
     const items: FeedItem[] = [];
+    // The durable feed lags a turn that is streaming right now; the local
+    // session state knows immediately.
+    const processing = new Set(sessions.filter((session) => session.isProcessing).map((session) => session.id));
     if (unifiedSupport === 'v2') {
       for (const item of unifiedItems) {
         // Delegated child sessions stay reachable from their parent transcript
@@ -405,7 +412,11 @@ function RecentFeed({
             ? () => confirmAndRemove(item.session_id || item.resource_id, item.title)
             : undefined,
         );
-        if (mapped) items.push(mapped);
+        if (mapped) {
+          const sessionId = item.session_id || item.resource_id;
+          if (item.kind === 'chat' && processing.has(sessionId)) mapped.running = true;
+          items.push(mapped);
+        }
       }
       // The normalized history index only owns durable activity. A new chat
       // has no durable row until its in-flight turn is committed, but it must
@@ -647,12 +658,17 @@ function FeedRow({ item }: { item: FeedItem }) {
       {...contextMenuProps}
       style={[styles.feedRow, item.active && styles.feedRowActive]}
     >
+      {item.running ? (
+        <View pointerEvents="none" style={styles.feedRowShine} testID="oa-history-feed-running">
+          <ToolShine />
+        </View>
+      ) : null}
       <Pressable
         onPress={item.active && item.onRename ? item.onRename : item.onPress}
         style={styles.feedRowMain}
         accessibilityRole="button"
-        accessibilityState={{ selected: !!item.active }}
-        accessibilityLabel={item.label}
+        accessibilityState={{ selected: !!item.active, busy: !!item.running }}
+        accessibilityLabel={item.running ? `${item.label}, running` : item.label}
         {...(Platform.OS === 'web' ? { className: 'oa-feed-row-control' } : {})}
       >
         <Feather
@@ -740,6 +756,7 @@ function runItem(
     ts: toMs(r.startedAt),
     active: activeRunId === r.id,
     statusTone: historyStatusTone(r.status),
+    running: isRunningStatus(r.status),
     onPress: () => {
       router.push(target as any);
       onNavigate?.();
@@ -798,6 +815,7 @@ function unifiedFeedItem(
     ts: Date.parse(item.occurred_at),
     active: sessionId ? onChat && sessionId === activeSessionId : activeRunId === item.resource_id,
     statusTone: item.live ? 'success' : item.status ? historyStatusTone(item.status) : null,
+    running: item.live,
     onPress: () => {
       if (target.kind === 'chat') {
         const entry = sessionEntryFromActivity(item);
@@ -827,6 +845,7 @@ function chatFeedItem(
     ts: toMs(session.lastActiveAt ?? lastMsgTs(session.messages)),
     active: onChat && session.id === activeSessionId,
     statusTone: session.isProcessing || session.hasUnread ? 'success' : null,
+    running: session.isProcessing,
     onPress: () => {
       useChat.getState().setActiveSession(session.id);
       router.push(chatSessionIntent(session.id) as any);
@@ -835,6 +854,10 @@ function chatFeedItem(
     onRename,
     onDelete,
   };
+}
+
+function isRunningStatus(status?: string | null): boolean {
+  return !!status && ['pending', 'queued', 'received', 'running', 'processing', 'active'].includes(status.toLowerCase());
 }
 
 function historyStatusTone(status: string): 'success' | 'error' | null {
@@ -966,6 +989,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: 'transparent',
+  },
+  feedRowShine: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: radius.md,
+    overflow: 'hidden',
   },
   feedRowMain: {
     flex: 1,

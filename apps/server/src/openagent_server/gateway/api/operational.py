@@ -2440,6 +2440,101 @@ async def handle_session_messages(request: web.Request) -> web.Response:
         return _problem(ApiProblem(500, "internal_error", "Messages are temporarily unavailable"))
 
 
+# A turn index row carries a bounded preview, never the full prompt: a long
+# conversation can hold thousands of human turns and the navigation rail only
+# needs enough text to recognise one.
+_TURN_PREVIEW_CHARS = 240
+_TURN_SOURCE_CHARS = 4000
+_TURN_PAGE_MAX = 1000
+
+
+def _turn_preview(raw: str | None) -> str:
+    from openagent_core.stream.content_parts import parse_response_content
+
+    text = parse_response_content(str(raw or ""), allow_inline_ui=True).text
+    compact = " ".join(text.split())
+    if len(compact) <= _TURN_PREVIEW_CHARS:
+        return compact
+    return compact[: _TURN_PREVIEW_CHARS - 1].rstrip() + "…"
+
+
+def _turn_is_own(row: Any, access: AccessContext) -> bool:
+    principal = str(row["author_principal_id"] or "")
+    if principal:
+        return principal == access.principal_id or principal in access.principal_ids
+    handle = str(row["author_handle_snapshot"] or "")
+    return bool(handle) and handle == access.handle
+
+
+async def handle_session_turns(request: web.Request) -> web.Response:
+    """GET /api/sessions/{session_id}/turns — compact index of human turns.
+
+    Returns every user-visible prompt written by a person (agent self-prompts
+    are excluded) in transcript order, with the stable message id, ordinal,
+    author, an ``own`` flag relative to the caller and a bounded preview.
+    ``after_ordinal`` pages forward so a client can load the whole index of a
+    very long session incrementally and later fetch only new turns.
+    """
+
+    try:
+        access = AccessContext.from_request(request)
+        _db, conn = await _canonical_conn(request)
+        session_id = str(request.match_info.get("session_id") or request.match_info.get("sessionId") or "")
+        session = await _session_acl_row(conn, session_id)
+        if session is None or not await resource_is_visible(conn, session, access):
+            raise ApiProblem(404, "target_not_found", "This result is no longer available")
+        after = _bounded_int(
+            request.query.get("after_ordinal"), name="after_ordinal", default=-1, minimum=-1, maximum=2**62
+        )
+        limit = _bounded_int(
+            request.query.get("limit"), name="limit", default=500, minimum=1, maximum=_TURN_PAGE_MAX
+        )
+        rows = await (
+            await conn.execute(
+                "SELECT id, sequence, author_principal_id, author_handle_snapshot, author_display, "
+                "substr(text, 1, ?) AS text, created_at_ms "
+                "FROM session_messages WHERE session_id=? AND visibility='user_visible' "
+                "AND role='user' AND author_kind='user' AND sequence>? "
+                "ORDER BY sequence ASC LIMIT ?",
+                (_TURN_SOURCE_CHARS, session_id, after, limit + 1),
+            )
+        ).fetchall()
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        revision = await (
+            await conn.execute("SELECT history_revision FROM operational_storage_state WHERE singleton_id=1")
+        ).fetchone()
+        return _json(
+            {
+                "session_id": session_id,
+                "turns": [
+                    {
+                        "message_id": str(row["id"]),
+                        "ordinal": int(row["sequence"]),
+                        "author": {
+                            "principal_id": str(row["author_principal_id"]) if row["author_principal_id"] else None,
+                            "handle": str(row["author_handle_snapshot"]) if row["author_handle_snapshot"] else None,
+                            "display": str(row["author_display"]) if row["author_display"] else None,
+                        },
+                        "own": _turn_is_own(row, access),
+                        "preview": _turn_preview(row["text"]),
+                        "created_at": _iso(row["created_at_ms"]),
+                    }
+                    for row in rows
+                ],
+                "has_more": has_more,
+                "revision": str(int(revision[0] if revision else 0)),
+            }
+        )
+    except PermissionError:
+        return _problem(ApiProblem(401, "unauthorized", "Authentication required"))
+    except ApiProblem as exc:
+        return _problem(exc)
+    except Exception:
+        logger.error("operational turns failed (exception class suppressed)")
+        return _problem(ApiProblem(500, "internal_error", "Turns are temporarily unavailable"))
+
+
 def _safe_shape(raw: str | None) -> Any:
     if raw is None:
         return None

@@ -60,7 +60,7 @@ export function bindShared(next: CollaborationClient | null) {
             ? [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false }]
             : s.sessions).map(se => se.id === id
             ? (withdrawn
-              ? { ...se, accessRevoked: true, messages: [], outbound: undefined, sharedSnapshot: undefined, messageWindow: undefined, contextUsage: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
+              ? { ...se, accessRevoked: true, messages: [], outbound: undefined, sharedSnapshot: undefined, messageWindow: undefined, loadedRanges: undefined, contextUsage: undefined, isProcessing: false, isReasoning: undefined, statusText: undefined }
               : { ...se, sharedSnapshot: undefined })
             : se) }));
         }

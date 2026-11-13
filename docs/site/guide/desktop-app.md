@@ -15,7 +15,16 @@ cd apps/app
 ## Screens
 
 - **Login** — connect to local (`localhost:8765`) or remote OpenAgent via host/port/token
-- **Chat** — ChatGPT-style interface with multi-session support, real-time status updates
+- **Chat** — ChatGPT-style interface with multi-session support, real-time status updates.
+  Long transcripts scroll infinitely in both directions: the view renders a bounded
+  window (at most 160 rows) and pages canonical history by message id as the reader
+  nears either edge, keeping the reading position fixed. A rail of dots on the left
+  marks every human prompt of the session (primary for your own, text colour for other
+  participants); hovering previews the prompt and clicking jumps to it, loading the
+  surrounding page when needed. Auto-scroll detaches only on a real upward gesture
+  (wheel, drag, keyboard, scrollbar), never on programmatic layout corrections.
+- **Recent sidebar** — sessions, workflow, scheduled and event runs that are actively
+  working show the same shine sweep as a running tool card.
 - **Vault** *(coming soon)* — Obsidian-style graph view + markdown editor
 - **Config** *(coming soon)* — visual editor for openagent.yaml, MCP management
 

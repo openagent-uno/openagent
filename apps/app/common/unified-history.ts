@@ -595,6 +595,29 @@ export interface SessionMessage {
   completeness: Completeness;
 }
 
+/** One human-authored prompt in a session's compact turn index
+ * (``GET /api/sessions/{id}/turns``). ``preview`` is server-bounded. */
+export interface SessionTurn {
+  message_id: OpaqueId;
+  ordinal: number;
+  author: {
+    principal_id?: OpaqueId | null;
+    handle?: string | null;
+    display?: string | null;
+  };
+  /** Written by the calling account. */
+  own: boolean;
+  preview: string;
+  created_at: IsoDateTime | null;
+}
+
+export interface SessionTurnPage {
+  session_id: OpaqueId;
+  turns: SessionTurn[];
+  has_more: boolean;
+  revision: Revision;
+}
+
 export interface SessionMessagePage {
   session_id: OpaqueId;
   messages: SessionMessage[];
