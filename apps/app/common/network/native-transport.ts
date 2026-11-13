@@ -16,6 +16,7 @@ import './crypto-shim';
 import { NativeModules } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { generateIdentity, identityFromSecret, type Identity } from './identity';
+import { IDENTITY_KEY, NETWORK_STORE_KEY, certKey, credentialKey } from './secure-store-keys';
 import { bytesToHex, hexToBytes, bytesToBase64, base64ToBytes } from './encoding';
 import {
   login as netLogin,
@@ -40,10 +41,6 @@ import type {
   TransportNodeAddr,
 } from './transport-types';
 
-const IDENTITY_KEY = 'openagent:device-identity';
-const NETWORK_STORE_KEY = 'openagent:networks';
-const CERT_PREFIX = 'openagent:cert:';
-const CREDENTIAL_PREFIX = 'openagent:cred:';
 
 interface NativeIrohModule {
   createEndpoint(secretKeyHex: string): Promise<{ nodeIdHex: string }>;
@@ -131,7 +128,7 @@ async function loadOrCreateIdentity(): Promise<Identity> {
 
 async function saveCert(networkId: string, certWire: Uint8Array): Promise<void> {
   await SecureStore.setItemAsync(
-    CERT_PREFIX + networkId,
+    certKey(networkId),
     bytesToBase64(certWire),
   );
 }
@@ -155,7 +152,7 @@ interface RememberedCredential {
 async function saveCredential(accountId: string, password: string, target: RememberedCredential['target']): Promise<void> {
   const record: RememberedCredential = { version: 1, password, target };
   await SecureStore.setItemAsync(
-    CREDENTIAL_PREFIX + accountId,
+    credentialKey(accountId),
     JSON.stringify(record),
     { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK },
   );
@@ -163,7 +160,7 @@ async function saveCredential(accountId: string, password: string, target: Remem
 
 async function loadCredential(accountId: string): Promise<RememberedCredential | null> {
   try {
-    const raw = await SecureStore.getItemAsync(CREDENTIAL_PREFIX + accountId);
+    const raw = await SecureStore.getItemAsync(credentialKey(accountId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as RememberedCredential;
     if (parsed.version !== 1 || !parsed.password || !parsed.target) return null;
@@ -175,7 +172,7 @@ async function loadCredential(accountId: string): Promise<RememberedCredential |
 
 async function removeCredential(accountId: string): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(CREDENTIAL_PREFIX + accountId);
+    await SecureStore.deleteItemAsync(credentialKey(accountId));
   } catch { /* ignore */ }
 }
 
