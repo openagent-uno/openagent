@@ -631,7 +631,9 @@ def _legacy_broker_pid(paths: HostPaths) -> int | None:
         return None
     try:
         command = subprocess.run(
-            ["ps", "-o", "command=", "-p", str(pid)],
+            # -ww: procps truncates piped output to 80 columns, which would
+            # cut "--broker" off a long bundle path.
+            ["ps", "-ww", "-o", "command=", "-p", str(pid)],
             capture_output=True,
             text=True,
             timeout=5,
