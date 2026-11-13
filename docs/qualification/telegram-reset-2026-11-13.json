@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-13",
+  "status": "published-and-standalone-updated",
+  "versions": {
+    "product": "1.1.9b35",
+    "core": "1.1.0b83",
+    "channel_bridges": "0.1.0b24"
+  },
+  "root_cause": [
+    "Synchronous SQLite session erasure could block the same loop required to finish an existing writer, freezing commands for the store busy timeout.",
+    "Router and dispatcher cleanup swallowed erasure failures.",
+    "Immediately after startup an empty model-provider cache could leave durable resume history untouched."
+  ],
+  "changes": [
+    "Move team-router SQLite erase off-loop and propagate failure after provider fan-out.",
+    "Erase durable resume history independently of a populated provider cache.",
+    "Acknowledge a Telegram confirmation before awaiting the host; render its outcome as plain text."
+  ],
+  "qualification": {
+    "core": "902 passed, 2 skipped, 188 subtests; installed immutable wheels and locked TypeScript SDK checks. Contention, storage-failure and cold-cache regressions fail against the preceding affected source.",
+    "bridges": "459 provider-free installed-wheel cases passed on a standard Linux runner, no failures/errors/skips.",
+    "product": "529 passed, 1 skipped, 84 subtests and Custom Views protocol checks; normal installed-wheel imports on macOS.",
+    "linux_candidate": "Real temporary SQLite contention and empty-cache erasure checks passed using the staged server environment.",
+    "public_artifacts": "Anonymous SHA256 readback of all eight product wheels matched their immutable manifest.",
+    "preservation": "Stopped-state backup copied incrementally off-host, verified by complete source SHA256, independent SQLite restore and all original keys across 18 protected tables; identical identity/config hashes and live post-startup preservation checks passed.",
+    "mac_telegram": "Real /start and /help responses and the /new confirmation were rendered. Native inline-button automation returned AX errors; the user was asked for the final confirmation click."
+  },
+  "recovery": "The first gzip backup stream exceeded its deadline and rolled back to the previous service before candidate activation. Final activation used only the independently verified cold backup.",
+  "boundaries": "No real /new confirmation is claimed from the Mac automation. No unrelated agent rollout or App release is included."
+}

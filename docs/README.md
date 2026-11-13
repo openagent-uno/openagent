@@ -13,6 +13,9 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Telegram confirmed reset recovery](qualification/telegram-reset-2026-11-13.json)
+  (Python product beta35, Core beta83, Channel Bridges beta24).
+
 - [Unreleased live transcript recovery](site/guide/client-capabilities.md#recovering-the-live-transcript-unreleased-source)
   ([source and Mac Electron qualification](qualification/shared-observer-recovery-2026-11-12.json)).
 
