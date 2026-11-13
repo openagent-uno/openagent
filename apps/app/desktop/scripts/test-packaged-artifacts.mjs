@@ -225,6 +225,20 @@ assert(
   `Found update metadata for the wrong ${beta ? 'stable' : 'beta'} channel`,
 );
 
+
+// Contents/MacOS holds the app executable and the signed power-service client
+// (it must live there so the service resolves its enclosing app bundle).
+const MAC_HELPER_EXECUTABLES = ['openagent-power-client'];
+function macLaunchExecutable(appBundle, label) {
+  const executables = walk(path.join(appBundle, 'Contents', 'MacOS'));
+  const main = executables.filter((file) => !MAC_HELPER_EXECUTABLES.includes(path.basename(file)));
+  const helpers = executables.filter((file) => MAC_HELPER_EXECUTABLES.includes(path.basename(file)));
+  assert.equal(main.length, 1, `${label} has an unexpected executable set`);
+  assert.deepEqual(helpers.map((file) => path.basename(file)).sort(), [...MAC_HELPER_EXECUTABLES].sort(),
+    `${label} is missing its macOS helper executables`);
+  return main[0];
+}
+
 validatePayload(releaseDir);
 
 const extractionRoot = fs.mkdtempSync(path.join(fs.realpathSync(process.env.RUNNER_TEMP || os.tmpdir()), 'openagent-artifact-smoke-'));
@@ -249,9 +263,7 @@ try {
         run('codesign', ['--verify', '--deep', '--strict', '--verbose=2', appBundle]);
       }
       if (path.basename(zip).includes(`-${process.arch}.zip`)) {
-        const executables = walk(path.join(appBundle, 'Contents', 'MacOS'));
-        assert.equal(executables.length, 1, `${zip} has an unexpected executable set`);
-        launchCandidates.push(executables[0]);
+        launchCandidates.push(macLaunchExecutable(appBundle, zip));
       }
     }
     for (const dmg of files.filter((file) => file.endsWith('.dmg'))) {
@@ -276,9 +288,7 @@ try {
           const installed = path.join(extractionRoot, `installed-${process.arch}.app`);
           run('ditto', [apps[0], installed]);
           validatePayload(installed);
-          const executables = walk(path.join(installed, 'Contents', 'MacOS'));
-          assert.equal(executables.length, 1, `${dmg} has an unexpected executable set`);
-          launchCandidates.push(executables[0]);
+          launchCandidates.push(macLaunchExecutable(installed, dmg));
         }
       } finally {
         if (attached) run('hdiutil', ['detach', mount]);

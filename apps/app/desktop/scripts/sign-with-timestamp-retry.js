@@ -21,6 +21,21 @@ module.exports = async function signWithTimestampRetry(options) {
     }
   };
   try {
+    // @electron/osx-sign signs files of equal depth in directory-listing
+    // order, so a helper beside the main executable in Contents/MacOS can be
+    // reached after it ("subcomponent ... not signed at all"). Sign the
+    // declared additional binaries first; the full pass then re-signs them.
+    if (options.identity) {
+      for (const binary of options.binaries || []) {
+        const fileOptions = (await Promise.resolve(options.optionsForFile?.(binary))) || {};
+        const args = ['--sign', options.identity, '--force'];
+        if (options.keychain) args.push('--keychain', options.keychain);
+        args.push('--timestamp');
+        if (fileOptions.hardenedRuntime !== false) args.push('--options', 'runtime');
+        if (typeof fileOptions.entitlements === 'string') args.push('--entitlements', fileOptions.entitlements);
+        await signUtil.execFileAsync('codesign', [...args, binary]);
+      }
+    }
     await signAsync(options);
   } finally {
     signUtil.execFileAsync = execute;
