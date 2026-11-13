@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Device shells started by the app now resolve your login-shell PATH on macOS, so Homebrew and SDK tools work, and a timeout given in seconds is refused with a clear message instead of killing the command after milliseconds. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            An update check or download that fails is now logged and, when you check by hand, shown in a dialog instead of failing silently. After an update the app replaces an older Host Tools process left running, and parallel changes an agent makes on this computer run in turn instead of failing. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 

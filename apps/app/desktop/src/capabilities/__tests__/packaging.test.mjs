@@ -21,20 +21,20 @@ test('committed host-tools lock is the complete immutable public release index',
   const lock = JSON.parse(bytes.toString('utf8'));
   assert.equal(
     createHash('sha256').update(bytes).digest('hex'),
-    'cf02b7786f797589ff803828aa46a57b48eedf34c871f8fab2875e0f7d352f3f',
+    '243a849cd9d750fa63503ae56bfcca5449560fc483ff405f48b9f889ee1a5436',
   );
   assert.equal(lock.source_repository, 'openagent-uno/openagent');
-  assert.equal(lock.version, '1.0.0b16');
-  assert.equal(lock.host_tools_version, '1.0.0b16');
-  assert.equal(lock.source_ref, 'v1.0.0b16');
-  assert.equal(lock.source_commit, '16b169aea910e3c3f8bf8284c01bf90223aee5f0');
+  assert.equal(lock.version, '1.0.0b17');
+  assert.equal(lock.host_tools_version, '1.0.0b17');
+  assert.equal(lock.source_ref, 'v1.0.0b17');
+  assert.equal(lock.source_commit, '9b4256bf241c5c3b185764d1cdb0e9900b11574d');
   assert.deepEqual(Object.keys(lock.platforms).sort(), [
     'darwin-arm64', 'darwin-x64', 'linux-arm64', 'linux-x64',
     'win32-arm64', 'win32-x64',
   ]);
   assert.equal(
     lock.python_wheel.sha256,
-    '4d14c4c0e6a6ce4d8090f1b70b402ea707d6a8085f75ef0e8a7990a75b24c8bd',
+    'b64e35f7fdd25892598d4a1fccc7ea6ae0bd4b0f474c99f16d3b3ccdabbe085c',
   );
 });
 
