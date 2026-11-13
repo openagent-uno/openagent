@@ -290,7 +290,8 @@ async def test_disable_is_a_barrier_for_calls_waiting_before_dispatch(
 @pytest.mark.asyncio
 async def test_mutating_lease_releases_immediately(paths: HostPaths):
     first = MutatingLease(paths.state_db, lease_seconds=15)
-    second = MutatingLease(paths.state_db, lease_seconds=15)
+    # wait_seconds=0 restores the immediate refusal for the holder's own calls.
+    second = MutatingLease(paths.state_db, lease_seconds=15, wait_seconds=0)
     await first.enter("desktop", "a", "filesystem.write_file")
     with pytest.raises(HostError) as same_principal:
         await second.enter("desktop", "other-session", "shell.shell_exec")
@@ -301,6 +302,23 @@ async def test_mutating_lease_releases_immediately(paths: HostPaths):
     await first.leave("desktop", "a")
     await second.enter("cli", "b", "editor.edit")
     await second.leave("cli", "b")
+    assert (await first.status())["state"] == "free"
+
+
+@pytest.mark.asyncio
+async def test_mutating_lease_serializes_the_holders_parallel_calls(paths: HostPaths):
+    first = MutatingLease(paths.state_db, lease_seconds=15)
+    second = MutatingLease(paths.state_db, lease_seconds=15, wait_seconds=5)
+    await first.enter("desktop", "a", "filesystem.write_file")
+    waiting = asyncio.create_task(second.enter("desktop", "b", "shell.shell_exec"))
+    await asyncio.sleep(0.3)
+    assert waiting.done() is False
+    with pytest.raises(HostError) as other:
+        await second.enter("cli", "c", "editor.edit")
+    assert other.value.code == "lease_held"
+    await first.leave("desktop", "a")
+    await asyncio.wait_for(waiting, timeout=3)
+    await second.leave("desktop", "b")
     assert (await first.status())["state"] == "free"
 
 

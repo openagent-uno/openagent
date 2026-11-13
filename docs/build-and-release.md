@@ -236,6 +236,16 @@ refuses sub-second timeouts instead of terminating the command. The shell entry
 of `builtins-lock.json` changes with its schema; Device Tools stays at
 `1.0.0b18`.
 
+Host Tools B17 consumes `openagent-capability-host` `1.0.0b4` from Core release
+`v1.1.0-beta.87`: a principal's own parallel mutating calls wait a bounded time
+for the mutating lease instead of failing with `lease_held`, while other
+principals are still refused at once. The shared local broker now reports its
+version in the control handshake; a client replaces an older broker (or a
+verified legacy broker without a version) before connecting, and broker
+teardown is bounded even with clients connected. Tools stay at
+`v1.0.0-beta.7` and Device Tools at `1.0.0b18`; `builtins-lock.json` is
+unchanged.
+
 `publish-host-tools.yml` reuses the successful signed producer's exact artifact
 on a GitHub runner. A maintainer first creates the reviewed immutable version
 tag and draft. The publisher binds the eight successful jobs, producer commit,
