@@ -143,7 +143,7 @@ test('the shared transcript renderer applies grouped headers and the user surfac
   assert.match(userBlock, /backgroundColor: colors\.hover/);
   assert.match(userBlock, /borderRadius: radius\.md/);
   const assistantLabelBlock = source.match(
-    /assistantLabel:\s*\{([\s\S]*?)\n\s*\},\n\s*modelText:/,
+    /assistantLabel:\s*\{([\s\S]*?)\n\s*\},/,
   )?.[1] || '';
   assert.match(assistantLabelBlock, /color: colors\.primary/);
 });
