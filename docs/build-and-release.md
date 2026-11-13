@@ -81,9 +81,17 @@ iOS bundle identifier is `ai.openagent.app`; the marketing version and beta
 build number come from `universal/package.json`. Install updates in place to
 preserve any existing application data.
 
-The iOS build includes native iroh-ffi transport (v1.1.0) with SRP-6a
+The iOS build includes native iroh-ffi transport (v0.35.0) with SRP-6a
 authentication, CBOR coordinator RPC, and Keychain credential storage via
-expo-secure-store. The native transport is abstracted behind `PlatformTransport`
+expo-secure-store. The iroh-ffi version must stay wire-compatible with the
+`iroh==0.35.0` pin of the server, CLI and desktop: iroh 0.90+ cannot handshake
+with 0.35 peers, and the failure shows up only as a dial timeout. The
+`Iroh.xcframework` binary is not tracked; fetch the `IrohLib.xcframework.zip`
+asset of the iroh-ffi release named in `ios/Vendor/IrohLib/IrohLib.podspec`
+(v0.35.0, SHA-256
+`be3115dc21039ba621c2b5ae07a5b289cd0a36efbe8623c89cd55bc0523bbadb`) into
+`ios/Vendor/IrohLib/`. `ios/OpenAgent/IrohLib.swift` is the matching UniFFI
+binding from the same tag. The native transport is abstracted behind `PlatformTransport`
 so the desktop Electron path remains unchanged. The shared protocol code lives
 in `apps/app/common/network/`; native Swift modules are in the Xcode project
 under `ios/OpenAgent/`.

@@ -25,39 +25,41 @@ private func hexToData(_ hex: String) throws -> Data {
   return data
 }
 
-private func endpointIdFromHex(_ hex: String) throws -> EndpointId {
-  return try EndpointId.fromBytes(bytes: hexToData(hex))
-}
-
-private func endpointIdToHex(_ id: EndpointId) -> String {
-  dataToHex(id.toBytes())
+private func publicKeyFromHex(_ hex: String) throws -> PublicKey {
+  return try PublicKey.fromBytes(bytes: hexToData(hex))
 }
 
 // MARK: - Endpoint wrapper
+//
+// Pinned to iroh-ffi 0.35, the same iroh wire protocol as the OpenAgent
+// server, CLI and desktop (iroh 0.35). iroh >= 0.90 cannot handshake with
+// those peers, so do not bump this independently of the server.
 
 class IrohEndpoint {
+  private let node: Iroh
   private let endpoint: Endpoint
   private let _nodeIdHex: String
 
   init(secretKey: Data) async throws {
-    var opts = EndpointOptions()
-    opts.secretKey = secretKey
-    self.endpoint = try await Endpoint.bind(options: opts)
-    self._nodeIdHex = endpointIdToHex(endpoint.id())
+    let opts = NodeOptions(secretKey: secretKey)
+    self.node = try await Iroh.memoryWithOptions(options: opts)
+    self.endpoint = node.node().endpoint()
+    let display = try endpoint.nodeId()
+    self._nodeIdHex = dataToHex(try PublicKey.fromString(s: display).toBytes())
   }
 
   func nodeId() -> String { _nodeIdHex }
 
   func connect(nodeId: String, alpn: Data, relayUrl: String? = nil, addresses: [String] = []) async throws -> IrohConnection {
-    let peerId = try endpointIdFromHex(nodeId)
-    let addr = EndpointAddr(id: peerId, relayUrl: relayUrl, addresses: addresses)
-    let conn = try await endpoint.connect(addr: addr, alpn: alpn)
+    let peer = try publicKeyFromHex(nodeId)
+    let addr = NodeAddr(nodeId: peer, derpUrl: relayUrl, addresses: addresses)
+    let conn = try await endpoint.connect(nodeAddr: addr, alpn: alpn)
     return IrohConnection(connection: conn)
   }
 
   func shutdown() async {
     do {
-      try await endpoint.close()
+      try await node.node().shutdown()
     } catch {
       // ignore — may already be shut down
     }
@@ -83,7 +85,7 @@ class IrohConnection {
 
   func close(errorCode: Int64, reason: Data) {
     do {
-      try connection.close(errorCode: errorCode, reason: reason)
+      try connection.close(errorCode: UInt64(clamping: errorCode), reason: reason)
     } catch {
       // ignore
     }
