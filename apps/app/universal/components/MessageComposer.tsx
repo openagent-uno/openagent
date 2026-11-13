@@ -15,6 +15,7 @@ import { useCallback, useEffect, useRef, useState, type Ref, type ReactNode, use
 import Feather from '@expo/vector-icons/Feather';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardOverlap } from '../hooks/useKeyboardOverlap';
 import type { Attachment } from '../../common/types';
 import { colors, font, radius } from '../theme';
 
@@ -338,11 +339,18 @@ export default function MessageComposer({
   // The composer sits at the bottom edge of its screen: clear the home
   // indicator on devices that have one (inset is 0 on web/desktop).
   const insets = useSafeAreaInsets();
+  // On iOS the software keyboard overlays the window instead of resizing
+  // it: lift the composer above it (the keyboard also hides the home
+  // indicator, so the bottom inset no longer applies while it is up).
+  const keyboardOverlap = useKeyboardOverlap();
+  const bottomPadding = keyboardOverlap > 0
+    ? keyboardOverlap + 8
+    : insets.bottom > 0 ? Math.max(12, insets.bottom) : undefined;
   // Enter / Shift+Enter only describe a hardware keyboard.
   const showKeyboardHint = showHint && Platform.OS === 'web';
 
   return (
-    <View style={[styles.composerWrap, insets.bottom > 0 && { paddingBottom: Math.max(12, insets.bottom) }]}>
+    <View style={[styles.composerWrap, bottomPadding !== undefined && { paddingBottom: bottomPadding }]}>
       {slashMatches.length > 0 && (
         <View style={styles.slashMenu}>
           {slashMatches.map((c, i) => (
@@ -459,7 +467,9 @@ export default function MessageComposer({
               style={styles.textInput}
               value={input} onChangeText={onInputChange}
               placeholder={placeholder} placeholderTextColor={colors.textMuted}
-              onSubmitEditing={onSend} returnKeyType="send" multiline
+              // multiline inputs insert a newline on Return by default;
+              // make the keyboard's Send key send, like Enter on the web.
+              onSubmitEditing={() => { if (canSend) onSend(); }} returnKeyType="send" multiline submitBehavior="submit"
             />
           )}
         </View>
