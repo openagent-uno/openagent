@@ -13,6 +13,9 @@ public versioned capabilities to consumers; product-local patches are prohibited
 
 ## Reading paths
 
+- [Automatic latest downloads](qualification/latest-downloads-2026-11-13.json):
+  independent App/server/CLI discovery, all published platform packages and live site qualification.
+
 - [Telegram confirmed reset recovery](qualification/telegram-reset-2026-11-13.json)
   (Python product beta35, Core beta83, Channel Bridges beta24).
 

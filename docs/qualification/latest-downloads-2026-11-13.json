@@ -1,6 +1,6 @@
 {
   "date": "2026-11-13",
-  "status": "source-qualified-publication-pending",
+  "status": "deployed-and-browser-verified",
   "behavior": "Discover independently latest downloadable App, server and CLI versions from the complete paginated public release catalogue; labeled prereleases included. No hard-coded release tags or cross-version platform fallback.",
   "checks": {
     "unit": "7 passed: component isolation, numeric prerelease/stable precedence, architectures/formats, canonical artifact URLs, pagination, rate limits and invalid responses",
@@ -18,5 +18,21 @@
     "build": "VitePress production build passed",
     "live_catalogue": "App beta39 with 10 package files across six OS/architecture targets; server and CLI beta35 portable wheels"
   },
-  "refresh": "One shared in-flight catalogue load and a one-minute freshness window; stale metadata refreshes on page mount/focus/visibility return. Retry refreshes every section together."
+  "refresh": "One shared in-flight catalogue load and a one-minute freshness window; stale metadata refreshes on page mount/focus/visibility return. Retry refreshes every section together.",
+  "deployment": {
+    "source_commit": "b5e28a3d6639a49a53aa2a3792c90ab00e2a0395",
+    "workflow": "https://github.com/openagent-uno/openagent/actions/runs/43393435503",
+    "result": "success",
+    "site": "https://openagent.uno/downloads"
+  },
+  "live_verification": {
+    "browser": "Public page rendered the latest App, server and CLI sections, including all six desktop OS/architecture targets.",
+    "selections": {
+      "desktop": "app-v1.1.0-beta.39",
+      "server": "v1.1.9-beta.35",
+      "cli": "v1.1.9-beta.35"
+    },
+    "downloadable_assets": 12,
+    "range_checks": "All 12 published links returned successful first-byte downloads; no full installers were downloaded."
+  }
 }
