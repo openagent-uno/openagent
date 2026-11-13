@@ -18,28 +18,34 @@
 import { getRandomBytes } from 'expo-crypto';
 import * as ed25519 from '@noble/ed25519';
 import { sha512 } from '@noble/hashes/sha2.js';
+import { digest } from './web-crypto-digest';
 
 // Hermes has no crypto.subtle; @noble/ed25519's *Async helpers need SHA-512.
 ed25519.hashes.sha512 = sha512;
 ed25519.hashes.sha512Async = async (message: Uint8Array) => sha512(message);
 
 // Patch globalThis.crypto so the browser branch of @windwalker-io/srp
-// (``window.crypto.getRandomValues``) works on React Native.
-if (typeof globalThis.crypto === 'undefined') {
-  (globalThis as any).crypto = {
-    getRandomValues<T extends ArrayBufferView>(array: T): T {
-      const bytes = getRandomBytes(array.byteLength);
-      new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(bytes);
-      return array;
-    },
-    randomUUID(): string {
-      const b = getRandomBytes(16);
-      b[6] = (b[6]! & 0x0f) | 0x40;
-      b[8] = (b[8]! & 0x3f) | 0x80;
-      const h = Array.from(b, (x: number) => x.toString(16).padStart(2, '0')).join('');
-      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
-    },
+// (``window.crypto.getRandomValues`` and ``crypto.subtle.digest``) works on
+// React Native. Fill each member only where the runtime lacks it.
+const webCrypto: any = (globalThis as any).crypto ?? ((globalThis as any).crypto = {});
+if (typeof webCrypto.getRandomValues !== 'function') {
+  webCrypto.getRandomValues = <T extends ArrayBufferView>(array: T): T => {
+    const bytes = getRandomBytes(array.byteLength);
+    new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(bytes);
+    return array;
   };
+}
+if (typeof webCrypto.randomUUID !== 'function') {
+  webCrypto.randomUUID = (): string => {
+    const b = getRandomBytes(16);
+    b[6] = (b[6]! & 0x0f) | 0x40;
+    b[8] = (b[8]! & 0x3f) | 0x80;
+    const h = Array.from(b, (x: number) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  };
+}
+if (typeof webCrypto.subtle?.digest !== 'function') {
+  webCrypto.subtle = { ...(webCrypto.subtle ?? {}), digest };
 }
 
 export function randomBytes(n: number): Uint8Array {
