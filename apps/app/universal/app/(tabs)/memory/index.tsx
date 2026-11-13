@@ -13,10 +13,9 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import GraphView from '../../../components/GraphView';
-import NoteList from '../../../components/memory/NoteList';
 import { HeaderIconButton, HeaderRight, useHeaderInset } from '../../../components/screenHeader';
 import { MemorySearchBar, MemorySearchResults } from '../../../components/memory/MemorySearch';
 import { useConnection } from '../../../stores/connection';
@@ -33,7 +32,6 @@ export default function MemoryGraphScreen() {
   const headerInset = useHeaderInset();
   const config = useConnection((s) => s.config);
   const {
-    notes,
     graph,
     highlightNodeIds,
     loading,
@@ -112,10 +110,7 @@ export default function MemoryGraphScreen() {
 
   return (
     <View style={styles.mainArea}>
-      {Platform.OS !== 'web' ? (
-        // The graph is Canvas 2D (web-only); native lists the notes instead.
-        <NoteList notes={notes} loading={loading} topInset={headerInset} onSelect={openNote} />
-      ) : graph && graph.nodes.length > 0 ? (
+      {graph && graph.nodes.length > 0 ? (
         <GraphView
           data={graph}
           highlightNodeIds={highlightNodeIds}
@@ -124,7 +119,7 @@ export default function MemoryGraphScreen() {
       ) : (
         <View style={styles.graphEmpty}>
           <Text style={styles.emptyText}>
-            {loading ? 'Loading graph...' : 'No notes to visualize'}
+            {loading || graph == null ? 'Loading graph...' : 'No notes to visualize'}
           </Text>
         </View>
       )}

@@ -17,6 +17,7 @@ import { Platform, StyleSheet, Text, View, type GestureResponderEvent, type Layo
 import type { ChatMessage } from '../../../common/types';
 import type { SessionTurn } from '../../../common/unified-history';
 import { useSessionTurns } from '../../stores/sessionTurns';
+import { useLayout } from '../../hooks/useLayout';
 import { colors, font, radius } from '../../theme';
 import { useTranscriptObserved, type TranscriptController } from './TranscriptController';
 
@@ -262,7 +263,15 @@ function TurnRail({ sessionId, messages, controller, currentUserHandle }: Props)
   );
 }
 
-export default memo(TurnRail);
+/** The rail is a wide-layout aid: on phones and other narrow windows it
+ *  steals transcript width and its dots are too small to aim at by touch. */
+function ResponsiveTurnRail(props: Props) {
+  const { isPhone } = useLayout();
+  if (isPhone) return null;
+  return <TurnRail {...props} />;
+}
+
+export default memo(ResponsiveTurnRail);
 
 const styles = StyleSheet.create({
   rail: {
