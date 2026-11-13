@@ -246,6 +246,13 @@ teardown is bounded even with clients connected. Tools stay at
 `v1.0.0-beta.7` and Device Tools at `1.0.0b18`; `builtins-lock.json` is
 unchanged.
 
+Host Tools B18 gives shell commands started by the App the user's login
+`PATH` on macOS. The capability host used to pass its own process environment
+to the shell server explicitly, so the shell's login-`PATH` resolution (added in
+B16) never ran and a broker started by launchd saw only the system `PATH`. The
+host now leaves the default to the shell server; an environment passed
+explicitly is still used exactly as given. Dependencies are unchanged from B17.
+
 `publish-host-tools.yml` reuses the successful signed producer's exact artifact
 on a GitHub runner. A maintainer first creates the reviewed immutable version
 tag and draft. The publisher binds the eight successful jobs, producer commit,
