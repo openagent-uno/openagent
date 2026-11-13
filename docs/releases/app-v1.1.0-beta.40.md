@@ -5,7 +5,7 @@ bounded window and loads earlier or later history on its own as the reader
 nears either edge, keeping the reading position fixed; the "Load earlier"
 control is gone. A rail of dots beside the transcript marks every prompt of
 the session (primary for your own, white for other participants): hover to
-preview a prompt, click to jump to it. The full rail needs Server beta 36;
+preview a prompt, click to jump to it. The full rail needs Server beta 37;
 older servers show the prompts already loaded.
 
 Auto-scroll now stays attached at the bottom while new messages, tools and
