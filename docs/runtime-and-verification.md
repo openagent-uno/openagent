@@ -20,8 +20,8 @@ its own principal. To grant only a specific private Telegram session access to
 that agent's vault, configure both `channels.telegram.allowed_users` and
 `runtime_tool_audiences.vault_owner_channels.telegram` with the same numeric
 sender ID. This does not grant vault access to WhatsApp or other Telegram users.
-The bridge grant applies to live private turns only; shared and deferred turns
-remain outside it.
+The interactive bridge grant applies to live private turns only; shared turns
+remain outside it, and deferred turns only receive the automation trust below.
 
 The same owner turn may approve automation definitions. Their durable grant is
 owned by the Telegram bridge principal, which is not a network user, so the
@@ -29,6 +29,11 @@ directory treats it as active exactly while a Telegram channel is configured
 and at least one sender appears in both lists above, for this installation's
 own network. Removing the owner from either list, or removing the channel,
 deactivates every grant that principal captured, as revoking a user would.
+While the grant is active its scheduled runs keep the owner's vault: a
+deferred, delegated run of this agent with no live ingress, acting for the
+bridge principal alone, may discover and use the vault source and read or
+publish vault notes. This automation trust covers the vault only; catalog and
+automation management and device grants stay limited to live owner turns.
 `openagent_server.bridge_vault_access` holds this single policy for both the
 live turn and the deferred grant.
 

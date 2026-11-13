@@ -90,9 +90,16 @@ class NativeMemoryAccess:
         ):
             return False
         if action in {"memory.read", "memory.publish"} and resource.kind == "vault-note":
-            from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+            from openagent_server.bridge_vault_access import (
+                owner_bridge_automation_vault,
+                owner_bridge_vault_turn,
+            )
 
             if owner_bridge_vault_turn(context, self.service.agent.config):
+                return True
+            if owner_bridge_automation_vault(
+                context, self.service.agent.config, self.service.agent.name
+            ):
                 return True
         try:
             accesses = [await self.access(principal) for principal in recipients]

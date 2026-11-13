@@ -91,6 +91,35 @@ def owner_bridge_vault_turn(context, config: Mapping) -> bool:
     return _private_bridge_sender(context, config, owner_bridge_senders(config, provider)) is not None
 
 
+def owner_bridge_automation_vault(context, config: Mapping, agent_name: str) -> bool:
+    """Owner vault trust for a durable automation the owner approved over the bridge.
+
+    A grant approved from the owner's private bridge turn is captured with the
+    bridge principal, and ``bridge_owner_principal_active`` keeps it runnable
+    exactly while the explicit owner bridge policy holds. Its deferred runs
+    have no private route to match, so ``owner_bridge_vault_turn`` never
+    admits them and the owner's own automation lost the vault. This extends
+    the same trust to the vault only: the context must be this agent's own
+    deferred, delegated run with no live ingress, acting for the bridge
+    principal alone. Catalog/automation management and device grants are not
+    widened.
+    """
+    principal = context.initiator
+    author = context.author
+    return bool(
+        getattr(context, "deferred", False)
+        and getattr(context, "delegation_id", None)
+        and not getattr(context, "ingress_id", None)
+        and is_owner_bridge_principal(principal)
+        and context.authority == principal
+        and context.audience == (principal,)
+        and author.authority == "openagent"
+        and author.kind == "agent"
+        and author.subject_id == agent_name
+        and author.tenant_id == principal.tenant_id
+        and bridge_owner_principal_active(principal, config)
+    )
+
 def bridge_device_owner(context, config: Mapping) -> str | None:
     """Resolve an explicit sender-to-native-device-owner permission only.
 

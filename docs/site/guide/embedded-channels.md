@@ -440,8 +440,10 @@ unavailable, check both lists. `channels.telegram.allowed_users` admits the
 contact; `runtime_tool_audiences.vault_owner_channels.telegram` grants explicit
 owner trust. Configure only verified owner/operator sender IDs in the latter
 and keep them in the channel allowlist. Apply this independently to each
-installation and restart the server after changing this configuration. A
-successful native App Vault request or scheduled run does not verify Telegram
-access. Verify discovery, search, note creation and reread through the bridge's
+installation and restart the server after changing this configuration.
+Automations approved from that private owner turn keep the vault in their
+scheduled runs for as long as this trust holds (vault only; catalog and
+automation management stay live-turn only). A successful native App Vault
+request or scheduled run does not verify Telegram access. Verify discovery, search, note creation and reread through the bridge's
 authenticated private conversation; reconnecting MCPs or rebuilding the Vault
 does not repair a missing authorization policy.
