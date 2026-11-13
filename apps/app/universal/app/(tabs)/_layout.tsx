@@ -103,6 +103,7 @@ async function initializeAccountSearch(accountId: string, force = false): Promis
 
 export default function AppDrawerLayout() {
   const layout = useLayout();
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const router = useRouter();
   const pathname = usePathname();
@@ -228,7 +229,8 @@ export default function AppDrawerLayout() {
       <View style={{ flex: 1, minWidth: 0 }}>
       <Drawer
         screenLayout={({ children }) => hasRail && !connected ? (
-          <View style={{ flex: 1 }}>
+          // No navigator header here, so clear the status bar ourselves.
+          <View style={{ flex: 1, paddingTop: insets.top }}>
             <HeaderMenu />
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, gap: 12 }}>
               {connecting ? <ActivityIndicator color={colors.accent} /> : null}

@@ -27,6 +27,7 @@ import { useNavHistory } from '../stores/navHistory';
 import { useNavigationSidebar } from '../stores/navigationSidebar';
 import { useSessionDetailsDrawer } from '../stores/sessionDetailsDrawer';
 import DragRegion, { NO_DRAG } from './DragRegion';
+import BlurView from './BlurView';
 import { colors, font, radius, glassSurface } from '../theme';
 
 type IconName = keyof typeof Feather.glyphMap;
@@ -45,6 +46,15 @@ type IconName = keyof typeof Feather.glyphMap;
  * by it; each screen offsets its top content by `useHeaderInset()`.
  */
 function HeaderGlassBackground() {
+  if (Platform.OS !== 'web') {
+    // No backdrop-filter on native: without a real blur the low-alpha tint
+    // leaves transcript text legible under the status bar and header row.
+    return (
+      <BlurView intensity={16} style={[StyleSheet.absoluteFill, headerGlassStyle]}>
+        <DragRegion />
+      </BlurView>
+    );
+  }
   return (
     <View style={[StyleSheet.absoluteFill, headerGlassStyle]}>
       <DragRegion />

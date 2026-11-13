@@ -19,7 +19,9 @@
     "chat_round_trip": "passed: message sent from the phone, agent reply streamed back",
     "phone_drawer_safe_area": "passed: drawer rows clear the Dynamic Island and home indicator",
     "composer_keyboard_avoidance": "passed: composer rises above the iOS keyboard and returns to the bottom inset when it hides",
-    "keyboard_send_key": "passed: Return/Send submits the message and keeps focus"
+    "keyboard_send_key": "passed: Return/Send submits the message and keeps focus",
+    "native_header_blur": "passed: header draws a native blur instead of a near-transparent tint",
+    "connecting_screen_safe_area": "passed: sidebar toggle sits below the status bar while connecting"
   },
   "fixed_during_qualification": [
     "Hermes lacked window.crypto and crypto.subtle (SRP and ed25519)",
@@ -28,11 +30,12 @@
     "iroh-ffi 1.1.0 (iroh 1.0) cannot handshake with iroh 0.35 peers",
     "Phone drawer and composer ignored safe-area insets",
     "Composer stayed under the iOS software keyboard",
-    "Return key inserted a newline instead of sending on iOS"
+    "Return key inserted a newline instead of sending on iOS",
+    "Chat header was transparent on native (no backdrop-filter)",
+    "Connecting screen placed the sidebar toggle under the status bar"
   ],
   "open_issues": [
-    "Connecting screen places the sidebar toggle under the status bar",
-    "Chat header is transparent, so transcript text scrolls under the status bar"
+    "Memory screen renders empty on the phone (not investigated)"
   ],
   "limits": [
     "No App Store or TestFlight publication",
