@@ -17,7 +17,7 @@ dependencies = [
     "click>=8.0",
     "rich>=13.0",
     "prompt-toolkit>=3.0.48,<4",
-    "openagent-host-tools==1.0.0b17",
+    "openagent-host-tools==1.0.0b18",
     # The standalone ``openagent_cli.network`` package implements the
     # client side of Iroh/certificate transport; ``openagent_client_transport``
     # carries the checksum-locked stream/capability protocol shared with the
@@ -57,7 +57,7 @@ constraint-dependencies = [
     "openagent-gateway @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.86/openagent_gateway-1.1.0b86-py3-none-any.whl?download=1#sha256=bdbcee2055eb0d9cf9b3d69ab96d74a3e9ec5c14a021b2243426927779d9497c",
     "openagent-sdk @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.86/openagent_sdk-1.1.0b86-py3-none-any.whl?download=1#sha256=88f68482e6afcdb92b34b5a5c7a01f4873b224775799683e40e45064e7e90c87",
     "openagent-shell @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_shell-1.0.0b4-py3-none-any.whl?download=1#sha256=81ff16037c724e852a05dee52dfa1a03d28325c85fde704bcce100a43e39fd38",
-    "openagent-host-tools @ https://github.com/openagent-uno/openagent/releases/download/v1.0.0b17/openagent_host_tools-1.0.0b17-py3-none-any.whl?download=1#sha256=b64e35f7fdd25892598d4a1fccc7ea6ae0bd4b0f474c99f16d3b3ccdabbe085c",
+    "openagent-host-tools @ https://github.com/openagent-uno/openagent/releases/download/v1.0.0b18/openagent_host_tools-1.0.0b18-py3-none-any.whl?download=1#sha256=a64c1ce6ada608701a0b0afb08832d80c7c2cfac736959a2dcdfc1c07456e70f",
     "openagent-storage-sqlite @ https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.86/openagent_storage_sqlite-1.1.0b86-py3-none-any.whl?download=1#sha256=f90b6f0b97583de2afdb1217b3dfcb424a61034370a93fa6b5cf1b5c08af6973",
     "openagent-tool-protocol @ https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1#sha256=1e0cbdc1007ddcf96aae9538983727841228b40ebb50f481a915d2020115ea6c",
 ]
@@ -70,7 +70,7 @@ openagent-core = { url = "https://github.com/openagent-uno/openagent-core/releas
 openagent-storage-sqlite = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.86/openagent_storage_sqlite-1.1.0b86-py3-none-any.whl?download=1" }
 openagent-capability-host = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.87/openagent_capability_host-1.0.0b4-py3-none-any.whl?download=1" }
 openagent-tool-protocol = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" }
-openagent-host-tools = { url = "https://github.com/openagent-uno/openagent/releases/download/v1.0.0b17/openagent_host_tools-1.0.0b17-py3-none-any.whl?download=1" }
+openagent-host-tools = { url = "https://github.com/openagent-uno/openagent/releases/download/v1.0.0b18/openagent_host_tools-1.0.0b18-py3-none-any.whl?download=1" }
 openagent-device-tools = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" }
 openagent-filesystem = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" }
 openagent-editor = { url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" }
