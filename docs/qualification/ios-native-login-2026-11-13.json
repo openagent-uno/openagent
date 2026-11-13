@@ -1,0 +1,39 @@
+{
+  "date": "2026-11-13",
+  "scope": "Local development-signed iOS installation only",
+  "device": "iPhone 14 Pro, iOS 26.7.1, wired",
+  "artifact": {
+    "bundle_id": "ai.openagent.app",
+    "configuration": "Release",
+    "bundled_javascript": true,
+    "development_signed": true,
+    "native_transport": "iroh-ffi v0.35.0 (iroh 0.35.0, wire-compatible with the server pin)"
+  },
+  "checks": {
+    "protocol_tests": "passed: encoding, identity, secure-store-keys, srp-client, ticket, web-crypto-digest",
+    "typecheck_universal": "passed",
+    "xcodebuild_release": "passed",
+    "physical_iphone_install": "passed: devicectl in-place install",
+    "native_join_with_device_invite": "passed: SRP login + device cert over iroh 0.35, no Mac proxy",
+    "session_restore_after_relaunch": "passed: remembered keychain credential reconnected without prompts",
+    "chat_round_trip": "passed: message sent from the phone, agent reply streamed back",
+    "phone_drawer_safe_area": "passed: drawer rows clear the Dynamic Island and home indicator"
+  },
+  "fixed_during_qualification": [
+    "Hermes lacked window.crypto and crypto.subtle (SRP and ed25519)",
+    "SecureStore rejected ':' in keychain item names",
+    "Native dials ignored relay and direct-address hints",
+    "iroh-ffi 1.1.0 (iroh 1.0) cannot handshake with iroh 0.35 peers",
+    "Phone drawer and composer ignored safe-area insets"
+  ],
+  "open_issues": [
+    "Composer stays under the software keyboard on iOS (no keyboard avoidance)",
+    "Return key inserts a newline instead of sending on iOS",
+    "Connecting screen places the sidebar toggle under the status bar",
+    "Chat header is transparent, so transcript text scrolls under the status bar"
+  ],
+  "limits": [
+    "No App Store or TestFlight publication",
+    "A used device invite is rejected by design; pairing a new phone needs a fresh device invite"
+  ]
+}
