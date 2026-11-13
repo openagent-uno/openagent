@@ -168,11 +168,12 @@ _LEGACY_BROKER = textwrap.dedent(
     import json, os, signal, socket, sys, threading
     signal.signal(signal.SIGTERM, signal.SIG_IGN)  # like a hung legacy teardown
     path, pid_file = sys.argv[1], sys.argv[2]
+    # Like the real broker, publish the PID before accepting connections.
+    with open(pid_file, "w", encoding="ascii") as handle:
+        handle.write(str(os.getpid()))
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     server.bind(path)
     server.listen()
-    with open(pid_file, "w", encoding="ascii") as handle:
-        handle.write(str(os.getpid()))
 
     def serve(conn):
         stream = conn.makefile("rwb")
