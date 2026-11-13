@@ -11,6 +11,10 @@ class OpenAgentTransportModule: NSObject {
   private var connections: [String: IrohConnection] = [:]
   private var streams: [String: IrohBiStream] = [:]
   private var proxies: [String: LoopbackProxy] = [:]
+  /// Dial hints registered via ``addPeerAddr``, keyed by lowercase node id.
+  /// Without them iroh can only rely on public discovery, which a
+  /// coordinator is not required to publish to.
+  private var peerAddrs: [String: (relayUrl: String?, addresses: [String])] = [:]
   private let queue = DispatchQueue(label: "ai.openagent.transport", qos: .userInitiated)
 
   // MARK: - Endpoint lifecycle
@@ -46,6 +50,10 @@ class OpenAgentTransportModule: NSObject {
     resolver resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
+    let relay = relayUrl?.isEmpty == false ? relayUrl : nil
+    queue.sync {
+      self.peerAddrs[nodeIdHex.lowercased()] = (relayUrl: relay, addresses: addresses)
+    }
     resolve(nil)
   }
 
@@ -64,7 +72,13 @@ class OpenAgentTransportModule: NSObject {
       }
       do {
         let alpnBytes = try Self.hexToData(alpnHex)
-        let conn = try await ep.connect(nodeId: nodeIdHex, alpn: alpnBytes)
+        let hint = self.queue.sync { self.peerAddrs[nodeIdHex.lowercased()] }
+        let conn = try await ep.connect(
+          nodeId: nodeIdHex,
+          alpn: alpnBytes,
+          relayUrl: hint?.relayUrl,
+          addresses: hint?.addresses ?? []
+        )
         let connId = UUID().uuidString
         self.queue.sync { self.connections[connId] = conn }
         resolve(["connectionId": connId])

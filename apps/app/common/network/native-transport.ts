@@ -193,6 +193,11 @@ class NativeEndpoint implements TransportEndpoint {
 
   async connect(nodeAddr: TransportNodeAddr, alpn: Uint8Array): Promise<TransportConnection> {
     const alpnHex = bytesToHex(alpn);
+    // The native dial only knows what was registered through addPeerAddr;
+    // forward this address's relay and direct-path hints before dialing.
+    if (nodeAddr.relayUrl || (nodeAddr.addresses && nodeAddr.addresses.length > 0)) {
+      await this.mod.addPeerAddr(nodeAddr.nodeId, nodeAddr.relayUrl ?? null, nodeAddr.addresses ?? []);
+    }
     const { connectionId } = await this.mod.connect(nodeAddr.nodeId, alpnHex);
     return new NativeConnection(this.mod, connectionId);
   }
