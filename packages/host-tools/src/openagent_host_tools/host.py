@@ -13,6 +13,7 @@ from openagent_tool_protocol.types import CapabilityServer, HostError, ServerMan
 from openagent_filesystem import FilesystemServer
 from openagent_editor import EditorServer
 from openagent_shell import ShellServer
+from openagent_shell.shell_core import user_environment
 from .chrome_pool import PerPrincipalMCPPool
 from .config import PluginSpec
 from .paths import HostPaths
@@ -26,7 +27,11 @@ class CapabilityHost(BaseCapabilityHost):
         selected = tuple(all_names if builtin_names is None else builtin_names)
         if len(selected) != len(set(selected)) or any(name not in all_names for name in selected):
             raise ValueError("builtin_names must contain distinct supported local capabilities")
-        kwargs.setdefault("process_environment", dict(os.environ))
+        # A GUI-launched macOS host inherits only the launchd PATH; resolve the
+        # user's login-shell PATH once so shell commands find Homebrew/SDK tools.
+        # An explicit process_environment is used exactly as given.
+        if "process_environment" not in kwargs:
+            kwargs["process_environment"] = user_environment()
         factories = {"filesystem": lambda: FilesystemServer(cwd), "editor": lambda: EditorServer(cwd),
                      "shell": lambda: ShellServer(cwd, event_sink=self._emit_event, environment=kwargs["process_environment"])}
         servers = tuple(factories[name]() for name in selected if name in factories)

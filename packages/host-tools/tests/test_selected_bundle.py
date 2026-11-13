@@ -34,3 +34,23 @@ def test_invalid_duplicate_bundle_is_rejected_before_io(tmp_path: Path):
         with pytest.raises(ValueError):
             CapabilityHost(paths=HostPaths(tmp_path/'uncreated'),builtin_names=selection)
         assert not (tmp_path/'uncreated').exists()
+
+
+def test_default_environment_resolves_login_path_on_macos(tmp_path: Path):
+    from openagent_shell import shell_core
+    shell_core._login_path_cache.clear()
+    with patch('openagent_shell.shell_core.platform.system', return_value='Darwin'), \
+         patch('openagent_shell.shell_core._probe_login_path', return_value='/login/bin:/usr/bin'), \
+         patch.dict(os.environ, {'PATH': '/usr/bin:/bin'}, clear=False), \
+         patch('openagent_host_tools.host.discover_sidecars', return_value=()):
+        host = CapabilityHost(paths=HostPaths(tmp_path/'profile'), cwd=tmp_path, builtin_names=('shell',))
+    shell = host._servers['shell']
+    assert shell.environment['PATH'].split(os.pathsep)[:3] == ['/login/bin', '/usr/bin', '/bin']
+
+
+def test_explicit_environment_is_not_rewritten(tmp_path: Path):
+    with patch('openagent_shell.shell_core.platform.system', return_value='Darwin'), \
+         patch('openagent_shell.shell_core._probe_login_path', side_effect=AssertionError('explicit environment must not be probed')):
+        host = CapabilityHost(paths=HostPaths(tmp_path/'profile'), cwd=tmp_path, builtin_names=('shell',),
+                              process_environment={'PATH': '/only/this', 'HOME': str(tmp_path)})
+    assert host._servers['shell'].environment['PATH'] == '/only/this'

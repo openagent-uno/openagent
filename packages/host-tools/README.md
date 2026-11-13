@@ -20,7 +20,10 @@ Host composition can explicitly select its built-ins with
 `CapabilityHost(builtin_names=("filesystem", "editor", "shell"), paths=..., cwd=...,
 process_environment=...)`. Omitting `builtin_names` preserves the complete
 standalone bundle. A selection without device sidecars performs no sidecar
-discovery; explicit process environments also apply to shell calls. This is a
+discovery; explicit process environments also apply to shell calls, exactly as
+given. Without one, the host uses its own environment and, on macOS, puts the
+user's login-shell `PATH` first (see `openagent_shell.shell_core.user_environment`),
+because a GUI-launched app only inherits the launchd `PATH`. This is a
 host configuration API, not a routing argument accepted from a model or client.
 The selected-bundle tests verify these boundaries using a real shell process.
 
