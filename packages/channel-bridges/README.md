@@ -363,3 +363,7 @@ provide child events retain the main edited reply.
 Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
 acceptance for this revision is tested separately; live QA is limited to
 Telegram. Offline SDK fixtures do not establish live provider acceptance.
+
+Beta24 acknowledges Telegram confirmation clicks before awaiting the host and
+renders command outcomes without Markdown interpretation. It still requires a
+completed host outcome before acknowledging success; see the [channel guide](../../docs/site/guide/channels.md#telegram-command-confirmation-beta24).

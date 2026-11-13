@@ -808,6 +808,12 @@ class TelegramBridge(BaseBridge):
             return
         if data.startswith("confirm_cmd:"):
             cmd = data[len("confirm_cmd:"):]
+            # Remove the buttons and acknowledge the operation before waiting
+            # on the host; an accepted click must not look like a dead button.
+            try:
+                await cb.edit_message_text(f"⏳ Esecuzione di /{cmd}…")
+            except Exception:
+                pass
             # "Fatto" is an outcome the host reports, never an assumption.
             try:
                 result = await self.send_command_full(cmd, session_id=f"tg:{user_id}", context=bridge_context, confirmed=True)
@@ -815,10 +821,10 @@ class TelegramBridge(BaseBridge):
                 logger.warning("telegram /%s failed: %s", cmd, type(exc).__name__)
                 result = {"status": "failed", "text": ""}
             detail = result.get("text") or ""
-            text = (f"✅ Fatto: `/{cmd}`. {detail}" if result.get("status") == "completed" else
-                    f"⚠️ `/{cmd}` non eseguito: la conversazione non è stata azzerata. {detail}")
+            text = (f"✅ Fatto: /{cmd}. {detail}" if result.get("status") == "completed" else
+                    f"⚠️ /{cmd} non eseguito: la conversazione non è stata azzerata. {detail}")
             try:
-                await cb.edit_message_text(text.rstrip(), parse_mode="Markdown")
+                await cb.edit_message_text(text.rstrip())
             except Exception:
                 pass
             return

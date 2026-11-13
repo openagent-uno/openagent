@@ -277,3 +277,12 @@ checked before forwarding; parent completion drains bounded pending updates.
 A channel input submitted immediately after an explicit stop waits for the
 old collector's cancelled terminal boundary. It cannot become a follower of
 the stopped reply or reuse that reply's provider message.
+
+## Telegram command confirmation (beta24)
+
+Confirming a command replaces its inline buttons with an execution indicator
+before waiting for the host. Completion and failure are rendered as plain text,
+so session identifiers and host diagnostics cannot invalidate Telegram Markdown
+and leave an apparently unchanged confirmation. The host's completed status
+remains mandatory for the success message. This presentation change does not
+retry the command or grant additional permissions.

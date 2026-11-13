@@ -152,17 +152,44 @@ def test_confirmation_is_truthful_and_done_is_only_for_completed():
     host = Host(AVAILABLE, BridgeCommandResult(status="completed", parts=(BridgePart(text="Fresh."),)))
     message, callback = confirm(telegram(host))
     assert "Cancellerà" not in message.replies[0] and "memoria a lungo termine" in message.replies[0]
-    assert callback.edits == ["✅ Fatto: `/new`. Fresh."]
+    assert callback.edits == ["⏳ Esecuzione di /new…", "✅ Fatto: /new. Fresh."]
     assert host.calls[0].confirmed is True
 
 
 @pytest.mark.parametrize("status", ["failed", "unsupported"])
 def test_unfinished_command_is_not_called_done(status):
     _message, callback = confirm(telegram(Host(AVAILABLE, BridgeCommandResult(status=status))))
-    assert "Fatto" not in callback.edits[0] and "non eseguito" in callback.edits[0]
-    assert "could not be completed" in callback.edits[0]
+    assert "Fatto" not in callback.edits[-1] and "non eseguito" in callback.edits[-1]
+    assert "could not be completed" in callback.edits[-1]
 
 
 def test_transport_error_is_not_called_done():
     _message, callback = confirm(telegram(Host(AVAILABLE, error=ConnectionError("host"))))
-    assert "Fatto" not in callback.edits[0] and "non eseguito" in callback.edits[0]
+    assert "Fatto" not in callback.edits[-1] and "non eseguito" in callback.edits[-1]
+
+
+@pytest.mark.asyncio
+async def test_confirmation_acknowledges_before_host_completion_and_keeps_result_plain():
+    started, release = asyncio.Event(), asyncio.Event()
+    class Pending(Host):
+        async def command(self, request):
+            started.set()
+            await release.wait()
+            return BridgeCommandResult(status='completed', parts=(BridgePart(text='session_id [ready] *literal*'),))
+    bridge = telegram(Pending(AVAILABLE))
+    callback = Callback(Message())
+    modes = []
+    async def edit(text, **kwargs):
+        modes.append(kwargs.get('parse_mode'))
+        callback.edits.append(text)
+    callback.edit_message_text = edit
+    task = asyncio.create_task(bridge._on_callback(update(callback_query=callback), types.SimpleNamespace(bot=BOT)))
+    try:
+        await asyncio.wait_for(started.wait(), 1)
+        assert callback.edits == ['⏳ Esecuzione di /new…']
+        assert not task.done()
+    finally:
+        release.set()
+        await task
+    assert callback.edits[-1] == '✅ Fatto: /new. session_id [ready] *literal*'
+    assert modes == [None, None]
