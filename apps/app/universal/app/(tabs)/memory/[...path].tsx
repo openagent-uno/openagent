@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import Markdown from '../../../components/Markdown';
+import NoteProperties from '../../../components/memory/NoteProperties';
+import { splitFrontmatter } from '../../../components/memory/frontmatter';
 import { HeaderRight, HeaderIconButton, HeaderAction, useHeaderInset } from '../../../components/screenHeader';
 import { MemorySearchBar } from '../../../components/memory/MemorySearch';
 import { useConnection } from '../../../stores/connection';
@@ -89,6 +91,9 @@ export default function MemoryNoteScreen() {
     [editorContent, searchQuery, searchRegexMode],
   );
 
+  // Preview shows the frontmatter as properties and only the body as
+  // Markdown; edit mode keeps the full file text.
+  const previewNote = useMemo(() => splitFrontmatter(editorContent), [editorContent]);
   const searchRegexError = useMemo(() => {
     if (!searchQuery || !searchRegexMode) return false;
     try {
@@ -463,7 +468,8 @@ export default function MemoryNoteScreen() {
           contentContainerStyle={styles.previewContent}
         >
           <View ref={previewContainerRef}>
-            <Markdown text={editorContent} />
+            <NoteProperties entries={previewNote.entries} raw={previewNote.raw} />
+            <Markdown text={previewNote.body} />
           </View>
         </ScrollView>
       )}

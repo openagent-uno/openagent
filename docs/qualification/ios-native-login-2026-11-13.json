@@ -24,7 +24,8 @@
     "connecting_screen_safe_area": "passed: sidebar toggle sits below the status bar while connecting",
     "liquid_glass_opt_out": "passed: UIDesignRequiresCompatibility set; native headers render without glass capsules",
     "memory_graph_native": "passed: native SVG force graph fits the layout on open; pinch zoom, pan and tap-to-open verified by touch",
-    "turn_rail_hidden_on_phone": "passed: transcript turn rail is not rendered below the phone breakpoint"
+    "turn_rail_hidden_on_phone": "passed: transcript turn rail is not rendered below the phone breakpoint",
+    "note_frontmatter_properties": "passed in unit tests (parser); preview renders frontmatter as a properties panel; not re-checked on device"
   },
   "fixed_during_qualification": [
     "Hermes lacked window.crypto and crypto.subtle (SRP and ed25519)",
@@ -36,10 +37,10 @@
     "Return key inserted a newline instead of sending on iOS",
     "Chat header was transparent on native (no backdrop-filter)",
     "Connecting screen placed the sidebar toggle under the status bar",
-    "Memory rendered empty on native (Canvas 2D graph is web-only); replaced by a native SVG graph"
+    "Memory rendered empty on native (Canvas 2D graph is web-only); replaced by a native SVG graph",
+    "Note preview rendered YAML frontmatter as a Markdown paragraph (all platforms)"
   ],
   "open_issues": [
-    "Memory note viewer shows YAML frontmatter as a plain paragraph",
     "Node drag mid-gesture not captured on device (shares the verified hit-test and pan path)",
     "Graph fetch takes ~10 s on the phone before the layout appears"
   ],
