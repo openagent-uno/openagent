@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import dataclass
 from typing import Any
 
 from .consent import CONSENT_VERSION
 from .host import CapabilityHost
 from .types import HostError
+from ._version import __version__
 
 HOST_PROTOCOL = "openagent-host-tools/1"
 
@@ -17,6 +19,9 @@ HOST_PROTOCOL = "openagent-host-tools/1"
 class ControlReply:
     frame: dict[str, Any]
     close: bool = False
+    # Set by ``retire``: the serving broker stops after this reply is written
+    # so a newer installation can take over the per-user singleton.
+    retire: bool = False
 
 
 async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> ControlReply:
@@ -32,9 +37,13 @@ async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> Con
             status = await host.status()
             result = {
                 "protocol": HOST_PROTOCOL,
-                "features": {"mcp_app_resources": 1},
+                "features": {"mcp_app_resources": 1, "retire": 1},
                 "consent": status["consent"],
                 "config_path": status["config_path"],
+                # Clients compare this with their own bundle and retire an
+                # older broker instead of being served stale tool code.
+                "host_tools_version": __version__,
+                "broker_pid": os.getpid(),
             }
         elif request_type == "catalog":
             result = {"servers": await host.catalog()}
@@ -109,6 +118,11 @@ async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> Con
             # single-instance broker used by other Desktop/CLI processes.
             result = {"shutting_down": True}
             return _success(request_id, result, close=True)
+        elif request_type == "retire":
+            # Unlike shutdown, retire stops the shared broker itself. Clients
+            # send it only to a broker that reported an older version.
+            result = {"retiring": True, "host_tools_version": __version__}
+            return _success(request_id, result, close=True, retire=True)
         else:
             raise HostError("unknown_request", f"unknown request type {request_type!r}")
     except asyncio.CancelledError:
@@ -120,10 +134,13 @@ async def dispatch_control(host: CapabilityHost, request: dict[str, Any]) -> Con
     return _success(request_id, result)
 
 
-def _success(request_id: Any, result: Any, *, close: bool = False) -> ControlReply:
+def _success(
+    request_id: Any, result: Any, *, close: bool = False, retire: bool = False
+) -> ControlReply:
     return ControlReply(
         {"id": request_id, "type": "response", "ok": True, "result": result},
         close=close,
+        retire=retire,
     )
 
 

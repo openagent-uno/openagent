@@ -7,14 +7,18 @@ import asyncio
 import json
 import os
 import signal
-import subprocess
 import sys
 import threading
 from typing import Any
 
 from .control import dispatch_control
 from .host import CapabilityHost
-from .local_broker import BrokerAlreadyRunning, LocalBrokerClient, LocalBrokerServer
+from .local_broker import (
+    BrokerAlreadyRunning,
+    LocalBrokerClient,
+    LocalBrokerServer,
+    connect_or_start_broker,
+)
 from .paths import HostPaths
 
 
@@ -213,49 +217,8 @@ class _DaemonStdinReader:
 
 
 async def _connect_or_start(paths: HostPaths) -> LocalBrokerClient:
-    client = LocalBrokerClient(paths)
-    try:
-        await client.connect()
-        return client
-    except (OSError, EOFError, ConnectionRefusedError, FileNotFoundError):
-        await client.close()
-
-    _spawn_broker(paths)
-    deadline = asyncio.get_running_loop().time() + 8.0
-    last_error: Exception | None = None
-    while asyncio.get_running_loop().time() < deadline:
-        await asyncio.sleep(0.05)
-        candidate = LocalBrokerClient(paths)
-        try:
-            await candidate.connect()
-            return candidate
-        except (OSError, EOFError, ConnectionRefusedError, FileNotFoundError) as exc:
-            last_error = exc
-            await candidate.close()
-    raise RuntimeError(f"local capability broker did not start: {last_error}")
-
-
-def _spawn_broker(paths: HostPaths) -> None:
-    env = os.environ.copy()
-    env["OPENAGENT_HOST_TOOLS_HOME"] = str(paths.home)
-    if getattr(sys, "frozen", False):
-        command = [sys.executable, "--broker"]
-    else:
-        command = [sys.executable, "-m", "openagent_host_tools", "--broker"]
-    kwargs: dict[str, Any] = {
-        "stdin": subprocess.DEVNULL,
-        "stdout": subprocess.DEVNULL,
-        "stderr": subprocess.DEVNULL,
-        "env": env,
-        "close_fds": True,
-    }
-    if os.name == "nt":  # pragma: no cover - exercised on Windows CI
-        kwargs["creationflags"] = (
-            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
-        )
-    else:
-        kwargs["start_new_session"] = True
-    subprocess.Popen(command, **kwargs)
+    # One connect/upgrade/spawn path for the shim and the Python client.
+    return await connect_or_start_broker(paths)
 
 
 def _write_stdout(data: str) -> None:
@@ -263,6 +226,9 @@ def _write_stdout(data: str) -> None:
     # TextIOWrapper can use a legacy code page independently of Python env vars.
     sys.stdout.buffer.write(data.encode("utf-8"))
     sys.stdout.buffer.flush()
+
+
+_SHUTDOWN_GRACE_SECONDS = 20.0
 
 
 async def _run_broker_until_signal() -> None:
@@ -297,6 +263,18 @@ async def _run_broker_until_signal() -> None:
             await server_task
         else:
             server_task.cancel()
+            finished, _ = await asyncio.wait({server_task}, timeout=_SHUTDOWN_GRACE_SECONDS)
+            if not finished:
+                # A teardown that cannot finish must not turn SIGTERM into a
+                # no-op. The kernel releases the singleton lock; the next
+                # broker replaces the stale socket.
+                print(
+                    "openagent-host-tools: broker teardown exceeded "
+                    f"{_SHUTDOWN_GRACE_SECONDS:g}s after signal; exiting",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                os._exit(1)
             await asyncio.gather(server_task, return_exceptions=True)
     finally:
         stop_task.cancel()

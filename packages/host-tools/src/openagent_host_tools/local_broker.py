@@ -7,7 +7,9 @@ import hashlib
 import json
 import os
 import queue
+import re
 import secrets
+import signal
 import socket
 import stat
 import subprocess
@@ -17,6 +19,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from ._version import __version__
 from .control import ControlReply, dispatch_control
 from .host import CapabilityHost
 from .paths import HostPaths
@@ -27,6 +30,14 @@ from .types import HostError, ToolResult
 # step with the bounded MCP stdio line size so a supported result can cross the
 # sidecar and local-broker boundaries without being truncated.
 _MAX_LOCAL_BROKER_LINE_BYTES = 128 * 1024 * 1024
+
+# Bound every step of broker teardown that waits on peers. Python 3.12's
+# ``Server.wait_closed`` waits for every accepted connection, so a connected
+# Desktop shim used to keep a SIGTERM'd broker alive indefinitely.
+_ENDPOINT_CLOSE_TIMEOUT_SECONDS = 5.0
+# How long a client waits for an older broker to go away after asking it to
+# retire (or, for a legacy broker without ``retire``, after SIGTERM).
+_RETIRE_TIMEOUT_SECONDS = 10.0
 
 
 class BrokerAlreadyRunning(RuntimeError):
@@ -44,6 +55,20 @@ class LocalBrokerServer:
         self._unix_server: asyncio.AbstractServer | None = None
         self._windows_listener = None
         self._windows_stop = threading.Event()
+        self._connections: set[asyncio.StreamWriter] = set()
+        self._stop: asyncio.Event | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+
+    def request_stop(self) -> None:
+        """Stop serving (thread-safe); used by ``retire`` and embedders."""
+
+        loop, stop = self._loop, self._stop
+        if loop is None or stop is None:
+            return
+        try:
+            loop.call_soon_threadsafe(stop.set)
+        except RuntimeError:
+            pass
 
     @property
     def unix_socket_path(self) -> Path:
@@ -58,6 +83,8 @@ class LocalBrokerServer:
         return rf"\\.\pipe\openagent-host-tools-{digest}"
 
     async def run(self) -> None:
+        self._loop = asyncio.get_running_loop()
+        self._stop = asyncio.Event()
         singleton_acquired = False
         host_start_attempted = False
         try:
@@ -113,15 +140,33 @@ class LocalBrokerServer:
         # asyncio owns the bound socket after a successful server creation.
         self._unix_socket = None
         self._unix_server = server
-        async with server:
-            await server.serve_forever()
+        await server.start_serving()
+        assert self._stop is not None
+        # Return on retire; cancellation (SIGTERM/SIGINT) also lands here. The
+        # endpoint is torn down by ``run`` so both paths share bounded cleanup.
+        await self._stop.wait()
 
     async def _close_unix_endpoint(self) -> None:
         server = self._unix_server
         self._unix_server = None
         if server is not None:
             server.close()
-            await server.wait_closed()
+            # Accepted connections keep ``wait_closed`` pending on Python
+            # 3.12+. Abort them so their handlers release principals now.
+            for writer in list(self._connections):
+                transport = writer.transport
+                if transport is not None and not transport.is_closing():
+                    transport.abort()
+            try:
+                await asyncio.wait_for(
+                    server.wait_closed(), timeout=_ENDPOINT_CLOSE_TIMEOUT_SECONDS
+                )
+            except asyncio.TimeoutError:
+                print(
+                    "openagent-host-tools: broker connections did not close in "
+                    f"{_ENDPOINT_CLOSE_TIMEOUT_SECONDS:g}s; continuing shutdown",
+                    file=sys.stderr,
+                )
         bound = self._unix_socket
         self._unix_socket = None
         if bound is not None:
@@ -139,6 +184,7 @@ class LocalBrokerServer:
         event_buffers: dict[asyncio.Task[Any], list[bytes]] = {}
         should_close = asyncio.Event()
         principals: dict[str, str | dict[str, Any]] = {}
+        self._connections.add(writer)
 
         async def on_event(event: dict[str, Any]) -> None:
             data = (
@@ -182,6 +228,8 @@ class LocalBrokerServer:
                 await writer.drain()
             if reply.close:
                 should_close.set()
+            if reply.retire:
+                self.request_stop()
 
         self.host.subscribe_events(on_event)
         self.host.subscribe_catalog(on_event)
@@ -199,10 +247,13 @@ class LocalBrokerServer:
                 task = asyncio.create_task(process(request))
                 tasks.add(task)
                 task.add_done_callback(tasks.discard)
-                if request.get("type") == "shutdown":
+                if request.get("type") in {"shutdown", "retire"}:
                     await should_close.wait()
                     break
+        except (ConnectionResetError, BrokenPipeError):
+            pass
         finally:
+            self._connections.discard(writer)
             self.host.unsubscribe_events(on_event)
             self.host.unsubscribe_catalog(on_event)
             for task in tasks:
@@ -254,7 +305,8 @@ class LocalBrokerServer:
         thread = threading.Thread(target=accept_loop, name="host-tools-pipe", daemon=True)
         thread.start()
         try:
-            await asyncio.Event().wait()
+            assert self._stop is not None
+            await self._stop.wait()
         finally:
             self._windows_stop.set()
             self._windows_listener.close()
@@ -307,6 +359,8 @@ class LocalBrokerServer:
                     output.put(event_data)
                 if reply.close:
                     output.put(None)
+                if reply.retire:
+                    self.request_stop()
             except Exception as exc:  # noqa: BLE001
                 output.put(
                     json.dumps(
@@ -347,7 +401,7 @@ class LocalBrokerServer:
                 )
                 pending.add(future)
                 future.add_done_callback(lambda item, req=request: done(item, req))
-                if request.get("type") == "shutdown":
+                if request.get("type") in {"shutdown", "retire"}:
                     break
         except (OSError, EOFError, json.JSONDecodeError):
             pass
@@ -484,13 +538,175 @@ class LocalBrokerClient:
             self._reader = None
 
 
+_CONNECT_ERRORS = (OSError, EOFError, ConnectionRefusedError, FileNotFoundError)
+_VERSION_RE = re.compile(r"^(\d+(?:\.\d+)*)(?:(a|b|rc)(\d+))?(?:\.post(\d+))?$")
+_PRE_RANK = {"a": 0, "b": 1, "rc": 2}
+
+
+def _version_key(value: Any) -> tuple | None:
+    """Order the PEP 440 subset host-tools releases use (``1.0.0b16``)."""
+
+    if not isinstance(value, str):
+        return None
+    match = _VERSION_RE.match(value.strip())
+    if match is None:
+        return None
+    release = tuple(int(part) for part in match.group(1).split("."))
+    release += (0,) * (4 - len(release))
+    pre = match.group(2)
+    # A final release sorts after all of its pre-releases.
+    pre_key = (_PRE_RANK[pre], int(match.group(3))) if pre else (3, 0)
+    post = int(match.group(4)) if match.group(4) else -1
+    return (release, pre_key, post)
+
+
+def broker_is_older(reported: Any, own: str = __version__) -> bool:
+    """Whether a running broker should yield to this installation.
+
+    A broker that reports no version predates the handshake and is always
+    older. An unparsable or newer version is left alone: clients only ever
+    move the shared broker forward, so two installations cannot ping-pong.
+    """
+
+    if reported is None:
+        return True
+    theirs, ours = _version_key(reported), _version_key(own)
+    if theirs is None or ours is None:
+        return False
+    return theirs < ours
+
+
+async def _probe_broker(paths: HostPaths) -> dict[str, Any] | None:
+    """Return the running broker's ``initialize`` result, or None if absent."""
+
+    probe = LocalBrokerClient(paths)
+    try:
+        await probe.connect()
+    except _CONNECT_ERRORS:
+        await probe.close()
+        return None
+    try:
+        await probe.send(
+            {"id": "version-probe", "type": "initialize", "protocol": "openagent-host-tools/1"}
+        )
+        while True:
+            frame = await asyncio.wait_for(probe.receive(), timeout=5.0)
+            if frame is None:
+                return None
+            if frame.get("id") == "version-probe":
+                if frame.get("ok"):
+                    return dict(frame.get("result") or {})
+                return {}
+    except (asyncio.TimeoutError, *_CONNECT_ERRORS, ValueError):
+        return {}
+    finally:
+        await probe.close()
+
+
+async def _broker_gone(paths: HostPaths, timeout: float) -> bool:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        probe = LocalBrokerClient(paths)
+        try:
+            await probe.connect()
+        except _CONNECT_ERRORS:
+            return True
+        finally:
+            await probe.close()
+        if asyncio.get_running_loop().time() >= deadline:
+            return False
+        await asyncio.sleep(0.05)
+
+
+def _legacy_broker_pid(paths: HostPaths) -> int | None:
+    """PID of a pre-handshake broker, only if it is verifiably our broker."""
+
+    if os.name == "nt":
+        return None
+    try:
+        pid = int(paths.broker_pid.read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return None
+    if pid <= 1 or pid == os.getpid():
+        return None
+    try:
+        command = subprocess.run(
+            ["ps", "-o", "command=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    # The pid file is 0600 inside the user-only host home; still require the
+    # process to look like a host-tools broker so a recycled PID is never hit.
+    if "--broker" not in command.split() or "host" not in command or "tools" not in command:
+        return None
+    return pid
+
+
+async def _retire_broker(paths: HostPaths, info: dict[str, Any]) -> bool:
+    features = info.get("features") if isinstance(info.get("features"), dict) else {}
+    if features.get("retire"):
+        client = LocalBrokerClient(paths)
+        try:
+            await client.connect()
+            await client.send({"id": "retire", "type": "retire"})
+            while True:
+                frame = await asyncio.wait_for(client.receive(), timeout=5.0)
+                if frame is None or frame.get("id") == "retire":
+                    break
+        except (asyncio.TimeoutError, *_CONNECT_ERRORS, ValueError):
+            pass
+        finally:
+            await client.close()
+        return await _broker_gone(paths, _RETIRE_TIMEOUT_SECONDS)
+    pid = _legacy_broker_pid(paths)
+    if pid is None:
+        return False
+    for signum in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.kill(pid, signum)
+        except ProcessLookupError:
+            return await _broker_gone(paths, _RETIRE_TIMEOUT_SECONDS)
+        except PermissionError:
+            return False
+        # Legacy brokers can hang in teardown while peers stay connected, so
+        # SIGTERM gets a bounded grace period before SIGKILL.
+        if await _broker_gone(paths, _RETIRE_TIMEOUT_SECONDS / 2):
+            return True
+    return await _broker_gone(paths, _RETIRE_TIMEOUT_SECONDS / 2)
+
+
+async def _retire_older_broker(paths: HostPaths) -> None:
+    info = await _probe_broker(paths)
+    if not info:
+        # Absent, or answered without a usable initialize: keep current behaviour.
+        return
+    reported = info.get("host_tools_version")
+    if not broker_is_older(reported):
+        return
+    retired = await _retire_broker(paths, info)
+    print(
+        "openagent-host-tools: running broker "
+        f"{reported or 'without version (legacy)'} is older than {__version__}; "
+        + ("retired it" if retired else "could not retire it, using it as is"),
+        file=sys.stderr,
+    )
+
+
 async def connect_or_start_broker(paths: HostPaths | None = None) -> LocalBrokerClient:
     paths = paths or HostPaths.discover()
+    try:
+        await _retire_older_broker(paths)
+    except Exception as exc:  # noqa: BLE001 - never block startup on the upgrade path
+        print(f"openagent-host-tools: broker version check failed: {exc}", file=sys.stderr)
     client = LocalBrokerClient(paths)
     try:
         await client.connect()
         return client
-    except (OSError, EOFError, ConnectionRefusedError, FileNotFoundError):
+    except _CONNECT_ERRORS:
         await client.close()
     _spawn_broker(paths)
     deadline = asyncio.get_running_loop().time() + 8.0

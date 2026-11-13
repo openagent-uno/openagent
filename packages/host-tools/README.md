@@ -56,6 +56,30 @@ The protocol version is `openagent-host-tools/1`. Requests are one JSON object
 per line and use the following `type` values: `initialize`, `catalog`, `call`,
 `cancel`, `status`, `set_consent`, and `shutdown`.
 
+### Shared broker and upgrades
+
+Every Desktop and CLI process on a user account connects through the stdio
+shim to one per-user broker (a Unix socket or a Windows named pipe). `shutdown`
+only closes the caller's connection. `initialize` reports the broker's
+`host_tools_version`, `broker_pid` and `features.retire`.
+
+Before connecting, a client probes the running broker. If it is older than the
+client's own bundle, the client sends `retire`, and that broker stops after
+replying. If it predates the version handshake, the client checks that the
+`broker.pid` owner is a host-tools `--broker` process, then sends SIGTERM and,
+after a bounded wait, SIGKILL. The client then starts its own broker. A newer
+or unparsable version is left running, so the broker only moves forward and
+two installations do not keep replacing each other. When a broker retires,
+calls still in flight on other connections end with the usual
+disconnected/indeterminate result.
+
+Broker teardown is bounded: open connections are aborted, the endpoint close
+waits at most 5 s, and a broker that has not finished 20 s after SIGTERM/SIGINT
+exits anyway. Up to `1.0.0b16`, a broker with any connected client hung on
+SIGTERM, because Python 3.12's `Server.wait_closed` waits for every connection.
+That is why an upgraded app could keep being served by the previous version's
+tool code until the broker was killed.
+
 Local access is fail-closed. A user enables it once per device with the Desktop
 client or:
 
