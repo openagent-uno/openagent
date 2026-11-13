@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState, type Ref, type ReactNode, useMemo } from 'react';
 import Feather from '@expo/vector-icons/Feather';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform, Image } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Attachment } from '../../common/types';
 import { colors, font, radius } from '../theme';
 
@@ -334,8 +335,14 @@ export default function MessageComposer({
     && !alwaysListening
   );
 
+  // The composer sits at the bottom edge of its screen: clear the home
+  // indicator on devices that have one (inset is 0 on web/desktop).
+  const insets = useSafeAreaInsets();
+  // Enter / Shift+Enter only describe a hardware keyboard.
+  const showKeyboardHint = showHint && Platform.OS === 'web';
+
   return (
-    <View style={styles.composerWrap}>
+    <View style={[styles.composerWrap, insets.bottom > 0 && { paddingBottom: Math.max(12, insets.bottom) }]}>
       {slashMatches.length > 0 && (
         <View style={styles.slashMenu}>
           {slashMatches.map((c, i) => (
@@ -626,7 +633,7 @@ export default function MessageComposer({
           </View>
         </View>
       </View>
-      {showHint && (
+      {showKeyboardHint && (
         <View style={styles.composerHintRow}>
           <Text style={styles.composerHint}>
             <Text style={styles.kbd}>Enter</Text> to send · <Text style={styles.kbd}>Shift+Enter</Text> for newline

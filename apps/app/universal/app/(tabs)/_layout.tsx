@@ -20,6 +20,7 @@ import { StackActions } from '@react-navigation/native';
 import { useNavigation, usePathname, useRouter, withLayoutContext } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AgentSwitcher, { AGENT_RAIL_WIDTH } from '../../components/AgentSwitcher';
 import Sidebar from '../../components/Sidebar';
 import DrawerResizeHandle from '../../components/DrawerResizeHandle';
@@ -76,10 +77,13 @@ function PhoneNavigationDrawer({ hasRail, onSelect, onNavigate }: {
 }) {
   const open = useDrawerStatus() === 'open';
   const inert = useWebInert(!open);
+  // The drawer is full-height on phones: keep its rows clear of the status
+  // bar / Dynamic Island and the home indicator.
+  const insets = useSafeAreaInsets();
   return (
     <View ref={inert} testID="phone-navigation-drawer" pointerEvents={open ? 'auto' : 'none'}
       accessibilityElementsHidden={!open} importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
-      style={{ flex: 1, flexDirection: 'row' }}
+      style={{ flex: 1, flexDirection: 'row', paddingTop: insets.top, paddingBottom: insets.bottom }}
       {...(Platform.OS === 'web' ? { 'aria-hidden': !open } : {})}>
       {hasRail && <AgentSwitcher onSelect={onSelect} />}
       <View style={{ flex: 1, minWidth: 0 }}>
