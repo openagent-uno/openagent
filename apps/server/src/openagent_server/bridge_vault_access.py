@@ -91,7 +91,7 @@ def owner_bridge_vault_turn(context, config: Mapping) -> bool:
     return _private_bridge_sender(context, config, owner_bridge_senders(config, provider)) is not None
 
 
-def owner_bridge_automation_vault(context, config: Mapping, agent_name: str) -> bool:
+def owner_bridge_automation_vault(context, config: Mapping, agent_name: str | None) -> bool:
     """Owner vault trust for a durable automation the owner approved over the bridge.
 
     A grant approved from the owner's private bridge turn is captured with the
@@ -107,7 +107,8 @@ def owner_bridge_automation_vault(context, config: Mapping, agent_name: str) -> 
     principal = context.initiator
     author = context.author
     return bool(
-        getattr(context, "deferred", False)
+        agent_name
+        and getattr(context, "deferred", False)
         and getattr(context, "delegation_id", None)
         and not getattr(context, "ingress_id", None)
         and is_owner_bridge_principal(principal)

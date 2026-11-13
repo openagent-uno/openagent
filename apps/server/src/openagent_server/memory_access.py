@@ -98,7 +98,7 @@ class NativeMemoryAccess:
             if owner_bridge_vault_turn(context, self.service.agent.config):
                 return True
             if owner_bridge_automation_vault(
-                context, self.service.agent.config, self.service.agent.name
+                context, self.service.agent.config, getattr(self.service.agent, "name", None)
             ):
                 return True
         try:

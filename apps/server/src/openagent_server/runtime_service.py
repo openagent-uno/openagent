@@ -870,7 +870,9 @@ class NativeRuntimeService:
 
                 if owner_bridge_vault_turn(context, self.agent.config):
                     return True
-                if owner_bridge_automation_vault(context, self.agent.config, self.agent.name):
+                if owner_bridge_automation_vault(
+                    context, self.agent.config, getattr(self.agent, "name", None)
+                ):
                     return True
             owner = await self.directory.owner_handle()
             return bool(

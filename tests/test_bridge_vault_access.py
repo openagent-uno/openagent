@@ -3,7 +3,10 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 from openagent_core.contracts import ExecutionContext, PrincipalRef, ResourceRef
-from openagent_server.bridge_vault_access import owner_bridge_vault_turn
+from openagent_server.bridge_vault_access import (
+    owner_bridge_automation_vault,
+    owner_bridge_vault_turn,
+)
 from openagent_server.memory_access import NativeMemoryAccess
 from openagent_server.runtime_service import NativeRuntimeService
 
@@ -116,3 +119,102 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
             self.config['channels']['telegram']['token'] = token
             with patch.dict('os.environ', {'TELEGRAM_BOT_TOKEN': ''}):
                 self.assertFalse(owner_bridge_vault_turn(self.typed_context(), self.config))
+
+
+class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
+    """Scheduled runs of an automation the owner approved over the bridge."""
+
+    def setUp(self):
+        self.bridge = PrincipalRef("openagent", "network", "__bridge_telegram", "user")
+        self.agent = PrincipalRef("openagent", "network", "Friday", "agent")
+        self.context = ExecutionContext(
+            self.agent, self.bridge, self.bridge, "scheduler:task:occurrence", "Friday",
+            (self.bridge,), scopes=("capability:vault", "capability:vault-gate"),
+            delegation_id="grant-1", deferred=True,
+        )
+        self.config = {
+            "channels": {"telegram": {"allowed_users": ["155490357"]}},
+            "runtime_tool_audiences": {
+                "vault_owner_channels": {"telegram": ["155490357"]}
+            },
+        }
+
+    def _services(self, config, name="Friday"):
+        async def owner_handle():
+            return "alessandro"
+
+        async def snapshot(tenant):
+            # The bridge is not a network member: the generic path refuses it.
+            raise PermissionError(tenant)
+
+        async def no_official_source(context, resource):
+            return None
+
+        agent = SimpleNamespace(config=config, memory_db=SimpleNamespace(db_path="unused"))
+        if name is not None:
+            agent.name = name
+        runtime = SimpleNamespace(
+            agent=agent,
+            official_connectors=SimpleNamespace(authorize_source=no_official_source),
+            runtime=SimpleNamespace(capabilities=SimpleNamespace(has_source=lambda *_: True)),
+            directory=SimpleNamespace(owner_handle=owner_handle),
+            dashboards=None,
+            _interactive_sources={},
+        )
+        memory = NativeMemoryAccess(SimpleNamespace(
+            agent=agent, directory=SimpleNamespace(owner_handle=owner_handle, snapshot=snapshot),
+        ))
+        return runtime, memory
+
+    async def _vault_access(self, context, config, name="Friday"):
+        runtime, memory = self._services(config, name)
+        note = ResourceRef("vault-note", "network", "notes/example.md")
+        results = [
+            await NativeRuntimeService._authorize_source(
+                runtime, context, "tool.discover",
+                ResourceRef("capability", "network", source), audience=context.audience,
+            )
+            for source in ("vault", "vault-gate")
+        ]
+        results.append(await memory.authorize(context, "memory.read", note))
+        results.append(await memory.authorize(
+            context, "memory.publish", note, audience=context.audience
+        ))
+        return results
+
+    async def test_owner_approved_bridge_automation_keeps_the_vault(self):
+        self.assertFalse(owner_bridge_vault_turn(self.context, self.config))
+        self.assertTrue(owner_bridge_automation_vault(self.context, self.config, "Friday"))
+        self.assertEqual(await self._vault_access(self.context, self.config), [True] * 4)
+
+    async def test_trust_ends_with_the_owner_bridge_policy(self):
+        revoked = {**self.config, "runtime_tool_audiences": {"vault_owner_channels": {"telegram": []}}}
+        disabled = {**self.config, "channels": {"telegram": {"enabled": False, "allowed_users": ["155490357"]}}}
+        for config in (revoked, disabled, {}):
+            self.assertFalse(owner_bridge_automation_vault(self.context, config, "Friday"))
+            self.assertEqual(await self._vault_access(self.context, config), [False] * 4)
+
+    async def test_only_this_agents_deferred_delegated_run_qualifies(self):
+        other = PrincipalRef("openagent", "network", "other", "user")
+        for changed in (
+            # (Core already rejects deferred work without a delegation and
+            # cross-tenant authors, so those shapes cannot reach the policy.)
+            replace(self.context, deferred=False),
+            replace(self.context, ingress_id="channel:telegram"),
+            replace(self.context, author=self.bridge),
+            replace(self.context, author=PrincipalRef("openagent", "network", "Other", "agent")),
+            replace(self.context, audience=(self.bridge, other)),
+            replace(self.context, authority=other),
+            replace(self.context, initiator=PrincipalRef("openagent", "network", "__bridge_unknown", "user")),
+        ):
+            self.assertFalse(owner_bridge_automation_vault(changed, self.config, "Friday"), changed)
+        self.assertFalse(owner_bridge_automation_vault(self.context, self.config, None))
+
+    async def test_missing_scope_or_agent_name_fails_closed(self):
+        unscoped = replace(self.context, scopes=())
+        runtime, _ = self._services(self.config)
+        self.assertFalse(await NativeRuntimeService._authorize_source(
+            runtime, unscoped, "tool.discover",
+            ResourceRef("capability", "network", "vault"), audience=unscoped.audience,
+        ))
+        self.assertEqual(await self._vault_access(self.context, self.config, name=None), [False] * 4)
