@@ -44,6 +44,24 @@ config.resolver.unstable_enablePackageExports = false;
 
 const cryptoShimPath = path.resolve(__dirname, '..', 'common', 'network', 'crypto-shim');
 
+// cbor2 is ESM-only with no ``main`` field — only ``exports``.  Metro's
+// per-resolution ``unstable_enablePackageExports`` context override doesn't
+// propagate in 0.83, so we map bare specifiers to their exports entrypoints.
+const cbor2Dir = path.resolve(__dirname, 'node_modules', 'cbor2', 'lib');
+const cbor2Exports = {
+  'cbor2': path.join(cbor2Dir, 'index.js'),
+  'cbor2/comment': path.join(cbor2Dir, 'comment.js'),
+  'cbor2/decoder': path.join(cbor2Dir, 'decoder.js'),
+  'cbor2/diagnostic': path.join(cbor2Dir, 'diagnostic.js'),
+  'cbor2/encoder': path.join(cbor2Dir, 'encoder.js'),
+  'cbor2/simple': path.join(cbor2Dir, 'simple.js'),
+  'cbor2/sorts': path.join(cbor2Dir, 'sorts.js'),
+  'cbor2/tag': path.join(cbor2Dir, 'tag.js'),
+  'cbor2/types': path.join(cbor2Dir, 'types.js'),
+  'cbor2/utils': path.join(cbor2Dir, 'utils.js'),
+  'cbor2/writer': path.join(cbor2Dir, 'writer.js'),
+};
+
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   // xterm.js is DOM-only — stub it on native.
   if (
@@ -57,13 +75,15 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform !== 'web' && moduleName === 'crypto') {
     return context.resolveRequest(context, cryptoShimPath, platform);
   }
+  // cbor2 has no ``main`` field; resolve bare specifiers to the exports map.
+  if (cbor2Exports[moduleName]) {
+    return context.resolveRequest(context, cbor2Exports[moduleName], platform);
+  }
   if (
     moduleName.startsWith('@openagent/desktop-tools/') ||
     moduleName === 'shiki' ||
     moduleName.startsWith('shiki/') ||
     moduleName.startsWith('@shikijs/') ||
-    moduleName === 'cbor2' ||
-    moduleName.startsWith('cbor2/') ||
     moduleName === 'rfc4648' ||
     moduleName.startsWith('rfc4648/')
   ) {
