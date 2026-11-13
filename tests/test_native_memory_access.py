@@ -20,7 +20,7 @@ class NativeMemoryTests(unittest.IsolatedAsyncioTestCase):
             if tenant!='network':raise PermissionError()
             return {'users':self.members,'agents':['worker'],'devices':[{'handle':'alice','device_id':'a'*64}]}
         async def owner():return 'alice'
-        self.agent=SimpleNamespace(memory_db=self.db,config={})
+        self.agent=SimpleNamespace(name='fixture-agent',memory_db=self.db,config={})
         self.service=NativeMemoryAccess(SimpleNamespace(agent=self.agent,
             authorizer=NativeRuntimeAuthorizer(SimpleNamespace(),self.db.db_path),
             directory=SimpleNamespace(snapshot=snapshot,owner_handle=owner)))
