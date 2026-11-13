@@ -13,9 +13,10 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import GraphView from '../../../components/GraphView';
+import NoteList from '../../../components/memory/NoteList';
 import { HeaderIconButton, HeaderRight, useHeaderInset } from '../../../components/screenHeader';
 import { MemorySearchBar, MemorySearchResults } from '../../../components/memory/MemorySearch';
 import { useConnection } from '../../../stores/connection';
@@ -32,6 +33,7 @@ export default function MemoryGraphScreen() {
   const headerInset = useHeaderInset();
   const config = useConnection((s) => s.config);
   const {
+    notes,
     graph,
     highlightNodeIds,
     loading,
@@ -110,7 +112,10 @@ export default function MemoryGraphScreen() {
 
   return (
     <View style={styles.mainArea}>
-      {graph && graph.nodes.length > 0 ? (
+      {Platform.OS !== 'web' ? (
+        // The graph is Canvas 2D (web-only); native lists the notes instead.
+        <NoteList notes={notes} loading={loading} topInset={headerInset} onSelect={openNote} />
+      ) : graph && graph.nodes.length > 0 ? (
         <GraphView
           data={graph}
           highlightNodeIds={highlightNodeIds}

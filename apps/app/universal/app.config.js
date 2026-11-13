@@ -29,6 +29,12 @@ module.exports = ({ config }) => ({
       bundleIdentifier: 'ai.openagent.app',
       buildNumber: appVersion.match(/beta\.(\d+)$/)?.[1] || '1',
       supportsTablet: true,
+      infoPlist: {
+        // Opt out of the iOS 26 Liquid Glass redesign: native-stack headers
+        // otherwise render glass capsules that clash with the app's own
+        // header styling. Ignored on earlier iOS versions.
+        UIDesignRequiresCompatibility: true,
+      },
       ...(process.env.OPENAGENT_APPLE_TEAM_ID
         ? { appleTeamId: process.env.OPENAGENT_APPLE_TEAM_ID }
         : {}),

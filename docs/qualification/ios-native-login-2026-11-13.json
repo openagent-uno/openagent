@@ -21,7 +21,9 @@
     "composer_keyboard_avoidance": "passed: composer rises above the iOS keyboard and returns to the bottom inset when it hides",
     "keyboard_send_key": "passed: Return/Send submits the message and keeps focus",
     "native_header_blur": "passed: header draws a native blur instead of a near-transparent tint",
-    "connecting_screen_safe_area": "passed: sidebar toggle sits below the status bar while connecting"
+    "connecting_screen_safe_area": "passed: sidebar toggle sits below the status bar while connecting",
+    "memory_note_list": "passed: native Memory lists vault notes by recency and opens the editor",
+    "liquid_glass_opt_out": "passed: UIDesignRequiresCompatibility set; native headers render without glass capsules"
   },
   "fixed_during_qualification": [
     "Hermes lacked window.crypto and crypto.subtle (SRP and ed25519)",
@@ -32,10 +34,12 @@
     "Composer stayed under the iOS software keyboard",
     "Return key inserted a newline instead of sending on iOS",
     "Chat header was transparent on native (no backdrop-filter)",
-    "Connecting screen placed the sidebar toggle under the status bar"
+    "Connecting screen placed the sidebar toggle under the status bar",
+    "Memory rendered empty on native (Canvas 2D graph is web-only)",
+    "Note list crashed sorting numeric modified timestamps"
   ],
   "open_issues": [
-    "Memory screen renders empty on the phone (not investigated)"
+    "Memory note viewer shows YAML frontmatter as a plain paragraph"
   ],
   "limits": [
     "No App Store or TestFlight publication",
