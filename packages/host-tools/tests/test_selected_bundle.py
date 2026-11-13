@@ -40,8 +40,8 @@ def test_default_environment_resolves_login_path_on_macos(tmp_path: Path):
     from openagent_shell import shell_core
     shell_core._login_path_cache.clear()
     with patch('openagent_shell.shell_core.platform.system', return_value='Darwin'), \
-         patch('openagent_shell.shell_core._probe_login_path', return_value='/login/bin:/usr/bin'), \
-         patch.dict(os.environ, {'PATH': '/usr/bin:/bin'}, clear=False), \
+         patch('openagent_shell.shell_core._probe_login_path', return_value=os.pathsep.join(['/login/bin', '/usr/bin'])), \
+         patch.dict(os.environ, {'PATH': os.pathsep.join(['/usr/bin', '/bin'])}, clear=False), \
          patch('openagent_host_tools.host.discover_sidecars', return_value=()):
         host = CapabilityHost(paths=HostPaths(tmp_path/'profile'), cwd=tmp_path, builtin_names=('shell',))
     shell = host._servers['shell']
