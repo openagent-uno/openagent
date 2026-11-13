@@ -1,6 +1,6 @@
 {
   "date": "2026-11-13",
-  "status": "published-and-standalone-updated",
+  "status": "published-updated-and-manually-accepted",
   "versions": {
     "product": "1.1.9b35",
     "core": "1.1.0b83",
@@ -23,8 +23,8 @@
     "linux_candidate": "Real temporary SQLite contention and empty-cache erasure checks passed using the staged server environment.",
     "public_artifacts": "Anonymous SHA256 readback of all eight product wheels matched their immutable manifest.",
     "preservation": "Stopped-state backup copied incrementally off-host, verified by complete source SHA256, independent SQLite restore and all original keys across 18 protected tables; identical identity/config hashes and live post-startup preservation checks passed.",
-    "mac_telegram": "Real /start and /help responses and the /new confirmation were rendered. Native inline-button automation returned AX errors; the user was asked for the final confirmation click."
+    "mac_telegram": "Real /start and /help replies and the /new confirmation were rendered. The user then manually confirmed the equivalent /clear reset and reported Fatto. Production logs independently recorded one successful session forget and command receipt-to-result in 241 ms; /clear and /new share reset semantics."
   },
   "recovery": "The first gzip backup stream exceeded its deadline and rolled back to the previous service before candidate activation. Final activation used only the independently verified cold backup.",
-  "boundaries": "No real /new confirmation is claimed from the Mac automation. No unrelated agent rollout or App release is included."
+  "boundaries": "The real confirmation was clicked by the user; native inline-button automation remains unavailable. No unrelated agent rollout or App release is included."
 }

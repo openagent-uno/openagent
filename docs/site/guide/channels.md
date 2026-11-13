@@ -291,4 +291,4 @@ Python product beta35 adopts Core beta83's nonblocking session erasure and
 cold-start reset. Confirmed commands no longer depend on a populated model
 cache. The [qualification receipt](../../qualification/telegram-reset-2026-11-13.json)
 separates installed-package tests, the real Telegram command surface and the
-remaining manual confirmation-click boundary.
+user-confirmed reset, independently correlated with successful host execution.
