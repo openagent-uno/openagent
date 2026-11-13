@@ -120,6 +120,9 @@ export default function ChatScreen() {
   const draftAccountId = useConnection((state) => state.activeAccountId);
   useSharedView('session', activeSessionId || undefined);
   const sessionsHydrated = useChat((s) => s.sessionsHydrated);
+  const transcriptLoading = useChat((s) => !!s.activeSessionId && !!s.transcriptLoading[s.activeSessionId]);
+  const transcriptLoadError = useChat((s) => (s.activeSessionId ? s.transcriptLoadError[s.activeSessionId] : undefined));
+  const loadInitialTranscript = useChat((s) => s.loadInitialTranscript);
   const createSession = useChat((s) => s.createSession);
   const setActiveSession = useChat((s) => s.setActiveSession);
   const removeSession = useChat((s) => s.removeSession);
@@ -1659,7 +1662,35 @@ export default function ChatScreen() {
                     );
                   })()
                 ) : null}
-                {displayMessages.length === 0 && (
+                {displayMessages.length === 0 && transcriptLoading && (
+                  // An existing conversation is still loading: never present
+                  // it as a new, empty one.
+                  <View style={styles.skeletonInner} accessibilityLabel="Loading conversation">
+                    <View style={styles.skeletonTurn}>
+                      <Skeleton width={64} height={11} />
+                      <SkeletonLines lines={2} lastWidth="70%" />
+                    </View>
+                    <View style={styles.skeletonTurn}>
+                      <Skeleton width={88} height={11} />
+                      <SkeletonLines lines={3} lastWidth="45%" />
+                    </View>
+                  </View>
+                )}
+                {displayMessages.length === 0 && !transcriptLoading && transcriptLoadError && (
+                  <View style={styles.heroEmpty}>
+                    <Text style={styles.heroTitle}>Couldn't load this conversation</Text>
+                    <Text style={styles.heroSub}>{transcriptLoadError}</Text>
+                    <TouchableOpacity
+                      style={styles.suggestedChip}
+                      onPress={() => { void loadInitialTranscript(activeSession.id); }}
+                      accessibilityRole="button"
+                    >
+                      <Feather name="refresh-cw" size={11} color={colors.primary} />
+                      <Text style={styles.suggestedLabel}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                {displayMessages.length === 0 && !transcriptLoading && !transcriptLoadError && (
                   <View style={styles.heroEmpty}>
                     <BrandLogo size={84} />
                     <Text style={styles.heroTitle}>At your service</Text>

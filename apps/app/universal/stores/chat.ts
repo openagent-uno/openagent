@@ -725,6 +725,14 @@ interface ChatState {
   /** Chooses canonical paged messages for v2 agents and preserves the old
    * runs endpoint only as a compatibility path for legacy agents. */
   sessionHistoryMode: SessionHistoryMode;
+  /** Sessions whose first transcript page is being fetched. While a session
+   * is listed here and has no rows yet, the chat shows a loading state rather
+   * than the "new conversation" placeholder. */
+  transcriptLoading: Record<string, true>;
+  /** Last initial-load failure per session, cleared by a successful load. */
+  transcriptLoadError: Record<string, string>;
+  /** Fetch the newest transcript page of a session that has no rows yet. */
+  loadInitialTranscript: (id: string) => Promise<void>;
 
   createSession: () => string;
   setActiveSession: (id: string) => void;
@@ -827,6 +835,42 @@ export const useChat = create<ChatState>((set, get) => ({
   activeSessionId: null,
   sessionsHydrated: false,
   sessionHistoryMode: 'unknown',
+  transcriptLoading: {},
+  transcriptLoadError: {},
+
+  loadInitialTranscript: async (id) => {
+    if (get().transcriptLoading[id]) return;
+    const current = sessionReadGuard(id);
+    set((s) => {
+      const { [id]: _previous, ...errors } = s.transcriptLoadError;
+      return { transcriptLoading: { ...s.transcriptLoading, [id]: true }, transcriptLoadError: errors };
+    });
+    let failure: string | null = null;
+    try {
+      const loaded = await loadSessionTranscript(id, get().sessionHistoryMode);
+      if (!current()) return;
+      const hasMessages = loaded.kind === 'v2'
+        ? loaded.page.messages.length > 0
+        : loaded.messages.length > 0;
+      if (!hasMessages) return;
+      set((s) => ({
+        sessions: s.sessions.map((se) =>
+          se.id !== id || (se.messages.length > 0 && !se.sharedSnapshot)
+            ? se
+            : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
+        ),
+      }));
+    } catch (error) {
+      failure = error instanceof Error && error.message ? error.message : 'The conversation could not be loaded.';
+    } finally {
+      set((s) => {
+        const { [id]: _done, ...loading } = s.transcriptLoading;
+        return failure && current()
+          ? { transcriptLoading: loading, transcriptLoadError: { ...s.transcriptLoadError, [id]: failure } }
+          : { transcriptLoading: loading };
+      });
+    }
+  },
 
   createSession: () => {
     const id = sessionId();
@@ -875,23 +919,7 @@ export const useChat = create<ChatState>((set, get) => ({
     if (state.sessionsHydrated) {
       const ses = sessions.find((s) => s.id === id);
       if (ses && ses.messages.length === 0) {
-        const current = sessionReadGuard(id);
-        loadSessionTranscript(id, state.sessionHistoryMode)
-          .then((loaded) => {
-            if (!current()) return;
-            const hasMessages = loaded.kind === 'v2'
-              ? loaded.page.messages.length > 0
-              : loaded.messages.length > 0;
-            if (!hasMessages) return;
-            set((s) => ({
-              sessions: s.sessions.map((se) =>
-                se.id !== id || (se.messages.length > 0 && !se.sharedSnapshot)
-                  ? se
-                  : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
-              ),
-            }));
-          })
-          .catch(() => {});
+        void get().loadInitialTranscript(id);
       }
     }
     // Load the context-window composition for the newly-focused session so
@@ -1013,24 +1041,7 @@ export const useChat = create<ChatState>((set, get) => ({
     // session here would clobber its in-flight streaming transcript.
     const importedIds = new Set(imported.map((i) => i.id));
     if (autoSelectId && importedIds.has(autoSelectId)) {
-      const mode = get().sessionHistoryMode;
-      const current = sessionReadGuard(autoSelectId);
-      loadSessionTranscript(autoSelectId, mode)
-        .then((loaded) => {
-          if (!current()) return;
-          const hasMessages = loaded.kind === 'v2'
-            ? loaded.page.messages.length > 0
-            : loaded.messages.length > 0;
-          if (!hasMessages) return;
-          set((s) => ({
-            sessions: s.sessions.map((se) =>
-              se.id !== autoSelectId || se.messages.length > 0
-                ? se
-                : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
-            ),
-          }));
-        })
-        .catch(() => {});
+      void get().loadInitialTranscript(autoSelectId);
     }
     // Paint the context panel on first load: hydration sets the active session
     // directly (not via ``setActiveSession``), so without this the panel stayed
@@ -1842,6 +1853,8 @@ export const useChat = create<ChatState>((set, get) => ({
       activeSessionId: null,
       sessionsHydrated: false,
       sessionHistoryMode: 'unknown',
+      transcriptLoading: {},
+      transcriptLoadError: {},
     });
   },
 
