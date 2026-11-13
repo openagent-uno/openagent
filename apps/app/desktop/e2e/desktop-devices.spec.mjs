@@ -319,11 +319,15 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await page.getByLabel('Send message',{exact:true}).click();
     await expect(bubble).toHaveCount(1);
     await expect(page.getByText('Session started',{exact:true})).toHaveCount(0);
+    // The held turn is in flight: the transcript shows the agent working.
+    await expect(page.getByRole('status',{name:'Agent is working'})).toBeVisible();
     releaseTurn();
     await expect(page.getByText('Session started',{exact:true})).toBeVisible();
     expect(gateway.draftObservations).toEqual([]);
     await expect(bubble).toHaveCount(1);
-    await expect(page.getByRole('status',{name:'Agent is working'})).toBeVisible();
+    // The HTTP turn result is terminal for that run, even while a stale shared
+    // snapshot still marks it active (see the shared observer recovery).
+    await expect(page.getByRole('status',{name:'Agent is working'})).toHaveCount(0);
     const timeline = page.getByText('Session started', { exact: true })
       .or(page.getByText('Timeline Probe', { exact: true }))
       .or(page.getByText('Check complete', { exact: true }));
