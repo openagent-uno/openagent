@@ -129,7 +129,9 @@ to complete an interactive verification; browser control does not guarantee
 access through every site challenge.
 
 Set `server_host_tools: false` to run a session-only server, or list only the
-tools the deployment should expose. The shell subprocess receives runtime safety
+tools the deployment should expose. At startup the server adds a catalog row for
+each selected tool that has none, so a fresh database exposes the default
+workspace tools immediately. Existing rows, including disabled ones, are kept. The shell subprocess receives runtime safety
 and sandbox policy but does not inherit channel or provider credentials.
 
 ## Tool Discovery

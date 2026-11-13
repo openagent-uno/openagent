@@ -121,6 +121,48 @@ def test_opted_in_server_computer_rows_preserve_user_disabled_state() -> None:
     assert db.rows[0]["enabled"] is False
 
 
+class _FakeCatalogDB:
+    def __init__(self, rows=None):
+        self.rows = list(rows or [])
+        self.inserted = []
+
+    async def list_mcps(self):
+        return self.rows
+
+    async def upsert_mcp(self, name, **kwargs):
+        self.inserted.append((name, kwargs))
+        self.rows.append({"name": name, **kwargs})
+
+
+def test_fresh_catalog_receives_default_workspace_tool_rows(tmp_path) -> None:
+    from openagent_server.bootstrap import ensure_server_computer_rows, standalone_spec_resolver
+
+    db = _FakeCatalogDB()
+    asyncio.run(ensure_server_computer_rows(db, {}))
+
+    assert {name for name, _ in db.inserted} == {"filesystem", "editor", "shell"}
+    assert all(kw["kind"] == "default" and kw["builtin_name"] == name
+               for name, kw in db.inserted)
+    resolver = standalone_spec_resolver({}, environment={"PATH": "/usr/bin"})
+    for row in db.rows:
+        assert resolver(row, str(tmp_path / "openagent.db"))["name"] == row["name"]
+
+
+def test_workspace_tool_seeding_keeps_existing_and_honours_selection() -> None:
+    from openagent_server.bootstrap import ensure_server_computer_rows
+
+    legacy = {"name": "filesystem", "kind": "default", "builtin_name": None,
+              "command": "npx", "enabled": False}
+    db = _FakeCatalogDB([legacy])
+    asyncio.run(ensure_server_computer_rows(db, {"server_host_tools": {"tools": ["filesystem", "shell"]}}))
+    assert [name for name, _ in db.inserted] == ["shell"]
+    assert db.rows[0] is legacy and legacy["enabled"] is False
+
+    untouched = _FakeCatalogDB()
+    asyncio.run(ensure_server_computer_rows(untouched, {"server_host_tools": False}))
+    assert untouched.inserted == []
+
+
 def test_server_host_tools_reject_unknown_names() -> None:
     from openagent_server.bootstrap import standalone_spec_resolver
 

@@ -140,15 +140,26 @@ def _server_host_selection(config: dict[str, Any]) -> frozenset[str]:
 
 
 async def ensure_server_computer_rows(db: Any, config: dict[str, Any]) -> None:
-    """Register opted-in, product-owned host tools without changing existing rows."""
-    selected = _server_host_selection(config) & _SERVER_COMPUTER_TOOLS
+    """Register the selected product-owned host tools without changing existing rows.
+
+    ``standalone_spec_resolver`` only resolves a server host tool that has a
+    catalog row. The workspace tools (filesystem, editor, shell) are selected
+    by default, so a fresh database must receive their rows too; otherwise a
+    new installation starts with no tools on its own computer while migrated
+    installations keep the rows their earlier versions seeded. Existing rows,
+    including disabled ones and historical shapes of the workspace tools, are
+    left untouched. The opt-in computer tools keep their reserved-name check.
+    """
+    selected = _server_host_selection(config)
     if not selected:
         return
     existing = {row["name"]: row for row in await db.list_mcps()}
     for name in sorted(selected):
         row = existing.get(name)
         if row is not None:
-            if row.get("kind") != "default" or row.get("builtin_name") != name:
+            if name in _SERVER_COMPUTER_TOOLS and (
+                row.get("kind") != "default" or row.get("builtin_name") != name
+            ):
                 raise ValueError(f"{name} is reserved for the server host capability")
             continue
         await db.upsert_mcp(name, kind="default", builtin_name=name,
