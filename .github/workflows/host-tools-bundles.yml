@@ -83,7 +83,7 @@ jobs:
           [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
           test "$SOURCE_SHA" = "$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
-          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b15
+          test "$(python -c 'exec(open("packages/host-tools/src/openagent_host_tools/_version.py").read()); print(__version__)')" = 1.0.0b16
           git diff --quiet HEAD
       - uses: actions/setup-python@v5
         with:

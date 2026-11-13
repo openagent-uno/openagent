@@ -220,6 +220,14 @@ This includes the browser's Node runtime and dependencies without installing
 dependencies into a source checkout or changing runtime code. Existing
 independently managed discovery directories are preserved.
 
+Host Tools B16 changes only the shell dependency: it consumes Tools release
+`v1.0.0-beta.7` (shell and execution `1.0.0b4`, the other wheels byte-identical
+to `v1.0.0-beta.6`). On macOS the shell resolves `PATH` from the user's login
+shell when the App starts the host from Finder or the Dock, and `shell_exec`
+refuses sub-second timeouts instead of terminating the command. The shell entry
+of `builtins-lock.json` changes with its schema; Device Tools stays at
+`1.0.0b18`.
+
 `publish-host-tools.yml` reuses the successful signed producer's exact artifact
 on a GitHub runner. A maintainer first creates the reviewed immutable version
 tag and draft. The publisher binds the eight successful jobs, producer commit,
