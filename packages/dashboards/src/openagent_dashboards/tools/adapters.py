@@ -16,6 +16,8 @@ from typing import Any, Mapping
 from openagent_core.core.on_behalf_context import current_on_behalf_identity
 from openagent_dashboards.compiler import (
     COMPONENTS,
+    OAUIValidationError,
+    describe_components,
     MAX_DEPTH,
     MAX_NODES,
     MAX_SOURCE_BYTES,
@@ -29,11 +31,13 @@ from openagent_dashboards.bundles import (
     safe_relative_path,
 )
 from openagent_dashboards.repository import (
+    CustomViewBusy,
     CustomViewConflict,
     CustomViewError,
     CustomViewImmutable,
     CustomViewInputError,
     CustomViewNotFound,
+    CustomViewRateLimited,
     CustomViewRevisionUnavailable,
 )
 from openagent_dashboards.service import service_for_db
@@ -65,23 +69,46 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
             "Dashboard tools require the authenticated originating App capability"
         )
 
+    def failure(code: str, message: str, *, retryable: bool) -> dict[str, Any]:
+        return {"ok": False, "error": code, "message": message, "retryable": retryable}
+
     def safe_error(exc: Exception) -> dict[str, Any]:
+        # Every outcome tells the model whether repeating the same call can
+        # help. A generic "unavailable" answer made agents retry invalid or
+        # permanently conflicting calls in a loop.
         if isinstance(exc, CustomViewRevisionUnavailable):
-            return {"ok": False, "error": "revision_unavailable", "message": exc.public_message}
+            return failure("revision_unavailable", exc.public_message, retryable=False)
+        if isinstance(exc, CustomViewBusy):
+            return failure("busy", exc.public_message, retryable=True)
+        if isinstance(exc, CustomViewRateLimited):
+            return failure("rate_limited", str(exc), retryable=True)
         if isinstance(exc, CustomViewConflict):
-            return {"ok": False, "error": "revision_conflict", "message": str(exc)}
+            return failure(
+                "revision_conflict",
+                f"{exc}. Read the View with ui_get_view and retry with its current revision.",
+                retryable=False,
+            )
         if isinstance(exc, CustomViewNotFound):
-            return {"ok": False, "error": "not_found", "message": str(exc)}
+            return failure("not_found", str(exc), retryable=False)
         if isinstance(exc, CustomViewImmutable):
-            return {"ok": False, "error": "immutable", "message": str(exc)}
-        if isinstance(exc, CustomViewInputError):
-            return {"ok": False, "error": "invalid_view", "message": str(exc)}
-        logger.error("ui-manager operation failed (details suppressed)")
-        return {
-            "ok": False,
-            "error": "temporarily_unavailable",
-            "message": "Custom Views are temporarily unavailable.",
-        }
+            return failure("immutable", str(exc), retryable=False)
+        if isinstance(exc, (CustomViewInputError, OAUIValidationError)):
+            return failure("invalid_view", str(exc), retryable=False)
+        if isinstance(exc, PermissionError) and getattr(exc, "errno", None) is None:
+            return failure(
+                "unauthorized",
+                "Custom View tools need the authenticated App turn that offered them.",
+                retryable=False,
+            )
+        # Only the exception class is logged: messages may carry user data.
+        logger.error(
+            "ui-manager operation failed: %s (details suppressed)", type(exc).__name__,
+        )
+        return failure(
+            "temporarily_unavailable",
+            f"Custom Views are temporarily unavailable ({type(exc).__name__}).",
+            retryable=True,
+        )
 
     def decode_scripts(value: Mapping[str, Any] | None) -> dict[str, str] | None:
         if value is None:
@@ -150,15 +177,24 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
             result[name] = payload
         return result
 
-    async def ui_get_schema() -> dict[str, Any]:
+    async def ui_get_schema(component: str | None = None) -> dict[str, Any]:
         """Return the OA-UI v1 component, binding, lifecycle, and limit schema.
 
-        Call this before authoring an unfamiliar component or data source.
-        OA-UI layout is declarative. An interactive node can mount an immutable
-        HTML bundle asset in the desktop sandbox. Other media use artifact:/asset: references.
+        Call this before authoring an unfamiliar component or data source;
+        ``componentSchema`` lists the properties each component accepts and
+        the data shape it renders. Pass ``component`` (for example "table")
+        to receive only that component's entry. OA-UI layout is declarative.
+        An interactive node can mount an immutable HTML bundle asset in the
+        desktop sandbox. Other media use artifact:/asset: references.
         """
 
-        await access_for_turn()
+        try:
+            await access_for_turn()
+            component_schema = describe_components(component)
+        except Exception as exc:
+            return safe_error(exc)
+        if component is not None:
+            return {"ok": True, "schemaVersion": SCHEMA_VERSION, **component_schema}
         return {
             "ok": True,
             "schemaVersion": SCHEMA_VERSION,
@@ -175,6 +211,14 @@ def build_runtime_toolkit(pool: Any = None, *, service: Any = None, access_provi
                 "authoring": "Publish a self-contained HTML document in assets_base64. Bundle any React, WebGL or chart libraries locally. External network access is blocked.",
                 "bridge": "Use OpenAgent.onData(fn), OpenAgent.asset(ref), and OpenAgent.run(action, input). Declare extra asset: references in the assets array. Only declared view actions can run, with user confirmation.",
             },
+            "componentSchema": component_schema,
+            "repetition": (
+                "OA-UI has no loop or template node. For one panel per record, "
+                "either write one card per record in the markup (re-publish with "
+                "ui_update_view when the set changes), bind a list/table to a "
+                "source array, or mount an interactive HTML asset that renders "
+                "the records it receives through OpenAgent.onData."
+            ),
             "subViews": {
                 "local": "use child components",
                 "referenced": "viewId always requires an explicit immutable revision",

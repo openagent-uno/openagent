@@ -72,6 +72,44 @@ class CustomViewRateLimited(CustomViewError):
     pass
 
 
+class CustomViewBusy(CustomViewError):
+    """The canonical database could not grant the write lock right now.
+
+    Nothing was recorded; the same call can be retried unchanged.
+    """
+
+    public_message = (
+        "The Custom View store is busy with another write. Nothing was saved; "
+        "retry the same call in a few seconds."
+    )
+
+
+_CONTENTION_MARKERS = (
+    "database is locked",
+    "database table is locked",
+    "database is busy",
+    "within a transaction",
+    "sql statements in progress",
+)
+
+
+def _is_write_contention(exc: BaseException) -> bool:
+    return isinstance(exc, sqlite3.OperationalError) and any(
+        marker in str(exc).lower() for marker in _CONTENTION_MARKERS
+    )
+
+
+async def _begin_immediate(conn: Any) -> None:
+    """Open the write transaction, classifying lock contention as retryable."""
+
+    try:
+        await conn.execute("BEGIN IMMEDIATE")
+    except sqlite3.OperationalError as exc:
+        if _is_write_contention(exc):
+            raise CustomViewBusy(CustomViewBusy.public_message) from exc
+        raise
+
+
 def _now_ms() -> int:
     return int(time.time() * 1000)
 
@@ -588,6 +626,37 @@ class CustomViewRepository:
     async def _conn(self) -> Any:
         return await self.db._ensure_connected()
 
+    def _stage_revision_bundle(self, **publish: Any) -> Any:
+        """Publish a revision bundle ahead of the row that will reference it.
+
+        Returns ``None`` when an immutable bundle with different content
+        already occupies the revision slot. That is the residue of an earlier
+        publish whose transaction never committed; it is reclaimed only once
+        the write lock proves no row references it.
+        """
+
+        try:
+            return self.bundles.write_revision(**publish)
+        except FileExistsError:
+            return None
+
+    async def _claim_revision_bundle(self, conn: Any, staged: Any, **publish: Any) -> Any:
+        """Inside the write transaction, replace an unreferenced leftover bundle."""
+
+        if staged is not None:
+            return staged
+        view_id, revision = publish["view_id"], publish["revision"]
+        referenced = await (
+            await conn.execute(
+                "SELECT 1 FROM ui_view_revisions WHERE view_id=? AND revision=?",
+                (view_id, revision),
+            )
+        ).fetchone()
+        if referenced is not None:
+            raise CustomViewConflict("Custom View revision changed")
+        self.bundles.discard_revision(view_id, revision)
+        return self.bundles.write_revision(**publish)
+
     @staticmethod
     def _acl_row(row: Any) -> dict[str, Any]:
         return {
@@ -1032,7 +1101,7 @@ class CustomViewRepository:
                 raise CustomViewConflict("Custom View ACL version changed")
             next_version = expected_acl_version + 1
             now_ms = _now_ms()
-            await conn.execute("BEGIN IMMEDIATE")
+            await _begin_immediate(conn)
             try:
                 await conn.execute(
                     "UPDATE resource_acl SET acl_version=? WHERE tenant_id=? "
@@ -1100,7 +1169,7 @@ class CustomViewRepository:
                 raise CustomViewNotFound("Custom View grant not found")
             next_version = expected_acl_version + 1
             now_ms = _now_ms()
-            await conn.execute("BEGIN IMMEDIATE")
+            await _begin_immediate(conn)
             try:
                 await conn.execute(
                     "UPDATE resource_acl SET acl_version=? WHERE tenant_id=? "
@@ -1401,7 +1470,7 @@ class CustomViewRepository:
         )
         conn = await self._conn()
         async with self._write_lock:
-            await conn.execute("BEGIN IMMEDIATE")
+            await _begin_immediate(conn)
             try:
                 await conn.execute(
                     "INSERT INTO ui_views "
@@ -1543,14 +1612,16 @@ class CustomViewRepository:
                 title=new_title, description=new_description, icon=new_icon,
                 markup=new_markup, spec=new_spec, expires_at=new_expires,
             )
-            evidence = self.bundles.write_revision(
+            publish = dict(
                 view_id=view_id, revision=next_revision, bundle=bundle,
                 scripts=new_scripts, assets=new_assets,
             )
+            staged = self._stage_revision_bundle(**publish)
             now_ms = _now_ms()
             status = "expired" if new_expires is not None and new_expires <= now_ms else "active"
-            await conn.execute("BEGIN IMMEDIATE")
+            await _begin_immediate(conn)
             try:
+                evidence = await self._claim_revision_bundle(conn, staged, **publish)
                 await conn.execute(
                     "INSERT INTO ui_view_revisions "
                     "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -1672,14 +1743,16 @@ class CustomViewRepository:
                 title=current["title"], description=current["description"], icon=current["icon"],
                 markup=current["markup"], spec=current["spec"], expires_at=expires_at,
             )
-            evidence = self.bundles.write_revision(
+            publish = dict(
                 view_id=view_id, revision=next_revision, bundle=bundle,
                 scripts=scripts, assets=assets,
             )
+            staged = self._stage_revision_bundle(**publish)
             now_ms = _now_ms()
             status = "expired" if expires_at is not None and expires_at <= now_ms else "active"
-            await conn.execute("BEGIN IMMEDIATE")
+            await _begin_immediate(conn)
             try:
+                evidence = await self._claim_revision_bundle(conn, staged, **publish)
                 await conn.execute(
                     "INSERT INTO ui_view_revisions "
                     "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -1848,13 +1921,15 @@ class CustomViewRepository:
             title=current["title"], description=current["description"], icon=current["icon"],
             markup=current["markup"], spec=current["spec"], expires_at=current["expiresAt"],
         )
-        evidence = self.bundles.write_revision(
+        publish = dict(
             view_id=str(row["id"]), revision=next_revision, bundle=bundle,
             scripts=scripts, assets=assets,
         )
+        staged = self._stage_revision_bundle(**publish)
         now_ms = _now_ms()
-        await conn.execute("BEGIN IMMEDIATE")
+        await _begin_immediate(conn)
         try:
+            evidence = await self._claim_revision_bundle(conn, staged, **publish)
             await conn.execute(
                 "INSERT INTO ui_view_revisions "
                 "(view_id, tenant_id, revision, schema_version, bundle_path, bundle_sha256, "
@@ -2442,7 +2517,7 @@ class CustomViewRepository:
 
 __all__ = [
     "CustomViewConflict", "CustomViewError", "CustomViewImmutable",
-    "CustomViewInputError", "CustomViewNotFound", "CustomViewRateLimited",
+    "CustomViewBusy", "CustomViewInputError", "CustomViewNotFound", "CustomViewRateLimited",
     "CustomViewRepository",
     "apply_data_mode",
     "validate_output_schema",

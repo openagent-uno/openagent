@@ -71,9 +71,11 @@ _COMPONENT_PROPS: dict[str, frozenset[str]] = {
     "text-input": frozenset({
         "name", "placeholder", "multiline", "inputType", "submitLabel", "maxLength", "input",
     }),
-    "table": frozenset({"rows", "columns", "dense", "sortable", "pageSize"}),
-    "list": frozenset({"items", "ordered"}),
-    "key-value": frozenset({"items"}),
+    # The renderer reads ``data`` as an alias of a collection's primary
+    # array; accept it so an authored alias never fails validation only.
+    "table": frozenset({"rows", "data", "columns", "dense", "sortable", "pageSize"}),
+    "list": frozenset({"items", "data", "ordered"}),
+    "key-value": frozenset({"items", "data"}),
     "line-chart": frozenset({"data", "values", "series", "xKey", "yKey", "legend", "stacked"}),
     # A stacked bar is represented as `bar-chart` with `stacked=true`; it is
     # not a second renderer component or a free-form chart subtype.
@@ -201,7 +203,12 @@ def _binding(value: Any) -> dict[str, Any]:
 def _validate_prop(component: str, name: str, value: Any) -> Any:
     allowed = _COMMON_PROPS | _COMPONENT_PROPS.get(component, frozenset())
     if name not in allowed:
-        raise OAUIValidationError(f"property {name!r} is not supported by {component}")
+        own = ", ".join(sorted(_COMPONENT_PROPS.get(component, frozenset()))) or "none"
+        raise OAUIValidationError(
+            f"property {name!r} is not supported by {component}; "
+            f"its own properties are: {own} (plus the common properties; "
+            f"call ui_get_schema with component={component!r})"
+        )
     if name in {"action", "target"} and (
         (isinstance(value, Mapping) and "$bind" in value)
         or (isinstance(value, str) and _MUSTACHE_BINDING_RE.fullmatch(value.strip()))
@@ -309,7 +316,10 @@ def validate_spec(spec: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(children, list) or len(children) > MAX_CHILDREN:
             raise OAUIValidationError(f"OA-UI node children exceed {MAX_CHILDREN}")
         if children and component not in CONTAINER_COMPONENTS:
-            raise OAUIValidationError(f"{component} cannot contain child components")
+            raise OAUIValidationError(
+                f"{component} cannot contain child components; wrap children in one of: "
+                + ", ".join(sorted(CONTAINER_COMPONENTS))
+            )
         if component == "sub-view":
             referenced = isinstance(props.get("viewId"), str)
             if referenced and "revision" not in props:
@@ -390,7 +400,12 @@ def parse_markup(markup: str) -> dict[str, Any]:
 
     def convert(node: ElementTree.Element) -> dict[str, Any]:
         if not isinstance(node.tag, str) or node.tag not in COMPONENTS:
-            raise OAUIValidationError("OA-UI markup contains an unsupported component")
+            tag = node.tag if isinstance(node.tag, str) and _NAME_RE.fullmatch(node.tag) else None
+            raise OAUIValidationError(
+                f"OA-UI markup contains an unsupported component {tag!r}; "
+                "call ui_get_schema for the supported components"
+                if tag else "OA-UI markup contains an unsupported component"
+            )
         output: dict[str, Any] = {"type": node.tag}
         props: dict[str, Any] = {}
         for raw_name, raw_value in node.attrib.items():
@@ -428,3 +443,64 @@ def compile_oaui(*, markup: str | None = None, spec: Mapping[str, Any] | None = 
     if (markup is None) == (spec is None):
         raise OAUIValidationError("provide exactly one of markup or spec")
     return parse_markup(markup) if markup is not None else validate_spec(spec or {})
+
+
+_TEXT_CONTENT_COMPONENTS = frozenset({"heading", "text", "markdown", "code", "badge", "button"})
+
+# Shapes the App renderer reads for each component. Kept next to the
+# validator so the authoring schema cannot drift from what is accepted.
+_COMPONENT_USAGE: dict[str, str] = {
+    "stack": "vertical (or direction=\"row\") container",
+    "row": "horizontal container",
+    "grid": "container laid out in `columns` (1-6) equal columns",
+    "card": "bordered panel container; nest heading/text/badge/metric/key-value inside",
+    "scroll": "container with a bounded scroll height",
+    "sub-view": "local child components, or viewId plus an explicit revision",
+    "heading": "text content or `text`; `level` 1-3",
+    "text": "text content or `text`; `muted` for secondary text",
+    "markdown": "text content or `text` rendered as sanitized Markdown",
+    "code": "text content or `code`; optional `language`",
+    "badge": "text content or `label`; `tone`: success, warning or error (anything else uses the accent color)",
+    "status": "`label` plus `status`/`tone`",
+    "metric": "`label`, `value`, optional `detail` and `trend`",
+    "progress": "`value` within `min`/`max` (default 0-100)",
+    "button": "text content or `label`; `action` names a declared view action",
+    "table": "`rows` (alias `data`): array of objects; optional `columns`: keys or {key,label}; up to 12 columns",
+    "list": "`items` (alias `data`): array of strings or {id,label|title,detail|description}",
+    "key-value": "`items` (alias `data`): array of {key|label,value|detail}, or `value`: an object",
+    "interactive": "`src=\"asset:<file>.html\"` sandboxed HTML bundle; renders records via OpenAgent.onData",
+}
+
+_CHART_COMPONENTS = frozenset({
+    "line-chart", "bar-chart", "area-chart", "pie-chart", "donut-chart",
+    "scatter-chart", "gauge", "sparkline",
+})
+
+
+def describe_components(component: str | None = None) -> dict[str, Any]:
+    """Return the accepted properties and data shape of OA-UI components.
+
+    ``component`` narrows the answer to one component; an unknown name raises
+    :class:`OAUIValidationError` listing nothing but the supported names.
+    """
+
+    if component is not None and component not in COMPONENTS:
+        raise OAUIValidationError(
+            "unknown OA-UI component; supported: " + ", ".join(sorted(COMPONENTS))
+        )
+    names = [component] if component is not None else sorted(COMPONENTS)
+    described: dict[str, Any] = {}
+    for name in names:
+        usage = _COMPONENT_USAGE.get(name)
+        if usage is None and name in _CHART_COMPONENTS:
+            usage = "`data` array of objects; `xKey`/`yKey` (or `nameKey`/`valueKey`)"
+        described[name] = {
+            "container": name in CONTAINER_COMPONENTS,
+            "textContent": name in _TEXT_CONTENT_COMPONENTS,
+            "properties": sorted(_COMPONENT_PROPS.get(name, frozenset())),
+            **({"usage": usage} if usage else {}),
+        }
+    return {
+        "commonProperties": sorted(_COMMON_PROPS),
+        "components": described,
+    }

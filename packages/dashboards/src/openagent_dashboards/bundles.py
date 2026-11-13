@@ -230,6 +230,36 @@ class ViewBundleStore:
                 shutil.rmtree(temporary, ignore_errors=True)
         return BundleEvidence(str(target), digest, size)
 
+    def discard_revision(self, view_id: str, revision: int) -> None:
+        """Remove a revision bundle that no database row references.
+
+        A revision bundle is published before the transaction that records
+        it. When that transaction fails (a busy writer, a cancelled turn) the
+        directory stays behind and, being immutable, would refuse every later
+        attempt to publish different content at the same revision number.
+        Callers must prove under the database write lock that the revision is
+        unpublished before calling this; a referenced bundle is never removed.
+        """
+
+        target = self.revision_path(view_id, revision)
+        if target is None:
+            self._memory_payloads.pop((view_id, revision), None)
+            return
+        if not target.exists() and not target.is_symlink():
+            return
+        if target.is_symlink() or not target.is_dir():
+            target.unlink()
+            return
+        trash = target.parent / f".{revision}.{uuid.uuid4().hex}.discarded"
+        # Published directories have no write bit, and moving a directory
+        # needs one on the directory itself on some platforms.
+        os.chmod(target, 0o700)
+        os.replace(target, trash)
+        for directory, _subdirs, _files in os.walk(trash):
+            with contextlib.suppress(OSError):
+                os.chmod(directory, 0o700)
+        shutil.rmtree(trash, ignore_errors=True)
+
     @classmethod
     def _disk_entries(cls, path: Path) -> dict[str, bytes] | None:
         if not path.is_dir() or path.is_symlink():

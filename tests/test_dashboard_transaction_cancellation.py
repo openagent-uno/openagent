@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 from openagent_core.memory.db import MemoryDB
 from openagent_core.memory.operational.access import AccessContext
 from openagent_dashboards.migration import REQUIRED_TABLES, ensure_custom_views_storage
-from openagent_dashboards.repository import CustomViewRepository
+from openagent_dashboards.repository import CustomViewBusy, CustomViewRepository
 
 
 class _InterruptedConnection:
@@ -180,8 +180,11 @@ class DashboardTransactionCancellationTests(unittest.IsolatedAsyncioTestCase):
         interrupted = _InterruptedConnection(self.conn)
         try:
             with patch.object(self.repo, "_conn", AsyncMock(return_value=interrupted)):
-                with self.assertRaises(sqlite3.OperationalError):
+                # A nested BEGIN is contention, reported as a retryable busy
+                # store; the caller's transaction is left exactly as it was.
+                with self.assertRaises(CustomViewBusy) as refused:
                     await self.create("Nested BEGIN rejected")
+            self.assertIsInstance(refused.exception.__cause__, sqlite3.OperationalError)
             self.assertEqual(interrupted.rollback_calls, 0)
             self.assertTrue(self.conn.in_transaction)
             row = await (await self.conn.execute("SELECT title FROM ui_views WHERE id=?", (self.view["id"],))).fetchone()

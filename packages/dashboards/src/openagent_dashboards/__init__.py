@@ -8,6 +8,7 @@ snippets supplied by a model or a data source.
 
 from .compiler import OAUIValidationError, compile_oaui
 from .repository import (
+    CustomViewBusy,
     CustomViewConflict,
     CustomViewNotFound,
     CustomViewRateLimited,
@@ -17,6 +18,7 @@ from .repository import (
 from .service import CustomViewService, service_for_db, service_for_gateway
 
 __all__ = [
+    "CustomViewBusy",
     "CustomViewConflict",
     "CustomViewNotFound",
     "CustomViewRateLimited",

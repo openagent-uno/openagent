@@ -297,3 +297,21 @@ precede revision reads. This additive guard does not automatically change
 historical data or prevent unrelated chat from starting. A host repairing old
 heads must first back up affected rows, verify the replacement bundle and
 preserve live data, ownership, grants and revision history.
+
+A revision bundle is written before the transaction that records it. If that
+transaction never commits, the next publish at the same revision number checks,
+holding the database write lock, that no revision row references the leftover
+bundle. It then replaces the leftover. A referenced bundle is never replaced:
+the publish reports a revision conflict instead. Lock contention when opening
+the write transaction returns `busy` to `ui-manager` tools and `ui_view_busy`
+to REST (503). Both are retryable unchanged, and nothing was saved.
+Every `ui-manager` failure carries `retryable`. Unexpected failures name only
+their exception class, never the caller's data.
+
+`ui_get_schema` returns `componentSchema`. For each component it lists
+accepted properties, whether it is a container, whether it accepts text
+content and the data shape the renderer reads. Pass `component` to get one
+entry. Collection components accept `data` as an alias of their primary array,
+as the renderer already does. OA-UI has no loop node: to show one panel per
+record, author one card per record, bind a list or table to a source array,
+or mount an `interactive` asset.

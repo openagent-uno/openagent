@@ -32,6 +32,7 @@ from openagent_dashboards.repository import (
     CustomViewInputError,
     CustomViewNotFound,
     CustomViewRevisionUnavailable,
+    CustomViewBusy,
     CustomViewRateLimited,
 )
 from openagent_dashboards.service import CustomViewService, service_for_gateway
@@ -92,6 +93,8 @@ def _map_error(exc: Exception) -> web.Response:
         return _problem(404, "ui_view_not_found", "Custom View is not available")
     if isinstance(exc, CustomViewRevisionUnavailable):
         return _problem(503, "ui_revision_unavailable", CustomViewRevisionUnavailable.public_message)
+    if isinstance(exc, CustomViewBusy):
+        return _problem(503, "ui_view_busy", CustomViewBusy.public_message)
     if isinstance(exc, CustomViewRateLimited):
         return _problem(429, "ui_action_rate_limited", str(exc))
     if isinstance(exc, CustomViewConflict):
