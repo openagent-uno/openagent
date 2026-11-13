@@ -6,7 +6,7 @@
  * windows that stays in sync as windows open, close, and change focus.
  */
 
-import { app, BrowserWindow, Menu, MenuItemConstructorOptions, shell } from 'electron';
+import { app, BrowserWindow, dialog, Menu, MenuItemConstructorOptions, shell } from 'electron';
 import {
   getAllWindows,
   getPrimaryWindow,
@@ -363,6 +363,22 @@ export function buildMenu(): Menu {
             // quit without launch-crash recovery.
             autoUpdater.autoDownload = true;
             autoUpdater.autoInstallOnAppQuit = policy.installOnQuit;
+            // A user-initiated check must not fail silently: report a failed
+            // check or download in a dialog, once, for this attempt only.
+            const onError = (err: Error) => {
+              autoUpdater.removeListener('update-downloaded', onDone);
+              autoUpdater.removeListener('update-not-available', onDone);
+              void dialog.showMessageBox({
+                type: 'warning',
+                title: 'Update failed',
+                message: 'OpenAgent could not download the update.',
+                detail: `${err?.message ?? err}\n\nCheck your connection and choose Check for Updates again.`,
+              });
+            };
+            const onDone = () => autoUpdater.removeListener('error', onError);
+            autoUpdater.once('error', onError);
+            autoUpdater.once('update-downloaded', onDone);
+            autoUpdater.once('update-not-available', onDone);
             autoUpdater.checkForUpdatesAndNotify();
           } catch {
             // Not available in dev — silently ignore.

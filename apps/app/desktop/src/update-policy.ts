@@ -132,3 +132,21 @@ export function configureAutoUpdater(
   updater.allowDowngrade = false;
   return policy;
 }
+
+/**
+ * Append one updater event to ``<logs>/updater.log``. Packaged apps have no
+ * visible console, so without this a failed download left no trace at all.
+ */
+export function recordUpdaterEvent(logsDir: string, event: string, detail = ''): void {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const fs = require('fs') as typeof import('fs');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const path = require('path') as typeof import('path');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const line = `${new Date().toISOString()} ${event}${detail ? ' ' + detail.replace(/\s+/g, ' ').slice(0, 500) : ''}\n`;
+    fs.appendFileSync(path.join(logsDir, 'updater.log'), line);
+  } catch {
+    // Logging must never break the updater.
+  }
+}

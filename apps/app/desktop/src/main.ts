@@ -74,7 +74,7 @@ import {
   destroyTray,
 } from './tray';
 import { setupDockMenu, updateDockAgentList } from './dock';
-import { configureAutoUpdater, shouldAcceptUpdate } from './update-policy';
+import { configureAutoUpdater, recordUpdaterEvent, shouldAcceptUpdate } from './update-policy';
 import {
   PRODUCTION_CSP,
   DASHBOARD_FRAME_PATH,
@@ -567,6 +567,7 @@ function setupAutoUpdater(): void {
   autoUpdater.autoInstallOnAppQuit = policy.installOnQuit;
 
   autoUpdater.on('update-downloaded', (info: any) => {
+    recordUpdaterEvent(app.getPath('logs'), 'downloaded', String(info?.version ?? ''));
     if (!shouldAcceptUpdate(installedVersion, info.version)) {
       // A stale or malformed provider response must never become a queued
       // downgrade on quit, even if electron-updater's own guard changes.
@@ -588,7 +589,10 @@ function setupAutoUpdater(): void {
 
   autoUpdater.on('error', (err: Error) => {
     console.error('Auto-updater error:', err.message);
+    recordUpdaterEvent(app.getPath('logs'), 'error', err.message);
   });
+  autoUpdater.on('update-available', (info: any) => recordUpdaterEvent(app.getPath('logs'), 'available', String(info?.version ?? '')));
+  autoUpdater.on('update-not-available', () => recordUpdaterEvent(app.getPath('logs'), 'not-available'));
 
   // Beta builds stay on an explicit, user-initiated update path until the
   // desktop app has launch-crash recovery. Stable behavior is unchanged.
