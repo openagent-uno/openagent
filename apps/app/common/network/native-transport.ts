@@ -11,6 +11,8 @@
  * lifecycle and presents the same ``PlatformTransport`` surface the
  * connection store consumes.
  */
+// Must stay first: installs globalThis.crypto on Hermes before the protocol modules use it.
+import './crypto-shim';
 import { NativeModules } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { generateIdentity, identityFromSecret, type Identity } from './identity';

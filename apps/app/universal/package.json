@@ -13,6 +13,7 @@
   "dependencies": {
     "@expo/vector-icons": "15.1.1",
     "@noble/ed25519": "^3.2.0",
+    "@noble/hashes": "^2.4.0",
     "@openagent/desktop-tools": "https://github.com/openagent-uno/openagent-tools/releases/download/desktop-tools-v0.1.0/openagent-desktop-tools-0.1.0.tgz?download=1",
     "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-navigation/drawer": "^7.0.0",
@@ -26,6 +27,7 @@
     "expo": "~55.0.0",
     "expo-blur": "~55.0.14",
     "expo-constants": "~55.0.13",
+    "expo-crypto": "~55.0.19",
     "expo-font": "~55.0.6",
     "expo-image-manipulator": "~55.0.15",
     "expo-image-picker": "~55.0.18",

@@ -1,20 +1,49 @@
 /**
  * Minimal ``crypto`` shim for React Native (Hermes).
  *
- * Provides the three functions ``@windwalker-io/srp`` uses from Node's
- * ``crypto`` module: ``randomBytes``, ``createHash('sha256')`` and
- * ``timingSafeEqual``. All backed by Web Crypto APIs available in
- * Hermes 0.71+ and modern browsers.
+ * ``@windwalker-io/srp``'s bundled UMD has two code paths:
+ *   1. Node — ``require('crypto').randomBytes``
+ *   2. Browser — ``window.crypto.getRandomValues``
  *
- * This module is NOT registered globally — Metro's ``resolver.extraNodeModules``
- * maps ``crypto`` to this file for React Native builds only.
+ * On React Native neither ``require('crypto')`` (Node) nor
+ * ``window.crypto`` (browser) exist out of the box. Metro redirects
+ * ``require('crypto')`` to this file (covering path 1), and the
+ * side-effect block below patches ``globalThis.crypto`` (covering
+ * path 2) using expo-crypto's native random source.
+ *
+ * Additionally this file provides a synchronous ``createHash('sha256')``
+ * and ``timingSafeEqual`` for the SRP protocol layer.
  */
 
-export function randomBytes(n: number): Buffer | Uint8Array {
-  const buf = new Uint8Array(n);
-  crypto.getRandomValues(buf);
-  if (typeof Buffer !== 'undefined') return Buffer.from(buf);
-  return buf;
+import { getRandomBytes } from 'expo-crypto';
+import * as ed25519 from '@noble/ed25519';
+import { sha512 } from '@noble/hashes/sha2.js';
+
+// Hermes has no crypto.subtle; @noble/ed25519's *Async helpers need SHA-512.
+ed25519.hashes.sha512 = sha512;
+ed25519.hashes.sha512Async = async (message: Uint8Array) => sha512(message);
+
+// Patch globalThis.crypto so the browser branch of @windwalker-io/srp
+// (``window.crypto.getRandomValues``) works on React Native.
+if (typeof globalThis.crypto === 'undefined') {
+  (globalThis as any).crypto = {
+    getRandomValues<T extends ArrayBufferView>(array: T): T {
+      const bytes = getRandomBytes(array.byteLength);
+      new Uint8Array(array.buffer, array.byteOffset, array.byteLength).set(bytes);
+      return array;
+    },
+    randomUUID(): string {
+      const b = getRandomBytes(16);
+      b[6] = (b[6]! & 0x0f) | 0x40;
+      b[8] = (b[8]! & 0x3f) | 0x80;
+      const h = Array.from(b, (x: number) => x.toString(16).padStart(2, '0')).join('');
+      return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+    },
+  };
+}
+
+export function randomBytes(n: number): Uint8Array {
+  return getRandomBytes(n);
 }
 
 export function timingSafeEqual(a: Uint8Array | Buffer, b: Uint8Array | Buffer): boolean {
@@ -62,9 +91,6 @@ export function createHash(algorithm: string): HashState {
   return state;
 }
 
-// Minimal synchronous SHA-256 (pure JS). The @windwalker-io/srp library
-// calls createHash('sha256').update().digest() synchronously, so we
-// cannot use the async crypto.subtle.digest.
 function sha256sync(data: Uint8Array): Uint8Array {
   const K: number[] = [
     0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
