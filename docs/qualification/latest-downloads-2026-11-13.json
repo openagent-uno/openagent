@@ -1,0 +1,22 @@
+{
+  "date": "2026-11-13",
+  "status": "source-qualified-publication-pending",
+  "behavior": "Discover independently latest downloadable App, server and CLI versions from the complete paginated public release catalogue; labeled prereleases included. No hard-coded release tags or cross-version platform fallback.",
+  "checks": {
+    "unit": "7 passed: component isolation, numeric prerelease/stable precedence, architectures/formats, canonical artifact URLs, pagination, rate limits and invalid responses",
+    "browser": {
+      "passed": true,
+      "shared_requests_and_retry": true,
+      "pagination": true,
+      "all_six_platform_architectures": true,
+      "new_release_without_rebuild": true,
+      "refresh_on_focus": true,
+      "partial_release_without_stale_fallback": true,
+      "mobile_no_overflow": true,
+      "browser_errors": []
+    },
+    "build": "VitePress production build passed",
+    "live_catalogue": "App beta39 with 10 package files across six OS/architecture targets; server and CLI beta35 portable wheels"
+  },
+  "refresh": "One shared in-flight catalogue load and a one-minute freshness window; stale metadata refreshes on page mount/focus/visibility return. Retry refreshes every section together."
+}

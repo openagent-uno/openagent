@@ -1,17 +1,16 @@
 # Getting Started
 
 OpenAgent is available as the standalone product or as independently versioned
-libraries. The current manual-upgrade server/CLI cohort is
-[1.1.9 beta 10](https://github.com/openagent-uno/openagent/releases/tag/v1.1.9-beta.10), with
-Core beta48 and Device Tools B18. App beta26 carries the canonical desktop
-updater. See [downloads](../downloads) for publication and verification scope.
+libraries. The sections below discover the latest published version of each
+component, including labeled betas. See [downloads](../downloads) for platform
+packages and release qualification.
 
 ## Desktop app
 
 <ReleaseDownloads target="desktop" />
 
 Choose the installer for your OS and CPU. Replace an existing App without
-uninstalling it or deleting its profile. Manually selecting beta26 opts into its
+uninstalling it or deleting its profile. Selecting a beta build opts into its
 beta update channel. New builds use the canonical feed; reinstalling an older
 build may preserve an obsolete feed. Native artifact checks and provider
 acceptance remain separate; see [downloads](../downloads).
@@ -27,48 +26,23 @@ embedded Core supports other topologies through host-supplied optional grants.
 
 <ReleaseDownloads target="cli" />
 
-The server and thin remote CLI are Python 3.11+ wheels. The interpreter must include
-`venv` and `ensurepip`; some Linux distributions package these separately
-(for example `python3-venv` on Debian). The public installation was qualified
-with separate server and CLI prefixes from the anonymous release assets. Use
-the version-pinned public installer rather than assembling a partial wheel set:
+The server and thin remote CLI are portable Python 3.11+ wheels. The interpreter
+must include `venv` and `ensurepip` (for example, `python3-venv` on Debian).
+Choose the release above, then use its manifest and installation notes to acquire
+the complete dependency set. Keep first-party versions aligned when the server
+and CLI share an environment.
 
-```bash
-# Standalone server
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --server
+A Framework wheel alone is not the complete standalone installation: its qualified
+distribution also uses independently versioned Core, modules, native Host Tools and
+connector packages. Native capabilities depend on OS and architecture. Follow the
+[build and release contract](https://github.com/openagent-uno/openagent/blob/main/docs/build-and-release.md)
+and [operator acquisition contract](./connector-operations.md#pinning-the-shared-implementation)
+for exact package and native-runner acquisition. Historical version-pinned installer
+recipes remain in their original release notes; they do not select this page's
+latest downloads.
 
-# CLI
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --cli
-
-# Download and verify every first-party wheel without installing
-curl -fsSL https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.10/install.sh | sh -s -- --check
-```
-
-The installer verifies 39 first-party wheels against nine pinned manifests,
-creates an isolated virtual environment and refuses to overwrite unrelated
-commands. It binds each first-party dependency to the verified local bytes and
-acquires the complete native Host Tools B15 bundle. Server installation also
-acquires the pinned native connector runner; no local native compiler is needed.
-`--check` verifies the wheelhouse and installation metadata without installing
-or acquiring the native archives.
-
-The default installer root is shared. If server and CLI are both installed there,
-upgrade both so their exact-version dependencies stay aligned. The CLI remains a
-remote client and does not install the server engine or connector runner.
-Device Tools B18 owns reusable native/browser behavior; the product composes it
-through the Host Tools B15 facade. Core remains independent of clients, users
-and the native distribution. See the [release receipt](https://github.com/openagent-uno/openagent/blob/main/docs/qualification/device-release-2026-11-06.json)
-for qualification and limits.
-
-Embedding products or custom packagers should follow the
-[operator acquisition contract](./connector-operations.md#pinning-the-shared-implementation),
-including native runner acquisition, instead of treating a bare Framework
-`pip install` as equivalent to the standalone installer.
-
-Commands are linked into `~/.local/bin` by default; make that directory
-available on your `PATH`. Use installer `--prefix /your/bin` for another command
-directory and add that directory to `PATH`. `OPENAGENT_INSTALL_ROOT` can select
-an owned installation root; it does not change your home or identity profile.
+After installing the matching distribution, make its command directory available
+on your `PATH`. Preserve identity and agent directories when upgrading.
 
 Start a standalone agent from any folder:
 

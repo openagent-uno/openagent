@@ -1,191 +1,47 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-
-type ReleaseAsset = {
-  name: string;
-  browser_download_url: string;
-  size: number;
-};
-
-type Release = {
-  tag_name: string;
-  html_url: string;
-  published_at: string;
-  body: string;
-  draft: boolean;
-  prerelease: boolean;
-  assets: ReleaseAsset[];
-};
-
-type ReleaseMatch = {
-  release: Release;
-  assets: ReleaseAsset[];
-};
-
-type Target = "server" | "cli" | "desktop";
+import { computed, onMounted, onUnmounted } from "vue";
+import { assetLabel, latestMatch, platform, releaseUrl, RELEASES_URL, type Target } from "../release-catalog";
+import { useReleaseCatalogue } from "../use-release-catalog";
 
 const props = defineProps<{ target?: Target }>();
-
-// Select the reviewed product cohort explicitly: mixed component and historical
-// release publication order must never change the primary download offered.
-const repoPath = "openagent-uno/openagent";
-const releaseTags = {desktop: "app-v1.1.0-beta.26", server: "v1.1.9-beta.10", cli: "v1.1.9-beta.10"};
-const releasesUrl = computed(
-  () => `https://api.github.com/repos/${repoPath}/releases/tags/${releaseTags[props.target || "server"]}`,
-);
-const allReleasesUrl = `https://github.com/${repoPath}/releases`;
-
-const loading = ref(true);
-const error = ref("");
-const releases = ref<Release[]>([]);
-
-function isServerAsset(name: string) {
-  return /^openagent_framework-\d+\.\d+\.\d+(?:[a-z]+\d+)?-py3-none-any\.whl$/i.test(name);
-}
-
-function isCliAsset(name: string) {
-  return /^openagent_cli-\d+\.\d+\.\d+(?:[a-z]+\d+)?-py3-none-any\.whl$/i.test(name);
-}
-
-function isMacDesktopAsset(name: string) {
-  return /\.dmg$/i.test(name) && !/blockmap/i.test(name);
-}
-
-function isWindowsDesktopAsset(name: string) {
-  return /\.(exe|msi)$/i.test(name) && !/blockmap/i.test(name);
-}
-
-function isLinuxDesktopAsset(name: string) {
-  return /\.(AppImage|deb|rpm)$/i.test(name) && !/blockmap/i.test(name);
-}
-
+const target = computed(() => props.target ?? "server");
+const { releases, loading, error, load } = useReleaseCatalogue();
+const activeMatch = computed(() => latestMatch(releases.value, target.value));
+const missingPlatforms = computed(() => target.value === "desktop" && activeMatch.value
+  ? ["macOS", "Windows", "Linux"].filter(os => !activeMatch.value!.assets.some(asset => platform(asset.name) === os)) : []);
 function formatSize(size: number) {
-  if (size >= 1024 * 1024 * 1024) {
-    return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-  }
-  if (size >= 1024 * 1024) {
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  }
-  return `${Math.max(1, Math.round(size / 1024))} KB`;
+  if (size >= 1024 ** 3) return `${(size / (1024 ** 3)).toFixed(2)} GB`;
+  return size >= 1024 * 1024 ? `${(size / (1024 * 1024)).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
 }
-
-function archLabel(name: string): string {
-  const isMac = /\b(macos|mac|darwin)\b/i.test(name);
-  if (/arm64/i.test(name)) {
-    return isMac ? " (Apple Silicon)" : " (ARM64)";
-  }
-  if (/x64|amd64/i.test(name) && !/arm/i.test(name)) {
-    return isMac ? " (Intel)" : " (64-bit)";
-  }
-  if (/universal/i.test(name)) return " (Universal)";
-  return "";
-}
-
-function assetLabel(name: string) {
-  const arch = archLabel(name);
-  if (isServerAsset(name)) return "Server · Python wheel";
-  if (isCliAsset(name)) return "CLI · Python wheel";
-  if (/\.dmg$/i.test(name)) return `macOS${arch}`;
-  if (/\.exe$/i.test(name)) return `Windows${arch}`;
-  if (/\.msi$/i.test(name)) return `Windows MSI${arch}`;
-  if (/\.AppImage$/i.test(name)) return `Linux AppImage${arch}`;
-  if (/\.deb$/i.test(name)) return `Linux .deb${arch}`;
-  if (/\.rpm$/i.test(name)) return `Linux .rpm${arch}`;
-  return name;
-}
-
-function assetPriority(name: string) {
-  if (/macos.*\.pkg$/i.test(name)) return -1;
-  if (/\.dmg$/i.test(name)) return 0;
-  if (/\.exe$/i.test(name)) return 0;
-  if (/\.AppImage$/i.test(name)) return 0;
-  if (/\.tar\.gz$/i.test(name)) return 1;
-  if (/\.zip$/i.test(name)) return 1;
-  if (/\.msi$/i.test(name)) return 2;
-  if (/\.deb$/i.test(name)) return 2;
-  if (/\.rpm$/i.test(name)) return 3;
-  return 9;
-}
-
-function findLatestMatch(
-  matcher: (asset: ReleaseAsset) => boolean,
-): ReleaseMatch | null {
-  for (const release of publishedReleases.value) {
-    const assets = release.assets
-      .filter(matcher)
-      .sort((left, right) => assetPriority(left.name) - assetPriority(right.name));
-    if (assets.length) {
-      return { release, assets };
-    }
-  }
-  return null;
-}
-
-const publishedReleases = computed(() =>
-  releases.value.filter((release) => !release.draft),
-);
-
-const serverDownload = computed(() =>
-  findLatestMatch((asset) => isServerAsset(asset.name)),
-);
-
-const cliDownload = computed(() =>
-  findLatestMatch((asset) => isCliAsset(asset.name)),
-);
-
-const desktopAssets = computed<ReleaseMatch | null>(() => {
-  return findLatestMatch(
-    (asset) =>
-      isMacDesktopAsset(asset.name) ||
-      isWindowsDesktopAsset(asset.name) ||
-      isLinuxDesktopAsset(asset.name),
-  );
+const refresh = () => { if (!document.hidden) void load(); };
+onMounted(() => {
+  void load();
+  window.addEventListener("focus", refresh);
+  document.addEventListener("visibilitychange", refresh);
 });
-
-onMounted(async () => {
-  try {
-    const response = await fetch(releasesUrl.value, {
-      headers: {
-        Accept: "application/vnd.github+json",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API returned ${response.status}`);
-    }
-
-    releases.value = [await response.json() as Release];
-  } catch (err) {
-    error.value =
-      err instanceof Error ? err.message : "Unable to load release metadata.";
-  } finally {
-    loading.value = false;
-  }
-});
-
-const activeMatch = computed<ReleaseMatch | null>(() => {
-  if (props.target === "server") return serverDownload.value;
-  if (props.target === "cli") return cliDownload.value;
-  if (props.target === "desktop") return desktopAssets.value;
-  return null;
+onUnmounted(() => {
+  window.removeEventListener("focus", refresh);
+  document.removeEventListener("visibilitychange", refresh);
 });
 </script>
 
 <template>
-  <div class="downloads-inline">
+  <div class="downloads-inline" :data-download-target="target" aria-live="polite">
+    <noscript><a :href="RELEASES_URL">Browse published downloads on GitHub</a></noscript>
     <div v-if="loading" class="downloads-inline-state">
       <span class="oa-loading-dot"></span>
       Loading latest release…
     </div>
 
     <div v-else-if="error" class="downloads-inline-state">
-      Release lookup failed.
-      <a :href="allReleasesUrl">Browse all releases</a>
+      {{ error }}
+      <button type="button" @click="load(true)">Try again</button>
+      <a :href="RELEASES_URL">Browse all releases</a>
     </div>
 
     <template v-else-if="activeMatch">
       <div class="downloads-inline-release">
-        <a :href="activeMatch.release.html_url">{{ activeMatch.release.tag_name }}</a>
+        <a :href="releaseUrl(activeMatch.release)">{{ activeMatch.release.tag_name }}</a>
         <span v-if="activeMatch.release.prerelease" class="downloads-inline-badge">Beta</span>
       </div>
       <a
@@ -194,13 +50,15 @@ const activeMatch = computed<ReleaseMatch | null>(() => {
         class="download-chip"
         :href="asset.browser_download_url"
       >
-        <span class="download-chip-label">{{ assetLabel(asset.name) }}</span>
+        <span class="download-chip-label">{{ assetLabel(asset, target) }}</span>
         <span class="download-chip-size">{{ formatSize(asset.size) }}</span>
       </a>
+      <p v-if="!activeMatch.assets.length" class="downloads-inline-state">No downloads have been published for this release yet.</p>
+      <p v-if="missingPlatforms.length" class="downloads-inline-state">Not published for this release: {{ missingPlatforms.join(", ") }}.</p>
     </template>
 
     <div v-else class="downloads-inline-state">
-      No recent build. <a :href="allReleasesUrl">Browse all releases</a>.
+      No published release found. <a :href="RELEASES_URL">Browse all releases</a>.
     </div>
   </div>
 </template>

@@ -4,7 +4,8 @@
   "scripts": {
     "docs:dev": "vitepress dev . --host 0.0.0.0",
     "docs:build": "vitepress build .",
-    "docs:preview": "vitepress preview . --host 0.0.0.0"
+    "docs:preview": "vitepress preview . --host 0.0.0.0",
+    "test": "node --experimental-strip-types --test .vitepress/theme/__tests__/*.test.mjs"
   },
   "devDependencies": {
     "mermaid": "^11.14.0",
