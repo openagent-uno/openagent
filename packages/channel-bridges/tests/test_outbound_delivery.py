@@ -33,7 +33,7 @@ class SlackClient:
         return {"ok": True, "team_id": "TONE", "user_id": "UBOT"}
 
     async def conversations_info(self, channel):
-        return {"ok": True, "channel": {"id": channel, "is_member": self.member, "is_im": channel.startswith("D")}}
+        return {"ok": True, "channel": {"id": channel, "name": "team", "is_member": self.member, "is_im": channel.startswith("D")}}
 
     async def conversations_members(self, **kwargs):
         return {"ok": True, "members": self.members, "has_more": False, "response_metadata": {"next_cursor": ""}}
@@ -144,4 +144,19 @@ async def test_stdio_maps_forbidden_delivery_and_requires_a_capable_bridge():
     await transport.receive({"protocol": PROTOCOL, "type": "request", "request_id": "d", "method": "deliver",
                              "params": {"scope": "o", "conversation_id": "CONE", "text": "hi"}})
     assert (await asyncio.wait_for(frames.get(), 2))["error"] == {"code": "delivery_forbidden"}
+    transport.close()
+
+
+@pytest.mark.asyncio
+async def test_slack_lists_only_listened_member_channels_with_names():
+    slack = bridge(listen=("CONE", "DTWO"))
+    assert await slack.outbound_destinations() == [{"conversation_id": "CONE", "name": "#team"}]
+    assert await bridge(client=SlackClient(member=False)).outbound_destinations() == []
+    frames = asyncio.Queue()
+    async def write(line):
+        await frames.put(decode_line(line))
+    transport = StdioBridgeTransport(write, binding_id="binding", provider="slack")
+    transport.outbound_destinations = slack.outbound_destinations
+    await transport.receive({"protocol": PROTOCOL, "type": "request", "request_id": "list", "method": "outbound_destinations", "params": {}})
+    assert (await asyncio.wait_for(frames.get(), 2))["result"] == {"destinations": [{"conversation_id": "CONE", "name": "#team"}]}
     transport.close()

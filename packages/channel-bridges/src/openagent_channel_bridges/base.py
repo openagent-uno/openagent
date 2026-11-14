@@ -458,6 +458,10 @@ class BaseBridge:
     def _outbound_target(self, context: BridgeContext):
         raise PermissionError("outbound delivery is not supported by this provider")
 
+    async def outbound_destinations(self) -> list[dict]:
+        """Conversations where host-initiated delivery is currently possible."""
+        return []
+
     async def _authorize_outbound(self) -> None:
         await self._prepare_delivery_context(self._resolve_context())
 

@@ -380,6 +380,9 @@ agent reporting to a team channel. Over `channel-bridge-ipc/v1`:
 3. `deliver` with `{scope: O, conversation_id, text?, attachments: [{reader_ref}]}`
    publishes and always closes the scope. Errors are `delivery_forbidden`
    or `delivery_failed`; at most 8 scopes are open at once.
+4. `outbound_destinations` (no params) returns `{destinations: [{conversation_id, name}]}`
+   for the conversations where delivery is currently possible (Slack: listened,
+   non-direct channels where the bot is a member, named `#channel`).
 
 The provider speaks as the binding's own bot. Before every egress it issues
 the ordinary `authorize_context` and `authorize_delivery` RPCs for a context

@@ -843,6 +843,28 @@ class SlackBridge(BaseBridge):
     def _outbound_target(self, context: BridgeContext):
         return _SlackTarget(client=self._app.client, channel=context.conversation_id, user=context.actor_id)
 
+    async def outbound_destinations(self) -> list[dict]:
+        if self._app is None or not self._bot_user_id or not self._account_id:
+            return []
+        result = []
+        for conversation in list(self.listen_channels or [])[:100]:
+            conversation = str(conversation)
+            if self._is_dm_channel(conversation):
+                continue
+            try:
+                info = await self._app.client.conversations_info(channel=conversation)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Slack destination unavailable: %s", type(exc).__name__)
+                continue
+            channel = info.get("channel") or {}
+            if (info.get("ok") is False or channel.get("id") != conversation or channel.get("is_im")
+                    or channel.get("is_member") is not True or channel.get("is_archived")):
+                continue
+            name = channel.get("name")
+            result.append({"conversation_id": conversation,
+                           "name": ("#" + name) if isinstance(name, str) and name else conversation})
+        return result
+
     async def post_status(self, target, text: str):
         # Legacy live-progress hook stays silent. Native assistant-thread
         # status uses the independent authorized processing lifecycle above.
