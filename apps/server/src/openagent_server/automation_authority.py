@@ -91,6 +91,41 @@ class NativeAutomationAuthority:
                 raise LookupError(identifier)
             return dict(row)
 
+    async def grantable_sources(self, context):
+        """Durable capability sources a grant captured by ``context`` would cover.
+
+        Sources leased to a live client connection (desktop or mobile device
+        tools) are excluded: a deferred run can never reach them.
+        """
+        catalog = self.service.runtime.capabilities
+        tools = await catalog.discover(context)
+        ephemeral = {lease.source_id for lease in context.capabilities}
+        return sorted(
+            {tool.source_id for tool in tools if tool.source_id not in ephemeral}
+        )
+
+    async def granted_sources(self, kind, definition):
+        """Capability sources of the active grant for this exact revision.
+
+        ``None`` when the revision has no active grant.
+        """
+        digest = definition_digest(kind, definition)
+        async with aiosqlite.connect(self.db.db_path) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT scopes_json FROM standalone_automation_grants "
+                    "WHERE kind=? AND definition_id=? AND digest=? AND revoked=0",
+                    (kind, definition["id"], digest),
+                )
+            ).fetchone()
+        if row is None:
+            return None
+        return sorted(
+            scope[len("capability:"):]
+            for scope in json.loads(row[0])
+            if scope.startswith("capability:")
+        )
+
     async def capture(self, kind, definition, context, *, connection=None):
         await require_authorized(
             self.service.authorizer,
@@ -111,12 +146,7 @@ class NativeAutomationAuthority:
         if not definition.get("enabled", True):
             await self.revoke(kind, definition["id"], context, connection=connection)
             return None
-        catalog = self.service.runtime.capabilities
-        tools = await catalog.discover(context)
-        ephemeral = {lease.source_id for lease in context.capabilities}
-        sources = sorted(
-            {tool.source_id for tool in tools if tool.source_id not in ephemeral}
-        )
+        sources = await self.grantable_sources(context)
         scopes = tuple(
             sorted(set(context.scopes) | {"capability:" + source for source in sources})
         )

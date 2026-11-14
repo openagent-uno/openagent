@@ -1789,6 +1789,9 @@ export interface AutomationAuthorization<T = Record<string, unknown>> {
   definition: T;
   digest: string;
   authorized: boolean;
+  /** Durable capability sources: covered by the active grant, grantable by
+   * this reviewer now, and grantable but not covered (added after approval). */
+  capabilities?: { granted: string[]; grantable: string[]; missing: string[] };
 }
 
 export interface AutomationAuthorizationApproval {

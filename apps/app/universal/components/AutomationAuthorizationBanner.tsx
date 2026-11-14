@@ -21,11 +21,13 @@ interface Props {
   onAuthorized?: () => void;
 }
 
-/** Explicit review gate for definitions that predate durable authorization.
+/** Explicit review gate for scheduled execution.
  *
- * The server deliberately refuses to auto-adopt them. This component fetches
- * the exact current digest and sends that same digest back only after the
- * authenticated user presses Approve.
+ * Shown when the definition has no active grant, or when its grant predates
+ * durable capability sources the owner could now grant (a grant never widens
+ * by itself). The server deliberately refuses to auto-adopt either. This
+ * component fetches the exact current digest and sends that same digest back
+ * only after the authenticated user presses Approve.
  */
 export default function AutomationAuthorizationBanner({
   kind, id, required = false, onAuthorized,
@@ -36,7 +38,6 @@ export default function AutomationAuthorizationBanner({
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!required) return;
     setLoading(true);
     setError(null);
     try {
@@ -46,13 +47,15 @@ export default function AutomationAuthorizationBanner({
     } finally {
       setLoading(false);
     }
-  }, [id, kind, required]);
+  }, [id, kind]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  if (!required || review?.authorized) return null;
+  const missing = review?.capabilities?.missing ?? [];
+  const stale = Boolean(review?.authorized && missing.length > 0);
+  if (review ? review.authorized && !stale : !required) return null;
 
   const approve = async () => {
     if (!review || approving) return;
@@ -60,7 +63,13 @@ export default function AutomationAuthorizationBanner({
     setError(null);
     try {
       await approveAutomationAuthorization(kind, id, review.digest);
-      setReview({ ...review, authorized: true });
+      setReview({
+        ...review,
+        authorized: true,
+        capabilities: review.capabilities
+          ? { ...review.capabilities, missing: [] }
+          : review.capabilities,
+      });
       onAuthorized?.();
     } catch (cause: any) {
       if (cause instanceof ApiError && cause.status === 409) {
@@ -80,11 +89,13 @@ export default function AutomationAuthorizationBanner({
     <View style={styles.banner} accessibilityRole="alert">
       <Feather name="shield" size={16} color={colors.warning} style={styles.icon} />
       <View style={styles.content}>
-        <Text style={styles.title}>Review required before this can run</Text>
+        <Text style={styles.title}>
+          {stale ? 'New tools are not approved for scheduled runs' : 'Review required before this can run'}
+        </Text>
         <Text style={styles.copy}>
-          This enabled definition predates durable authorization. Review the
-          fields on this screen, then approve this exact revision for scheduled
-          execution.
+          {stale
+            ? `Scheduled runs can only use the tools that existed when this was approved. Not covered: ${missing.join(', ')}. Review the fields on this screen, then approve this exact revision again.`
+            : 'This enabled definition predates durable authorization. Review the fields on this screen, then approve this exact revision for scheduled execution.'}
         </Text>
         {review ? (
           <Text style={styles.digest} selectable>SHA-256 · {review.digest}</Text>
@@ -111,7 +122,7 @@ export default function AutomationAuthorizationBanner({
                 <Feather name="check" size={13} color={colors.textInverse} />
               )}
               <Text style={styles.approveButtonText}>
-                {approving ? 'Approving…' : 'Approve exact revision'}
+                {approving ? 'Approving…' : stale ? 'Approve again' : 'Approve exact revision'}
               </Text>
             </Pressable>
           )}

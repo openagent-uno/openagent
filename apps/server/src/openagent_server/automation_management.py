@@ -217,12 +217,35 @@ class NativeAutomationManagement:
             for key, value in definition.items()
             if key not in {"secret_enc", "secret_hint"}
         }
+        authorized = await self.service.automation_execution.definition_authorized(
+            _KIND[kind], definition,
+        )
+        # A grant covers only the durable capability sources that existed when
+        # it was approved. Sources added later (a new MCP, the host computer's
+        # tools after an upgrade) stay unreachable for scheduled runs until the
+        # owner approves again; report the drift so the review can say so.
+        granted = await self.service.automations.granted_sources(
+            _KIND[kind], definition,
+        )
+        scope = (
+            nullcontext()
+            if current_execution_context() is not None
+            else execution_scope(
+                self.service.runtime, context, "management-" + str(uuid4())
+            )
+        )
+        with scope:
+            grantable = await self.service.automations.grantable_sources(context)
+        missing = sorted(set(grantable) - set(granted or ()))
         return {
             "definition": visible,
             "digest": definition_digest(_KIND[kind], definition),
-            "authorized": await self.service.automation_execution.definition_authorized(
-                _KIND[kind], definition,
-            ),
+            "authorized": authorized,
+            "capabilities": {
+                "granted": granted or [],
+                "grantable": grantable,
+                "missing": missing if authorized else [],
+            },
         }
 
     @staticmethod

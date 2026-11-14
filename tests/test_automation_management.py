@@ -381,6 +381,45 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertTrue(approved['authorized'])
 
+    async def test_review_reports_sources_added_after_approval(self):
+        from unittest.mock import patch
+        identifier=await self.db.add_task('Daily','* * * * *','hello',next_run=1)
+        tools=[SimpleNamespace(source_id='vault')]
+        async def discover(context): return tuple(tools)
+        with patch.object(self.runtime.capabilities,'discover',discover):
+            review=await self.management.review_authorization(
+                'scheduled_task',identifier,self.context,
+            )
+            self.assertEqual(review['capabilities']['granted'],[])
+            self.assertEqual(review['capabilities']['missing'],[])
+            await self.management.approve_authorization(
+                'scheduled_task',identifier,review['digest'],self.context,
+            )
+            # A durable source configured after approval is not reachable by
+            # scheduled runs until the owner approves again.
+            tools.append(SimpleNamespace(source_id='shell'))
+            stale=await self.management.review_authorization(
+                'scheduled_task',identifier,self.context,
+            )
+            self.assertTrue(stale['authorized'])
+            self.assertEqual(stale['capabilities']['granted'],['vault'])
+            self.assertEqual(stale['capabilities']['missing'],['shell'])
+            definition=await self.authority.definition('task',identifier)
+            delegated=await self.authority.resolve('task',definition,'occurrence','child')
+            self.assertNotIn('capability:shell',delegated.scopes)
+
+            await self.management.approve_authorization(
+                'scheduled_task',identifier,stale['digest'],self.context,
+            )
+            fresh=await self.management.review_authorization(
+                'scheduled_task',identifier,self.context,
+            )
+            self.assertEqual(fresh['capabilities']['granted'],['shell','vault'])
+            self.assertEqual(fresh['capabilities']['missing'],[])
+            definition=await self.authority.definition('task',identifier)
+            delegated=await self.authority.resolve('task',definition,'occurrence','child')
+            self.assertIn('capability:shell',delegated.scopes)
+
     async def test_historical_workflow_and_event_can_be_reviewed_and_approved(self):
         workflow_id=await self.db.add_workflow(name='Historical workflow')
         event_id=await self.db.add_event(

@@ -37,6 +37,17 @@ automation management and device grants stay limited to live owner turns.
 `openagent_server.bridge_vault_access` holds this single policy for both the
 live turn and the deferred grant.
 
+An approved automation reaches exactly the durable capability sources the
+reviewing owner could grant at approval time (`capability:<source>` scopes);
+sources leased to a live client, such as desktop or mobile device tools, are
+never part of a grant. A grant never widens by itself: a source configured
+later (a new MCP, the host computer's tools after an upgrade) stays
+unreachable for scheduled runs until the owner approves the same revision
+again. `GET /api/automations/{kind}/{id}/authorization` reports this drift in
+`capabilities.missing` (with `granted` and `grantable`), and the App's review
+banner offers "Approve again" while the list is not empty;
+`POST` with the same `digest` re-captures the grant.
+
 App dashboard capabilities require the authenticated WebSocket registration
 and the exact `app_connection_id` on a collaboration turn. Device tools also
 require the exact capability instance and consent. The persistent dashboard
