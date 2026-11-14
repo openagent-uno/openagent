@@ -7,13 +7,15 @@
  * in the single-window sidebar shell (an independent ``drawerType: 'front'``
  * drawer fought the outer app drawer and only ever showed one section).
  * A single pill strip reads well everywhere: swipe the row sideways on a
- * phone, all pills visible on desktop. An optional ``trailing`` slot stays
+ * phone; on web/desktop the pills wrap onto more lines instead, because a
+ * mouse wheel does not scroll a horizontal row and pills past the window
+ * width would otherwise be unreachable. An optional ``trailing`` slot stays
  * pinned to the right (used for the System live/uptime badge).
  */
 
 import type { ReactNode } from 'react';
 import Feather from '@expo/vector-icons/Feather';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Platform } from 'react-native';
 import { colors, font, radius } from '../theme';
 
 export interface SectionTabItem<T extends string = string> {
@@ -30,6 +32,23 @@ interface Props<T extends string> {
   trailing?: ReactNode;
 }
 
+/** Wrapping row on web/desktop, horizontal swipe row on native. */
+function Strip({ children }: { children: ReactNode }) {
+  if (Platform.OS === 'web') {
+    return <View style={[styles.scroll, styles.row, styles.rowWrap]}>{children}</View>;
+  }
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.scroll}
+      contentContainerStyle={styles.row}
+    >
+      {children}
+    </ScrollView>
+  );
+}
+
 export default function SectionTabs<T extends string>({
   tabs,
   active,
@@ -38,12 +57,7 @@ export default function SectionTabs<T extends string>({
 }: Props<T>) {
   return (
     <View style={styles.bar}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.scroll}
-        contentContainerStyle={styles.row}
-      >
+      <Strip>
         {tabs.map((tab) => {
           const isActive = tab.id === active;
           return (
@@ -71,7 +85,7 @@ export default function SectionTabs<T extends string>({
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </Strip>
       {trailing != null && <View style={styles.trailing}>{trailing}</View>}
     </View>
   );
@@ -93,6 +107,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
+  rowWrap: { flexWrap: 'wrap', rowGap: 6 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
