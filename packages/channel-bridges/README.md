@@ -367,3 +367,25 @@ Telegram. Offline SDK fixtures do not establish live provider acceptance.
 Beta24 acknowledges Telegram confirmation clicks before awaiting the host and
 renders command outcomes without Markdown interpretation. It still requires a
 completed host outcome before acknowledging success; see the [channel guide](../../docs/site/guide/channels.md#telegram-command-confirmation-beta24).
+
+## Host-initiated delivery (beta25)
+
+A host can ask an admitted binding to publish a new message, with files, in
+one of its provider conversations without an incoming event, for example an
+agent reporting to a team channel. Over `channel-bridge-ipc/v1`:
+
+1. `outbound_open` (no params) opens a scope named by its request ID `O`.
+2. `upload_begin`/`upload_chunk`/`upload_finish` with `parent_request_id: O`
+   stage each file, exactly as for reply uploads.
+3. `deliver` with `{scope: O, conversation_id, text?, attachments: [{reader_ref}]}`
+   publishes and always closes the scope. Errors are `delivery_forbidden`
+   or `delivery_failed`; at most 8 scopes are open at once.
+
+The provider speaks as the binding's own bot. Before every egress it issues
+the ordinary `authorize_context` and `authorize_delivery` RPCs for a context
+whose actor is the bot and whose `event_id` is `outbound-O`, so the host can
+recognize and authorize only the delivery it started. Slack publishes only in
+non-direct conversations listed in `listen_channels` where the bot is a
+member, after a complete membership refresh. `--describe` lists the methods
+under `host_methods` and the supporting providers under `outbound_delivery`.
+Other providers currently refuse outbound delivery.

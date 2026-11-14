@@ -18,7 +18,8 @@ outbound_open (request_id O), uploads files with upload_begin/chunk/finish and
 parent_request_id O, then sends request deliver(scope=O, conversation_id, text,
 attachments=[{reader_ref}]). The provider publishes as the binding's own bot in
 an admitted conversation, after the ordinary authorize_context/authorize_delivery
-RPCs for the outbound context. deliver always closes its scope.
+RPCs for the outbound context, whose event_id is "outbound-" + O so the host can
+recognize the delivery it initiated. deliver always closes its scope.
 """
 from __future__ import annotations
 
@@ -327,7 +328,7 @@ class StdioBridgeTransport:
                 raise WireError("artifact_limit")
             attachments = tuple(self.artifacts.resolve(scope, value) for value in values)
             await asyncio.wait_for(self.deliver_outbound(
-                delivery_id=request_id, conversation_id=conversation, text=text, attachments=attachments), 300)
+                delivery_id=scope, conversation_id=conversation, text=text, attachments=attachments), 300)
             await self.emit({"type": "result", "request_id": request_id, "result": {"delivered": True}})
         except asyncio.CancelledError:
             raise

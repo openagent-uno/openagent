@@ -113,6 +113,7 @@ async def test_stdio_outbound_scope_uploads_files_then_delivers_and_closes():
                                                   "text": "Report", "attachments": [{"reader_ref": ref}]})
         assert result == {"protocol": PROTOCOL, "type": "result", "request_id": "send-1", "result": {"delivered": True}}
         assert received["conversation_id"] == "CONE" and received["text"] == "Report"
+        assert received["delivery_id"] == "open-1", "the host-chosen scope names the outbound event"
         assert received["bytes"] == [data] and received["attachments"][0].filename == "report.pdf"
         assert "open-1" not in transport._outbound_scopes
         reused = await call("send-2", "deliver", {"scope": "open-1", "conversation_id": "CONE", "text": "again"})
