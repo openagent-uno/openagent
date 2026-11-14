@@ -10,6 +10,7 @@ import { colors, font, radius } from '../theme';
 import { memo, useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Text, View, StyleSheet, Linking, Platform, Image, TouchableOpacity, ScrollView, Clipboard } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
+import { inlineMarkdownPattern } from '../../common/markdown-inline';
 
 // Side-effect import: the CSS ships KaTeX's font face declarations.
 // Metro/Webpack pick this up at bundle time on web; on native it's a
@@ -571,7 +572,7 @@ function renderInline(text: string, depth = 0, links = true): (string | ReactEle
   if (depth > 4) return [text];
   const parts: (string | ReactElement)[] = [];
   // Keep explicit link/image labels and code opaque to the bare URL scanner.
-  const re = /\\([\`*_{}\[\]()#+\-.!|~])|(`+)([^`]+?)\2|!\[([^\]]*)\]\(([^\s)]+)\)|\[([^\]]+)\]\(([^\s)]+)\)|(<(?:https?:\/\/|mailto:)[^<>\s]+>|https?:\/\/[^\s<>"`]+)|(\*\*\*|___|\*\*|__|\*|_|~~)([^\n]+?)\9|\$([^$\n]+?)\$|(?<![\w#])#[\da-fA-F]{3,8}(?!\w)/g;
+  const re = inlineMarkdownPattern();
   let last = 0;
   for (const match of text.matchAll(re)) {
     const index = match.index!;
@@ -604,6 +605,12 @@ function renderInline(text: string, depth = 0, links = true): (string | ReactEle
         {renderInline(match[10], depth + 1, links)}
       </Text>);
     } else if (match[11]) parts.push(<MathInline key={key} tex={match[11]} />);
+    else if (match[12] && match[13]) {
+      const marker = match[12];
+      parts.push(<Text key={key} style={[marker.length >= 2 && styles.bold, marker.length % 2 === 1 && styles.italic]}>
+        {renderInline(match[13], depth + 1, links)}
+      </Text>);
+    }
     else parts.push(hexColor.test(match[0]) ? colorText(match[0], key) : match[0]);
     last = index + match[0].length;
   }
