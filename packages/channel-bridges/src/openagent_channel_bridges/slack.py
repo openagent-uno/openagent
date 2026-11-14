@@ -175,7 +175,14 @@ class SlackBridge(BaseBridge):
         # A client belongs to the exact authenticated incoming event. Never let
         # overlapping events borrow another workspace's client or target.
         await self.authorize_context(context)
-        if (not self._is_authorized(context.actor_id) or not self._channel_listened(
+        outbound = self._is_outbound_context(context)
+        if outbound:
+            # Host-initiated delivery speaks as this binding's own bot, only in
+            # an admitted non-direct conversation it is a member of (below).
+            if (context.actor_id != self._bot_user_id or self._is_dm_channel(context.conversation_id)
+                    or not self._channel_listened(context.conversation_id, False)):
+                raise PermissionError("Slack outbound context is not admitted")
+        elif (not self._is_authorized(context.actor_id) or not self._channel_listened(
                 context.conversation_id, self._is_dm_channel(context.conversation_id))):
             raise PermissionError("Slack context is no longer admitted")
         client = self._event_clients.get(self._event_key(context))
@@ -245,7 +252,10 @@ class SlackBridge(BaseBridge):
                 if cursor in cursors or page == 9:
                     return deny_audience()
                 cursors.add(cursor)
-            if context.actor_id not in members or context.actor_id == bot:
+            if outbound:
+                if context.actor_id != bot or bot not in members:
+                    return deny_audience()
+            elif context.actor_id not in members or context.actor_id == bot:
                 return deny_audience()
             members.discard(bot)  # Only the SDK auth_test-known self bot.
             await self.authorize_context(context)
@@ -815,6 +825,23 @@ class SlackBridge(BaseBridge):
             await status("")
 
         return TypingSpec(pulse, interval=45, clear=clear)
+
+    async def _outbound_context(self, delivery_id: str, conversation_id: str) -> BridgeContext:
+        if (self._app is None or not self._bot_user_id or not self._account_id):
+            raise PermissionError("Slack binding is not connected")
+        if self._is_dm_channel(conversation_id) or not self._channel_listened(conversation_id, False):
+            raise PermissionError("Slack conversation is not admitted for outbound delivery")
+        info = await self._app.client.conversations_info(channel=conversation_id)
+        channel = info.get("channel") or {}
+        if (info.get("ok") is False or channel.get("id") != conversation_id or channel.get("is_im")
+                or channel.get("is_member") is not True or channel.get("is_archived")):
+            raise PermissionError("the Slack bot is not a member of this conversation")
+        return BridgeContext(self.binding_id, self.name, self._account_id, self._bot_user_id,
+                             conversation_id, f"outbound-{delivery_id}",
+                             conversation_kind="group" if channel.get("is_mpim") else "channel")
+
+    def _outbound_target(self, context: BridgeContext):
+        return _SlackTarget(client=self._app.client, channel=context.conversation_id, user=context.actor_id)
 
     async def post_status(self, target, text: str):
         # Legacy live-progress hook stays silent. Native assistant-thread

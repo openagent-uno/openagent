@@ -116,7 +116,7 @@ async def test_root_stdio_request_keeps_reader_free_for_nested_admission():
             await transport.receive({"protocol": PROTOCOL, "type": "result",
                                      "request_id": frame["request_id"], "result": True})
         assert describe()["context_attestation"] is True
-        assert describe()["host_methods"] == ["attest_context"]
+        assert describe()["host_methods"] == ["attest_context", "outbound_open", "deliver"]
         # Independent attestation accepts no artifact parent or untrusted fields.
         with pytest.raises(WireError):
             await transport.receive({**request, "parent_request_id": "child-1"})

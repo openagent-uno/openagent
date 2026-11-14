@@ -12,6 +12,13 @@ Read offsets/lengths and sequential upload chunks are bounded. Reply attachment
 objects are only {reader_ref: <finished upload>}; no host path is accepted.
 The host ingests input media before answering send/transcribe. References expire
 on completion, even if another request with the same actor remains active.
+
+Host-initiated delivery: the host opens an outbound scope with request
+outbound_open (request_id O), uploads files with upload_begin/chunk/finish and
+parent_request_id O, then sends request deliver(scope=O, conversation_id, text,
+attachments=[{reader_ref}]). The provider publishes as the binding's own bot in
+an admitted conversation, after the ordinary authorize_context/authorize_delivery
+RPCs for the outbound context. deliver always closes its scope.
 """
 from __future__ import annotations
 
@@ -32,6 +39,7 @@ from .wire import (ArtifactStore, MAX_CHUNK, MAX_LINE, MAX_ARTIFACT, PROTOCOL,
     context_dto, progress, result_dto, to_wire)
 
 MAX_PENDING = 64
+MAX_OUTBOUND_SCOPES = 8
 PROVIDERS = ("slack", "discord", "telegram", "whatsapp")
 _CONFIG = {
     "slack": ({"bot_token"}, {"bot_token", "app_token", "allowed_users", "listen_channels", "context_messages", "personality", "live", "delivery_mode", "acknowledgement_text"}),
@@ -82,7 +90,9 @@ class StdioBridgeTransport:
         self._history_max_bytes = 65536
         self.artifacts = ArtifactStore()
         self.attest_context = None
+        self.deliver_outbound = None
         self._host_requests = {}
+        self._outbound_scopes = set()
 
     async def emit(self, value):
         line = encode_line({"protocol": PROTOCOL, **value})
@@ -223,6 +233,25 @@ class StdioBridgeTransport:
                 pending.event_tail = task
                 task.add_done_callback(delivered)
             return
+        if kind == "request" and frame.get("method") in ("outbound_open", "deliver"):
+            object_fields(frame, {"protocol", "type", "request_id", "method", "params"},
+                          {"protocol", "type", "request_id", "method", "params"})
+            host_id = identifier(frame["request_id"])
+            if self._closed:
+                raise HostClosed()
+            if frame["method"] == "outbound_open":
+                await self._outbound_open(host_id, frame["params"])
+                return
+            if host_id in self._host_requests or len(self._host_requests) >= MAX_PENDING:
+                raise WireError("pending_limit")
+            task = asyncio.create_task(self._deliver(host_id, frame["params"]))
+            self._host_requests[host_id] = task
+            def finished(done):
+                self._host_requests.pop(host_id, None)
+                if not done.cancelled():
+                    done.exception()
+            task.add_done_callback(finished)
+            return
         if kind == "request" and frame.get("method") == "attest_context":
             object_fields(frame, {"protocol", "type", "request_id", "method", "params"},
                           {"protocol", "type", "request_id", "method", "params"})
@@ -249,9 +278,13 @@ class StdioBridgeTransport:
         parent_id = identifier(frame["parent_request_id"])
         pending = self._pending.get(parent_id)
         try:
+            method = frame["method"]
+            if parent_id in self._outbound_scopes and method in ("upload_begin", "upload_chunk", "upload_finish"):
+                result = getattr(self.artifacts, method)(parent_id, frame["params"])
+                await self.emit({"type": "result", "request_id": host_id, "result": result})
+                return
             if pending is None or pending.future.done():
                 raise WireError("inactive_request")
-            method = frame["method"]
             if method == "read_artifact" and pending.method in ("send", "transcribe", "command"):
                 result = self.artifacts.read(parent_id, frame["params"])
             elif method in ("upload_begin", "upload_chunk", "upload_finish") and pending.method in ("send", "command", "synthesize"):
@@ -261,6 +294,51 @@ class StdioBridgeTransport:
             await self.emit({"type": "result", "request_id": host_id, "result": result})
         except (WireError, ValueError, TypeError, OSError):
             await self.emit({"type": "error", "request_id": host_id, "error": {"code": "artifact_rejected"}})
+
+    async def _outbound_open(self, request_id, params):
+        try:
+            if params not in (None, {}):
+                raise WireError("invalid_params")
+            if not callable(self.deliver_outbound):
+                raise WireError("unsupported_method")
+            if request_id in self._outbound_scopes or len(self._outbound_scopes) >= MAX_OUTBOUND_SCOPES:
+                raise WireError("pending_limit")
+            self.artifacts.begin(request_id)
+            self._outbound_scopes.add(request_id)
+            await self.emit({"type": "result", "request_id": request_id, "result": {"scope": request_id}})
+        except WireError:
+            await self.emit({"type": "error", "request_id": request_id, "error": {"code": "outbound_rejected"}})
+
+    async def _deliver(self, request_id, params):
+        scope = None
+        try:
+            object_fields(params, {"scope", "conversation_id", "text", "attachments"},
+                          {"scope", "conversation_id"})
+            scope = identifier(params["scope"])
+            if scope not in self._outbound_scopes:
+                scope = None
+                raise WireError("unknown_scope")
+            conversation = params["conversation_id"]
+            text = params.get("text")
+            if not isinstance(conversation, str) or text is not None and not isinstance(text, str):
+                raise WireError("invalid_params")
+            values = params.get("attachments", [])
+            if not isinstance(values, list) or len(values) > 10:
+                raise WireError("artifact_limit")
+            attachments = tuple(self.artifacts.resolve(scope, value) for value in values)
+            await asyncio.wait_for(self.deliver_outbound(
+                delivery_id=request_id, conversation_id=conversation, text=text, attachments=attachments), 300)
+            await self.emit({"type": "result", "request_id": request_id, "result": {"delivered": True}})
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            if not self._closed:
+                code = "delivery_forbidden" if isinstance(error, PermissionError) else "delivery_failed"
+                await self.emit({"type": "error", "request_id": request_id, "error": {"code": code}})
+        finally:
+            if scope is not None:
+                self._outbound_scopes.discard(scope)
+                self.artifacts.end(scope)
 
     async def _attest(self, request_id, params):
         try:
@@ -282,6 +360,9 @@ class StdioBridgeTransport:
 
     def eof(self):
         self._closed = True
+        for scope in tuple(self._outbound_scopes):
+            self._outbound_scopes.discard(scope)
+            self.artifacts.end(scope)
         for task in self._host_requests.values():
             task.cancel()
         for pending in self._pending.values():
@@ -335,7 +416,8 @@ def describe():
             "max_line_bytes": MAX_LINE, "max_pending": MAX_PENDING,
             "max_chunk_bytes": MAX_CHUNK, "max_artifact_bytes": MAX_ARTIFACT,
             "methods": ["start", "authorize_context", "authorize_delivery", "send", "command", "transcribe", "synthesize", "stop"],
-            "host_methods": ["attest_context"], "context_attestation": True,
+            "host_methods": ["attest_context", "outbound_open", "deliver"], "context_attestation": True,
+            "outbound_delivery": {"providers": ["slack"], "max_attachments": 10},
             "artifact_methods": ["read_artifact", "upload_begin", "upload_chunk", "upload_finish"],
             "core_commands": sorted(COMMAND_SCOPES)}
 
@@ -352,6 +434,7 @@ async def serve(read_line, write_line, *, factory=configure):
         transport = StdioBridgeTransport(write_line, binding_id=first.get("binding_id"), provider=first.get("provider"))
         bridge = factory(first, transport)
         transport.attest_context = getattr(bridge, "attest_context", None)
+        transport.deliver_outbound = getattr(bridge, "deliver_outbound", None)
         await transport.emit({"type": "configured", "request_id": identifier(first["request_id"]),
                               "provider": transport.provider, "binding_id": transport.binding_id,
                               "providers": list(PROVIDERS), "context_attestation": callable(transport.attest_context)})

@@ -401,6 +401,63 @@ class BaseBridge:
         finally:
             _active_context.reset(token)
 
+    # ── Host-initiated delivery ────────────────────────────────────────
+    #
+    # A host may ask an admitted binding to publish a new message in one of
+    # its provider conversations without an incoming event (for example an
+    # agent reporting to a team channel). The provider builds an SDK-verified
+    # context whose actor is the binding's own bot identity; every egress still
+    # passes the ordinary audience refresh and host delivery authorization.
+    OUTBOUND_TEXT_LIMIT = 12000
+    OUTBOUND_MAX_ATTACHMENTS = 10
+
+    async def deliver_outbound(self, *, delivery_id: str, conversation_id: str,
+                               text: str | None = None, attachments=()) -> None:
+        if not isinstance(delivery_id, str) or not delivery_id or len(delivery_id) > 128:
+            raise ValueError("delivery_id is required")
+        if not isinstance(conversation_id, str) or not conversation_id or len(conversation_id) > 256:
+            raise ValueError("conversation_id is required")
+        text = text.strip() if isinstance(text, str) else ""
+        attachments = tuple(attachments or ())
+        if not text and not attachments:
+            raise ValueError("outbound delivery needs text or attachments")
+        if len(text) > self.OUTBOUND_TEXT_LIMIT or len(attachments) > self.OUTBOUND_MAX_ATTACHMENTS:
+            raise ValueError("outbound delivery exceeds its limits")
+        if self._should_stop:
+            raise PermissionError("bridge is stopped")
+        context = await self._outbound_context(delivery_id, conversation_id)
+        self._resolve_context(context)
+        token = _active_context.set(context)
+        self._outbound_events.add(context.event_id)
+        try:
+            target = self._outbound_target(context)
+            if text:
+                for chunk in split_preserving_code_blocks(text, self.message_limit):
+                    if chunk.strip():
+                        await self.send_text_chunk(target, chunk)
+            for attachment in attachments:
+                await self.send_attachment(target, self._platform_attachment(attachment))
+        finally:
+            self._outbound_events.discard(context.event_id)
+            _active_context.reset(token)
+
+    @property
+    def _outbound_events(self) -> set:
+        events = self.__dict__.get("_outbound_event_ids")
+        if events is None:
+            events = self.__dict__["_outbound_event_ids"] = set()
+        return events
+
+    def _is_outbound_context(self, context: BridgeContext) -> bool:
+        return context.event_id in self._outbound_events
+
+    async def _outbound_context(self, delivery_id: str, conversation_id: str) -> BridgeContext:
+        """Providers return an SDK-verified context for their own bot identity."""
+        raise PermissionError("outbound delivery is not supported by this provider")
+
+    def _outbound_target(self, context: BridgeContext):
+        raise PermissionError("outbound delivery is not supported by this provider")
+
     async def _authorize_outbound(self) -> None:
         await self._prepare_delivery_context(self._resolve_context())
 
