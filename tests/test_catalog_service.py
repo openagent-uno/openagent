@@ -62,6 +62,27 @@ class CatalogServiceTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(PermissionError):
                 await operation
 
+    async def test_a_failed_reload_after_a_committed_change_reports_the_change(self):
+        class FailingPool:
+            def set_catalog_user_sources(self, names):
+                self.names = names
+
+            async def reload(self):
+                raise RuntimeError("synthetic reload failure")
+
+        self.service.bind_pool(FailingPool())
+        created = await self.service.create(self.context, 'reloaded', url='https://example.invalid/mcp',
+                                            headers={'Authorization': 'Bearer ${secret:OPENAGENT_MCP_SECRET_X}'})
+        self.assertEqual('reloaded', created['name'])
+        self.assertIn('synthetic reload failure', created['reload_error'])
+        self.assertEqual('https://example.invalid/mcp', (await self.db.get_mcp('reloaded'))['url'])
+        updated = await self.service.update(self.context, 'reloaded', enabled=False)
+        self.assertFalse(updated['enabled'])
+        self.assertIn('reload_error', updated)
+        removed = await self.service.delete(self.context, 'reloaded')
+        self.assertTrue(removed['ok'])
+        self.assertIsNone(await self.db.get_mcp('reloaded'))
+
     async def test_mcp_manager_delegates_to_the_same_host_service(self):
         from openagent_core.mcp.servers.mcp_manager.server import add_custom_mcp, update_mcp
         runtime = SimpleNamespace(
@@ -70,6 +91,9 @@ class CatalogServiceTests(unittest.IsolatedAsyncioTestCase):
         )
         with execution_scope(runtime,self.context,'run'):
             row = await add_custom_mcp('from-tool',command=['echo'])
+            # The tool adds when the change becomes discoverable; the rest is the host's row.
+            self.assertEqual('next_turn', row.pop('availability'))
+            self.assertIn('next turn', row.pop('note'))
             self.assertEqual(row,await self.service.get(self.context,'from-tool'))
             with self.assertRaises(PermissionError):
                 await update_mcp('vault',command=['other-program'])

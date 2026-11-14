@@ -57,7 +57,8 @@ async def t_remove_rejects_builtins(ctx: TestContext) -> None:
                         raise AssertionError(f"remove_mcp {name!r} should have been refused")
 
                 # kind=custom goes through
-                assert (await mgr.remove_mcp("custom-one")) == {"ok": True}
+                removed = await mgr.remove_mcp("custom-one")
+                assert removed["ok"] is True and removed["availability"] == "next_turn", removed
 
             assert await db.get_mcp("shell") is not None
             assert await db.get_mcp("vault") is not None

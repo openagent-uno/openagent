@@ -7,9 +7,13 @@ in the same physical database and unavailable through MCP import/update fields.
 
 from __future__ import annotations
 import asyncio
+import logging
 from pathlib import Path
 import aiosqlite
 from openagent_core.contracts import ResourceRef, require_authorized
+
+
+logger = logging.getLogger(__name__)
 
 
 class NativeCatalogService:
@@ -79,6 +83,26 @@ class NativeCatalogService:
         if pool is not None:
             pool.set_catalog_user_sources(self.user_sources)
             await pool.reload()
+
+    async def _refresh_after_write(self):
+        """Apply a committed registry change to the live pool.
+
+        The write already happened: a failing reload must not be reported as a
+        failed install, edit or removal. The error is returned with the result
+        instead, and the change is applied by the next successful reload.
+        """
+        try:
+            await self._refresh()
+        except Exception as exc:  # noqa: BLE001 - reported with the result
+            logger.warning("catalog reload after a committed change failed: %s", exc)
+            return str(exc)[:500] or exc.__class__.__name__
+        return None
+
+    def _committed(self, row, error):
+        result = self._present(row)
+        if error:
+            result["reload_error"] = error
+        return result
 
     def bind_pool(self, pool):
         """Bind the MCP module instance selected by the active graph."""
@@ -184,11 +208,15 @@ class NativeCatalogService:
                 )
                 await conn.commit()
             self._ownership[name] = "user"
-            await self.db.upsert_mcp(
+            # The returned row is what was committed; re-reading it on the
+            # shared connection could observe a sibling's older snapshot.
+            row = await self.db.upsert_mcp(
                 name, kind="custom", source="standalone-catalog", **values
             )
-        await self._refresh()
-        return await self.get(context, name)
+        error = await self._refresh_after_write()
+        if not isinstance(row, dict):
+            row = await self.db.get_mcp(name)
+        return self._committed(row, error)
 
     async def update(self, context, name, **values):
         await self._check(context, "configure", name)
@@ -203,6 +231,7 @@ class NativeCatalogService:
                         "Product-owned sources can only be enabled or disabled here"
                     )
                 await self.db.set_mcp_enabled(name, values["enabled"])
+                row = {**existing, "enabled": values["enabled"]}
             else:
                 merged = {
                     key: existing.get(key)
@@ -237,11 +266,13 @@ class NativeCatalogService:
                         args=merged.get("args"),
                         url=merged.get("url"),
                     )
-                await self.db.upsert_mcp(
+                row = await self.db.upsert_mcp(
                     name, kind="custom", source="standalone-catalog", **merged
                 )
-        await self._refresh()
-        return await self.get(context, name)
+                if not isinstance(row, dict):
+                    row = {**existing, **merged}
+        error = await self._refresh_after_write()
+        return self._committed(row, error)
 
     async def delete(self, context, name):
         await self._check(context, "remove", name)
@@ -253,8 +284,8 @@ class NativeCatalogService:
             if await self.db.get_mcp(name) is None:
                 raise LookupError(name)
             await self.db.delete_mcp(name)
-        await self._refresh()
-        return {"ok": True}
+        error = await self._refresh_after_write()
+        return {"ok": True, **({"reload_error": error} if error else {})}
 
     async def set_enabled(self, context, name, enabled):
         return await self.update(context, name, enabled=enabled)
