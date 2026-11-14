@@ -24,6 +24,7 @@ import { unconfirmedMessages } from '../../../common/shared-transcript';
 import { useCollaboration } from '../../stores/collaboration';
 import { attachmentsForSend } from '../../../common/attachments';
 import { chatSessionIntent, resolveChatAnchor } from '../../../common/search-navigation';
+import { resolveChatRouteSession } from '../../../common/chat-route-session';
 import { useConnection } from '../../stores/connection';
 import { sendTypedChat, useChat } from '../../stores/chat';
 import { sessionReadGuard } from '../../stores/sessionReadAccess';
@@ -393,20 +394,27 @@ export default function ChatScreen() {
     // live transcript while Chat is unmounted; the route makes that exact
     // transcript reachable again when returning from Settings or another tab.
     appliedParamRef.current = id;
+    useChat.getState().requestChatDestination(id);
     routerRef.current.push(chatSessionIntent(id) as any);
     return id;
   }, [createSession]);
+  // An in-app selection wins over a route that may still carry the previous
+  // ``?session=`` (Expo Router can keep old params when a Drawer replaces the
+  // focused Chat route); see common/chat-route-session.ts.
+  const chatDestination = useChat((s) => s.chatDestination);
   useEffect(() => {
-    const want = typeof routeParams.session === 'string' ? routeParams.session : undefined;
-    if (!want) {
-      appliedParamRef.current = null;
-      return;
-    }
-    if (appliedParamRef.current === want) return;
-    appliedParamRef.current = want;
-    if (want === activeSessionId) return;
-    setActiveSession(want);
-  }, [routeParams.session, activeSessionId, setActiveSession]);
+    const state = useChat.getState();
+    const decision = resolveChatRouteSession({
+      routeSession: typeof routeParams.session === 'string' ? routeParams.session : undefined,
+      appliedRouteSession: appliedParamRef.current,
+      destination: chatDestination,
+      staleRouteSession: state.staleRouteSession,
+      activeSessionId: activeSessionId ?? null,
+    });
+    appliedParamRef.current = decision.appliedRouteSession;
+    if (decision.consumeDestination) state.consumeChatDestination(decision.staleRouteSession);
+    if (decision.activate) setActiveSession(decision.activate);
+  }, [routeParams.session, chatDestination, activeSessionId, setActiveSession]);
 
   // Expo Router v5 can drop changed query parameters when a Drawer replaces
   // its already-focused Chat route. Search therefore carries the exact

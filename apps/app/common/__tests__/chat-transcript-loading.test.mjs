@@ -6,7 +6,7 @@ import { build } from '../../desktop/node_modules/esbuild/lib/main.js';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const bundle = await build({
   absWorkingDir: root, bundle: true, write: false, platform: 'node', format: 'esm',
-  stdin: { contents: `export { useChat } from './universal/stores/chat';`, resolveDir: root },
+  stdin: { contents: `export { useChat, TRANSCRIPT_LOAD_TIMEOUT_MS } from './universal/stores/chat';`, resolveDir: root },
   nodePaths: [root + '/universal/node_modules', root + '/desktop/node_modules'],
   plugins: [{ name: 'api-fixture', setup(api) {
     api.onResolve({ filter: /^\.\.\/services\/api$/ }, () => ({ path: 'api', namespace: 'fixture' }));
@@ -21,7 +21,7 @@ const bundle = await build({
     ` }));
   } }],
 });
-const { useChat } = await import(
+const { useChat, TRANSCRIPT_LOAD_TIMEOUT_MS } = await import(
   'data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 
 
@@ -71,4 +71,33 @@ test('a failed initial load is reported and can be retried', async (t) => {
   const state = useChat.getState();
   assert.equal(state.transcriptLoadError.chat, undefined);
   assert.equal(state.sessions.find((s) => s.id === 'chat').messages.length, 2);
+});
+
+test('a request that never settles times out, reports it and allows a retry', async (t) => {
+  setup(t);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  globalThis.__page = () => new Promise(() => {});
+  useChat.getState().setActiveSession('chat');
+  assert.equal(useChat.getState().transcriptLoading.chat, true);
+  t.mock.timers.tick(TRANSCRIPT_LOAD_TIMEOUT_MS);
+  t.mock.timers.reset();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(useChat.getState().transcriptLoading.chat, undefined);
+  assert.match(useChat.getState().transcriptLoadError.chat, /too long/);
+
+  globalThis.__page = () => Promise.resolve(page);
+  await useChat.getState().loadInitialTranscript('chat');
+  assert.equal(useChat.getState().transcriptLoadError.chat, undefined);
+  assert.equal(useChat.getState().sessions.find((s) => s.id === 'chat').messages.length, 2);
+});
+
+test('an in-app destination is recorded and consumed with the stale route value', (t) => {
+  setup(t);
+  useChat.getState().requestChatDestination('chat');
+  assert.equal(useChat.getState().chatDestination, 'chat');
+  useChat.getState().consumeChatDestination('draft');
+  assert.equal(useChat.getState().chatDestination, null);
+  assert.equal(useChat.getState().staleRouteSession, 'draft');
+  useChat.getState().clearAll();
+  assert.equal(useChat.getState().staleRouteSession, null);
 });

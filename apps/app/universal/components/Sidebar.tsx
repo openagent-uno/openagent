@@ -150,6 +150,7 @@ export default function Sidebar({
 
   const startSession = () => {
     const id = useChat.getState().createSession();
+    useChat.getState().requestChatDestination(id);
     router.push(chatSessionIntent(id) as any);
     onNavigate?.();
   };
@@ -664,7 +665,7 @@ function FeedRow({ item }: { item: FeedItem }) {
         </View>
       ) : null}
       <Pressable
-        onPress={item.active && item.onRename ? item.onRename : item.onPress}
+onPress={item.active && item.onRename ? item.onRename : item.onPress}
         style={styles.feedRowMain}
         accessibilityRole="button"
         accessibilityState={{ selected: !!item.active, busy: !!item.running }}
@@ -848,6 +849,7 @@ function chatFeedItem(
     running: session.isProcessing,
     onPress: () => {
       useChat.getState().setActiveSession(session.id);
+      useChat.getState().requestChatDestination(session.id);
       router.push(chatSessionIntent(session.id) as any);
       onNavigate?.();
     },

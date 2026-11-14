@@ -19,6 +19,7 @@ export default function AppHeader({ onMenu }: { onMenu: () => void }) {
 
   const newSession = () => {
     const id = useChat.getState().createSession();
+    useChat.getState().requestChatDestination(id);
     router.push(chatSessionIntent(id) as any);
   };
 

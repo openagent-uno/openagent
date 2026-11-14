@@ -733,6 +733,14 @@ interface ChatState {
   transcriptLoadError: Record<string, string>;
   /** Fetch the newest transcript page of a session that has no rows yet. */
   loadInitialTranscript: (id: string) => Promise<void>;
+  /** Conversation chosen in-app (sidebar row, New session) that Chat must show
+   * even if its route still carries an older ``?session=`` (see
+   * common/chat-route-session.ts). Consumed by Chat. */
+  chatDestination: string | null;
+  /** Route ``?session=`` value consumed together with the last destination. */
+  staleRouteSession: string | null;
+  requestChatDestination: (id: string) => void;
+  consumeChatDestination: (staleRouteSession: string | null) => void;
 
   createSession: () => string;
   setActiveSession: (id: string) => void;
@@ -830,6 +838,10 @@ function sessionId(): string {
   return `session-${Date.now()}`;
 }
 
+/** Upper bound for the first transcript page of a session (see loadInitialTranscript). */
+export const TRANSCRIPT_LOAD_TIMEOUT_MS = 20_000;
+const transcriptLoadAttempts = new Map<string, number>();
+
 export const useChat = create<ChatState>((set, get) => ({
   sessions: [],
   activeSessionId: null,
@@ -837,18 +849,34 @@ export const useChat = create<ChatState>((set, get) => ({
   sessionHistoryMode: 'unknown',
   transcriptLoading: {},
   transcriptLoadError: {},
+  chatDestination: null,
+  staleRouteSession: null,
+  requestChatDestination: (id) => set({ chatDestination: id }),
+  consumeChatDestination: (staleRouteSession) => set({ chatDestination: null, staleRouteSession }),
 
   loadInitialTranscript: async (id) => {
     if (get().transcriptLoading[id]) return;
     const current = sessionReadGuard(id);
+    const attempt = (transcriptLoadAttempts.get(id) ?? 0) + 1;
+    transcriptLoadAttempts.set(id, attempt);
     set((s) => {
       const { [id]: _previous, ...errors } = s.transcriptLoadError;
       return { transcriptLoading: { ...s.transcriptLoading, [id]: true }, transcriptLoadError: errors };
     });
     let failure: string | null = null;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const loaded = await loadSessionTranscript(id, get().sessionHistoryMode);
-      if (!current()) return;
+      // A request that never settles (a transport replaced while the agent
+      // restarts, for example) must not leave the loading state up forever and
+      // block every retry: give up after TRANSCRIPT_LOAD_TIMEOUT_MS and report it.
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('The conversation is taking too long to load.')),
+          TRANSCRIPT_LOAD_TIMEOUT_MS,
+        );
+      });
+      const loaded = await Promise.race([loadSessionTranscript(id, get().sessionHistoryMode), timeout]);
+      if (!current() || transcriptLoadAttempts.get(id) !== attempt) return;
       const hasMessages = loaded.kind === 'v2'
         ? loaded.page.messages.length > 0
         : loaded.messages.length > 0;
@@ -863,6 +891,8 @@ export const useChat = create<ChatState>((set, get) => ({
     } catch (error) {
       failure = error instanceof Error && error.message ? error.message : 'The conversation could not be loaded.';
     } finally {
+      if (timer) clearTimeout(timer);
+      if (transcriptLoadAttempts.get(id) !== attempt) return;
       set((s) => {
         const { [id]: _done, ...loading } = s.transcriptLoading;
         return failure && current()
@@ -1855,7 +1885,10 @@ export const useChat = create<ChatState>((set, get) => ({
       sessionHistoryMode: 'unknown',
       transcriptLoading: {},
       transcriptLoadError: {},
+      chatDestination: null,
+      staleRouteSession: null,
     });
+    transcriptLoadAttempts.clear();
   },
 
   loadSession: (id, title, history) => {
