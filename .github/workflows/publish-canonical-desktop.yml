@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Commands an agent runs on this Mac now find the same programs as your terminal again: the shell started by the app uses your login-shell PATH, so Homebrew and SDK tools such as flutter are found. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            Every Settings section is reachable again in a narrow window, opening a conversation from the sidebar shows that conversation (no empty New Chat after returning from Settings), a stuck conversation load ends with an error and Retry instead of loading forever, the scheduled-task switch shows what the server stored, and an approved automation shows the tools added after its approval and offers to approve it again. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
