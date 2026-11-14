@@ -80,7 +80,7 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
       <View style={styles.body}>
         <View style={styles.headRow}>
           <Text style={styles.name} numberOfLines={1}>{task.name}</Text>
-          <ThemedSwitch value={task.enabled} onValueChange={onToggle} />
+          <ThemedSwitch value={!!task.enabled} onValueChange={onToggle} />
         </View>
 
         <Text style={styles.prompt} numberOfLines={2}>{task.prompt}</Text>

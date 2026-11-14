@@ -112,7 +112,12 @@ export const useTasks = create<TasksState>((set, get) => ({
   },
 
   toggleTask: async (id, enabled) => {
-    return get().updateTask(id, { enabled });
+    const ok = await get().updateTask(id, { enabled });
+    // Re-read the list so the switch shows what the server stored, not what
+    // the click asked for: enabling can be refused or need re-authorization,
+    // and a stale or non-boolean update response must not stick.
+    await get().loadTasks();
+    return ok;
   },
 
   runTask: async (id) => {
