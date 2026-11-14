@@ -368,7 +368,7 @@ Beta24 acknowledges Telegram confirmation clicks before awaiting the host and
 renders command outcomes without Markdown interpretation. It still requires a
 completed host outcome before acknowledging success; see the [channel guide](../../docs/site/guide/channels.md#telegram-command-confirmation-beta24).
 
-## Host-initiated delivery (beta25)
+## Host-initiated delivery (beta26)
 
 A host can ask an admitted binding to publish a new message, with files, in
 one of its provider conversations without an incoming event, for example an
@@ -391,4 +391,6 @@ recognize and authorize only the delivery it started. Slack publishes only in
 non-direct conversations listed in `listen_channels` where the bot is a
 member, after a complete membership refresh. `--describe` lists the methods
 under `host_methods` and the supporting providers under `outbound_delivery`.
-Other providers currently refuse outbound delivery.
+Other providers currently refuse outbound delivery. Beta25 already carried
+the delivery methods; beta26 adds `outbound_destinations`, which hosts need to
+show provider names.
