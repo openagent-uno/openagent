@@ -170,13 +170,13 @@ async def t_punctuation_safe(_ctx: TestContext) -> None:
     so these must all return cleanly rather than raise."""
     d, vault, idx_path = _mkvault()
     try:
-        _write(vault, "n.md", "Marco's note", "the user's api key rotation")
+        _write(vault, "n.md", "Bob's note", "the user's api key rotation")
         idx = VaultIndex(vault, idx_path)
         idx.sync()
-        for q in ("marco's", 'unbalanced "quote', "a AND", "OR", "NEAR(", "-",
+        for q in ("bob's", 'unbalanced "quote', "a AND", "OR", "NEAR(", "-",
                   "*", '""', "a-b", "(((", "key AND", "user's api"):
             idx.search(q)  # must not raise
-        assert "n.md" in _paths(idx.search("marco's note")), "apostrophes must still match"
+        assert "n.md" in _paths(idx.search("bob's note")), "apostrophes must still match"
         idx.close()
     finally:
         shutil.rmtree(d, ignore_errors=True)
@@ -372,9 +372,9 @@ async def t_builder_unit(_ctx: TestContext) -> None:
     assert _fts_query("how do I get the premium note") == '("premium"* OR "note"*)'
     # ...but never to the point of leaving nothing to search for.
     assert _fts_query("how do I") == '("how"* OR "do"* OR "i"*)'
-    # A dotted token stays ONE unit: com.lyramusic must not become a loose
-    # OR of "com" (which matches every URL in the vault) and "lyramusic".
-    assert _fts_query("com.lyramusic") == '"com lyramusic"'
+    # A dotted token stays ONE unit: com.examplemusic must not become a loose
+    # OR of "com" (which matches every URL in the vault) and "examplemusic".
+    assert _fts_query("com.examplemusic") == '"com examplemusic"'
     # The contract is not "quotes get escaped" but "no user punctuation can
     # ever reach FTS5 as syntax". Two independent layers deliver that, so
     # pin both: the tokenizer keeps only word characters...

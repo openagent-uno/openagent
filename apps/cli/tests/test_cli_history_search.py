@@ -50,8 +50,8 @@ class SessionTitleTests(unittest.TestCase):
         self.assertTrue(main._is_automatic_session_title("/model gpt", "session-1"))
         self.assertFalse(main._is_automatic_session_title("Release planning", "session-1"))
         self.assertEqual(
-            main._session_title_from_message("  Start   BuzzerBeater locally with Aspire!  "),
-            "Start BuzzerBeater locally with Aspire",
+            main._session_title_from_message("  Start   the demo app locally with Aspire!  "),
+            "Start the demo app locally with Aspire",
         )
 
 

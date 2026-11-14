@@ -7,7 +7,7 @@ BudgetGuard, and hand-primed OpenRouter pricing. No pool / gateway / LLM.
 C1 — the budget guard gates the Team LEADER but not its MEMBERS, so an over-cap
      provider still got delegated member work. We pin: a blocked provider is
      dropped from the member set, but filtering NEVER empties it.
-C2 — a ``cost_usd`` budget on the $0 claude-sub-proxy computes 0 spend forever,
+C2 — a ``cost_usd`` budget on a $0 proxy row computes 0 spend forever,
      so the cap can't trip. We pin: the guard WARNS loudly (log + usage-view
      surface) and never silently no-ops, but only once real pricing is loaded
      (no boot false-positive) and never for a genuinely-priced provider.

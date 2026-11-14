@@ -26,7 +26,7 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_explicit_private_telegram_sender_can_discover_vault_and_gate(self):
         async def owner_handle():
-            return "alessandro"
+            return "alice"
 
         async def no_official_source(context, resource):
             return None
@@ -141,7 +141,7 @@ class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
 
     def _services(self, config, name="Friday"):
         async def owner_handle():
-            return "alessandro"
+            return "alice"
 
         async def snapshot(tenant):
             # The bridge is not a network member: the generic path refuses it.

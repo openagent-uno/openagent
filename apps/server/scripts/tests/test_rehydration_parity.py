@@ -177,7 +177,7 @@ async def t_runtime_to_dict_keeps_stamped_execution_host(ctx: TestContext) -> No
         device_id="device-a",
         client_instance_id="desktop",
         generation=7,
-        device_label="Alessandro's Mac",
+        device_label="Alice's Mac",
         registry=object(),
     )
     tool_exec = _RuntimeToolExecDroppingDynamicHost()

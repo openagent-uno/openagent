@@ -36,7 +36,7 @@ test('an agent group beginning with tools labels its first assistant message', (
 
 test('human messages group by durable identity and reset after agent activity', () => {
   assert.deepEqual(messageHeaderVisibility([
-    message('user', { kind: 'human', handle: 'alex', display: 'Alessandro' }),
+    message('user', { kind: 'human', handle: 'alex', display: 'Alice' }),
     message('user', { kind: 'human', handle: 'alex', display: 'Alex' }),
     message('user', { kind: 'human', handle: 'bea' }),
     message('tool'),

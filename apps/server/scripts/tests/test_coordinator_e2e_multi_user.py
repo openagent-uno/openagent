@@ -240,26 +240,26 @@ async def t_auto_bootstrap_user_claims_agent_owner(ctx: TestContext) -> None:
         )
         await _do_register_and_login(
             env["conn"],
-            handle="alessandro",
+            handle="dana",
             password="passw0rd-owner",
             invite_code=first_invite,
             device_pubkey=Identity.generate().public_bytes,
         )
         agents = await env["store"].list_agents()
-        assert agents[0].owner_handle == "alessandro"
+        assert agents[0].owner_handle == "dana"
 
         # A later ordinary invite creates another user but cannot transfer the
         # ownership established by the explicit bootstrap redemption.
         second_invite = await env["mint_invite"](created_by="cli")
         await _do_register_and_login(
             env["conn"],
-            handle="marco",
+            handle="bob",
             password="passw0rd-member",
             invite_code=second_invite,
             device_pubkey=Identity.generate().public_bytes,
         )
         agents = await env["store"].list_agents()
-        assert agents[0].owner_handle == "alessandro"
+        assert agents[0].owner_handle == "dana"
     finally:
         await env["teardown"]()
 
@@ -306,8 +306,8 @@ async def t_three_users_register_login(ctx: TestContext) -> None:
     env = await _stand_up_coordinator(ctx)
     try:
         users = [
-            ("alessandro", "passw0rd-aaa"),
-            ("marco",      "passw0rd-mmm"),
+            ("dana", "passw0rd-aaa"),
+            ("bob",      "passw0rd-mmm"),
             ("alice",      "passw0rd-zzz"),
         ]
         # Distinct device per user — the coordinator stores
@@ -366,7 +366,7 @@ async def t_returning_device_relogins(ctx: TestContext) -> None:
 
     env = await _stand_up_coordinator(ctx)
     try:
-        handle, password = "alessandro", "pw-aaa"
+        handle, password = "dana", "pw-aaa"
         device = Identity.generate()
         invite = await env["mint_invite"]("user")
 
@@ -378,7 +378,7 @@ async def t_returning_device_relogins(ctx: TestContext) -> None:
             device_pubkey=device.public_bytes,
         )
 
-        # Second login = "I am Alessandro on the same device" — no
+        # Second login = "I am Dana on the same device" — no
         # invite this time; coordinator recognises the device pubkey
         # and re-issues a cert through the touch_device path.
         cert2 = await _do_login(
@@ -414,7 +414,7 @@ async def t_touch_device_lock_e2e(ctx: TestContext) -> None:
 
     env = await _stand_up_coordinator(ctx)
     try:
-        handle, password = "alessandro", "pw-lockcheck"
+        handle, password = "dana", "pw-lockcheck"
         device = Identity.generate()
         invite = await env["mint_invite"]("user")
 
@@ -463,8 +463,8 @@ async def t_invite_negative_paths(ctx: TestContext) -> None:
 
     env = await _stand_up_coordinator(ctx)
     try:
-        handle_a, password_a = "alessandro", "pw-aa"
-        handle_b, password_b = "marco", "pw-mm"
+        handle_a, password_a = "dana", "pw-aa"
+        handle_b, password_b = "bob", "pw-mm"
         device_a = Identity.generate()
         device_b = Identity.generate()
         invite_a = await env["mint_invite"]("user")
@@ -475,7 +475,7 @@ async def t_invite_negative_paths(ctx: TestContext) -> None:
             invite_code=invite_a, device_pubkey=device_a.public_bytes,
         )
 
-        # Reusing alessandro's invite for marco's register must fail —
+        # Reusing dana's invite for bob's register must fail —
         # the invite has zero uses left after the first register.
         raised: Exception | None = None
         try:
@@ -501,7 +501,7 @@ async def t_invite_negative_paths(ctx: TestContext) -> None:
         assert raised is not None and "invalid_invite" in str(raised), \
             f"bogus invite should have been rejected as invalid_invite, got {raised}"
 
-        # marco can still register with HIS fresh invite — the failed
+        # bob can still register with HIS fresh invite — the failed
         # attempts above didn't poison his path.
         await _do_register_and_login(
             env["conn"], handle=handle_b, password=password_b,

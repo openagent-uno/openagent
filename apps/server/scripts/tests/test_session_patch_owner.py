@@ -103,12 +103,12 @@ async def t_handle_wins(ctx: TestContext) -> None:
     db = _FakeDB()
     status, _ = await _patch(
         db, {"title": "ciao"},
-        values={"user_handle": "marco", "client_id": "deadbeef"},
+        values={"user_handle": "bob", "client_id": "deadbeef"},
     )
     assert status == 200
     # The handle, not the device pubkey: the listing is meant to be the same
     # on every device the user owns.
-    assert db.calls == [{"session_id": "s1", "client_id": "marco",
+    assert db.calls == [{"session_id": "s1", "client_id": "bob",
                          "title": "ciao", "model": None}], db.calls
 
 
@@ -118,7 +118,7 @@ async def t_rename_broadcasts_after_commit(ctx: TestContext) -> None:
     request = _FakeRequest(
         db,
         {"title": "New durable title"},
-        values={"user_handle": "marco", "client_id": "marco-device"},
+        values={"user_handle": "bob", "client_id": "bob-device"},
     )
     from openagent_server.gateway.api import sessions as api
 
@@ -160,7 +160,7 @@ async def t_empty_patch(ctx: TestContext) -> None:
     status, body = await _patch(
         db,
         {},
-        values={"user_handle": "marco", "client_id": "marco-device"},
+        values={"user_handle": "bob", "client_id": "bob-device"},
     )
     assert status == 400 and "required" in body["error"]
     assert db.calls == [], "a refused patch must not touch the row"

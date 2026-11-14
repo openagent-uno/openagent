@@ -52,10 +52,10 @@ async def t_build_agent_wires_fallback_config(ctx: TestContext) -> None:
 @test("model_fallback",
       "sub-proxy 'no available accounts' (4xx) classifies as rate-limit and falls back")
 async def t_account_exhaustion_falls_back(_ctx: TestContext) -> None:
-    """The in-pod claude-sub-proxy returns a client status (e.g. 404) when all
+    """A subscription proxy may return a client status (e.g. 404) when all
     its rotating Claude accounts are cooling down. That is a TRANSIENT capacity
     signal ("Retry after ..."), not a config bug — it must degrade to the
-    configured fallback (DeepSeek). Regression: it was hitting the "non-retryable
+    configured fallback. Regression: it was hitting the "non-retryable
     4xx client error → return None" branch, so the run hard-failed (the
     skill-distiller ``failed`` with exactly this message) instead of falling
     back, and Claude-account saturation could take out live support turns."""

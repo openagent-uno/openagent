@@ -109,7 +109,7 @@ async def t_touch_device_locked_login_still_succeeds(ctx: TestContext) -> None:
     from openagent_identity.coordinator.store import DeviceRow
 
     device_pubkey = b"\x00" * 32
-    handle = "alessandro"
+    handle = "alice"
     existing = DeviceRow(
         device_pubkey=device_pubkey,
         user_handle=handle,
@@ -154,7 +154,7 @@ async def t_add_device_locked_login_fails(ctx: TestContext) -> None:
     and the cert would point at a phantom record. The error must
     propagate so the client retries cleanly."""
 
-    handle = "marco"
+    handle = "bob"
     device_pubkey = b"\x11" * 32
     store = _FakeStore(
         existing_device=None,  # first-device pairing

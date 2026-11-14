@@ -121,7 +121,7 @@ async def t_manual_dream_streams(ctx: TestContext) -> None:
         # must stream its child-tagged frames onto that channel.
         ctx_tokens = dh.install_context(
             session_id="chat-1", pool=None, db=db, dispatcher=None,
-            agent=agent, owner_handle="alessandro",
+            agent=agent, owner_handle="alice",
         )
         etok = install_child_stream_emitter(cap)
         try:
@@ -193,7 +193,7 @@ async def t_manual_dream_self_heals(ctx: TestContext) -> None:
         set_resource_event_sink(lambda r, a, i=None: events.append((r, a, i)))
         ctx_tokens = dh.install_context(
             session_id="chat-1", pool=None, db=db, dispatcher=None,
-            agent=agent, owner_handle="alessandro",
+            agent=agent, owner_handle="alice",
         )
         try:
             result = await dh.run_dream_mode()

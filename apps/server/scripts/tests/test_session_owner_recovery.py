@@ -66,7 +66,7 @@ def _gateway(db):
     )
 
 
-async def _create(db, *, session_id="rest-chat", client_id="ios-rest", handle="marco", message=None):
+async def _create(db, *, session_id="rest-chat", client_id="ios-rest", handle="bob", message=None):
     from openagent_server.gateway.api import chat as chat_api
     from openagent_core.stream import session as stream_module
 
@@ -91,7 +91,7 @@ async def t_rest_chat_stamps_owner(_ctx: TestContext) -> None:
     # The handle, not the device key: the listing must be the same on every
     # device that user signs in from. The device stays for per-device routing.
     assert db.calls == [{
-        "session_id": "rest-chat", "client_id": "marco", "device_id": "ios-rest", "title": None,
+        "session_id": "rest-chat", "client_id": "bob", "device_id": "ios-rest", "title": None,
     }], db.calls
 
 
@@ -105,7 +105,7 @@ async def t_owner_falls_back_to_device(_ctx: TestContext) -> None:
 @test("session_owner_recovery", "an existing owner is never transferred")
 async def t_existing_owner_is_kept(_ctx: TestContext) -> None:
     db = _FakeDB({"rest-chat": {"session_id": "rest-chat", "client_id": "giulia"}})
-    await _create(db, handle="marco")
+    await _create(db, handle="bob")
     assert db.calls == [], "attaching to someone else's session must not take it over"
 
 
@@ -115,21 +115,21 @@ async def t_rest_chat_gets_meaningful_title(_ctx: TestContext) -> None:
 
     db = _FakeDB({
         "rest-chat": {
-            "session_id": "rest-chat", "client_id": "marco", "title": "/model gpt",
+            "session_id": "rest-chat", "client_id": "bob", "title": "/model gpt",
         },
     })
     gateway = _gateway(db)
     await _record_session_owner(
-        gateway, "rest-chat", "ios-rest", "marco", "/model codex:gpt-5.6-sol:high",
+        gateway, "rest-chat", "ios-rest", "bob", "/model codex:gpt-5.6-sol:high",
     )
     assert db.calls == [], "a technical command is not a title"
     await _record_session_owner(
-        gateway, "rest-chat", "ios-rest", "marco",
-        "  Start   BuzzerBeater locally with Aspire!  ",
+        gateway, "rest-chat", "ios-rest", "bob",
+        "  Start   the demo app locally with Aspire!  ",
     )
     assert db.calls == [{
         "session_id": "rest-chat", "client_id": None, "device_id": None,
-        "title": "Start BuzzerBeater locally with Aspire",
+        "title": "Start the demo app locally with Aspire",
     }], db.calls
 
 
@@ -143,7 +143,7 @@ async def t_runtime_write_keeps_metadata(_ctx: TestContext) -> None:
         path = Path(directory) / "openagent.db"
         db = MemoryDB(str(path))
         await db.connect()
-        await db.upsert_session("owned-chat", client_id="marco", title="Ciao")
+        await db.upsert_session("owned-chat", client_id="bob", title="Ciao")
         await db.close()
 
         now = int(time.time())
@@ -172,9 +172,9 @@ async def t_runtime_write_keeps_metadata(_ctx: TestContext) -> None:
         metadata = json.loads(stored[0]) if stored and stored[0] else {}
         if isinstance(metadata, str):
             metadata = json.loads(metadata)
-        assert metadata.get("client_id") == "marco", metadata
+        assert metadata.get("client_id") == "bob", metadata
         assert metadata.get("title") == "Ciao", "the whole column survives, not just the owner"
-        assert (owner, visibility) == ("user:marco", "private"), (owner, visibility)
+        assert (owner, visibility) == ("user:bob", "private"), (owner, visibility)
 
 
 def _seed_ownerless(path: Path, *owners: str) -> None:
@@ -224,14 +224,14 @@ async def t_connect_claims_ownerless_rows(_ctx: TestContext) -> None:
         db = MemoryDB(str(path))
         await db.connect()
         await db.close()
-        _seed_ownerless(path, "marco")
+        _seed_ownerless(path, "bob")
 
         metadata, canonical = await _reconnect_and_read(path)
-        assert metadata.get("client_id") == "marco", metadata
+        assert metadata.get("client_id") == "bob", metadata
         # The canonical row was projected from ownerless metadata and is
         # quarantined; the repair has to reach it too, or the chat stays
         # unreadable while looking perfectly present on disk.
-        assert canonical == ("user:marco", "private"), canonical
+        assert canonical == ("user:bob", "private"), canonical
 
 
 @test("session_owner_recovery", "with no owner on the deployment nothing is claimed")
@@ -261,7 +261,7 @@ async def t_several_users_claim_nothing(_ctx: TestContext) -> None:
         await db.connect()
         await db.close()
         # The row names nobody, and here "nobody" could be either of them.
-        _seed_ownerless(path, "marco", "giulia")
+        _seed_ownerless(path, "bob", "giulia")
 
         metadata, _canonical = await _reconnect_and_read(path)
         assert "client_id" not in metadata, metadata
@@ -276,7 +276,7 @@ async def t_claim_is_idempotent(_ctx: TestContext) -> None:
         db = MemoryDB(str(path))
         await db.connect()
         await db.close()
-        _seed_ownerless(path, "marco")
+        _seed_ownerless(path, "bob")
         await _reconnect_and_read(path)
         conn = sqlite3.connect(path)
         try:
@@ -289,5 +289,5 @@ async def t_claim_is_idempotent(_ctx: TestContext) -> None:
             conn.close()
 
         metadata, canonical = await _reconnect_and_read(path)
-        assert metadata == {"client_id": "marco", "title": "Renamed"}, metadata
-        assert canonical == ("user:marco", "private"), canonical
+        assert metadata == {"client_id": "bob", "title": "Renamed"}, metadata
+        assert canonical == ("user:bob", "private"), canonical

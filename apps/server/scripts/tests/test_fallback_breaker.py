@@ -1,6 +1,6 @@
 """Breaker half-open sui gradini della catena di fallback.
 
-Il 24-ago-2026 il codex-sub-proxy ha parcheggiato ``gpt-5.3-codex-spark`` per
+Il 24-ago-2026 un proxy di abbonamento ha parcheggiato ``gpt-5.3-codex-spark`` per
 3 ore intere dopo un ``usage_limit_reached``, e per tutto quel tempo ogni turno
 ripagava lo stesso gradino morto prima di passare al successivo; la ripresa,
 poi, era solo lo scadere di un timer, senza mai verificare se upstream fosse

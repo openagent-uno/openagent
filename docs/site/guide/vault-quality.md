@@ -153,7 +153,7 @@ $ git -C ~/.openagent/memories log -1
     Workflow: weekly-review
     Task: vault-maintenance
     Tool: vault_write_note
-    User: geroale
+    User: alice
 ```
 
 Query the log (with parsed trailers) over REST with `GET /api/vault/history?path=&limit=`.

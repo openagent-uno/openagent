@@ -47,13 +47,13 @@ async def t_parse_metadata_unwraps_double_encoded(ctx: TestContext) -> None:
     ``list_all_sessions`` sees the right ``client_id``.
 
     Observed in the wild on beta: rows shaped like
-    ``"{\\"client_id\\": \\"alessandro\\", ...}"`` caused every
+    ``"{\\"client_id\\": \\"alice\\", ...}"`` caused every
     desktop-originated session to vanish from ``/api/sessions``.
     """
     from openagent_core.memory.db import MemoryDB
     import json as _json
 
-    inner = {"client_id": "alessandro", "device_id": "deadbeef", "title": "hi"}
+    inner = {"client_id": "alice", "device_id": "deadbeef", "title": "hi"}
     double = _json.dumps(_json.dumps(inner))  # JSON-encoded JSON string
     assert MemoryDB._parse_metadata(double) == inner
 
@@ -76,7 +76,7 @@ async def t_list_all_sessions_unwraps_double_encoded(ctx: TestContext) -> None:
     import json as _json
     from openagent_core.memory.db import MemoryDB
 
-    inner = {"client_id": "alessandro", "device_id": "feedface", "title": "broken row"}
+    inner = {"client_id": "alice", "device_id": "feedface", "title": "broken row"}
     double = _json.dumps(_json.dumps(inner))  # the corrupt shape on disk
 
     conn = sqlite3.connect(str(ctx.db_path))
@@ -115,13 +115,13 @@ async def t_list_all_sessions_unwraps_double_encoded(ctx: TestContext) -> None:
     db = MemoryDB(str(ctx.db_path))
     await db.connect()
     try:
-        rows = await db.list_all_sessions("alessandro", limit=50)
+        rows = await db.list_all_sessions("alice", limit=50)
         sids = [r["session_id"] for r in rows]
         assert "session-broken-row" in sids, (
             f"double-encoded row was filtered out (sids={sids})"
         )
         row = next(r for r in rows if r["session_id"] == "session-broken-row")
-        assert row["client_id"] == "alessandro"
+        assert row["client_id"] == "alice"
         assert row["title"] == "broken row"
     finally:
         await db.close()
@@ -129,10 +129,10 @@ async def t_list_all_sessions_unwraps_double_encoded(ctx: TestContext) -> None:
 
 @test("db_metadata_parse", "list_all_sessions LIMIT applies AFTER the client_id filter")
 async def t_list_all_sessions_limit_post_filter(ctx: TestContext) -> None:
-    """Seed 100 rows that DON'T belong to ``alessandro`` (with newer
+    """Seed 100 rows that DON'T belong to ``alice`` (with newer
     ``updated_at``) and a handful of rows that DO (mixed shapes:
     proper JSON-object and double-encoded). With ``limit=50``, the
-    pre-fix code returned 0 of alessandro's rows because the 100
+    pre-fix code returned 0 of alice's rows because the 100
     newer noise rows filled the top 50. After the fix, all matching
     rows come back regardless of where they sit in the global order.
     """
@@ -165,7 +165,7 @@ async def t_list_all_sessions_limit_post_filter(ctx: TestContext) -> None:
         )
         # 100 newer rows for an unrelated client (workflow / classifier
         # / other-user noise). updated_at = 10_000 + i so they sort
-        # above the alessandro rows below.
+        # above the alice rows below.
         for i in range(100):
             conn.execute(
                 "INSERT INTO sessions "
@@ -178,14 +178,14 @@ async def t_list_all_sessions_limit_post_filter(ctx: TestContext) -> None:
                     1000, 10_000 + i,
                 ),
             )
-        # 4 alessandro rows interleaved with older timestamps. Mix the
+        # 4 alice rows interleaved with older timestamps. Mix the
         # storage shape so the filter has to handle both:
         #   - proper JSON object (the "right" shape)
         #   - double-encoded JSON string (the wild shape)
-        proper_meta = _json.dumps({"client_id": "alessandro", "title": "row A"})
-        double_meta = _json.dumps(_json.dumps({"client_id": "alessandro", "title": "row B"}))
-        proper2 = _json.dumps({"client_id": "alessandro", "title": "row C"})
-        double2 = _json.dumps(_json.dumps({"client_id": "alessandro", "title": "row D"}))
+        proper_meta = _json.dumps({"client_id": "alice", "title": "row A"})
+        double_meta = _json.dumps(_json.dumps({"client_id": "alice", "title": "row B"}))
+        proper2 = _json.dumps({"client_id": "alice", "title": "row C"})
+        double2 = _json.dumps(_json.dumps({"client_id": "alice", "title": "row D"}))
         for sid, meta, ts in [
             ("session-a", proper_meta, 5_000),
             ("session-b", double_meta, 5_001),
@@ -206,9 +206,9 @@ async def t_list_all_sessions_limit_post_filter(ctx: TestContext) -> None:
     db = MemoryDB(str(ctx.db_path))
     await db.connect()
     try:
-        rows = await db.list_all_sessions("alessandro", limit=50)
+        rows = await db.list_all_sessions("alice", limit=50)
         sids = {r["session_id"] for r in rows}
-        # All four of OUR alessandro rows must be present — the 100
+        # All four of OUR alice rows must be present — the 100
         # noise rows above must not push them off the page.
         for sid in ("session-a", "session-b", "session-c", "session-d"):
             assert sid in sids, f"missing {sid}; got {sorted(sids)}"

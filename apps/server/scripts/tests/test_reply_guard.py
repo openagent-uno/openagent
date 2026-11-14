@@ -735,14 +735,14 @@ async def t_diagnostics_claim_detected(_ctx: TestContext) -> None:
 
     # An enable receipt is what makes the sentence sayable.
     backed = [(
-        "lyra_admin_enable_diagnostics",
+        "acme_admin_enable_diagnostics",
         'result={"ok": true, "categories": ["playback"]}',
     )]
     assert reply_guard._trace_supports_completed_action(
         "I enabled diagnostic capture on your account.", backed,
     ) is True
     failed = [(
-        "lyra_admin_enable_diagnostics", 'result={"ok": false, "error": "not found"}',
+        "acme_admin_enable_diagnostics", 'result={"ok": false, "error": "not found"}',
     )]
     assert reply_guard._trace_supports_completed_action(
         "I enabled diagnostic capture on your account.", failed,

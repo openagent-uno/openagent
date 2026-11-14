@@ -125,17 +125,17 @@ async def t_new_handle(ctx: TestContext) -> None:
     await _seed_network_and_user(db_path)  # no existing user
 
     cli_ctx = _make_ctx(db_path, agent_dir)
-    await _run_invite(cli_ctx, handle="marco", role=None, ttl=600, uses=1)
+    await _run_invite(cli_ctx, handle="bob", role=None, ttl=600, uses=1)
 
     inv = await _read_last_invite(db_path)
     assert inv is not None
     assert inv["role"] == "user", \
         f"non-existing handle should mint user invite, got {inv['role']!r}"
-    # bind_to=marco is *advisory* (the new user just picks marco when
+    # bind_to=bob is *advisory* (the new user just picks bob when
     # they register); the protocol role is user, and the user-role
     # register path doesn't honor bind_to. We don't pin bind_to here
     # because it's not load-bearing for user-role invites — but the
-    # role MUST be user, never device, because marco doesn't exist
+    # role MUST be user, never device, because bob doesn't exist
     # and a device invite for a non-existent handle is unusable.
 
 
@@ -146,17 +146,17 @@ async def t_existing_handle(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"invsmart-exist-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_network_and_user(db_path, existing_user="alessandro")
+    await _seed_network_and_user(db_path, existing_user="alice")
 
     cli_ctx = _make_ctx(db_path, agent_dir)
-    await _run_invite(cli_ctx, handle="alessandro", role=None, ttl=600, uses=1)
+    await _run_invite(cli_ctx, handle="alice", role=None, ttl=600, uses=1)
 
     inv = await _read_last_invite(db_path)
     assert inv is not None
     assert inv["role"] == "device", (
         f"existing handle should mint device invite, got {inv['role']!r}"
     )
-    assert inv["bind_to_handle"] == "alessandro", (
+    assert inv["bind_to_handle"] == "alice", (
         f"device invite must bind to the existing handle, "
         f"got {inv['bind_to_handle']!r}"
     )
@@ -171,14 +171,14 @@ async def t_explicit_role(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"invsmart-explicit-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_network_and_user(db_path, existing_user="alessandro")
+    await _seed_network_and_user(db_path, existing_user="alice")
 
     cli_ctx = _make_ctx(db_path, agent_dir)
-    # ``role=agent`` with handle=alessandro should be honored even
+    # ``role=agent`` with handle=alice should be honored even
     # though auto-detect would have picked device. The operator is
-    # explicitly registering an agent owned by alessandro.
+    # explicitly registering an agent owned by alice.
     await _run_invite(
-        cli_ctx, handle="alessandro", role="agent", ttl=600, uses=1,
+        cli_ctx, handle="alice", role="agent", ttl=600, uses=1,
     )
 
     inv = await _read_last_invite(db_path)
@@ -191,8 +191,8 @@ async def t_explicit_role(ctx: TestContext) -> None:
 @test("invite_smart", "handle case + whitespace are normalised before lookup")
 async def t_handle_normalisation(ctx: TestContext) -> None:
     """Operators paste handles with mixed case / trailing whitespace
-    from the users list ("Alessandro\\n", "ALESSANDRO"). The lookup
-    must normalise so ``alessandro`` is found and the device branch
+    from the users list ("Alice\\n", "ALICE"). The lookup
+    must normalise so ``alice`` is found and the device branch
     fires. Otherwise we'd silently downgrade to a user invite for
     every non-lowercase paste."""
     from openagent_identity.cli_commands import _run_invite
@@ -200,18 +200,18 @@ async def t_handle_normalisation(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"invsmart-norm-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_network_and_user(db_path, existing_user="alessandro")
+    await _seed_network_and_user(db_path, existing_user="alice")
 
     cli_ctx = _make_ctx(db_path, agent_dir)
     await _run_invite(
-        cli_ctx, handle="  ALESSANDRO  ", role=None, ttl=600, uses=1,
+        cli_ctx, handle="  ALICE  ", role=None, ttl=600, uses=1,
     )
 
     inv = await _read_last_invite(db_path)
     assert inv is not None
     assert inv["role"] == "device", \
         f"case/whitespace-bearing handle must still match: {inv}"
-    assert inv["bind_to_handle"] == "alessandro"
+    assert inv["bind_to_handle"] == "alice"
 
 
 @test("invite_smart", "--ticket-only prints one bare decodable ticket line")

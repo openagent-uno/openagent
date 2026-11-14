@@ -122,9 +122,9 @@ If your usage is **outbound calls to your own contacts on your own behalf** ("ca
 
 Good mission prompts are **specific** and include the exit conditions:
 
-> *"Call my dentist at +1-415-555-0142. Confirm or reschedule my appointment that's currently set for Friday afternoon. I'm flexible on time but prefer mornings. Identify yourself as an AI assistant calling on behalf of Alessandro Gerelli. End the call once you have a confirmed time or learn they're closed."*
+> *"Call my dentist at +1-415-555-0142. Confirm or reschedule my appointment that's currently set for Friday afternoon. I'm flexible on time but prefer mornings. Identify yourself as an AI assistant calling on behalf of Alice Example. End the call once you have a confirmed time or learn they're closed."*
 
-> *"Call this restaurant and book a table for 4 at 7pm tomorrow under the name Alessandro. We have one vegetarian and one nut allergy. If 7pm is unavailable, take the closest slot between 6:30 and 8:00. Get the confirmation number."*
+> *"Call this restaurant and book a table for 4 at 7pm tomorrow under the name Alice. We have one vegetarian and one nut allergy. If 7pm is unavailable, take the closest slot between 6:30 and 8:00. Get the confirmation number."*
 
 The agent's `success_criteria` arg lets the AI judge `outcome=success / partial / failure`. Use it to tighten the mission.
 
@@ -136,8 +136,8 @@ The agent's `success_criteria` arg lets the AI judge `outcome=success / partial 
 // Returns immediately
 phone_call_place({
   to: "+393331234567",
-  mission: "Book a table for 4 at 7pm under Alessandro.",
-  caller_identity: "Alessandro Gerelli",        // optional
+  mission: "Book a table for 4 at 7pm under Alice.",
+  caller_identity: "Alice Example",        // optional
   language: "it-IT",                             // optional, default en-US
   success_criteria: "Confirmed reservation with name + time",  // optional
   max_duration_seconds: 300                      // optional, clamped to server cap

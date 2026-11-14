@@ -523,8 +523,8 @@ def cmd_invite(ctx, handle: str | None, role: str | None, ttl: int, uses: int,
 
     \b
       openagent network invite                  # open invite (anyone joins)
-      openagent network invite marco            # auto: marco doesn't exist → onboarding invite
-      openagent network invite alessandro       # auto: alessandro exists → invite to add a new device
+      openagent network invite bob            # auto: bob doesn't exist → onboarding invite
+      openagent network invite alice       # auto: alice exists → invite to add a new device
 
     Coordinator-only. The CLI picks the right protocol role under the
     hood — pass ``--role`` only for the rare cases where you want to

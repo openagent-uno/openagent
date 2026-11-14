@@ -32,14 +32,14 @@ async def t_auto_init_no_suffix(ctx: TestContext) -> None:
     tmp_dir = ctx.test_dir / f"netname-{uuid.uuid4().hex[:8]}"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_db = tmp_dir / "agent.db"
-    config = {"name": "marco", "memory": {"db_path": str(tmp_db)}}
+    config = {"name": "bob", "memory": {"db_path": str(tmp_db)}}
 
     row = await auto_init_if_standalone(
         agent_dir=tmp_dir, config=config, quiet=True,
     )
     assert row is not None, "auto_init should have created a network row"
     assert row["role"] == "coordinator", f"role={row['role']!r}"
-    assert row["name"] == "marco", (
+    assert row["name"] == "bob", (
         f"expected bare agent name, got {row['name']!r} — the -personal "
         "suffix has been removed from the auto-bootstrap path"
     )
@@ -51,7 +51,7 @@ async def t_auto_init_no_suffix(ctx: TestContext) -> None:
     try:
         persisted = await CoordinatorStore(db).get_network_role()
         assert persisted is not None
-        assert persisted["name"] == "marco"
+        assert persisted["name"] == "bob"
     finally:
         await db.close()
 
@@ -70,7 +70,7 @@ async def t_auto_init_idempotent(ctx: TestContext) -> None:
     tmp_dir = ctx.test_dir / f"netidem-{uuid.uuid4().hex[:8]}"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     tmp_db = tmp_dir / "agent.db"
-    config = {"name": "marco", "memory": {"db_path": str(tmp_db)}}
+    config = {"name": "bob", "memory": {"db_path": str(tmp_db)}}
 
     # Pre-seed with the OLD naming convention.
     db = MemoryDB(str(tmp_db))
@@ -80,7 +80,7 @@ async def t_auto_init_idempotent(ctx: TestContext) -> None:
         await store.set_network_role(
             role="coordinator",
             network_id="legacy-id",
-            name="marco-personal",
+            name="bob-personal",
             coordinator_node_id="legacy-node",
             coordinator_pubkey=b"\x00" * 32,
         )
@@ -91,7 +91,7 @@ async def t_auto_init_idempotent(ctx: TestContext) -> None:
         agent_dir=tmp_dir, config=config, quiet=True,
     )
     assert row is not None
-    assert row["name"] == "marco-personal", (
+    assert row["name"] == "bob-personal", (
         f"existing network must not be silently renamed, got {row['name']!r}"
     )
     assert row["network_id"] == "legacy-id", \
@@ -116,17 +116,17 @@ async def t_rename_preserves_identity(ctx: TestContext) -> None:
         await store.set_network_role(
             role="coordinator",
             network_id=original_id,
-            name="marco-personal",
+            name="bob-personal",
             coordinator_node_id=original_node,
             coordinator_pubkey=original_pubkey,
         )
 
-        updated = await store.rename_network("marco")
+        updated = await store.rename_network("bob")
         assert updated is True, "rename should report a row was updated"
 
         row = await store.get_network_role()
         assert row is not None
-        assert row["name"] == "marco", f"name not updated: {row['name']!r}"
+        assert row["name"] == "bob", f"name not updated: {row['name']!r}"
         # Critical: every other column is byte-for-byte identical.
         assert row["network_id"] == original_id, \
             "network_id must NOT change on rename (would invalidate pairings)"

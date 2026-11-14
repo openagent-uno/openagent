@@ -156,7 +156,7 @@ async def handle_mint_invitation(request: "web.Request") -> "web.Response":
 
     Body (all fields optional):
         {
-          "handle": "marco",   # if exists → device-bound; else → user-role
+          "handle": "bob",   # if exists → device-bound; else → user-role
           "role":   "user",    # advanced: force role; bypasses auto-detect
           "ttl":    604800,    # seconds, defaults to 7 days
           "uses":   1,         # advanced: redemption count
@@ -167,8 +167,8 @@ async def handle_mint_invitation(request: "web.Request") -> "web.Response":
           "ticket": "oa1...",            # the full string the recipient pastes
           "code": "xxxxxxxxxxxxxxxxxxxx",
           "role": "user|device|agent",
-          "bind_to": "marco" | "",
-          "intent": "onboard marco (new user)",  # operator-readable label
+          "bind_to": "bob" | "",
+          "intent": "onboard bob (new user)",  # operator-readable label
           "expires_at": <unix-seconds>,
         }
     """

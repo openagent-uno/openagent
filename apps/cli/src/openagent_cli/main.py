@@ -1798,8 +1798,8 @@ def invite_cmd(handle: str | None, network_name: str | None,
 
     \b
       openagent-cli invite                 # open invite, anyone joins
-      openagent-cli invite marco           # auto: onboard marco (new user)
-      openagent-cli invite alessandro      # auto: new-device invite for alessandro
+      openagent-cli invite bob           # auto: onboard bob (new user)
+      openagent-cli invite alice      # auto: new-device invite for alice
     """
     asyncio.run(_run_invite_cli(handle, network_name, ttl, password, role))
 

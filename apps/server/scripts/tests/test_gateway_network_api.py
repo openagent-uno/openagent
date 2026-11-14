@@ -29,7 +29,7 @@ from ._framework import TestContext, test
 
 def _make_request(memory_db, *, method: str = "GET", path: str = "/x",
                   body: bytes | None = None,
-                  user_handle: str = "alessandro",
+                  user_handle: str = "alice",
                   match_info: dict | None = None,
                   auth_state=None):
     """Build a minimal aiohttp request the handlers can read from.
@@ -128,7 +128,7 @@ async def t_list_users(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-users-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro", "marco", "virgil"])
+    await _seed_coord(db_path, users=["alice", "bob", "virgil"])
 
     db = await _open_db(db_path)
     try:
@@ -138,7 +138,7 @@ async def t_list_users(ctx: TestContext) -> None:
         import json
         body = json.loads(resp.body)
         handles = {u["handle"] for u in body["users"]}
-        assert handles == {"alessandro", "marco", "virgil"}, handles
+        assert handles == {"alice", "bob", "virgil"}, handles
         for u in body["users"]:
             assert u["status"] == "active"
             assert u["pake_algo"] == "srp6a"
@@ -225,7 +225,7 @@ async def t_list_invitations(ctx: TestContext) -> None:
 
     await _seed_coord(db_path, invites=[
         {"role": "user", "ttl": 600},   # fresh
-        {"role": "device", "bind_to": "alessandro", "ttl": 600},  # fresh
+        {"role": "device", "bind_to": "alice", "ttl": 600},  # fresh
         {"role": "user", "ttl": -10},   # already expired (negative TTL → past expires_at)
     ])
 
@@ -260,13 +260,13 @@ async def t_mint_new_handle(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-mintnew-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
             db, method="POST", path="/api/network/invitations",
-            body=b'{"handle":"marco"}',
+            body=b'{"handle":"bob"}',
         )
         resp = await handle_mint_invitation(req)
         assert resp.status == 201, f"got {resp.status}: {resp.body!r}"
@@ -274,7 +274,7 @@ async def t_mint_new_handle(ctx: TestContext) -> None:
         body = json.loads(resp.body)
         assert body["role"] == "user", body
         assert body["bind_to"] == "", body
-        assert body["intent"].startswith("onboard marco"), body
+        assert body["intent"].startswith("onboard bob"), body
         assert body["ticket"].startswith("oa1"), body
         assert len(body["code"]) >= 16, body
     finally:
@@ -288,21 +288,21 @@ async def t_mint_existing_handle(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-mintexist-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
             db, method="POST", path="/api/network/invitations",
-            body=b'{"handle":"alessandro"}',
+            body=b'{"handle":"alice"}',
         )
         resp = await handle_mint_invitation(req)
         assert resp.status == 201
         import json
         body = json.loads(resp.body)
         assert body["role"] == "device", body
-        assert body["bind_to"] == "alessandro", body
-        assert "alessandro" in body["intent"], body
+        assert body["bind_to"] == "alice", body
+        assert "alice" in body["intent"], body
     finally:
         await db.close()
 
@@ -314,13 +314,13 @@ async def t_mint_explicit_role(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-mintexp-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
             db, method="POST", path="/api/network/invitations",
-            body=b'{"handle":"alessandro","role":"agent"}',
+            body=b'{"handle":"alice","role":"agent"}',
         )
         resp = await handle_mint_invitation(req)
         assert resp.status == 201
@@ -401,7 +401,7 @@ async def t_patch_user_status(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-patch-u-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
@@ -409,7 +409,7 @@ async def t_patch_user_status(ctx: TestContext) -> None:
         device_key = b"\x22" * 32
         await store.add_device(
             device_pubkey=device_key,
-            user_handle="alessandro",
+            user_handle="alice",
             label="workstation",
         )
         assert await store.get_active_device(device_key) is not None
@@ -417,9 +417,9 @@ async def t_patch_user_status(ctx: TestContext) -> None:
         auth_state = SimpleNamespace(disconnect=disconnected.append)
 
         req = _make_request(
-            db, method="PATCH", path="/api/network/users/alessandro",
+            db, method="PATCH", path="/api/network/users/alice",
             body=b'{"status":"suspended"}',
-            match_info={"handle": "alessandro"},
+            match_info={"handle": "alice"},
             auth_state=auth_state,
         )
         resp = await handle_patch_user(req)
@@ -428,7 +428,7 @@ async def t_patch_user_status(ctx: TestContext) -> None:
         assert json.loads(resp.body)["status"] == "suspended"
 
         # Verify it landed in the DB.
-        user = await store.get_user("alessandro")
+        user = await store.get_user("alice")
         assert user is not None
         assert user.status == "suspended"
         assert await store.get_device(device_key) is not None
@@ -437,13 +437,13 @@ async def t_patch_user_status(ctx: TestContext) -> None:
 
         # Back to active.
         req2 = _make_request(
-            db, method="PATCH", path="/api/network/users/alessandro",
+            db, method="PATCH", path="/api/network/users/alice",
             body=b'{"status":"active"}',
-            match_info={"handle": "alessandro"},
+            match_info={"handle": "alice"},
         )
         resp2 = await handle_patch_user(req2)
         assert resp2.status == 200
-        user = await store.get_user("alessandro")
+        user = await store.get_user("alice")
         assert user.status == "active"
         assert await store.get_active_device(device_key) is not None
     finally:
@@ -457,14 +457,14 @@ async def t_patch_user_bad_status(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-patch-bad-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
-            db, method="PATCH", path="/api/network/users/alessandro",
+            db, method="PATCH", path="/api/network/users/alice",
             body=b'{"status":"banned"}',
-            match_info={"handle": "alessandro"},
+            match_info={"handle": "alice"},
         )
         resp = await handle_patch_user(req)
         assert resp.status == 400, f"got {resp.status}: {resp.body!r}"
@@ -480,23 +480,23 @@ async def t_delete_user(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-del-u-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro", "marco"])
+    await _seed_coord(db_path, users=["alice", "bob"])
 
-    # Seed a device for alessandro so we can verify the cascade.
+    # Seed a device for alice so we can verify the cascade.
     db = await _open_db(db_path)
     try:
         store = CoordinatorStore(db)
         await store.add_device(
-            device_pubkey=b"\x11" * 32, user_handle="alessandro",
+            device_pubkey=b"\x11" * 32, user_handle="alice",
             label="laptop",
         )
-        assert await store.user_has_devices("alessandro")
+        assert await store.user_has_devices("alice")
 
-        # Caller is marco; delete alessandro.
+        # Caller is bob; delete alice.
         req = _make_request(
-            db, method="DELETE", path="/api/network/users/alessandro",
-            user_handle="marco",
-            match_info={"handle": "alessandro"},
+            db, method="DELETE", path="/api/network/users/alice",
+            user_handle="bob",
+            match_info={"handle": "alice"},
         )
         resp = await handle_delete_user(req)
         import json
@@ -505,11 +505,11 @@ async def t_delete_user(ctx: TestContext) -> None:
 
         # User + their devices are gone; live auth state retains revocation for
         # existing sockets and roster lookup rejects future streams.
-        assert await store.get_user("alessandro") is None
-        assert not await store.user_has_devices("alessandro")
+        assert await store.get_user("alice") is None
+        assert not await store.user_has_devices("alice")
         assert await store.get_device(b"\x11" * 32) is None
-        # Marco is untouched.
-        assert await store.get_user("marco") is not None
+        # Bob is untouched.
+        assert await store.get_user("bob") is not None
     finally:
         await db.close()
 
@@ -523,14 +523,14 @@ async def t_self_delete_blocked(ctx: TestContext) -> None:
     agent_dir = ctx.test_dir / f"gwnet-self-{uuid.uuid4().hex[:6]}"
     agent_dir.mkdir(parents=True, exist_ok=True)
     db_path = agent_dir / "agent.db"
-    await _seed_coord(db_path, users=["alessandro"])
+    await _seed_coord(db_path, users=["alice"])
 
     db = await _open_db(db_path)
     try:
         req = _make_request(
-            db, method="DELETE", path="/api/network/users/alessandro",
-            user_handle="alessandro",  # same as target!
-            match_info={"handle": "alessandro"},
+            db, method="DELETE", path="/api/network/users/alice",
+            user_handle="alice",  # same as target!
+            match_info={"handle": "alice"},
         )
         resp = await handle_delete_user(req)
         assert resp.status == 409, f"got {resp.status}: {resp.body!r}"

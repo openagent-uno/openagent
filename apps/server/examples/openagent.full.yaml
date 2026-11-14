@@ -271,8 +271,8 @@ model:
   # timeout_seconds: 90
 
 # ── Budgets ─────────────────────────────────────────────────────────
-# Per-scope spend caps, so a metered API (DeepSeek's pay-as-you-go, an OpenAI
-# key) can't run away with your balance. At the cap the scope is EXCLUDED FROM
+# Per-scope spend caps, so a metered API (any pay-as-you-go provider key) can't
+# run away with your balance. At the cap the scope is EXCLUDED FROM
 # ROUTING — that model quietly drops out of the enabled catalog for the rest of
 # the window and the agent keeps working on whatever stays enabled (Claude via a
 # subscription proxy is $0 marginal cost). The bot never stops; it stops
@@ -306,7 +306,7 @@ model:
 # usage view but not yet enforced by the router (task/run enforcement is a
 # separate, planned hook — a task is a caller, not a routing target).
 budgets:
-  # The operator's first concrete rule: DeepSeek, $10/day, alert at 50% and 90%,
+  # Example rule: one metered provider, $10/day, alert at 50% and 90%,
   # excluded at 100% for the rest of the day.
   - scope_kind: provider
     scope: deepseek
@@ -537,7 +537,7 @@ hooks:
 # ── Credential pool (multi-account rotation) ────────────────────────
 # OPTIONAL, OFF BY DEFAULT. A single provider can hold MORE THAN ONE
 # credential and rotate across them on a rate-limit (HTTP 429 / 529)
-# BEFORE the turn falls back to another provider (e.g. DeepSeek). Handy
+# BEFORE the turn falls back to another provider. Handy
 # when several accounts sit behind one OpenAI-compatible proxy (the
 # ``local`` provider) and you want to exhaust all of them before spilling
 # to a paid secondary.

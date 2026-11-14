@@ -330,7 +330,7 @@ async def t_session_type_mismatch_preserves_runs(_ctx: TestContext) -> None:
 )
 async def t_get_session_matches_null_user(_ctx: TestContext) -> None:
     """The 2026-05-28 PROD bug: the read filter used to require
-    ``user_id == 'alessandro'`` strictly, so a row with ``user_id=NULL``
+    ``user_id == 'alice'`` strictly, so a row with ``user_id=NULL``
     (post-migration / gateway pre-create) was invisible to the runtime.
     The runtime then built an empty TeamSession and its UPSERT
     overwrote the existing runs — the LLM 'forgot' every previous turn.
@@ -364,7 +364,7 @@ async def t_get_session_matches_null_user(_ctx: TestContext) -> None:
 
         # Authenticated read with a real handle must SEE the existing row.
         loaded = db.get_session(
-            session_id=sid, session_type=SessionType.TEAM, user_id="alessandro",
+            session_id=sid, session_type=SessionType.TEAM, user_id="alice",
         )
         assert loaded is not None, (
             "authenticated read couldn't see the NULL-user row; the "
@@ -413,29 +413,29 @@ async def t_team_claim_unowned_preserves_runs(_ctx: TestContext) -> None:
         # read with the caller's user_id, then claim the row by
         # stamping user_id when the loaded session is unowned.
         loaded = db.get_session(
-            session_id=sid, session_type=SessionType.TEAM, user_id="alessandro",
+            session_id=sid, session_type=SessionType.TEAM, user_id="alice",
         )
         assert loaded is not None
         if not loaded.user_id:
-            loaded.user_id = "alessandro"
+            loaded.user_id = "alice"
         loaded.upsert_run(TeamRunOutput(
             run_id="r-new", team_id="T-new", session_id=sid,
-            user_id="alessandro", content="new",
+            user_id="alice", content="new",
             messages=[Message(role="assistant", content="new")],
         ))
         db.upsert_session(loaded)
 
-        # Final state: 2 runs, row claimed by 'alessandro'.
+        # Final state: 2 runs, row claimed by 'alice'.
         # Reload through the real deserializer — ``json_array_length``
         # on the raw column gives 0 because SQLAlchemy's JSON type
         # round-trips the column with one extra encode/decode layer
         # on top of our ``serialize_session_json_fields`` call.
         final = db.get_session(
-            session_id=sid, session_type=SessionType.TEAM, user_id="alessandro",
+            session_id=sid, session_type=SessionType.TEAM, user_id="alice",
         )
         assert final is not None, "final read missed the row"
-        assert final.user_id == "alessandro", (
-            f"row should be claimed by 'alessandro'; got user_id={final.user_id!r}"
+        assert final.user_id == "alice", (
+            f"row should be claimed by 'alice'; got user_id={final.user_id!r}"
         )
         runs = final.runs or []
         assert len(runs) == 2, (
@@ -487,7 +487,7 @@ async def t_reclaim_session_owners_migration(_ctx: TestContext) -> None:
         # Seed the four owner states the migration must distinguish.
         for sid, owner in (
             ("S-bridge", "'__bridge'"),     # bridge cert handle — must reclaim
-            ("S-handle", "'alessandro'"),   # device handle — must reclaim
+            ("S-handle", "'alice'"),   # device handle — must reclaim
             ("S-owned", "'openagent'"),     # runtime owner — must stay
             ("S-null", "NULL"),             # already claimable — must stay NULL
         ):

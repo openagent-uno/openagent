@@ -71,12 +71,12 @@ test('technical commands do not name a chat and the next real request repairs it
 
   useChat.getState().addUserMessage('title-repair', '/model codex:gpt-5.6-sol:high');
   assert.equal(useChat.getState().sessions[0].title, 'New Chat');
-  useChat.getState().addUserMessage('title-repair', '  Start   BuzzerBeater locally with Aspire!  ');
+  useChat.getState().addUserMessage('title-repair', '  Start   the demo app locally with Aspire!  ');
 
-  assert.equal(useChat.getState().sessions[0].title, 'Start BuzzerBeater locally with Aspire');
+  assert.equal(useChat.getState().sessions[0].title, 'Start the demo app locally with Aspire');
   assert.deepEqual(calls, [[
     'title-repair',
-    { title: 'Start BuzzerBeater locally with Aspire' },
+    { title: 'Start the demo app locally with Aspire' },
   ]]);
   delete globalThis.__oaUpdateSessionMetadata;
 });
@@ -119,7 +119,7 @@ test('renameSession rolls the optimistic title back when persistence fails', asy
 test('a sparse terminal frame preserves execution host from the started frame', () => {
   const executionHost = {
     kind: 'client',
-    device_label: 'Alessandro MacBook',
+    device_label: 'Alice MacBook',
     device_id: 'device-1',
     client_instance_id: 'desktop-1',
     generation: 7,
@@ -317,7 +317,7 @@ test('a reused tool call id in a later turn cannot rewrite the earlier card', ()
 test('a reconnect replay cannot erase execution host from an observed tool call', () => {
   const executionHost = {
     kind: 'client',
-    device_label: 'Alessandro MacBook',
+    device_label: 'Alice MacBook',
     device_id: 'device-1',
     client_instance_id: 'desktop-1',
     generation: 7,

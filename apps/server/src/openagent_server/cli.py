@@ -1136,8 +1136,8 @@ def cmd_top_level_invite(ctx, handle, role, ttl, uses, ticket_only, first_user):
 
     \b
       openagent invite                  # open invite, anyone joins
-      openagent invite marco            # auto: onboarding invite for marco
-      openagent invite alessandro       # auto: new-device invite for alessandro
+      openagent invite bob            # auto: onboarding invite for bob
+      openagent invite alice       # auto: new-device invite for alice
     """
     # Delegate to the existing implementation so the two surfaces stay
     # in lockstep — we don't want ``openagent invite`` to behave
