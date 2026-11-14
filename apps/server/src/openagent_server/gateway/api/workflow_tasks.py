@@ -680,13 +680,18 @@ async def handle_cron_describe(request):
         (``@once:<epoch>``).
       - ``count`` (optional, default 3, max 20): how many upcoming
         fire times to compute.
+      - ``timezone`` (optional): IANA zone the schedule is evaluated in,
+        as stored on the task (``scheduled_tasks.timezone``). Without it the
+        schedule is evaluated in UTC, exactly as the scheduler does for a
+        row with no timezone. Either way every ``iso`` carries its offset,
+        so the preview can never be read in the server's own local clock.
     """
     from aiohttp import web
-    from croniter import croniter
 
     from openagent_core.memory.schedule import (
         epoch_to_iso,
         is_one_shot_expression,
+        next_run_for_expression,
         parse_one_shot_expression,
     )
 
@@ -702,28 +707,33 @@ async def handle_cron_describe(request):
             {"error": "count must be a positive integer"}, status=400,
         )
 
+    timezone = (request.query.get("timezone") or "").strip() or None
     try:
-        validate_schedule_expression(expr)
+        validate_schedule_expression(expr, timezone)
     except ValueError as exc:
         return web.json_response(
             {"expression": expr, "valid": False, "error": str(exc)},
             status=400,
         )
 
+    # The scheduler evaluates a row with no timezone in UTC; render that
+    # explicitly too, never as a naive server-local wall clock.
+    shown_zone = timezone or "UTC"
     upcoming: list[dict] = []
     if is_one_shot_expression(expr):
         epoch = parse_one_shot_expression(expr)
-        upcoming.append({"epoch": epoch, "iso": epoch_to_iso(epoch)})
+        upcoming.append({"epoch": epoch, "iso": epoch_to_iso(epoch, shown_zone)})
     else:
         base = time.time()
-        it = croniter(expr, base)
         for _ in range(count):
-            nxt = it.get_next(float)
-            upcoming.append({"epoch": nxt, "iso": epoch_to_iso(nxt)})
+            nxt = next_run_for_expression(expr, base, timezone)
+            upcoming.append({"epoch": nxt, "iso": epoch_to_iso(nxt, shown_zone)})
+            base = nxt
 
     return web.json_response({
         "expression": expr,
         "valid": True,
         "one_shot": is_one_shot_expression(expr),
+        "timezone": shown_zone,
         "upcoming": upcoming,
     })

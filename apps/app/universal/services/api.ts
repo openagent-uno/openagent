@@ -43,6 +43,7 @@ import {
   mergeCanonicalWorkflowTrace,
   type WorkflowRunWithCanonicalTrace,
 } from '../../common/workflow-trace';
+import { cronDescribeQuery } from '../../common/cron-preview';
 import type { UIJson } from '../../common/ui-views';
 import { normalizeAttachmentRefs, normalizeMessageContent } from '../../common/ui-views';
 import { attachmentContentRef } from '../../common/attachments';
@@ -794,6 +795,9 @@ export interface CronDescribeResponse {
   expression: string;
   valid: boolean;
   one_shot?: boolean;
+  /** Zone the upcoming fires are evaluated and rendered in (UTC when the
+   *  schedule has none); each ``iso`` carries its offset. */
+  timezone?: string;
   upcoming?: Array<{ epoch: number; iso: string }>;
   error?: string;
 }
@@ -801,8 +805,9 @@ export interface CronDescribeResponse {
 export async function describeCron(
   expression: string,
   count: number = 3,
+  timezone?: string | null,
 ): Promise<CronDescribeResponse> {
-  const qs = `expression=${encodeURIComponent(expression)}&count=${count}`;
+  const qs = cronDescribeQuery(expression, count, timezone);
   try {
     return await get<CronDescribeResponse>(`/api/cron/describe?${qs}`);
   } catch (e: any) {

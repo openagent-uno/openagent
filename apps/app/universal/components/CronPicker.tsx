@@ -29,6 +29,7 @@ import {
   View,
 } from 'react-native';
 import { describeCron, type CronDescribeResponse } from '../services/api';
+import { previewZoneLabel } from '../../common/cron-preview';
 import { colors, font, radius } from '../theme';
 
 export interface CronPreset {
@@ -53,6 +54,9 @@ interface Props {
   presets?: CronPreset[];
   label?: string;
   disabled?: boolean;
+  /** IANA zone the schedule fires in (the task's ``timezone``). Omitted →
+   *  UTC, as the scheduler evaluates a schedule without one. */
+  timezone?: string | null;
 }
 
 type Mode = 'recurring' | 'once';
@@ -104,6 +108,7 @@ export default function CronPicker({
   presets = DEFAULT_PRESETS,
   label = 'Schedule',
   disabled = false,
+  timezone = null,
 }: Props) {
   const [preview, setPreview] = useState<CronDescribeResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -142,7 +147,7 @@ export default function CronPicker({
     const handle = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await describeCron(value, 3);
+        const res = await describeCron(value, 3, timezone);
         if (!cancelled) setPreview(res);
       } finally {
         if (!cancelled) setLoading(false);
@@ -152,7 +157,7 @@ export default function CronPicker({
       cancelled = true;
       clearTimeout(handle);
     };
-  }, [value]);
+  }, [value, timezone]);
 
   const isPreset = useMemo(
     () => presets.some((p) => p.expression === value),
@@ -326,7 +331,7 @@ export default function CronPicker({
             <View style={styles.previewHeader}>
               <Feather name="check-circle" size={11} color={colors.success} />
               <Text style={styles.previewOk}>
-                {preview.one_shot ? 'Fires once at:' : 'Next 3 runs:'}
+                {preview.one_shot ? 'Fires once at' : 'Next 3 runs'} ({previewZoneLabel(preview.timezone, timezone)}):
               </Text>
             </View>
             {(preview.upcoming || []).map((u, i) => (

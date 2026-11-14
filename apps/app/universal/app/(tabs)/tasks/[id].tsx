@@ -51,6 +51,8 @@ export default function TaskEditScreen() {
   const { createTask, updateTask, error: storeError } = useTasks();
 
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
+  // The zone the task fires in: the schedule preview is computed there.
+  const [taskTimezone, setTaskTimezone] = useState<string | null>(null);
   const [loading, setLoading] = useState(!isNew);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -84,6 +86,7 @@ export default function TaskEditScreen() {
             model: t.model ?? null,
           });
           setAuthorizationRequired(Boolean(t.authorization_required));
+          setTaskTimezone(t.timezone ?? null);
         }
       } catch (e: any) {
         if (!cancelled) setLoadError(e?.message ?? String(e));
@@ -209,6 +212,7 @@ export default function TaskEditScreen() {
               label="Schedule"
               value={form.cron_expression}
               onChange={(v) => setForm({ ...form, cron_expression: v })}
+              timezone={taskTimezone}
             />
           </View>
 

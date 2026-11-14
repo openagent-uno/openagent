@@ -1669,6 +1669,8 @@ export interface ScheduledTask {
   created_at: number;
   updated_at: number;
   run_once: boolean;
+  /** IANA zone the schedule is evaluated in; null → UTC. */
+  timezone?: string | null;
   run_at?: number;
   run_at_iso?: string;
   last_run_iso?: string;
