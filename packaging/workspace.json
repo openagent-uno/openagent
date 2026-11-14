@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "product_version": "1.1.9b46",
+  "product_version": "1.1.9b47",
   "status": "release-candidate",
   "components": {
     "server": {
