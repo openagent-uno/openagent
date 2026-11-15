@@ -67,6 +67,8 @@ import { formatDuration } from '../../components/AccountsPanel';
 // Commands that act on the agent, not on one conversation: they must be
 // sent without a session_id (see WSClient.sendCommand). Everything else is
 // scoped to the chat tab it was typed in.
+// Gateway commands whose argument the user types (``/goal <objective>``).
+const TEXT_ARGUMENT_COMMANDS = new Set(['goal']);
 const AGENT_WIDE_COMMANDS = new Set(['help', 'usage', 'update', 'restart', 'status', 'queue']);
 
 // Resolved once: the packaged app icon, as a URL the notification layer can
@@ -1139,7 +1141,7 @@ export default function ChatScreen() {
       // goes to the agent as a normal message.
       const GATEWAY_COMMANDS = new Set([
         'compact', 'model', 'new', 'clear', 'reset', 'stop',
-        'status', 'queue', 'usage', 'context', 'update', 'restart', 'help',
+        'status', 'queue', 'usage', 'context', 'update', 'restart', 'help', 'goal',
       ]);
       if (GATEWAY_COMMANDS.has(cmdName)) {
         ws.sendCommand(cmdName as any, activeSessionId, cmdArg);
@@ -1485,7 +1487,10 @@ export default function ChatScreen() {
         // intact. The registry doesn't express scope, so the client decides
         // — and defaults an unknown new command to session-scoped, which is
         // the safer wrong answer of the two.
-        action: local?.action ?? (() => {
+        // A command that takes free text (``/goal <objective>``) has no
+        // immediate action: the composer inserts "/name " and the typed
+        // argument reaches handleSend, which routes it as a command.
+        action: local?.action ?? (TEXT_ARGUMENT_COMMANDS.has(spec.name) ? undefined : () => {
           if (AGENT_WIDE_COMMANDS.has(spec.name)) ws?.sendCommand(spec.name);
           else if (activeSessionId) ws?.sendCommand(spec.name, activeSessionId);
         }),

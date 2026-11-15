@@ -1735,6 +1735,57 @@ export async function unpinSessionModel(sessionId: string): Promise<void> {
   await del(`/api/sessions/${encodeURIComponent(sessionId)}/model`);
 }
 
+// ── Per-session goal (/api/sessions/{id}/goal) ──
+//
+// A goal keeps the agent working in this conversation, turn after turn, until
+// it is achieved, blocked or out of budget (openagent_core.session_goal).
+
+export type SessionGoalStatus = 'active' | 'paused' | 'achieved';
+
+export interface SessionGoal {
+  session_id: string;
+  objective: string;
+  status: SessionGoalStatus;
+  max_continuations: number;
+  continuations: number;
+  remaining: number;
+  note: string | null;
+  outcome: string | null;
+  paused_reason: string | null;
+  created_at_ms: number;
+  updated_at_ms: number;
+  achieved_at_ms: number | null;
+}
+
+export async function getSessionGoal(sessionId: string, signal?: AbortSignal): Promise<SessionGoal | null> {
+  const body = await get<{ goal: SessionGoal | null }>(`/api/sessions/${encodeURIComponent(sessionId)}/goal`, signal);
+  return body.goal;
+}
+
+export async function setSessionGoal(
+  sessionId: string,
+  objective: string,
+  maxContinuations?: number,
+): Promise<SessionGoal | null> {
+  const body = await put<{ goal: SessionGoal | null }>(`/api/sessions/${encodeURIComponent(sessionId)}/goal`, {
+    objective,
+    ...(maxContinuations != null ? { max_continuations: maxContinuations } : {}),
+  });
+  return body.goal;
+}
+
+export async function updateSessionGoal(
+  sessionId: string,
+  change: { action?: 'pause' | 'resume' | 'done'; objective?: string; max_continuations?: number; note?: string },
+): Promise<SessionGoal | null> {
+  const body = await patch<{ goal: SessionGoal | null }>(`/api/sessions/${encodeURIComponent(sessionId)}/goal`, change);
+  return body.goal;
+}
+
+export async function clearSessionGoal(sessionId: string): Promise<void> {
+  await del(`/api/sessions/${encodeURIComponent(sessionId)}/goal`);
+}
+
 // ── System telemetry ──
 
 export async function getSystemSnapshot(): Promise<SystemSnapshot> {
