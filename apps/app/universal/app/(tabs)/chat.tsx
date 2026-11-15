@@ -244,6 +244,14 @@ export default function ChatScreen() {
   const nextPendingId = useRef(0);
   const newPendingId = () => `pf-${++nextPendingId.current}`;
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+  // A server-known conversation can lose its rows without a reload (for
+  // example when the agent restarts and the client reconnects): load it again
+  // instead of showing the "new conversation" placeholder for it.
+  const activeMessageCount = activeSession?.messages.length ?? 0;
+  const transcriptChecked = useChat((s) => (s.activeSessionId ? !!s.transcriptChecked[s.activeSessionId] : false));
+  useEffect(() => {
+    useChat.getState().ensureActiveTranscript();
+  }, [activeSessionId, activeMessageCount, transcriptLoading, transcriptLoadError, transcriptChecked, sessionsHydrated]);
   const pending = useMemo(() => unconfirmedMessages(
     activeSession?.outbound, activeSession?.messages ?? [],
   ), [activeSession?.messages, activeSession?.outbound]);

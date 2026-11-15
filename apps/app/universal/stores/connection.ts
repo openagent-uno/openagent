@@ -95,8 +95,12 @@ async function discoverSessionsAfterAuth(
     chat.setSessionHistoryMode('v2');
     // Reconnects keep the small set of sessions the user actually opened.
     // live_state + settleStaleTurns below reconcile their running status.
+    // The server may have restarted (or deleted a conversation meanwhile):
+    // verify the open conversation again rather than trusting old load state.
     if (chat.sessions.length > 0) {
       chat.markHydrated();
+      chat.invalidateTranscriptChecks();
+      chat.ensureActiveTranscript();
       return;
     }
     try {

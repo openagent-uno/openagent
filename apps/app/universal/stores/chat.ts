@@ -733,6 +733,18 @@ interface ChatState {
   transcriptLoadError: Record<string, string>;
   /** Fetch the newest transcript page of a session that has no rows yet. */
   loadInitialTranscript: (id: string) => Promise<void>;
+  /** Sessions whose initial load already settled (with or without rows) since
+   * the last (re)connect, so an empty-but-real conversation is not refetched
+   * in a loop. Cleared by ``invalidateTranscriptChecks`` on reconnect. */
+  transcriptChecked: Record<string, true>;
+  /** A server-known active session with no rows, no load in flight and no
+   * error must never sit on the "new conversation" placeholder: load it once
+   * (the result shows its messages, or the load error with Retry). Safe to
+   * call on every render-relevant change. */
+  ensureActiveTranscript: () => void;
+  /** Forget which sessions were checked, e.g. after the server restarted and
+   * the client reconnected, so the active one is verified again. */
+  invalidateTranscriptChecks: () => void;
   /** Conversation chosen in-app (sidebar row, New session) that Chat must show
    * even if its route still carries an older ``?session=`` (see
    * common/chat-route-session.ts). Consumed by Chat. */
@@ -849,6 +861,7 @@ export const useChat = create<ChatState>((set, get) => ({
   sessionHistoryMode: 'unknown',
   transcriptLoading: {},
   transcriptLoadError: {},
+  transcriptChecked: {},
   chatDestination: null,
   staleRouteSession: null,
   requestChatDestination: (id) => set({ chatDestination: id }),
@@ -895,12 +908,25 @@ export const useChat = create<ChatState>((set, get) => ({
       if (transcriptLoadAttempts.get(id) !== attempt) return;
       set((s) => {
         const { [id]: _done, ...loading } = s.transcriptLoading;
+        const checked = { ...s.transcriptChecked, [id]: true as const };
         return failure && current()
-          ? { transcriptLoading: loading, transcriptLoadError: { ...s.transcriptLoadError, [id]: failure } }
-          : { transcriptLoading: loading };
+          ? { transcriptLoading: loading, transcriptChecked: checked, transcriptLoadError: { ...s.transcriptLoadError, [id]: failure } }
+          : { transcriptLoading: loading, transcriptChecked: checked };
       });
     }
   },
+
+  ensureActiveTranscript: () => {
+    const state = get();
+    const id = state.activeSessionId;
+    if (!id || state.sessionHistoryMode === 'unknown') return;
+    const session = state.sessions.find((s) => s.id === id);
+    if (!session || session.localDraft || session.messages.length > 0 || session.sharedSnapshot) return;
+    if (state.transcriptLoading[id] || state.transcriptLoadError[id] || state.transcriptChecked[id]) return;
+    void get().loadInitialTranscript(id);
+  },
+
+  invalidateTranscriptChecks: () => set({ transcriptChecked: {} }),
 
   createSession: () => {
     const id = sessionId();
@@ -1885,6 +1911,7 @@ export const useChat = create<ChatState>((set, get) => ({
       sessionHistoryMode: 'unknown',
       transcriptLoading: {},
       transcriptLoadError: {},
+      transcriptChecked: {},
       chatDestination: null,
       staleRouteSession: null,
     });
