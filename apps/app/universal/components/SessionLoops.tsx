@@ -121,7 +121,8 @@ export default function SessionLoops({ sessionId }: { sessionId?: string }) {
           <View style={styles.actions}>
             <Button icon={task.enabled ? 'pause' : 'play'} label={task.enabled ? 'Pause' : 'Resume'} disabled={busy}
               onPress={() => run(() => updateScheduledTask(task.id, { enabled: !task.enabled }))} />
-            <Button icon="zap" label="Run now" disabled={busy || task.running}
+            {/* Pausing a loop withdraws its authority, so only an active loop can run now. */}
+            <Button icon="zap" label="Run now" disabled={busy || task.running || !task.enabled}
               onPress={() => run(() => runScheduledTask(task.id))} />
             <Button icon="trash-2" label="Delete" disabled={busy}
               onPress={() => run(() => deleteScheduledTask(task.id))} />
