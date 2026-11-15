@@ -189,7 +189,7 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                     self.provider_failure=None
                     self.assertTrue(self.model_requests)
                     system='\n'.join(m['content'] for m in self.model_requests[0]['messages'] if m.get('role')=='system')
-                    self.assertIn('tool_search_list_tools(source_ref)',system)
+                    self.assertIn('tool_search_list_tools(source_ref=..., query=...)',system)
                     self.assertNotIn('fixture-only-secret',system)
             finally:
                 for proxy in proxies: await proxy.stop()
