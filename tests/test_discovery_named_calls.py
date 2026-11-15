@@ -18,3 +18,12 @@ def test_the_agent_config_can_keep_named_calls_to_listed_pairs():
 def test_an_invalid_setting_fails_at_startup(config):
     with pytest.raises(ValueError):
         discovery_presentation(config)
+
+
+def test_common_tools_are_ready_to_call_by_default_and_configurable():
+    from openagent_server.bootstrap import DEFAULT_HOT_TOOLS
+
+    assert discovery_presentation({}).hot_tools == DEFAULT_HOT_TOOLS
+    custom = discovery_presentation({"tool_search": {"hot_tools": [["acme", "list"]]}})
+    assert custom.hot_tools == (("acme", "list"),)
+    assert discovery_presentation({"tool_search": {"named_calls": "listed"}}).hot_tools == ()

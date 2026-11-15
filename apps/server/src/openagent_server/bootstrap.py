@@ -50,14 +50,33 @@ def discovery_presentation(config: dict) -> Any:
     Named calls for every authorized tool are on by default: a source and tool
     name resolve through the same authorized catalog as a discovered
     ``tool_ref`` and, unlike a reference, survive reconnects and restarts.
-    ``tool_search.named_calls: listed`` in the agent config turns them off.
+    ``tool_search.named_calls: listed`` in the agent config turns them off;
+    ``tool_search.hot_tools`` replaces the tools shown ready to call.
     """
     from openagent_core import DiscoveryPresentation
 
     section = config.get("tool_search") or {}
     if not isinstance(section, dict):
         raise ValueError("tool_search must be a mapping")
-    return DiscoveryPresentation(named_calls=section.get("named_calls", "authorized"))
+    named_calls = section.get("named_calls", "authorized")
+    hot = section.get("hot_tools", DEFAULT_HOT_TOOLS if named_calls == "authorized" else ())
+    if not isinstance(hot, (list, tuple)):
+        raise ValueError("tool_search.hot_tools must be a list of [source, tool] pairs")
+    return DiscoveryPresentation(named_calls=named_calls,
+                                 hot_tools=tuple(tuple(pair) for pair in hot))
+
+
+# Tools most turns need, shown ready to call by name in <capabilities> when
+# the turn may use them (memory, files, schedules, the agent's own shell).
+DEFAULT_HOT_TOOLS = (
+    ("vault-gate", "vault_search"),
+    ("vault", "vault_read_note"),
+    ("vault", "vault_patch_note"),
+    ("vault", "vault_write_note"),
+    ("schedules", "list_scheduled_tasks"),
+    ("attachments", "send_file_to_user"),
+    ("shell", "shell_shell_exec"),
+)
 
 
 def start_voice_warmups(config: dict[str, Any]) -> set[asyncio.Task]:
