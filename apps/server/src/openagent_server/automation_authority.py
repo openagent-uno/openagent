@@ -40,6 +40,9 @@ _OPERATIONAL = frozenset(
 )
 
 
+_OPTIONAL_WHEN_SET = frozenset({"target_session_id"})
+
+
 def definition_digest(kind, definition):
     if kind not in {"task", "event", "workflow"} or not definition.get("id"):
         raise ValueError("A known persisted automation definition is required")
@@ -47,6 +50,10 @@ def definition_digest(kind, definition):
         key: value
         for key, value in definition.items()
         if key not in _OPERATIONAL and not key.startswith("_")
+        # Optional fields added after grants existed only count when set, so
+        # adding the column leaves every existing digest (and grant) unchanged
+        # while a set value is approved like any other field.
+        and not (key in _OPTIONAL_WHEN_SET and value is None)
     }
     return hashlib.sha256(
         canonical_json({"version": 1, "kind": kind, "definition": value}).encode()

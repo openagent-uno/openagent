@@ -151,6 +151,10 @@ async def handle_list(request):
         return web.json_response(member_overview("tasks", (r for r in rows if not _is_builtin(r))))
     if not include_builtin:
         rows = [r for r in rows if not _is_builtin(r)]
+    # ``?session_id=`` lists the loops that run inside one conversation.
+    target = request.query.get("session_id", "").strip()
+    if target:
+        rows = [r for r in rows if r.get("target_session_id") == target]
     # One query for the whole list tells each tile whether a firing is in
     # flight (so it can show a Stop control instead of Run now).
     scheduler = getattr(request.app["gateway"], "_scheduler", None)
@@ -402,12 +406,23 @@ async def handle_create(request):
             status=400,
         )
 
+    # Optional conversation the task runs in (a session loop). The caller must
+    # be able to administer that conversation, like changing its model.
+    target_session_id = str(body.get("session_id") or "").strip() or None
+    if target_session_id is not None:
+        from openagent_server.gateway.api import sessions as sessions_api
+        _conn, _access, _acl, problem = await sessions_api._authorized_session(
+            request, scheduler.db, target_session_id, permission="admin")
+        if problem is not None:
+            return problem
+
     from openagent_server.automation_management import mutate_request
     async def create(store):
         from openagent_core.memory.schedule import next_run_for_expression
         next_run = next_run_for_expression(cron_expression, time.time(), timezone)
+        loop = {"target_session_id": target_session_id} if target_session_id else {}
         task_id = await store.add_task(name,cron_expression,prompt,next_run=next_run,model=model,
-                                     timezone=timezone,execution_policy=execution_policy)
+                                     timezone=timezone,execution_policy=execution_policy,**loop)
         if body.get("enabled") is False:
             await store.update_task(task_id,enabled=False)
         return task_id
