@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Conversations can have a goal: set it with /goal or from the session panel, and the agent keeps working until it is achieved, blocked or out of budget, with Pause, Resume, Mark done and Clear in the panel. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            Conversations can have loops: /loop 30m <prompt> or the session panel runs a prompt inside the conversation on a schedule, and command answers such as /goal status now appear in the chat. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
