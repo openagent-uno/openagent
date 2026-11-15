@@ -1702,6 +1702,27 @@ export const useChat = create<ChatState>((set, get) => ({
       };
     }
 
+    if (msg.type === 'command_result') {
+      // Show a command's answer (/goal status, /status, /model…) in the
+      // conversation it was typed in. /context answers with a structured
+      // breakdown that _layout.tsx applies to the context panel instead.
+      if (msg.context || !msg.text) return {};
+      const targetId = msg.session_id ?? s.activeSessionId;
+      return {
+        sessions: s.sessions.map((ses) =>
+          ses.id !== targetId ? ses : {
+            ...ses,
+            messages: [...ses.messages, {
+              id: genId(),
+              role: 'assistant' as const,
+              text: msg.text,
+              timestamp: Date.now(),
+            }],
+          },
+        ),
+      };
+    }
+
     if (msg.type === 'error') {
       // Route to the originating session (gateway sets session_id on
       // errors raised inside _process_message). Fall back to the chat

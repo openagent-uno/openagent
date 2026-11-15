@@ -239,7 +239,7 @@ export type ServerMessage =
   // ``context`` rides along on the /context command reply — the structured
   // window breakdown for rich clients; ``text`` already carries the same as
   // a monospace block for text-only surfaces. Additive & optional.
-  | { type: 'command_result'; text: string; context?: SessionContext }
+  | { type: 'command_result'; text: string; context?: SessionContext; session_id?: string }
   // ── Live context-window composition (Claude-Code /context) ──
   // Pushed after each turn completes so an always-visible context panel
   // updates in realtime as the conversation grows. Same payload as
@@ -1671,6 +1671,8 @@ export interface ScheduledTask {
   run_once: boolean;
   /** IANA zone the schedule is evaluated in; null → UTC. */
   timezone?: string | null;
+  /** Conversation this task runs inside (a session loop); null → its own run sessions. */
+  target_session_id?: string | null;
   run_at?: number;
   run_at_iso?: string;
   last_run_iso?: string;
@@ -1693,6 +1695,10 @@ export interface CreateScheduledTaskInput {
   /** Optional runtime_id to pin the firing's model. Omit for the default. */
   model?: string | null;
   enabled?: boolean;
+  /** IANA zone the cron is read in; omit for the agent default. */
+  timezone?: string | null;
+  /** Run every firing inside this conversation (a session loop). */
+  session_id?: string;
 }
 
 export type UpdateScheduledTaskInput = Partial<

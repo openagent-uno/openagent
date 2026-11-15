@@ -59,6 +59,7 @@ import {
   uploadFile, guessMimeType, listDbModels,
   getSessionModelPin, pinSessionModel, unpinSessionModel, isAgentUnreachable,
   getGatewayCommands, listServingAccounts, listSessionMessages, getToolInvocationDetail, forkConversation,
+  createSessionLoop, deleteScheduledTask, describeLoopCron, getSessionLoops,
 } from '../../services/api';
 import { modelEffort, modelFamily } from '../../../common/types';
 import type { ModelEntry, GatewayCommandSpec, ProviderAccounts } from '../../../common/types';
@@ -1114,6 +1115,34 @@ export default function ChatScreen() {
     : swState === 'listening' ? 'Listening…'
     : 'Speak any time';
 
+  const runLoopCommand = async (sessionId: string, arg: string | undefined) => {
+    const notice = (text: string) =>
+      useChat.getState().handleServerMessage({ type: 'command_result', text, session_id: sessionId } as any);
+    try {
+      const value = (arg ?? '').trim();
+      if (!value || value === 'list' || value === 'status') {
+        const loops = await getSessionLoops(sessionId);
+        notice(loops.length
+          ? ['Loops in this conversation:', ...loops.map((t) =>
+              `• ${describeLoopCron(t.cron_expression)}${t.enabled ? '' : ' (paused)'}: ${t.prompt.slice(0, 120)}`)].join('\n')
+          : 'No loops in this conversation. Usage: /loop 30m <prompt> | /loop stop');
+        return;
+      }
+      if (value === 'stop') {
+        const loops = await getSessionLoops(sessionId);
+        await Promise.all(loops.map((t) => deleteScheduledTask(t.id)));
+        notice(loops.length ? `Stopped ${loops.length} loop${loops.length === 1 ? '' : 's'}.` : 'No loops to stop.');
+        return;
+      }
+      const [interval, ...rest] = value.split(/\s+/);
+      const task = await createSessionLoop(sessionId, interval, rest.join(' '));
+      notice(`Loop added: ${describeLoopCron(task.cron_expression)} in this conversation — ${task.prompt.slice(0, 120)}\n`
+        + 'Manage it in the session panel or with /loop stop.');
+    } catch (error: any) {
+      notice(`/loop failed: ${error?.message ?? error}`);
+    }
+  };
+
   const handleSend = () => {
     recallIdxRef.current = null;
     if (!ws || !activeSessionId) return;
@@ -1146,6 +1175,13 @@ export default function ChatScreen() {
       if (GATEWAY_COMMANDS.has(cmdName)) {
         ws.sendCommand(cmdName as any, activeSessionId, cmdArg);
         setInput('');
+        return;
+      }
+      // /loop <interval> <prompt> | /loop stop — a scheduled task that runs
+      // inside this conversation (POST /api/scheduled-tasks with session_id).
+      if (cmdName === 'loop' && activeSessionId) {
+        setInput('');
+        void runLoopCommand(activeSessionId, cmdArg);
         return;
       }
     }
@@ -1440,6 +1476,12 @@ export default function ChatScreen() {
       // Opens the composer's model picker instead of inserting "/model "
       // for the user to type a runtime id by hand.
       argSource: 'models',
+    },
+    {
+      // No action: the composer inserts "/loop " so the interval and prompt
+      // can be typed; handleSend creates the loop.
+      name: 'loop',
+      description: 'Run a prompt in this conversation on a schedule: /loop 30m <prompt> | /loop stop',
     },
     {
       name: 'export',

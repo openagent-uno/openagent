@@ -12,6 +12,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import SessionDevices from './SessionDevices';
 import SessionGoal from './SessionGoal';
+import SessionLoops from './SessionLoops';
 import SharedPresence from './SharedPresence';
 import SessionSharing from './SessionSharing';
 import {
@@ -630,6 +631,9 @@ function SessionDetailsContent({
         </Section>
         <Section title="Goal">
           <SessionGoal sessionId={isDraft ? undefined : session.id} isProcessing={session.isProcessing} />
+        </Section>
+        <Section title="Loops">
+          <SessionLoops sessionId={isDraft ? undefined : session.id} />
         </Section>
         <Section title="Current context">
           {session.contextUsage?.context_window ? (

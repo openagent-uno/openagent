@@ -563,6 +563,57 @@ export async function getScheduledTasks(enabledOnly = false, includeBuiltin = fa
   return (await getScheduledTaskList(enabledOnly, includeBuiltin)).tasks;
 }
 
+// ── Session loops: scheduled tasks that run inside one conversation ──
+
+/** The loops that run inside ``sessionId`` (``GET /api/scheduled-tasks?session_id=``). */
+export async function getSessionLoops(sessionId: string): Promise<ScheduledTask[]> {
+  const q = new URLSearchParams({ session_id: sessionId }).toString();
+  return (await get<ManagementList<'tasks', ScheduledTask>>(`/api/scheduled-tasks?${q}`)).tasks;
+}
+
+/** Interval shorthand (``15m``, ``2h``, ``1d``) → a cron expression, or null.
+ *  Minutes 5–59, hours 1–23, days 1–7; days fire at the current local time. */
+export function loopIntervalToCron(interval: string, now: Date = new Date()): string | null {
+  const match = /^(\d{1,3})\s*(m|min|h|d)$/i.exec(interval.trim());
+  if (!match) return null;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  if (unit === 'm' || unit === 'min') return amount >= 5 && amount <= 59 ? `*/${amount} * * * *` : null;
+  if (unit === 'h') return amount >= 1 && amount <= 23 ? `${now.getMinutes()} */${amount} * * *` : null;
+  if (amount < 1 || amount > 7) return null;
+  return `${now.getMinutes()} ${now.getHours()} ${amount === 1 ? '*' : `*/${amount}`} * *`;
+}
+
+/** Human label for a loop's cron expression made by ``loopIntervalToCron``. */
+export function describeLoopCron(cron: string): string {
+  let m = /^\*\/(\d+) \* \* \* \*$/.exec(cron);
+  if (m) return `every ${m[1]} min`;
+  m = /^\d+ \*\/(\d+) \* \* \*$/.exec(cron);
+  if (m) return m[1] === '1' ? 'every hour' : `every ${m[1]} h`;
+  m = /^(\d+) (\d+) (\*|\*\/\d+) \* \*$/.exec(cron);
+  if (m) {
+    const at = `${m[2].padStart(2, '0')}:${m[1].padStart(2, '0')}`;
+    return m[3] === '*' ? `every day at ${at}` : `every ${m[3].slice(2)} days at ${at}`;
+  }
+  return cron;
+}
+
+/** Create a loop that runs ``prompt`` inside ``sessionId`` every ``interval``. */
+export async function createSessionLoop(sessionId: string, interval: string, prompt: string): Promise<ScheduledTask> {
+  const cron = loopIntervalToCron(interval);
+  if (!cron) throw new Error('Use an interval like 15m, 2h or 1d (minutes 5–59, hours 1–23, days 1–7).');
+  const text = prompt.trim();
+  if (!text) throw new Error('Say what the loop should do, e.g. /loop 30m check the queue.');
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  return createScheduledTask({
+    name: `Loop: ${text.slice(0, 60)}`,
+    cron_expression: cron,
+    prompt: text,
+    session_id: sessionId,
+    ...(timezone ? { timezone } : {}),
+  });
+}
+
 export async function getScheduledTask(id: string): Promise<ScheduledTask> {
   return get<ScheduledTask>(`/api/scheduled-tasks/${encodeURIComponent(id)}`);
 }
