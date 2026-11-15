@@ -24,6 +24,13 @@ export interface HistoryFeedFilters {
 export const MAX_RETAINED_HISTORY_ITEMS = 600;
 export const MAX_RETAINED_SEARCH_RESULTS = 400;
 
+/** Content-free resource events after which the Recent feed reloads its first
+ * page. Runs (scheduled, workflow, event) are created, finish and disappear
+ * with their definitions; ``session`` covers created, renamed and deleted
+ * conversations. The gateway sends no per-item history frames, so these pings
+ * plus an authorized page read are what keeps the feed live. */
+export const HISTORY_REFRESH_RESOURCES = ['scheduled_task', 'workflow', 'event', 'session'] as const;
+
 export function historyKindsForFilters(filters: HistoryFeedFilters): ActivityKind[] {
   const kinds: ActivityKind[] = [];
   if (filters.chat) kinds.push('chat');

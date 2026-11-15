@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  HISTORY_REFRESH_RESOURCES,
   historyCoversAllKinds,
   historyKindsForFilters,
   historyRequestKey,
@@ -135,4 +136,10 @@ test('reconnect discovery never requests the flat session list on v2', () => {
   assert.equal(sessionDiscoveryStrategy(2), 'history_page');
   assert.equal(sessionDiscoveryStrategy(1), 'legacy_sessions');
   assert.equal(sessionDiscoveryStrategy(undefined), 'legacy_sessions');
+});
+
+test('Recent reloads on every resource whose runs or rows it lists', () => {
+  // Scheduled runs, workflow runs and event deliveries come and go with their
+  // definitions; conversations with session events. Missing one leaves stale rows.
+  assert.deepEqual([...HISTORY_REFRESH_RESOURCES].sort(), ['event', 'scheduled_task', 'session', 'workflow']);
 });

@@ -397,7 +397,9 @@ export const useSearch = create<SearchStore>((set, get) => ({
       });
       return;
     }
-    if (reset ? state.historyLoading : state.historyPaginating) return;
+    // A reset always wins: it aborts the request in flight (below), so a
+    // refresh triggered by a live event is never dropped behind an older load.
+    if (!reset && state.historyPaginating) return;
     if (!reset && (!state.historyHasMore || !state.historyCursor)) return;
     historyAbort?.abort();
     const controller = new AbortController();

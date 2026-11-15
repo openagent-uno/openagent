@@ -47,6 +47,7 @@ import { openSearchTarget } from '../services/searchNavigation';
 import { sessionEntryFromActivity } from '../services/api';
 import type { ActivityItem, SearchTarget } from '../../common/unified-history';
 import {
+  HISTORY_REFRESH_RESOURCES,
   historyKindsForFilters,
   isTopLevelSidebarActivity,
   localSessionIdsMissingFromHistory,
@@ -359,6 +360,19 @@ function RecentFeed({
     const off3 = useEvents.getState().subscribe('event', () => void loadActivity());
     return () => { off1(); off2(); off3(); };
   }, [isConnected, loadActivity, unifiedSupport]);
+
+  // Runs appear, finish and disappear (with their task, workflow or event)
+  // without a session event; reload the feed's first page on those pings so
+  // Recent stays live instead of waiting for a reconnect.
+  useEffect(() => {
+    if (!isConnected || unifiedSupport !== 'v2') return;
+    const offs = HISTORY_REFRESH_RESOURCES
+      .filter((resource) => resource !== 'session')
+      .map((resource) => useEvents.getState().subscribe(resource, () => {
+        void useSearch.getState().loadHistory(true);
+      }));
+    return () => offs.forEach((off) => off());
+  }, [isConnected, unifiedSupport]);
 
   // Explicit metadata edits (notably rename) are committed into normalized
   // history before the server emits ``resource_event/session``. Refresh the
