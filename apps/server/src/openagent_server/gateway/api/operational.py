@@ -313,11 +313,29 @@ async def stop_background_maintenance(gateway: Any) -> None:
     setattr(gateway, "_operational_cursor_state", None)
 
 
+# Once history has been prepared, a read that lands while the maintenance
+# worker is still projecting a few fresh writes (a turn or a task run that just
+# finished) waits for it instead of failing: clients reload a conversation the
+# moment a turn ends, which is exactly when such writes are pending. The worker
+# runs every half second, so this normally resolves well within the bound.
+_CATCH_UP_WAIT_S = 3.0
+_CATCH_UP_POLL_S = 0.1
+
+
 async def _canonical_conn(request: web.Request):
     db, conn, complete = await _bounded_prepare(request)
     if not complete:
         _start_background(request, db)
-        raise ApiProblem(503, "warming", "Operational history is still being prepared")
+        gateway = request.app["gateway"]
+        prepared = getattr(gateway, "_operational_ready_event", None)
+        if prepared is not None and prepared.is_set():
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + _CATCH_UP_WAIT_S
+            while not complete and loop.time() < deadline:
+                await asyncio.sleep(_CATCH_UP_POLL_S)
+                complete = await _canonical_status(gateway, db, conn)
+        if not complete:
+            raise ApiProblem(503, "warming", "Operational history is still being prepared")
     return db, conn
 
 
