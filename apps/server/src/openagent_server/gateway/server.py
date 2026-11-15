@@ -34,7 +34,7 @@ from openagent_server.gateway.capabilities import (
 )
 from openagent_server.gateway.api import official_connectors as official_connectors_api
 from openagent_server.gateway.api import management_access as management_access_api
-from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
+from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, session_goal as session_goal_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
 from openagent_identity import peers as peers_api
 from openagent_identity.auth.middleware import make_auth_middleware
 from openagent_identity.transport.aiohttp_iroh_site import IrohSite
@@ -1587,6 +1587,11 @@ class Gateway:
             ("GET", "/api/sessions/{session_id}/model", sessions_api.handle_get),
             ("PUT", "/api/sessions/{session_id}/model", sessions_api.handle_pin),
             ("DELETE", "/api/sessions/{session_id}/model", sessions_api.handle_unpin),
+            # Per-session goal (openagent_core.session_goal).
+            ("GET", "/api/sessions/{session_id}/goal", session_goal_api.handle_get),
+            ("PUT", "/api/sessions/{session_id}/goal", session_goal_api.handle_put),
+            ("PATCH", "/api/sessions/{session_id}/goal", session_goal_api.handle_patch),
+            ("DELETE", "/api/sessions/{session_id}/goal", session_goal_api.handle_delete),
             # Session list, delete, and run history.
             ("GET", "/api/sessions", sessions_api.handle_list),
             ("DELETE", "/api/sessions/{session_id}", sessions_api.handle_delete),
