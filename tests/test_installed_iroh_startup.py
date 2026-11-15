@@ -167,7 +167,8 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                     for code, status, diagnostic in (
                         ('auth', 401, 'Invalid API key PRIVATE-PROVIDER-TOKEN'),
                         ('auth_expired', 401, 'OAuth token expired PRIVATE-PROVIDER-TOKEN'),
-                        ('quota_exhausted', 400, 'Your credit balance is too low to access the API PRIVATE-PROVIDER-TOKEN'),
+                        ('credit_exhausted', 400, 'Your credit balance is too low to access the API PRIVATE-PROVIDER-TOKEN'),
+                        ('quota_exhausted', 400, 'You exceeded your current quota PRIVATE-PROVIDER-TOKEN'),
                     ):
                         with self.subTest(code=code):
                             self.provider_failure=(status, diagnostic)
