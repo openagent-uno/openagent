@@ -46,6 +46,14 @@ def _runtime_deadline_seconds(config, kind, definition):
     )
 
 
+def _definition_enabled(definition) -> bool:
+    """True unless *definition* is explicitly switched off (``enabled`` falsy)."""
+    value = definition.get("enabled", True) if hasattr(definition, "get") else True
+    if isinstance(value, str):
+        return value.strip().lower() not in {"0", "false", "no", "off", ""}
+    return bool(value)
+
+
 class _Operation:
     def __init__(self, operation):
         self.operation = operation
@@ -80,6 +88,12 @@ class NativeAutomationExecution:
             self._pending_authorization_logged.discard(key)
             return True
         except (LookupError, PermissionError):
+            # A disabled definition never fires, so a missing grant is expected
+            # (disabling revokes it) and not worth a warning: diagnostics read
+            # this event as "an automation is blocked", which a switched-off
+            # one is not.
+            if not _definition_enabled(definition):
+                return False
             if key not in self._pending_authorization_logged:
                 self._pending_authorization_logged.add(key)
                 elog(

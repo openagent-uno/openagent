@@ -356,6 +356,21 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.db.get_task(identifier))['next_run'],1)
         self.assertEqual(await self.db.list_task_runs(identifier),[])
 
+    async def test_unauthorized_disabled_definition_logs_no_warning(self):
+        from unittest.mock import patch
+        disabled_id=await self.db.add_task('Off','0 4 * * *','check',next_run=None)
+        await self.db.update_task(disabled_id,enabled=False)
+        enabled_id=await self.db.add_task('On','* * * * *','hello',next_run=1)
+        events=[]
+        with patch('openagent_server.automation_execution.elog',
+                   lambda name,**fields: events.append((name,fields))):
+            self.assertFalse(await self.execution.definition_authorized(
+                'task',await self.db.get_task(disabled_id)))
+            self.assertFalse(await self.execution.definition_authorized(
+                'task',await self.db.get_task(enabled_id)))
+        warned=[f['definition_id'] for n,f in events if n=='automation.authorization_required']
+        self.assertEqual(warned,[enabled_id])
+
     async def test_historical_task_requires_exact_review_and_resumes_in_future(self):
         identifier=await self.db.add_task('Pending','* * * * *','hello',next_run=1)
 
