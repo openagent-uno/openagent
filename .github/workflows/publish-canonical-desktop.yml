@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Conversations can have loops: /loop 30m <prompt> or the session panel runs a prompt inside the conversation on a schedule, and command answers such as /goal status now appear in the chat. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            A loop's answer now appears in an open conversation without reopening it, Recent updates live as runs start, finish or are removed, and Run now is offered only while a loop is active. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
