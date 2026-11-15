@@ -39,8 +39,25 @@ async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     # contains only the uniform discovery gateway; the MCP module builds and
     # owns protocol connections from the persisted external-server catalog.
     pool = MCPPool.from_config([{"builtin": "tool-search"}], include_defaults=False)
+    pool.configure_discovery(discovery_presentation(config))
     agent.set_capability_pool(pool)
     await agent.load_model_catalog()
+
+
+def discovery_presentation(config: dict) -> Any:
+    """The model-facing discovery presentation this server opts into.
+
+    Named calls for every authorized tool are on by default: a source and tool
+    name resolve through the same authorized catalog as a discovered
+    ``tool_ref`` and, unlike a reference, survive reconnects and restarts.
+    ``tool_search.named_calls: listed`` in the agent config turns them off.
+    """
+    from openagent_core import DiscoveryPresentation
+
+    section = config.get("tool_search") or {}
+    if not isinstance(section, dict):
+        raise ValueError("tool_search must be a mapping")
+    return DiscoveryPresentation(named_calls=section.get("named_calls", "authorized"))
 
 
 def start_voice_warmups(config: dict[str, Any]) -> set[asyncio.Task]:
