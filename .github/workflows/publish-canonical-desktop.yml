@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            A loop can use this computer while it is connected, once you allow it from the Loops panel. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            The microphone in the composer dictates: your words appear as text to review and send, and replies are not read aloud. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
