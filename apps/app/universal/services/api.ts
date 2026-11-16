@@ -630,6 +630,27 @@ export async function deleteScheduledTask(id: string): Promise<void> {
   await del(`/api/scheduled-tasks/${encodeURIComponent(id)}`);
 }
 
+/** The devices the approver of a scheduled task lent it (``/devices``). */
+export interface LoopDevices {
+  devices: { device_id: string; device_label?: string | null; created_at: number }[];
+  /** This device's id when the request came from a signed-in device. */
+  this_device: string | null;
+  this_device_allowed: boolean;
+}
+
+export async function getLoopDevices(id: string): Promise<LoopDevices> {
+  return get<LoopDevices>(`/api/scheduled-tasks/${encodeURIComponent(id)}/devices`);
+}
+
+/** Lend the device making the request to this task while it is connected. */
+export async function lendThisDeviceToTask(id: string): Promise<void> {
+  await put(`/api/scheduled-tasks/${encodeURIComponent(id)}/devices/current`, {});
+}
+
+export async function withdrawThisDeviceFromTask(id: string): Promise<void> {
+  await del(`/api/scheduled-tasks/${encodeURIComponent(id)}/devices/current`);
+}
+
 // Run a scheduled task immediately, out of band from its cron schedule.
 // Leaves the task's schedule + enabled flag untouched. When wait=true the
 // server blocks until the firing finishes and returns the TaskRun row; when

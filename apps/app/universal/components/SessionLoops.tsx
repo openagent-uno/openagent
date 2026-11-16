@@ -16,12 +16,16 @@ import {
   createSessionLoop,
   deleteScheduledTask,
   describeLoopCron,
+  getLoopDevices,
   getSessionLoops,
   isUnsupportedByAgent,
+  lendThisDeviceToTask,
+  withdrawThisDeviceFromTask,
   runScheduledTask,
   updateScheduledTask,
 } from '../services/api';
 import { useEvents } from '../stores/events';
+import { isDesktop } from '../services/windows';
 import { colors, font, radius, spacing } from '../theme';
 
 const INTERVALS = ['15m', '30m', '1h', '2h', '6h', '1d'];
@@ -48,6 +52,35 @@ function nextRunLabel(task: ScheduledTask): string | null {
   if (!task.enabled || !task.next_run) return null;
   const date = new Date(task.next_run * 1000);
   return `next ${date.toLocaleString(undefined, { weekday: 'short', hour: '2-digit', minute: '2-digit' })}`;
+}
+
+/**
+ * On the desktop app: whether this loop may use this computer while it is
+ * connected. A loop's firings run on the approver's authority and see no
+ * device by default; only the approver can lend their own device, from it.
+ */
+function ThisComputer({ taskId, revision, busy, run }: {
+  taskId: string; revision: number; busy: boolean; run: (action: () => Promise<unknown>) => void;
+}) {
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getLoopDevices(taskId).then(
+      (result) => { if (!cancelled) setAllowed(result.this_device ? result.this_device_allowed : null); },
+      () => { if (!cancelled) setAllowed(null); },
+    );
+    return () => { cancelled = true; };
+  }, [taskId, revision]);
+  if (allowed === null) return null;
+  return (
+    <View style={styles.device}>
+      <Button icon="monitor" label={allowed ? 'Stop using this computer' : 'Use this computer'} disabled={busy}
+        onPress={() => run(() => (allowed ? withdrawThisDeviceFromTask(taskId) : lendThisDeviceToTask(taskId)))} />
+      <Text style={styles.deviceNote}>
+        {allowed ? 'This loop can use this computer while it is connected.' : 'This loop cannot use this computer.'}
+      </Text>
+    </View>
+  );
 }
 
 export default function SessionLoops({ sessionId }: { sessionId?: string }) {
@@ -127,6 +160,9 @@ export default function SessionLoops({ sessionId }: { sessionId?: string }) {
             <Button icon="trash-2" label="Delete" disabled={busy}
               onPress={() => run(() => deleteScheduledTask(task.id))} />
           </View>
+          {isDesktop() && !task.authorization_required ? (
+            <ThisComputer taskId={task.id} revision={revision} busy={busy} run={run} />
+          ) : null}
         </View>
       ))}
       <View style={styles.form}>
@@ -153,6 +189,8 @@ export default function SessionLoops({ sessionId }: { sessionId?: string }) {
 }
 
 const styles = StyleSheet.create({
+  device: { gap: 4, marginTop: spacing.xs, alignItems: 'flex-start' },
+  deviceNote: { fontFamily: font.sans, fontSize: 11, color: colors.textMuted },
   empty: { fontFamily: font.sans, fontSize: 11.5, lineHeight: 16, color: colors.textMuted },
   loop: { paddingVertical: spacing.xs, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, marginBottom: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },

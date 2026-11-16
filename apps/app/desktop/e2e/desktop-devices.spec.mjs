@@ -27,6 +27,8 @@ class DeviceGateway extends DeterministicGateway {
   heldTurn=null;
   goalPatches=[];
   goalDeletes=0;
+  loopLent=false;
+  loopLendCalls=[];
   goal={session_id:'e2e-session',status:'active',max_continuations:20,continuations:3,remaining:17,note:null,outcome:null,paused_reason:null,created_at_ms:1700000000000,updated_at_ms:1700000000000,achieved_at_ms:null,
     objective:Array.from({length:14},(_,i)=>`Rule ${i+1}: triage every new report, fix it with tests and answer the reporter in their own channel.`).join('\n')+'\nFinal rule: never declare the goal achieved.'};
   async start(){
@@ -125,6 +127,8 @@ class DeviceGateway extends DeterministicGateway {
       host: {label:'Agent computer',platform:'Linux',desktop:'available'},
       targets:[{tool_ref:'exact-owner-desktop',label:'Agent host',agent_host:true,can_control:!this.live}],
     });
+    if(path==='/api/scheduled-tasks/legacy-task/devices')return reply({devices:this.loopLent?[{device_id:'device-certificate',device_label:'Studio Mac',created_at:1}]:[],this_device:'device-certificate',this_device_allowed:this.loopLent});
+    if(path==='/api/scheduled-tasks/legacy-task/devices/current'){this.loopLendCalls.push(request.method);this.loopLent=request.method==='PUT';return reply({ok:true,allowed:this.loopLent});}
     if(path==='/api/scheduled-tasks')return reply({tasks:[{id:'legacy-task',name:'Historical report',prompt:'Report',cron_expression:'0 10 * * *',enabled:true}]});
     if(path==='/api/scheduled-tasks/legacy-task/runs')return reply({runs:[{id:'legacy-e2e',status:'success',started_at:1793527200,started_at_iso:'2026-11-01T10:00:00Z'}]});
     if(path==='/api/scheduled-runs/legacy-e2e')return reply({id:'legacy-e2e',task_id:'legacy-task',title:'Historical report',status:'success',output_summary_safe:'Saved report output',session_id:null,started_at:'2026-11-01T10:00:00Z',finished_at:'2026-11-01T10:01:00Z'});
@@ -210,6 +214,12 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(objective).toHaveCount(0);
     expect(gateway.goalPatches).toEqual([{objective:'Triage the reports and answer every reporter.'}]);
     await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveText('Triage the reports and answer every reporter.');
+    // A loop can borrow this computer only when its approver lends it from here.
+    await page.getByRole('button',{name:'Use this computer',exact:true}).click();
+    await expect(page.getByText('This loop can use this computer while it is connected.',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Stop using this computer',exact:true}).click();
+    await expect(page.getByText('This loop cannot use this computer.',{exact:true})).toBeVisible();
+    expect(gateway.loopLendCalls).toEqual(['PUT','DELETE']);
     // The same goal sits on one line above the composer; its dialog can remove it.
     const bar=page.getByLabel('Goal bar',{exact:true});
     await expect(bar).toContainText('Triage the reports and answer every reporter.');
