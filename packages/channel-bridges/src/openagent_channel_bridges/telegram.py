@@ -1453,9 +1453,8 @@ class TelegramBridge(BaseBridge):
     #
     # The shared orchestration is in ``BaseBridge.dispatch_turn``; here
     # we only translate between its calls and the python-telegram-bot
-    # ``Message`` surface. Voice-mode mirroring (voice in → voice out)
-    # is also handled by BaseBridge via ``maybe_prepend_voice_reply``,
-    # so this file no longer carries any of that logic.
+    # ``Message`` surface. A voice note gets a text reply like any other
+    # message; no voice reply is synthesized.
 
     async def post_status(self, msg, text: str):
         # Surface the agent's in-flight state as Telegram's native typing

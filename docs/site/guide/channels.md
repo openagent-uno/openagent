@@ -199,6 +199,8 @@ Voice messages are transcribed automatically. Two backends (tried in order):
 1. **faster-whisper** (local, free, no API key) — install with `pip install openagent-framework[voice]`
 2. **OpenAI Whisper API** (cloud fallback) — requires `OPENAI_API_KEY` in environment
 
+The agent answers a voice message with text. No spoken audio reply is sent.
+
 ## Bot profile synchronization
 
 In the OpenAgent App, the owner can save a name and thumbnail under

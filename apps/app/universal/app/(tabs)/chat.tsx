@@ -57,7 +57,7 @@ import { Skeleton, SkeletonLines } from '../../components/Skeleton';
 import { useConfirm } from '../../components/ConfirmDialog';
 import { useRenameSession } from '../../components/RenameSessionDialog';
 import {
-  uploadFile, guessMimeType, listDbModels,
+  uploadFile, transcribeAudio, guessMimeType, listDbModels,
   getSessionModelPin, pinSessionModel, unpinSessionModel, isAgentUnreachable,
   getGatewayCommands, listServingAccounts, listSessionMessages, getToolInvocationDetail, forkConversation,
   createSessionLoop, deleteScheduledTask, describeLoopCron, getSessionLoops,
@@ -234,6 +234,7 @@ export default function ChatScreen() {
   }, [ws, loadLlmModels]));
   const isDesktop = typeof window !== 'undefined' && !!window.desktop?.isDesktop;
   const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const voiceLanguage = useVoiceConfig((s) => s.config.language);
   const voiceConfig = useVoiceConfig((s) => s.config);
   const setVoiceConfig = useVoiceConfig((s) => s.setConfig);
@@ -1329,23 +1330,22 @@ export default function ChatScreen() {
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        const file = new File([blob], 'voice.webm', { type: 'audio/webm' });
-        if (!activeSessionId || !ws) return;
+        if (!blob.size) return;
+        // Dictation: the clip becomes text in the composer, which the user
+        // reviews and sends like typed text. No audio file is attached and
+        // nothing is sent on its own.
+        setTranscribing(true);
         try {
-          const langHint2 = voiceLanguage && voiceLanguage !== 'auto' ? voiceLanguage : undefined;
-          const result = await uploadFile(file, undefined, {
-            kind: 'voice',
-            language: langHint2,
-            sessionId: activeSessionId,
-          });
-          const msg = result.transcription || 'The user sent a voice message.';
-          addUserMessage(activeSessionId, msg, [result]);
-          ws.sendMessage(msg, activeSessionId, {
-            source: 'stt',
-            attachments: attachmentsForSend([result]),
-          });
+          const language = voiceLanguage && voiceLanguage !== 'auto' ? voiceLanguage : undefined;
+          const text = await transcribeAudio(blob, { language });
+          if (text) {
+            setInput((prev) => (prev.trim() ? `${prev.replace(/\s+$/, '')} ${text}` : text));
+            composerInputRef.current?.focus?.();
+          }
         } catch (e: any) {
-          console.error('Voice upload failed:', e);
+          console.error('Dictation failed:', e);
+        } finally {
+          setTranscribing(false);
         }
       };
       mediaRecorderRef.current = recorder;
@@ -1900,6 +1900,7 @@ export default function ChatScreen() {
               // one tap away via the Stop button (rendered while processing)
               // and the command palette.
               recording={Platform.OS === 'web' ? recording : undefined}
+              placeholder={transcribing ? 'Transcribing…' : undefined}
               onStartRecord={startRecording}
               onStopRecord={stopRecording}
               alwaysListening={

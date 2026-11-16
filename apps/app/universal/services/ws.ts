@@ -480,10 +480,9 @@ export class OpenAgentWS {
    * same primitive voice mode uses.
    *
    * ``options.source`` should be ``"stt"`` for transcribed voice
-   * notes (mirrors the bridge convention) — the stream session's
-   * STT-bypass kicks in (instant barge-in) AND the mirror-modality
-   * rule re-enables TTS for the reply even when the session was
-   * opened with ``speak: false``.
+   * notes — the stream session's STT-bypass kicks in (instant
+   * barge-in). The reply is still text: only a session opened with
+   * ``speak: true`` (live voice mode) speaks.
    */
   sendMessage(
     text: string,
@@ -530,9 +529,7 @@ export class OpenAgentWS {
       this.sendSessionOpen(sessionId, {
         profile: 'batched',
         clientKind: 'webapp-chat',
-        // Chat-tab sessions stay silent on typed-text replies. Voice
-        // notes (source="stt") still get spoken replies via the
-        // mirror-modality rule on the server side.
+        // Chat-tab sessions never speak replies, typed or dictated.
         speak: false,
         llmPin: options?.llmPin,
       });

@@ -940,9 +940,7 @@ export async function uploadFile(
   },
 ): Promise<Attachment & {
   transcription?: string;
-  // Set by /api/upload when the file is audio. The chat screen flips
-  // ``input_was_voice`` on the WS message so the gateway returns a
-  // spoken reply (mirror modality).
+  // Set by /api/upload when an uploaded file is audio and was transcribed.
   transcribed_from_voice?: boolean;
 }> {
   const form = new FormData();
@@ -974,6 +972,27 @@ export async function uploadFile(
       ? { transcribed_from_voice: payload.transcribed_from_voice }
       : {}),
   };
+}
+
+/** Transcribe a dictated clip into text for the composer. No attachment is
+ * stored and nothing is sent: the user reviews the text and sends it. */
+export async function transcribeAudio(
+  file: File | Blob,
+  opts?: { language?: string; signal?: AbortSignal },
+): Promise<string> {
+  const form = new FormData();
+  if (file instanceof File) form.append('file', file);
+  else form.append('file', file, 'dictation.webm');
+  const qs = opts?.language ? `?${new URLSearchParams({ lang: opts.language })}` : '';
+  const res = await fetchAgent(`${baseUrl}/api/stt/transcribe${qs}`, {
+    method: 'POST',
+    body: form,
+    signal: opts?.signal,
+  });
+  if (res.status === 404) return '';
+  if (!res.ok) throw new Error(`Transcription failed: ${res.status}`);
+  const payload = await res.json() as { text?: unknown };
+  return typeof payload.text === 'string' ? payload.text.trim() : '';
 }
 
 // ── File Download (agent → client) ──

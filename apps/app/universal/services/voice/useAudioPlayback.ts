@@ -3,10 +3,9 @@
  * play them through {@link AudioQueuePlayer}.
  *
  * Decoupled from {@link useStreamingMic} so screens that don't run a
- * mic loop can still hear spoken replies. The chat tab uses this for
- * voice notes (recorder → upload → STT → mirror-modality TTS reply)
- * — without it the server happily streams audio_chunk frames into the
- * void because no client-side handler is mounted.
+ * mic loop can still hear spoken replies. The chat tab mounts it for
+ * sessions opened with speech on; dictated messages get text replies,
+ * so a silent chat session receives no audio frames.
  *
  * The voice tab gets audio playback through ``useStreamingMic`` (which
  * embeds the same player) so it does NOT need to mount this on top.

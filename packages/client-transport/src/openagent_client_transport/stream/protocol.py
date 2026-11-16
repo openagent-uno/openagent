@@ -100,10 +100,9 @@ model + attachments) + optionally ``audio_start`` / ``audio_chunk`` ×N /
 is configured) + ``turn_complete`` (terminator — clients waiting for a
 single reply resolve here).
 
-The mirror-modality rule on the server side: ``text_final`` with
-``source="stt"`` always speaks the reply when TTS is configured, even
-when the session was opened with ``speak=false``. That way chat-tab
-typed messages stay silent but voice notes get spoken back.
+A reply is spoken only when the session was opened with ``speak=true``.
+``text_final`` with ``source="stt"`` (a transcribed voice note) gets a text
+reply like a typed message; ``source`` only enables the instant barge-in.
 
 When a client reattaches while a turn is still running, the gateway may
 send ``live_state`` snapshots. ``frames`` is an ordered replay of ordinary

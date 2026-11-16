@@ -860,14 +860,8 @@ class BaseBridge:
                                                        "prompt": result.picker_prompt} if options else None}
 
     async def _deliver_typed_parts(self, target, parts, *, model=None, voice_detected=False, live=None):
-        if voice_detected:
-            text = "\n".join(part.text for part in parts if part.text is not None)
-            voice = await self._synthesize(text) if text else None
-            if voice is not None:
-                try:
-                    await self.send_attachment(target, self._platform_attachment(voice))
-                finally:
-                    self._cleanup_owned_temp_artifact(voice.local_path)
+        # A voice note is input: the reply is the agent's text and its own
+        # attachments, never a synthesized audio copy of the text.
         text_indexes = [index for index, part in enumerate(parts) if part.text is not None]
         skip = live.posted_chars if live is not None and live.posted_any else 0
         for index, part in enumerate(parts):
@@ -1077,7 +1071,7 @@ class BaseBridge:
         """Shared orchestration: post status → send_message → render reply.
 
         Lives here (not in each bridge) so the spam-coalescence
-        sentinel, voice-modality mirror, attachment splitting, and
+        sentinel, attachment splitting, and
         message-limit chunking all stay in lockstep across Telegram,
         Discord, and WhatsApp. A subclass usually only needs to fill in
         the platform primitives above; the orchestration "just works".
@@ -1361,8 +1355,7 @@ class BaseBridge:
             # their own messages. Post ONLY the still-unposted tail (the
             # final answer) so nothing is duplicated. ``accumulated`` is
             # the raw delta stream; ``posted_chars`` is how much of it we
-            # already sent. Voice mirroring is off in live mode, and
-            # agent-emitted attachment markers are dropped here exactly as
+            # already sent. Agent-emitted attachment markers are dropped here exactly as
             # the non-live path drops them — only the visible text shows.
             accumulated = response.get("accumulated")
             if accumulated is None:
@@ -1380,7 +1373,6 @@ class BaseBridge:
                 await self.send_response_text(post_target, clean)
         else:
             response_text = response.get("text", "") or ""
-            response_text = await self.maybe_prepend_voice_reply(response_text, voice_detected)
 
             clean, marker_attachments = parse_response_markers(response_text)
             if not getattr(self.transport, "legacy_markers", False):
@@ -1472,33 +1464,6 @@ class BaseBridge:
         buttons and rely on the user to type one of the options
         back as plain text."""
         return None
-
-
-    async def maybe_prepend_voice_reply(
-        self, text: str, voice_detected: bool,
-    ) -> str:
-        """Mirror modality: voice-in → voice-out attachment.
-
-        When the inbound message was voice and we have a non-empty text
-        reply, synthesize the reply to MP3 and prepend the
-        ``[VOICE:/path]`` marker. Errors during synthesis are logged
-        and swallowed — the user still gets the text reply. Used by
-        every bridge so the voice-out logic lives in one place.
-        """
-        if not (voice_detected and text):
-            return text
-        try:
-            voice_marker = await self.synthesise_audio_attachment(text)
-        except Exception as e:  # noqa: BLE001 — never drop the text on synth failure
-            elog(
-                f"{self.name}.tts.error",
-                level="warning",
-                error_type=type(e).__name__,
-            )
-            return text
-        if not voice_marker:
-            return text
-        return f"{voice_marker}\n{text}"
 
 
     async def render_picker(self, target, picker: dict) -> bool:
