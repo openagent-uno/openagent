@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            A loop's answer now appears in an open conversation without reopening it, Recent updates live as runs start, finish or are removed, and Run now is offered only while a loop is active. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            Conversations and routines can be pinned to the top of the sidebar from the row menu; a pinned routine always opens its newest run. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
