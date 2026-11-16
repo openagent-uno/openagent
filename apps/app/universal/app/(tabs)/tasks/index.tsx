@@ -19,6 +19,7 @@
  * from a detached editor window).
  */
 
+import { openSearchTarget } from '../../../services/searchNavigation';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect } from 'react';
@@ -142,6 +143,9 @@ export default function TasksScreen() {
                   onRemove={() => { void handleRemove(task.id); }}
                   onRun={() => runTask(task.id)}
                   onStop={() => stopTask(task.id)}
+                  onOpenConversation={task.target_session_id
+                    ? () => openSearchTarget(router, { kind: 'chat', session_id: task.target_session_id as string })
+                    : undefined}
                 />
               ))}
         </TileGridScreen>
