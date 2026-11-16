@@ -177,9 +177,20 @@ class AgentDialer:
     joined via an agent invite ticket rather than SRP user login).
     """
 
-    def __init__(self, *, node: IrohNode, target_node_id: str) -> None:
+    def __init__(
+        self,
+        *,
+        node: IrohNode,
+        target_node_id: str,
+        relay_url: str | None = None,
+        addresses: list[str] | None = None,
+    ) -> None:
         self._node = node
         self.target_node_id = target_node_id
+        # First-contact hints (from an invite ticket or descriptor), passed to
+        # ``IrohNode.dial``; None relies on iroh discovery.
+        self.relay_url = relay_url
+        self.addresses = list(addresses) if addresses else None
         self._connection: object | None = None
         self._lock = asyncio.Lock()
 
@@ -193,8 +204,13 @@ class AgentDialer:
     async def _get_or_open(self) -> object:
         async with self._lock:
             if self._connection is None:
+                hints = {}
+                if self.relay_url:
+                    hints["relay_url"] = self.relay_url
+                if self.addresses:
+                    hints["addresses"] = self.addresses
                 self._connection = await self._node.dial(
-                    self.target_node_id, NetworkAlpn.AGENT,
+                    self.target_node_id, NetworkAlpn.AGENT, **hints,
                 )
             return self._connection
 
