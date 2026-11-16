@@ -131,6 +131,12 @@ export interface MessageComposerProps {
    *  programmatically — used by the chat screen's type-to-focus, which
    *  routes a stray printable keystroke into the composer. */
   inputRef?: Ref<any>;
+  /** A one-line panel attached to the top edge of the composer (for
+   *  example the conversation's goal). The slot is inset from the composer's
+   *  rounded corners and overlaps its top border by one pixel; the panel
+   *  draws its own tab (top corners, no bottom border), and may render
+   *  nothing. */
+  topAccessory?: ReactNode;
 }
 
 const COMPOSER_INPUT_BASE_HEIGHT = 34;
@@ -161,6 +167,7 @@ export default function MessageComposer({
   placeholder = 'Message OpenAgent...',
   showHint = true,
   inputRef,
+  topAccessory,
 }: MessageComposerProps) {
   // Slash autocomplete state. We surface the menu when the composer
   // begins with ``/`` and the text contains no whitespace yet — once
@@ -371,6 +378,9 @@ export default function MessageComposer({
           ))}
         </View>
       )}
+      {topAccessory ? (
+        <View style={styles.topAccessoryRow}>{topAccessory}</View>
+      ) : null}
       <View
         style={styles.composer}
         // @ts-ignore — web focus-within affordance (border brightens on focus)
@@ -699,6 +709,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 2,
     elevation: 1,
+  },
+  // Inset from the composer's rounded corners and flush with its top border,
+  // like a tab: the accessory is part of the composer, not a separate card.
+  topAccessoryRow: {
+    maxWidth: 760, width: '100%', alignSelf: 'center',
+    paddingHorizontal: 12, marginBottom: -1, zIndex: 1,
   },
   pendingList: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 5,

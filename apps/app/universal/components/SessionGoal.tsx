@@ -63,12 +63,21 @@ function ActionButton({ icon, label, onPress, disabled }: {
   );
 }
 
-export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: string; isProcessing?: boolean }) {
+// Every mounted view of a conversation's goal (side panel, composer bar)
+// reloads when one of them changes it, without waiting for the server's
+// resource event.
+const goalListeners = new Set<(sessionId: string) => void>();
+function announceGoalChange(sessionId: string) {
+  for (const listener of goalListeners) listener(sessionId);
+}
+
+/** The conversation's goal, kept current: it reloads when the session's
+ *  turn starts or ends, on a ``session`` resource event and after a
+ *  ``/goal`` command result. Shared by the side panel and the composer bar. */
+function useSessionGoal(sessionId: string | undefined, isProcessing: boolean | undefined) {
   const ws = useConnection((s) => s.ws);
   const key = sessionId ?? '';
   const [state, setState] = useState<State>({ key, goal: null, loading: true, unsupported: false, error: null });
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
 
@@ -89,23 +98,90 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
   useEffect(() => useEvents.getState().subscribe('session', refresh), [refresh]);
 
   useEffect(() => {
+    if (!sessionId) return;
+    const listener = (changed: string) => { if (changed === sessionId) refresh(); };
+    goalListeners.add(listener);
+    return () => { goalListeners.delete(listener); };
+  }, [sessionId, refresh]);
+
+  useEffect(() => {
     if (!ws || !sessionId) return;
     return ws.onMessage((msg: any) => {
       if (msg?.type === 'command_result' && typeof msg.text === 'string' && /goal/i.test(msg.text)) refresh();
     });
   }, [ws, sessionId, refresh]);
 
+  const goal = state.key === key ? state.goal : null;
+  const setError = useCallback((error: string | null) => setState((previous) => ({ ...previous, error })), []);
+  // Editing keeps an active or paused goal running with its budget; saving
+  // over an achieved goal (or with none) starts a new one.
+  const save = useCallback(async (objective: string) => {
+    if (!sessionId) return;
+    if (goal && goal.status !== 'achieved') await updateSessionGoal(sessionId, { objective });
+    else await setSessionGoal(sessionId, objective);
+    announceGoalChange(sessionId);
+  }, [sessionId, goal]);
+  const clear = useCallback(async () => {
+    if (!sessionId) return;
+    await clearSessionGoal(sessionId);
+    announceGoalChange(sessionId);
+  }, [sessionId]);
+  return { state, key, goal, refresh, setError, save, clear };
+}
+
+/** One line above the composer: the goal's state and the start of its
+ *  objective, with a button that opens the goal dialog (read, edit, remove).
+ *  Renders nothing without a goal. */
+export function SessionGoalBar({ sessionId, isProcessing }: { sessionId?: string; isProcessing?: boolean }) {
+  const { goal, save, clear } = useSessionGoal(sessionId, isProcessing);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  if (!sessionId || !goal) return null;
+  return (
+    <>
+      <Pressable
+        onPress={() => setDialogOpen(true)}
+        style={styles.bar}
+        accessibilityRole="button"
+        accessibilityLabel="Goal bar"
+        {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
+      >
+        <Feather name="target" size={12} color={statusColor(goal.status)} />
+        <Text style={[styles.barStatus, { color: statusColor(goal.status) }]}>{STATUS_LABEL[goal.status]}</Text>
+        <Text style={styles.barObjective} numberOfLines={1}>{goal.objective.replace(/\s+/g, ' ')}</Text>
+        <Text style={styles.barMeta}>{goal.continuations}/{goal.max_continuations}</Text>
+        <View style={styles.barButton}>
+          <Feather name="edit-2" size={11} color={colors.textSecondary} />
+          <Text style={styles.barButtonText}>Goal</Text>
+        </View>
+      </Pressable>
+      <GoalDialog
+        visible={dialogOpen}
+        goal={goal}
+        startEditing={false}
+        onClose={() => setDialogOpen(false)}
+        onSave={save}
+        onClear={clear}
+      />
+    </>
+  );
+}
+
+export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: string; isProcessing?: boolean }) {
+  const { state, key, goal, setError, save, clear } = useSessionGoal(sessionId, isProcessing);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
   const run = useCallback(async (change: () => Promise<unknown>) => {
     setBusy(true);
     try {
       await change();
     } catch (error: any) {
-      setState((previous) => ({ ...previous, error: String(error?.message ?? error) }));
+      setError(String(error?.message ?? error));
     } finally {
       setBusy(false);
-      refresh();
+      if (sessionId) announceGoalChange(sessionId);
     }
-  }, [refresh]);
+  }, [sessionId, setError]);
 
   if (!sessionId) {
     return <Text style={styles.empty}>Send the first message, then give this conversation a goal.</Text>;
@@ -116,15 +192,6 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
   if (state.loading && state.key !== key) {
     return <ActivityIndicator size="small" color={colors.textMuted} />;
   }
-  const goal = state.key === key ? state.goal : null;
-
-  const save = async (objective: string) => {
-    // Editing keeps an active or paused goal running with its budget; saving
-    // over an achieved goal starts a new one.
-    if (goal && goal.status !== 'achieved') await updateSessionGoal(sessionId, { objective });
-    else await setSessionGoal(sessionId, objective);
-    refresh();
-  };
   const dialog = (
     <GoalDialog
       visible={dialogOpen}
@@ -132,6 +199,7 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
       startEditing={!goal}
       onClose={() => setDialogOpen(false)}
       onSave={save}
+      onClear={clear}
     />
   );
 
@@ -183,12 +251,13 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
 }
 
 /** The whole goal: read it, edit its objective, or set a new one. */
-function GoalDialog({ visible, goal, startEditing, onClose, onSave }: {
+function GoalDialog({ visible, goal, startEditing, onClose, onSave, onClear }: {
   visible: boolean;
   goal: Goal | null;
   startEditing: boolean;
   onClose: () => void;
   onSave: (objective: string) => Promise<void>;
+  onClear: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(startEditing);
   const [draft, setDraft] = useState('');
@@ -222,6 +291,19 @@ function GoalDialog({ visible, goal, startEditing, onClose, onSave }: {
     setError(null);
     try {
       await onSave(objective);
+      onClose();
+    } catch (reason: any) {
+      setError(String(reason?.message ?? reason));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      await onClear();
       onClose();
     } catch (reason: any) {
       setError(String(reason?.message ?? reason));
@@ -294,6 +376,7 @@ function GoalDialog({ visible, goal, startEditing, onClose, onSave }: {
               </>
             ) : (
               <>
+                <Button variant="ghost" label="Remove" accessibilityLabel="Remove goal" disabled={saving} onPress={() => void remove()} style={{ marginRight: 'auto' }} />
                 <Button variant="secondary" label="Close" accessibilityLabel="Close goal" onPress={close} />
                 <Button variant="primary" label={replacing ? 'New goal' : 'Edit'} accessibilityLabel={replacing ? 'New goal' : 'Edit goal'} onPress={() => setEditing(true)} />
               </>
@@ -346,4 +429,18 @@ const styles = StyleSheet.create({
   } as any,
   counter: { fontFamily: font.sans, fontSize: 11.5, color: colors.textMuted, marginTop: 6 },
   dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
+  bar: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 5,
+    backgroundColor: colors.sidebar,
+    borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md,
+    borderWidth: 1, borderBottomWidth: 0, borderColor: colors.border,
+  },
+  barStatus: { fontFamily: font.sans, fontSize: 11.5, fontWeight: '600' },
+  barObjective: { flex: 1, minWidth: 0, fontFamily: font.sans, fontSize: 12, color: colors.textSecondary },
+  barMeta: { fontFamily: font.mono, fontSize: 10.5, color: colors.textMuted },
+  barButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2,
+    borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+  },
+  barButtonText: { fontFamily: font.sans, fontSize: 11, color: colors.textSecondary },
 });

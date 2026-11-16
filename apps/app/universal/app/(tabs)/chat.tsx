@@ -32,6 +32,7 @@ import { useEvents } from '../../stores/events';
 import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
 import MessageComposer, { type PendingFile, type SlashCommand } from '../../components/MessageComposer';
+import { SessionGoalBar } from '../../components/SessionGoal';
 import MessageList from '../../components/MessageList';
 import TurnRail from '../../components/transcript/TurnRail';
 import TranscriptLoadingPill from '../../components/transcript/TranscriptLoadingPill';
@@ -1857,6 +1858,9 @@ export default function ChatScreen() {
             <McpAppDraftReview scope={{accountId:draftAccountId??undefined,sessionId:activeSessionId??undefined}} scopeKey={`${draftAccountId}:${activeSessionId}`} onInsert={text=>setInput(current=>`${current}${current?'\n\n':''}${text}`)} />
             <MessageComposer
               inputRef={composerInputRef}
+              topAccessory={activeSession && !activeSession.localDraft
+                ? <SessionGoalBar key={activeSession.id} sessionId={activeSession.id} isProcessing={activeSession.isProcessing} />
+                : undefined}
               input={input}
               onInputChange={(v) => {
                 // Any manual edit invalidates the history-recall index.

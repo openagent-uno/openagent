@@ -26,6 +26,7 @@ class DeviceGateway extends DeterministicGateway {
   sharedTurns=[];
   heldTurn=null;
   goalPatches=[];
+  goalDeletes=0;
   goal={session_id:'e2e-session',status:'active',max_continuations:20,continuations:3,remaining:17,note:null,outcome:null,paused_reason:null,created_at_ms:1700000000000,updated_at_ms:1700000000000,achieved_at_ms:null,
     objective:Array.from({length:14},(_,i)=>`Rule ${i+1}: triage every new report, fix it with tests and answer the reporter in their own channel.`).join('\n')+'\nFinal rule: never declare the goal achieved.'};
   async start(){
@@ -114,6 +115,7 @@ class DeviceGateway extends DeterministicGateway {
         const change=JSON.parse(body);this.goalPatches.push(change);
         if(typeof change.objective==='string')this.goal={...this.goal,objective:change.objective};
       }
+      if(request.method==='DELETE'){this.goalDeletes+=1;this.goal=null;return reply({ok:true});}
       return reply({goal:this.goal});
     }
     if(path==='/api/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',online:true,modules:['shell','editor','computer-control','agent-in-chrome'],last_seen_at:1700000000},{device_id:'two',client_instance_id:'b',label:'Home desktop',online:false,modules:['filesystem'],last_seen_at:1700000000}]});
@@ -206,6 +208,18 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(objective).toHaveCount(0);
     expect(gateway.goalPatches).toEqual([{objective:'Triage the reports and answer every reporter.'}]);
     await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveText('Triage the reports and answer every reporter.');
+    // The same goal sits on one line above the composer; its dialog can remove it.
+    const bar=page.getByRole('button',{name:'Goal bar',exact:true});
+    await expect(bar).toContainText('Triage the reports and answer every reporter.');
+    expect((await bar.boundingBox()).height).toBeLessThanOrEqual(34);
+    const composerBox=await page.getByPlaceholder('Message OpenAgent...').boundingBox();
+    expect((await bar.boundingBox()).y).toBeLessThan(composerBox.y);
+    await page.screenshot({path:join(temporary,'goal-bar.png')});
+    await bar.click();
+    await page.getByRole('button',{name:'Remove goal',exact:true}).click();
+    await expect(bar).toHaveCount(0);
+    expect(gateway.goalDeletes).toBe(1);
+    await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveCount(0);
     await page.getByRole('button',{name:'Share session',exact:true}).click();
     await page.getByRole('button',{name:'Select bob',exact:true}).click();
     await expect(page.getByLabel('Collaborator username',{exact:true})).toHaveValue('bob');
@@ -386,6 +400,6 @@ for(const live of [false,true])test(`device directory, session inspector and res
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;
-    if(evidence){await make(evidence,{recursive:true});for(const name of ['devices-wide','devices-narrow','computer-wide','computer-narrow','goal-preview','goal-dialog'])await copyFile(join(temporary,name+'.png'),join(evidence,name+'.png'));}
+    if(evidence){await make(evidence,{recursive:true});for(const name of ['devices-wide','devices-narrow','computer-wide','computer-narrow','goal-preview','goal-dialog','goal-bar'])await copyFile(join(temporary,name+'.png'),join(evidence,name+'.png'));}
   }finally{if(app)await app.close().catch(()=>{});await gateway.close();await rm(temporary,{recursive:true,force:true});}
 });
