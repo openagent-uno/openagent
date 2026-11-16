@@ -64,6 +64,27 @@ each provider carries a `status`: `ok`, `rate_limited`, `auth_expired` (the
 sign-in no longer works and must be renewed on the service) or `unreachable`.
 Quota appears only when the upstream reports it.
 
+## Signing in to a subscription service
+
+A provider whose endpoint is a local subscription service (a service on your
+network that serves models through accounts you sign in to) owns its sign-in:
+it exposes `POST /admin/oauth/start` and `POST /admin/oauth/complete` beside
+its `/v1` endpoint. The server drives that flow for the agent's owner and never
+sees a token:
+
+- `POST /api/providers/{id}/sign-in/start` returns `{authorize_url, state}`.
+  Open the page and sign in.
+- `POST /api/providers/{id}/sign-in/complete` with `{state, code, name?}`
+  finishes it. `code` is the code the page shows, or the whole address of the
+  page you land on. The provider's models then re-read their inputs.
+
+In the app this is **Sign in again** on an expired account and **Add account**
+under a subscription's accounts, in the Add model wizard and in a model's
+provider section. `GET /api/accounts` also reads accounts from the service's
+`/admin/diagnostics` when its `/health` does not list them, and marks such
+providers with `sign_in: true`. Only a plain-HTTP endpoint on your own network
+is ever contacted this way; a vendor's public API is left alone.
+
 ## Local / self-hosted models
 
 The `local` provider targets any OpenAI-compatible server you run yourself — Ollama, vLLM, LM Studio, llama.cpp. Because the endpoint is yours, **`base_url` is mandatory**: set it to the server's `/v1` root, e.g. `http://localhost:11434/v1` (Ollama), `http://localhost:8000/v1` (vLLM), or `http://localhost:1234/v1` (LM Studio). If you leave it unset the model build fails fast with a clear error rather than silently falling back to OpenAI's endpoint.

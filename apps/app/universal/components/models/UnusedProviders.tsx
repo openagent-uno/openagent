@@ -120,7 +120,7 @@ export default function UnusedProviders({
               </View>
               <PopupMenu items={menuFor(row)} accessibilityLabel={`Options for provider ${p.name}`} triggerSize={16} />
             </View>
-            {entry && entry.accounts.length > 0 ? <ProviderAccountsDetail entry={entry} /> : null}
+            {entry && entry.accounts.length > 0 ? <ProviderAccountsDetail entry={entry} providerId={p.id} onChanged={onChanged} /> : null}
           </View>
         );
       })}

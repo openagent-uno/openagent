@@ -180,6 +180,8 @@ async def _probe(session, provider: dict) -> dict:
         "accounts": [],
         "metrics": None,
         "error": None,
+        # True when this endpoint is a subscription service that reports accounts.
+        "sign_in": False,
     }
     url = _health_url(base_url)
     if url is None:
@@ -200,16 +202,169 @@ async def _probe(session, provider: dict) -> dict:
         return entry
     raw_accounts = payload.get("accounts")
     if not isinstance(raw_accounts, list):
+        # A subscription service may publish its accounts only on its
+        # authenticated admin surface. Ask there with this provider's own key.
+        admin = await _admin_diagnostics(session, provider)
+        if admin is not None:
+            payload, raw_accounts = admin, admin.get("accounts")
+    if not isinstance(raw_accounts, list):
         # Reachable, but not a proxy that fronts accounts (a plain llama.cpp
         # health endpoint, say). Reachable is still worth reporting.
         entry["reachable"] = True
         entry["error"] = "endpoint reports no accounts"
         return entry
+    entry["sign_in"] = True
 
     entry["reachable"] = True
     entry["accounts"] = [a for a in map(_normalise_account, raw_accounts) if a]
     entry["metrics"] = _pick(payload.get("metrics"), _METRIC_FIELDS) or None
     return entry
+
+
+def _admin_url(base_url: str, path: str) -> str | None:
+    """The admin URL beside a local subscription service's ``/v1`` endpoint."""
+    health = _health_url(base_url)
+    return None if health is None else health[: -len("/health")] + path
+
+
+def _admin_headers(provider: dict) -> dict:
+    key = provider.get("api_key")
+    return {"Authorization": f"Bearer {key}"} if isinstance(key, str) and key else {}
+
+
+async def _admin_diagnostics(session, provider: dict) -> dict | None:
+    url = _admin_url(provider.get("base_url") or "", "/admin/diagnostics")
+    if url is None:
+        return None
+    try:
+        async with session.get(url, headers=_admin_headers(provider)) as resp:
+            if resp.status != 200:
+                return None
+            payload = await resp.json(content_type=None)
+    except Exception:  # noqa: BLE001 - no admin surface is not a fault
+        return None
+    return payload if isinstance(payload, dict) and isinstance(payload.get("accounts"), list) else None
+
+
+# ── Sign-in to a subscription service ──────────────────────────────────
+#
+# A subscription service signs an account in with a browser flow it owns:
+# ``POST <root>/admin/oauth/start`` returns the page to open and an opaque
+# state, and ``POST <root>/admin/oauth/complete`` redeems the code that page
+# hands back. These two routes only drive that flow for a provider whose
+# endpoint is a local service; no credential passes through or is stored here.
+
+_SIGN_IN_TIMEOUT_S = 30.0
+
+
+def _parse_provider_id(request) -> int | None:
+    try:
+        return int(request.match_info.get("id") or "")
+    except ValueError:
+        return None
+
+
+def _code_from(value: str) -> str:
+    """The sign-in code, also when the person pasted the whole redirected URL."""
+    value = value.strip()
+    if value.lower().startswith(("http://", "https://")):
+        from urllib.parse import parse_qs, urlsplit
+
+        code = parse_qs(urlsplit(value).query).get("code")
+        if code and code[0].strip():
+            return code[0].strip()
+    return value
+
+
+async def _sign_in_call(request, path: str, body: dict | None):
+    from aiohttp import web
+    import aiohttp
+
+    db = _db(request)
+    pid = _parse_provider_id(request)
+    if db is None or pid is None:
+        return None, web.json_response({"error": "invalid provider id"}, status=400)
+    provider = await db.get_provider(pid)
+    if provider is None:
+        return None, web.json_response({"error": f"Provider id={pid} not found"}, status=404)
+    url = _admin_url(provider.get("base_url") or "", path)
+    if url is None:
+        return None, web.json_response(
+            {"error": "This provider is not a local subscription service"}, status=400)
+    try:
+        timeout = aiohttp.ClientTimeout(total=_SIGN_IN_TIMEOUT_S)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=body or {}, headers=_admin_headers(provider)) as resp:
+                payload = await resp.json(content_type=None)
+                status = resp.status
+    except Exception as exc:  # noqa: BLE001
+        return None, web.json_response(
+            {"error": f"The subscription service did not answer: {type(exc).__name__}"}, status=502)
+    if status == 404:
+        return None, web.json_response(
+            {"error": "This subscription service does not support sign-in from here"}, status=400)
+    if status != 200 or not isinstance(payload, dict):
+        detail = payload.get("detail") if isinstance(payload, dict) else None
+        return None, web.json_response(
+            {"error": str(detail)[:300] if detail else f"The subscription service answered {status}"},
+            status=400 if 400 <= status < 500 else 502)
+    return (provider, payload), None
+
+
+async def handle_sign_in_start(request):
+    """POST /api/providers/{id}/sign-in/start — begin a subscription sign-in."""
+    from aiohttp import web
+
+    result, problem = await _sign_in_call(request, "/admin/oauth/start", None)
+    if problem is not None:
+        return problem
+    _provider, payload = result
+    url = payload.get("authorize_url")
+    state = payload.get("state")
+    if not isinstance(url, str) or not url.startswith("https://") or not isinstance(state, str) or not state:
+        return web.json_response({"error": "The subscription service returned no sign-in page"}, status=502)
+    return web.json_response({
+        "authorize_url": url, "state": state,
+        "expires_in": payload.get("expires_in") if isinstance(payload.get("expires_in"), int) else None,
+    })
+
+
+async def handle_sign_in_complete(request):
+    """POST /api/providers/{id}/sign-in/complete — body ``{state, code, name?, priority?}``."""
+    from aiohttp import web
+
+    try:
+        body = await request.json() if request.can_read_body else {}
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    state = str(body.get("state") or "").strip()
+    code = _code_from(str(body.get("code") or ""))
+    if not state or not code:
+        return web.json_response({"error": "state and code are required"}, status=400)
+    forward = {"state": state, "code": code}
+    if isinstance(body.get("name"), str) and body["name"].strip():
+        forward["name"] = body["name"].strip()[:80]
+    if isinstance(body.get("priority"), int) and not isinstance(body.get("priority"), bool):
+        forward["priority"] = body["priority"]
+    result, problem = await _sign_in_call(request, "/admin/oauth/complete", forward)
+    if problem is not None:
+        return problem
+    provider, payload = result
+    import time
+
+    account = _normalise_account(payload.get("account"), int(time.time() * 1000))
+    # A new account can change what the provider's models accept.
+    refreshed = None
+    try:
+        from openagent_server.provider_management import for_request
+
+        admin, context = await for_request(request)
+        refreshed = await admin.refresh_capabilities(context, provider["id"])
+    except Exception:  # noqa: BLE001 - the sign-in itself succeeded
+        refreshed = None
+    return web.json_response({"ok": True, "account": account, "refreshed": refreshed})
 
 
 def _pool_accounts(provider_name: str) -> list[dict]:

@@ -15,6 +15,7 @@ import type { InputModality, ModelEntry, ProviderAccounts, ProviderConfig } from
 import Button from '../Button';
 import ThemedSwitch from '../ThemedSwitch';
 import { AccountRow } from '../AccountsPanel';
+import SubscriptionSignIn from './SubscriptionSignIn';
 import { useConfirm } from '../ConfirmDialog';
 import {
   deleteProvider, refreshProviderCapabilities, testProvider, updateDbModel, updateProvider,
@@ -281,7 +282,7 @@ export default function ModelEditDialog({
             <Text style={styles.k}>Key</Text>
             <Text style={styles.v} numberOfLines={1}>{provider.api_key_display || '—'}</Text>
           </View>
-          <ProviderAccountsDetail entry={accounts} />
+          <ProviderAccountsDetail entry={accounts} providerId={provider?.id ?? model.provider_id} onChanged={onChanged} />
           {testResult ? (
             <Text style={testResult.ok ? formStyles.success : styles.fail}>
               {testResult.ok ? 'Connection works.' : `Connection failed: ${testResult.error ?? 'no details'}`}
@@ -314,8 +315,22 @@ export default function ModelEditDialog({
 
 /** What the Accounts panel showed for a provider: each account with plan,
  *  state and quota, the proxy's metrics, or why there are no accounts. */
-export function ProviderAccountsDetail({ entry }: { entry: ProviderAccounts | null }) {
+export function ProviderAccountsDetail({
+  entry, providerId, onChanged,
+}: {
+  entry: ProviderAccounts | null;
+  /** With a provider id and a reload callback, a subscription shows its sign-in. */
+  providerId?: number | null;
+  onChanged?: () => Promise<void> | void;
+}) {
   if (!entry) return null;
+  const signIn = entry.sign_in && providerId != null && onChanged ? (
+    <SubscriptionSignIn
+      providerId={providerId}
+      label={entry.accounts.some((a) => a.status === 'auth_expired') ? 'Sign in again' : 'Add account'}
+      onDone={onChanged}
+    />
+  ) : null;
   if (entry.accounts.length === 0) {
     return (
       <View style={styles.kv}>
@@ -339,6 +354,7 @@ export function ProviderAccountsDetail({ entry }: { entry: ProviderAccounts | nu
         {metrics ? <Text style={formStyles.muted}>{metrics}</Text> : null}
       </View>
       {entry.accounts.map((a) => <AccountRow key={a.id} account={a} />)}
+      {signIn}
     </View>
   );
 }

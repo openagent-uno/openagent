@@ -18,7 +18,7 @@ import type {
   BudgetRule, BudgetUsage, CreateBudgetInput, UpdateBudgetInput,
   LogEntry, GatewayCommandSpec,
   SkillSummary, SkillDetail, SkillWriteResult, CreateSkillInput,
-  ProviderAccounts, AgentEvent, CreateEventInput, UpdateEventInput, EventDelivery, EventTypeSpec,
+  ProviderAccounts, ServingAccount, AgentEvent, CreateEventInput, UpdateEventInput, EventDelivery, EventTypeSpec,
   AutomationKind, AutomationAuthorization, AutomationAuthorizationApproval,
 } from '../../common/types';
 import type {
@@ -1196,6 +1196,23 @@ export async function refreshProviderCapabilities(providerId: number): Promise<{
   manual: number;
 }> {
   return post(`/api/providers/${providerId}/refresh-capabilities`, {});
+}
+
+/** Begin a sign-in to a subscription provider: the page to open and its state. */
+export async function startProviderSignIn(providerId: number): Promise<{
+  authorize_url: string;
+  state: string;
+  expires_in: number | null;
+}> {
+  return post(`/api/providers/${providerId}/sign-in/start`, {});
+}
+
+/** Finish a sign-in with the code (or the whole address) the page handed back. */
+export async function completeProviderSignIn(
+  providerId: number,
+  input: { state: string; code: string; name?: string },
+): Promise<{ ok: boolean; account: ServingAccount | null }> {
+  return post(`/api/providers/${providerId}/sign-in/complete`, input);
 }
 
 export async function getModels(): Promise<ModelsResponse> {

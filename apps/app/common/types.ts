@@ -2315,4 +2315,6 @@ export interface ProviderAccounts {
   metrics: Record<string, number> | null;
   /** Why there are no accounts: unreachable, not a proxy, no accounts. */
   error?: string | null;
+  /** True when this provider is a subscription service an account can sign in to. */
+  sign_in?: boolean;
 }

@@ -31,6 +31,7 @@ import {
   sameModalities, type Access,
 } from './modelHelpers';
 import { Chip, Field, InlineError, ModalShell, ModalityChips, SectionLabel, formStyles } from './ui';
+import SubscriptionSignIn from './SubscriptionSignIn';
 
 type Role = 'normal' | 'default' | 'backup';
 
@@ -507,7 +508,7 @@ export default function AddModelWizard({
                   <Text style={[styles.optionTitle, on && { color: colors.primary }]}>{p.name}</Text>
                   {p.base_url ? <Text style={styles.subUrl} numberOfLines={1}>{p.base_url}</Text> : null}
                 </View>
-                {expired ? (
+                {expired && !e.sign_in ? (
                   <Button variant="ghost" size="xs" icon="refresh-cw"
                     label={refreshing === p.id ? 'Refreshing…' : 'Refresh'}
                     onPress={() => { void refreshSubscription(p.id); }}
@@ -525,6 +526,13 @@ export default function AddModelWizard({
                   </View>
                 );
               })}
+              {e.sign_in ? (
+                <SubscriptionSignIn
+                  providerId={p.id}
+                  label={expired ? 'Sign in again' : 'Add account'}
+                  onDone={() => refreshSubscription(p.id)}
+                />
+              ) : null}
             </Pressable>
           );
         })}
