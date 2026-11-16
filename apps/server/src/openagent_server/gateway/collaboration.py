@@ -24,7 +24,7 @@ from openagent_core.contracts import IdempotencyConflict
 from .collaboration_access import authorize
 from .collaboration_hub import IDENTIFIER, SharedAgentHub
 
-COMMANDS = {"compact", "model", "context", "status", "queue", "help", "usage", "stop"}
+COMMANDS = {"compact", "model", "context", "status", "queue", "help", "usage", "stop", "goal"}
 
 
 class BusyError(Exception):

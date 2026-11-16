@@ -70,6 +70,20 @@ _ATTACHMENT_MIME_FALLBACK: dict[str, str] = {
 }
 
 
+# Commands that never touch a conversation's live turn: they read or change
+# durable state by session id (the goal store) or report on the installation.
+# While a shared (collaboration-owned) turn runs, the WS path keeps refusing
+# turn-driving commands (stop, compact, clear, model, ...), which only the
+# collaboration runtime may apply, but these go through: a user must be able
+# to pause or resume a goal while the agent works.
+COMMANDS_OUTSIDE_SHARED_RUNTIME = frozenset({"goal", "help", "usage"})
+
+
+def command_bypasses_shared_runtime(name: str) -> bool:
+    """True when ``name`` can run over WS while a shared turn owns the session."""
+    return str(name or "").strip().lower() in COMMANDS_OUTSIDE_SHARED_RUNTIME
+
+
 @dataclass
 class _StreamHolder:
     """A server-owned stream session with a rebindable client transport."""
@@ -2429,7 +2443,8 @@ class Gateway:
                         session_id=cmd_sid,
                     )
                     collaboration = getattr(self, "_collaboration", None)
-                    if collaboration is not None and collaboration.owns(cmd_sid):
+                    if (collaboration is not None and collaboration.owns(cmd_sid)
+                            and not command_bypasses_shared_runtime(cmd_name)):
                         await self._safe_ws_send_json(ws, {"type": P.ERROR, "session_id": cmd_sid,
                             "text": "Send session commands through the shared collaboration API."})
                         continue
