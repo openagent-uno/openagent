@@ -47,6 +47,14 @@ Telegram `RetryAfter` (numeric or `timedelta`, minimum sixty seconds). Successfu
 registrations are reused until the negotiated command set changes. A transient
 menu failure therefore does not require a bridge reconnect to recover.
 
+Unreleased: a gateway loss always leads to a reconnect, even when it surfaces as
+an intake failure (for example a loss arriving while the provider client is
+still starting, so the loss hook retires that client mid-start). The bridge
+never clears a loss while keeping the transport that reported it, and a
+Telegram run stops any client it started before returning. Provider updates
+therefore stay queued at the provider instead of being consumed with no
+gateway to deliver them.
+
 Previous immutable released component:
 [`0.1.0b4`](https://github.com/openagent-uno/openagent/releases/tag/channel-bridges-v0.1.0-beta.4),
 with 206 normally installed tests and 84 subcases on Core beta26. Its

@@ -369,41 +369,64 @@ class TelegramBridge(BaseBridge):
         # ``await future`` and never reaches us. With concurrent_updates the
         # second Update gets its own task, hits _on_command, flows through
         # send_command, and ``sm.stop_current`` cancels the original task.
-        self._app = (
+        # The run owns this application through a local reference. A gateway
+        # loss hook may retire ``self._app`` concurrently (even while this
+        # method is still initializing it); the run must neither dereference a
+        # retired attribute nor leave its own poller consuming Updates that no
+        # gateway can deliver.
+        app = (
             ApplicationBuilder()
             .token(self.token)
             .concurrent_updates(True)
             .build()
         )
+        self._app = app
 
         # Register commands
-        self._app.add_handler(CommandHandler("start", self._on_start))
-        self._app.add_handler(CommandHandler("export", self._on_export))
+        app.add_handler(CommandHandler("start", self._on_start))
+        app.add_handler(CommandHandler("export", self._on_export))
         for cmd in BRIDGE_COMMANDS:
-            self._app.add_handler(CommandHandler(cmd, lambda u, c, _c=cmd: self._on_command(u, c, _c)))
+            app.add_handler(CommandHandler(cmd, lambda u, c, _c=cmd: self._on_command(u, c, _c)))
         # Inline-keyboard callbacks (destructive-command confirm + choice
         # prompts emitted by the model via the ``[CHOICE: …]`` marker).
-        self._app.add_handler(CallbackQueryHandler(self._on_callback))
+        app.add_handler(CallbackQueryHandler(self._on_callback))
 
         # Messages (text, photo, voice, audio, documents, video)
-        self._app.add_handler(MessageHandler(
+        app.add_handler(MessageHandler(
             filters.TEXT | filters.PHOTO | filters.VOICE | filters.AUDIO |
             filters.Document.ALL | filters.VIDEO | filters.VIDEO_NOTE,
             self._on_message,
         ))
 
-        logger.info("Telegram bridge started")
-        await self._app.initialize()
-        await self._app.start()
+        try:
+            logger.info("Telegram bridge started")
+            await app.initialize()
+            await app.start()
 
-        # Set bot menu commands so they appear in Telegram's "/" picker
-        await self._maybe_set_bot_commands_menu()
+            # Set bot menu commands so they appear in Telegram's "/" picker
+            await self._maybe_set_bot_commands_menu()
 
-        await self._app.updater.start_polling()
-        while not self._should_stop and not self._gateway_lost.is_set():
-            await asyncio.sleep(1)
-            if not self._should_stop and not self._gateway_lost.is_set():
-                await self._maybe_set_bot_commands_menu()
+            if self._gateway_lost.is_set():
+                # The gateway was lost while the client was starting: do not
+                # begin consuming Updates that could only be dropped.
+                return
+            await app.updater.start_polling()
+            while not self._should_stop and not self._gateway_lost.is_set():
+                await asyncio.sleep(1)
+                if not self._should_stop and not self._gateway_lost.is_set():
+                    await self._maybe_set_bot_commands_menu()
+        finally:
+            if self._app_is_active(app):
+                # Normal stop/loss paths already retired the client. Anything
+                # still running here (a loss that raced initialization, or an
+                # exception) is stopped before the run returns so Updates stay
+                # queued at Telegram until a gateway can deliver them.
+                await self._shutdown_app(flush_offset=False, app=app)
+
+    @staticmethod
+    def _app_is_active(app) -> bool:
+        updater = getattr(app, "updater", None)
+        return bool(getattr(app, "running", False) or getattr(updater, "running", False))
 
     async def _maybe_set_bot_commands_menu(self) -> None:
         """Best-effort Telegram "/" menu registration with rate-limit memory."""
@@ -601,8 +624,9 @@ class TelegramBridge(BaseBridge):
             dropped_cleanup=cleanup_cb is not None,
         )
 
-    async def _shutdown_app(self, *, flush_offset: bool) -> None:
-        app = self._app
+    async def _shutdown_app(self, *, flush_offset: bool, app=None) -> None:
+        if app is None:
+            app = self._app
         if flush_offset:
             # ACK pending updates FIRST so that a queued /restart or /stop
             # can't survive a library-side hang. Idempotent — if
@@ -624,7 +648,8 @@ class TelegramBridge(BaseBridge):
             # boundary — callers above us must be able to finish the
             # rest of shutdown regardless of what python-telegram-bot
             # decides to do.
-            self._app = None
+            if self._app is app:
+                self._app = None
             for label, coro_factory, deadline in (
                 ("updater.stop", lambda: app.updater.stop(), _TG_UPDATER_STOP_TIMEOUT),
                 ("app.stop",     lambda: app.stop(),         _TG_APP_STOP_TIMEOUT),

@@ -498,6 +498,14 @@ class BaseBridge:
         try:
             while not self._should_stop:
                 try:
+                    if self._gateway_lost.is_set():
+                        # A loss can surface as an intake exception (for
+                        # example a platform client retired by the loss hook
+                        # while it was starting). Never clear the loss of a
+                        # transport that would then be reused: retire it so
+                        # this iteration reconnects instead of resuming intake
+                        # without a gateway.
+                        await self._retire_transport()
                     self._gateway_lost.clear()
                     started = asyncio.get_running_loop().time()
                     await self._ensure_transport_started()
@@ -509,9 +517,7 @@ class BaseBridge:
                             streak = 0
                         streak += 1
                         # Only the explicitly injected adapter reconnects.
-                        async with self._transport_lock:
-                            await self.transport.stop()
-                            self._transport_started = False
+                        await self._retire_transport()
                         await asyncio.sleep(self._gateway_reconnect_delay(streak))
                     else:
                         streak = 0
@@ -522,7 +528,12 @@ class BaseBridge:
                     if self._should_stop:
                         break
                     logger.warning("%s bridge intake failed (%s)", self.name, type(error).__name__)
-                    await asyncio.sleep(BRIDGE_RETRY_SECONDS)
+                    if self._gateway_lost.is_set():
+                        streak += 1
+                        await self._retire_transport()
+                        await asyncio.sleep(self._gateway_reconnect_delay(streak))
+                    else:
+                        await asyncio.sleep(BRIDGE_RETRY_SECONDS)
         finally:
             if self._start_task is current:
                 self._start_task = None
@@ -530,6 +541,13 @@ class BaseBridge:
                 if self._transport_started:
                     await self.transport.stop()
                     self._transport_started = False
+
+    async def _retire_transport(self) -> None:
+        """Stop the current transport so the next intake starts a fresh one."""
+        async with self._transport_lock:
+            if self._transport_started:
+                await self.transport.stop()
+                self._transport_started = False
 
     async def stop(self) -> None:
         if not self._should_stop:
