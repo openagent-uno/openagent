@@ -19,7 +19,6 @@
  * from a detached editor window).
  */
 
-import { openSearchTarget } from '../../../services/searchNavigation';
 import Feather from '@expo/vector-icons/Feather';
 import { useRouter, useNavigation, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect } from 'react';
@@ -46,7 +45,9 @@ export default function TasksScreen() {
   const connConfig = useConnection((s) => s.config);
   const { tasks: storedItems, loaded: listLoaded, error: listError, listScope, listCanManage, summaries, loadTasks, deleteTask, toggleTask, runTask, stopTask } = useTasks();
   const current = listScope === currentAgentScope();
-  const tasks = current ? storedItems : [];
+  // A loop is a task bound to a conversation: it lives in that conversation's
+  // Loops panel, not among the standalone scheduled tasks.
+  const tasks = current ? storedItems.filter((task) => !task.target_session_id) : [];
   const loaded = current && listLoaded;
   const error = current ? listError : null;
   const canManage = current && listCanManage;
@@ -143,9 +144,6 @@ export default function TasksScreen() {
                   onRemove={() => { void handleRemove(task.id); }}
                   onRun={() => runTask(task.id)}
                   onStop={() => stopTask(task.id)}
-                  onOpenConversation={task.target_session_id
-                    ? () => openSearchTarget(router, { kind: 'chat', session_id: task.target_session_id as string })
-                    : undefined}
                 />
               ))}
         </TileGridScreen>

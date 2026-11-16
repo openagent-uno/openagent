@@ -29,11 +29,9 @@ interface Props {
   /** Stop the in-flight firing(s) of the task. Resolves once the stop is
    *  requested; the scheduler hard-stops within ~2s. */
   onStop: () => Promise<boolean> | void;
-  /** A loop (a task bound to a conversation): open that conversation. */
-  onOpenConversation?: () => void;
 }
 
-export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, onRun, onStop, onOpenConversation }: Props) {
+export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, onRun, onStop }: Props) {
   // ``task.running`` (server-driven) decides Run-now vs Stop; ``busy`` is a
   // local guard while a run/stop request is in flight so the button can't be
   // double-fired and shows a spinner.
@@ -92,18 +90,6 @@ export default function TaskTile({ task, onToggle, onEdit, onHistory, onRemove, 
             <Feather name={cadence.icon} size={10} color={colors.primary} />
             <Text style={styles.badgeText} numberOfLines={1}>{cadence.label}</Text>
           </View>
-          {task.target_session_id && onOpenConversation ? (
-            <TouchableOpacity
-              onPress={onOpenConversation}
-              style={[styles.badge, styles.loopBadge]}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel={`Open the conversation of ${task.name}`}
-            >
-              <Feather name="repeat" size={10} color={colors.accent} />
-              <Text style={[styles.badgeText, styles.loopBadgeText]} numberOfLines={1}>loop · open conversation</Text>
-            </TouchableOpacity>
-          ) : null}
           {task.run_once && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>once</Text>
@@ -255,8 +241,6 @@ const styles = StyleSheet.create({
     fontFamily: font.mono,
     letterSpacing: 0.3,
   },
-  loopBadge: { borderColor: colors.accent },
-  loopBadgeText: { color: colors.accent },
   runningBadge: { backgroundColor: colors.successSoft },
   runningBadgeText: { color: colors.success },
   authorizationBadge: { backgroundColor: colors.mutedSoft, borderColor: colors.warning },
