@@ -54,16 +54,31 @@ jobs:
       - name: Build the product and independently versioned configuration packages from one clean source
         run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport product-config
       - name: Install the pinned public dependency closure and candidate wheels
+        env:
+          OPENAGENT_INSTALL_GITHUB_TOKEN: ${{ github.token }}
         run: |
           curl --fail --location --retry 3 https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.13/install.sh -o "$RUNNER_TEMP/bootstrap.sh"
           echo "da3fdb59cd59fb6a58a878e4fc55d03227647621791dbb07a7d2b774ee45ff85  $RUNNER_TEMP/bootstrap.sh" | sha256sum --check
-          # The pinned installer reads release manifests through the
-          # unauthenticated GitHub API, whose shared runner quota is easily
-          # exhausted ("403 rate limit exceeded"). Retry with backoff from a
-          # clean root instead of failing the release.
+          # The pinned installer reads release manifests through the GitHub
+          # API without a token, and the shared runner quota is easily
+          # exhausted ("403 rate limit exceeded"). After the checksum check,
+          # run a copy that sends this job's token to api.github.com only
+          # (never to the asset download hosts), then still retry with
+          # backoff from a clean root.
+          python3 - "$RUNNER_TEMP/bootstrap.sh" <<'PY'
+          import pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          text = path.read_text()
+          old = "Request(url, headers=headers)"
+          new = ("Request(url, headers=({**headers, 'Authorization': 'Bearer ' + __import__('os').environ['OPENAGENT_INSTALL_GITHUB_TOKEN']}"
+                 " if url.startswith('https://api.github.com/') and __import__('os').environ.get('OPENAGENT_INSTALL_GITHUB_TOKEN')"
+                 " else headers))")
+          assert text.count(old) == 1, "installer fetch changed"
+          path.with_name("bootstrap-auth.sh").write_text(text.replace(old, new))
+          PY
           for attempt in 1 2 3 4; do
             rm -rf "$RUNNER_TEMP/qualified-base" "$RUNNER_TEMP/qualified-bin"
-            if OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/qualified-base" sh "$RUNNER_TEMP/bootstrap.sh" --server --prefix "$RUNNER_TEMP/qualified-bin"; then
+            if OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/qualified-base" sh "$RUNNER_TEMP/bootstrap-auth.sh" --server --prefix "$RUNNER_TEMP/qualified-bin"; then
               break
             fi
             if [ "$attempt" = 4 ]; then exit 1; fi
