@@ -8,8 +8,10 @@
 ``DELETE /api/sessions/{session_id}/goal`` — remove it.
 
 Reads need view access to the session; changes need admin access, like the
-per-session model pin, and are refused on a shared session's private turns by
-the same collaboration guard. Every change is announced as a ``session``
+per-session model pin. A change touches only the goal row, never the live
+turn or the shared queue, so it is allowed while a shared (collaboration)
+transport owns the conversation: a person must be able to pause, resume or
+edit a goal while the agent works. Every change is announced as a ``session``
 ``updated`` resource event so open clients refresh their goal panel.
 """
 from __future__ import annotations
@@ -30,11 +32,6 @@ async def _goal_access(request, *, permission: str):
         request, db, session_id, permission=permission)
     if problem is not None:
         return None, None, problem
-    if permission != "view":
-        from openagent_server.gateway.collaboration import guard_mutation
-        guarded = guard_mutation(request, session_id)
-        if guarded is not None:
-            return None, None, guarded
     return db, session_id, None
 
 

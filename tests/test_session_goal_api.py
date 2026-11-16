@@ -89,6 +89,21 @@ class SessionGoalAPI(unittest.IsolatedAsyncioTestCase):
         await self.call("PUT", {"objective": "x"})
         self.assertEqual(400, (await self.call("PATCH", {"action": "explode"}))[0])
 
+    async def test_a_shared_transport_does_not_block_goal_changes(self):
+        # A live run: editing the goal while the agent worked in a shared
+        # conversation answered 409 "Use shared session commands, or wait for
+        # the shared transport to detach". The goal row is not the turn.
+        def refuse(request, sid):
+            return web.json_response({"error": "shared transport attached"}, status=409)
+
+        with mock.patch("openagent_server.gateway.collaboration.guard_mutation", refuse):
+            self.assertEqual(200, (await self.call("PUT", {"objective": "triage"}))[0])
+            self.assertEqual("paused", (await self.call("PATCH", {"action": "pause"}))[1]["goal"]["status"])
+            self.assertEqual("active", (await self.call("PATCH", {"action": "resume"}))[1]["goal"]["status"])
+            status, body = await self.call("PATCH", {"objective": "triage, then answer"})
+            self.assertEqual((200, "triage, then answer"), (status, body["goal"]["objective"]))
+            self.assertEqual(200, (await self.call("DELETE"))[0])
+
     async def test_changes_need_admin_access(self):
         self.denied.add(("s1", "admin"))
 
