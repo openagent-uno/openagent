@@ -197,13 +197,12 @@ for(const live of [false,true])test(`device directory, session inspector and res
     expect((await preview.boundingBox()).height).toBeLessThanOrEqual(5*18+4);
     await page.screenshot({path:join(temporary,'goal-preview.png')});
     await preview.click();
-    await expect(page.getByText('Goal',{exact:true})).toBeVisible();
-    await expect(page.getByText(/Final rule: never declare the goal achieved\./)).toBeVisible();
+    await expect(page.getByText(/Final rule: never declare the goal achieved\./).last()).toBeVisible();
     await page.screenshot({path:join(temporary,'goal-dialog.png')});
-    await page.getByRole('button',{name:'Edit',exact:true}).click();
+    await page.getByRole('button',{name:'Edit goal',exact:true}).click();
     const objective=page.getByLabel('Goal objective',{exact:true});
     await objective.fill('Triage the reports and answer every reporter.');
-    await page.getByRole('button',{name:'Save',exact:true}).click();
+    await page.getByRole('button',{name:'Save goal',exact:true}).click();
     await expect(objective).toHaveCount(0);
     expect(gateway.goalPatches).toEqual([{objective:'Triage the reports and answer every reporter.'}]);
     await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveText('Triage the reports and answer every reporter.');

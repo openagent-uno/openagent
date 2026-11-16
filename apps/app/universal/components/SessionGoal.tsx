@@ -286,15 +286,16 @@ function GoalDialog({ visible, goal, startEditing, onClose, onSave }: {
                 <Button
                   variant="secondary"
                   label="Cancel"
+                  accessibilityLabel="Cancel goal edit"
                   disabled={saving}
                   onPress={() => (goal ? (setEditing(false), setDraft(goal.objective), setError(null)) : close())}
                 />
-                <Button variant="primary" label={saving ? 'Saving…' : replacing || !goal ? 'Set goal' : 'Save'} disabled={saving || !draft.trim()} onPress={() => void submit()} />
+                <Button variant="primary" label={saving ? 'Saving…' : replacing || !goal ? 'Set goal' : 'Save'} accessibilityLabel="Save goal" disabled={saving || !draft.trim()} onPress={() => void submit()} />
               </>
             ) : (
               <>
-                <Button variant="secondary" label="Close" onPress={close} />
-                <Button variant="primary" label={replacing ? 'New goal' : 'Edit'} onPress={() => setEditing(true)} />
+                <Button variant="secondary" label="Close" accessibilityLabel="Close goal" onPress={close} />
+                <Button variant="primary" label={replacing ? 'New goal' : 'Edit'} accessibilityLabel={replacing ? 'New goal' : 'Edit goal'} onPress={() => setEditing(true)} />
               </>
             )}
           </View>
