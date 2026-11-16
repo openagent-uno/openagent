@@ -376,6 +376,15 @@ Beta24 acknowledges Telegram confirmation clicks before awaiting the host and
 renders command outcomes without Markdown interpretation. It still requires a
 completed host outcome before acknowledging success; see the [channel guide](../../docs/site/guide/channels.md#telegram-command-confirmation-beta24).
 
+## Voice notes (beta27)
+
+A voice note is input. Bridges transcribe it and send the turn as text; the
+reply is the agent's text and its own attachments. Until beta26 a bridge also
+synthesized the reply and sent it back as an audio message ("voice in, voice
+out"). Beta27 removes that: `BaseBridge.maybe_prepend_voice_reply` is gone and
+typed replies to a voice note no longer get a synthesized copy. An audio file
+reaches the chat only when the agent attaches one.
+
 ## Host-initiated delivery (beta26)
 
 A host can ask an admitted binding to publish a new message, with files, in
