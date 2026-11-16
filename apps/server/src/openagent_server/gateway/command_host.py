@@ -12,10 +12,13 @@ from openagent_core.chat_commands import ChatCommandHost, SessionRef, SessionSta
 
 
 class GatewayCommandHost(ChatCommandHost):
-    def __init__(self, gateway: Any, client_id: str, handle: str | None) -> None:
+    def __init__(self, gateway: Any, client_id: str, handle: str | None, *, request: Any = None) -> None:
         self.gateway = gateway
         self.client_id = client_id
         self.handle = handle
+        # The verified request behind this connection, when the command came
+        # from a signed-in client.
+        self.request = request
         self.expose_errors = not client_id.startswith("bridge:")
 
     async def stop_session(self, session: SessionRef) -> StopOutcome:
@@ -48,3 +51,15 @@ class GatewayCommandHost(ChatCommandHost):
         gateway, manager, client_id = self.gateway, self.gateway.sessions, self.client_id
         busy = gateway._client_has_active_stream_turn(client_id, handle=self.handle) or manager.is_busy(client_id)
         return SessionStatus(busy, manager.queue_depth(client_id), len(manager.list_sessions(client_id)))
+
+
+    async def goal_changed(self, session: SessionRef) -> None:
+        # Renew or withdraw the delegation that lets this goal start again
+        # after a runtime restart, as the person who just changed it.
+        service = getattr(self.gateway, "runtime_service", None)
+        if service is None or self.request is None or not session.session_id:
+            return
+        from openagent_server import goal_delegation
+
+        context = await service.context(self.request, session.session_id)
+        await goal_delegation.sync(service, session.session_id, context)

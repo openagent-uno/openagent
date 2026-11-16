@@ -30,6 +30,33 @@ If disabling a module would invalidate active schedules, reconfiguration
 preflight returns the affected references. The host must cancel the change or
 explicitly pause those schedules; nothing is deleted automatically.
 
+## Conversation goals and restarts
+
+`/goal <objective>` (or the goal bar in the app) keeps the agent working in one
+conversation until the goal is achieved, blocked or out of continuations. The
+REST surface is `GET/PUT/PATCH/DELETE /api/sessions/{session_id}/goal`.
+
+A restart of the server ends the turn that was working on a goal. About twenty
+seconds after it starts (`OPENAGENT_GOAL_RECOVERY_DELAY_S`), the server looks
+at every active goal whose last turn the restart interrupted:
+
+- When the agent's owner set, edited or resumed the goal (from the app, the
+  API or `/goal`), the server holds a durable delegation for that
+  conversation and that exact objective, like the one a loop has. The goal
+  starts again in the same conversation, uses one continuation, and the agent
+  is told that its earlier turn was interrupted and to check the state before
+  repeating anything. Like every deferred run, it cannot use a connected
+  device.
+- Otherwise the goal pauses and shows why ("The runtime restarted while
+  working on this goal…"). Resume it or send a message to continue. This is
+  the case for a goal set by another member, and for one whose objective was
+  changed outside the app, the API and `/goal`.
+- If the restart interrupted a turn that was already such a resume, the goal
+  pauses instead of starting a third time, so a step that keeps crashing the
+  server cannot loop.
+
+Pausing, finishing or clearing a goal withdraws its delegation.
+
 ## Dream Mode
 
 Dream Mode belongs to `openagent-module-vault`. It starts a real child session

@@ -1434,6 +1434,18 @@ class AgentServer:
 
     # ── Lifecycle ──
 
+    async def _recover_interrupted_goals(self) -> None:
+        """Resume or pause the goals a runtime restart interrupted."""
+        try:
+            await asyncio.sleep(float(os.environ.get("OPENAGENT_GOAL_RECOVERY_DELAY_S", "20")))
+            from openagent_server import goal_delegation
+
+            await goal_delegation.resume_interrupted(self._gateway.runtime_service)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - recovery must never stop the server
+            logger.warning("goal restart recovery failed: %s", exc)
+
     async def start(self) -> None:
         """Start agent, gateway, scheduler, and bridges."""
         # The federation peer policy is decided before anything is opened or
@@ -1531,6 +1543,9 @@ class AgentServer:
             await self._network_state.start()
             await self._publish_coordinator_addr_cache()
             await self._gateway.start()
+            # Goals the previous stop interrupted start again once the
+            # gateway can run turns (or pause with the reason).
+            self._goal_recovery_task = asyncio.create_task(self._recover_interrupted_goals())
 
             # 2.5. Bridge session — mints a coordinator-signed cert for
             #      handle ``__bridge`` and starts a LoopbackProxy that

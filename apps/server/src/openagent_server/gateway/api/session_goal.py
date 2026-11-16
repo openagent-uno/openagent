@@ -41,6 +41,25 @@ async def _announce(request, session_id: str) -> None:
         await gateway.broadcast_resource("session", "updated", session_id)
 
 
+async def _sync_delegation(request, session_id: str) -> None:
+    """Let the person who changed the goal renew or withdraw its delegation.
+
+    The delegation is what lets the goal start again after a runtime
+    restart. It is best effort: the change itself already succeeded.
+    """
+    gateway = request.app.get("gateway") if hasattr(request.app, "get") else None
+    service = getattr(gateway, "runtime_service", None)
+    if service is None or not hasattr(service, "automations"):
+        return
+    try:
+        from openagent_server import goal_delegation
+
+        context = await service.context(request, session_id)
+        await goal_delegation.sync(service, session_id, context)
+    except Exception:  # noqa: BLE001 - never fail a goal change on this
+        return
+
+
 def _payload(goal) -> dict:
     return {"goal": goal.to_dict() if goal is not None else None}
 
@@ -91,6 +110,7 @@ async def handle_put(request):
         goal = await GoalStore(db).set(session_id, objective, max_continuations=_max(body))
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
+    await _sync_delegation(request, session_id)
     await _announce(request, session_id)
     return web.json_response(_payload(goal))
 
@@ -126,6 +146,7 @@ async def handle_patch(request):
             await store.complete(session_id, "Marked done by the user.")
     except ValueError as exc:
         return web.json_response({"error": str(exc)}, status=400)
+    await _sync_delegation(request, session_id)
     await _announce(request, session_id)
     return web.json_response(_payload(await store.get(session_id)))
 
@@ -139,5 +160,6 @@ async def handle_delete(request):
         return problem
     removed = await GoalStore(db).clear(session_id)
     if removed:
-        await _announce(request, session_id)
+        await _sync_delegation(request, session_id)
+    await _announce(request, session_id)
     return web.json_response({"goal": None, "removed": removed})

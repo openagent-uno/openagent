@@ -2682,8 +2682,10 @@ class Gateway:
                 tokens_after=comp["tokens_after"],
             )))
 
+        command_request = next((self._chat_client_requests.get(connection_id)
+                                for connection_id, socket in self.clients.items() if socket is ws), None)
         result = await ChatCommandService(
-            self.agent, GatewayCommandHost(self, client_id, handle),
+            self.agent, GatewayCommandHost(self, client_id, handle, request=command_request),
         ).execute(
             ChatCommandRequest(name, SessionRef(session_id), arg),
             on_compaction_status=compaction_status,

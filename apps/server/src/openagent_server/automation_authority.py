@@ -44,7 +44,7 @@ _OPTIONAL_WHEN_SET = frozenset({"target_session_id"})
 
 
 def definition_digest(kind, definition):
-    if kind not in {"task", "event", "workflow"} or not definition.get("id"):
+    if kind not in {"task", "event", "workflow", "goal"} or not definition.get("id"):
         raise ValueError("A known persisted automation definition is required")
     value = {
         key: value
@@ -82,7 +82,29 @@ class NativeAutomationAuthority:
                 opened.row_factory = aiosqlite.Row
                 yield opened
 
+    async def _goal_definition(self, session_id, *, connection=None):
+        """A conversation goal as a delegable definition.
+
+        The digest covers the session and the objective; the status only
+        says whether the delegation applies (an active goal).
+        """
+        async with self._connection(connection) as conn:
+            try:
+                row = await (
+                    await conn.execute(
+                        "SELECT objective, status FROM session_goals WHERE session_id=?",
+                        (session_id,),
+                    )
+                ).fetchone()
+            except aiosqlite.OperationalError:
+                row = None
+        if row is None:
+            raise LookupError(session_id)
+        return {"id": session_id, "objective": row[0], "enabled": row[1] == "active"}
+
     async def definition(self, kind, identifier, *, connection=None):
+        if kind == "goal":
+            return await self._goal_definition(identifier, connection=connection)
         table = {
             "task": "scheduled_tasks",
             "event": "events",
