@@ -1571,6 +1571,7 @@ class Gateway:
             ("POST", r"/api/providers/{id:\d+}/enable", providers.handle_enable),
             ("POST", r"/api/providers/{id:\d+}/disable", providers.handle_disable),
             ("POST", r"/api/providers/{id:\d+}/test", providers.handle_test),
+            ("POST", r"/api/providers/{id:\d+}/refresh-capabilities", providers.handle_refresh_capabilities),
             # Models. ``/api/models`` is the DB-backed catalog.
             ("GET", "/api/models/catalog", models.handle_catalog),
             ("GET", "/api/models/providers", models.handle_available_providers),

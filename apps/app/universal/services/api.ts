@@ -7,7 +7,7 @@ import type {
   GraphData, AgentConfig, AgentIdentity, ProviderConfig, ModelsResponse,
   UsageData, ModelCatalogEntry, DailyUsageEntry, ScheduledTask,
   CreateScheduledTaskInput, UpdateScheduledTaskInput, TaskRun, MCPEntry,
-  ModelEntry, ModelFramework, AvailableModel,
+  ModelEntry, ModelFramework, AvailableModel, InputModality, InputModalitiesSource,
   WorkflowTask, CreateWorkflowInput, UpdateWorkflowInput, WorkflowRun,
   WorkflowStats, BlockTypeSpec, MCPToolkitDescriptor,
   SystemSnapshot,
@@ -1186,6 +1186,18 @@ export async function deleteProvider(providerId: number): Promise<void> {
   await del(`/api/providers/${providerId}`);
 }
 
+/** Re-read what the provider declares about its language models' inputs.
+ *  Rows somebody set by hand are left alone (``manual`` counts them). */
+export async function refreshProviderCapabilities(providerId: number): Promise<{
+  ok: boolean;
+  provider_id: number;
+  reachable: boolean;
+  updated: string[];
+  manual: number;
+}> {
+  return post(`/api/providers/${providerId}/refresh-capabilities`, {});
+}
+
 export async function getModels(): Promise<ModelsResponse> {
   const providers = await getProviders();
   return { models: providers };
@@ -1436,6 +1448,10 @@ export async function createDbModel(entry: {
   // ``llm`` (default) goes to the router; ``tts`` / ``stt`` rows
   // are picked by the audio resolvers and dispatched via LiteLLM.
   kind?: 'llm' | 'tts' | 'stt' | 'image';
+  // Supported inputs. A list without a source is a person's choice
+  // (stored as manual); ``'provider'`` keeps it refreshable.
+  input_modalities?: InputModality[];
+  input_modalities_source?: InputModalitiesSource;
 }): Promise<ModelEntry> {
   const data = await post<{ model: ModelEntry }>('/api/models', entry);
   return normalizeModel(data.model);
@@ -1455,7 +1471,15 @@ export async function unsetClassifierModel(modelId: number): Promise<ModelEntry>
   return updateDbModel(modelId, { is_classifier: false });
 }
 
-export async function updateDbModel(modelId: number, patchBody: Partial<ModelEntry>): Promise<ModelEntry> {
+export async function updateDbModel(
+  modelId: number,
+  patchBody: Partial<ModelEntry> & {
+    // A list without a source marks the inputs manual; ``'auto'`` alone
+    // hands them back to the provider for the next refresh.
+    input_modalities?: InputModality[];
+    input_modalities_source?: InputModalitiesSource | 'auto';
+  },
+): Promise<ModelEntry> {
   const data = await put<{ model: ModelEntry }>(`/api/models/${modelId}`, patchBody);
   return normalizeModel(data.model);
 }

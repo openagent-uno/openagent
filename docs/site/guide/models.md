@@ -32,9 +32,37 @@ Provider credentials (`api_key`, `base_url`) live in the `providers` SQLite tabl
 
 - **From the agent** — the `model-manager` built-in MCP exposes `list_providers`, `add_provider`, `list_models`, `list_available_models` (dynamic discovery via the provider's `/v1/models` or OpenRouter fallback), `add_model`, `update_model`, `enable_model`, `disable_model`, `remove_model`, `test_model`.
 - **REST** — `GET/POST/PUT/DELETE /api/providers` and `/api/models`, plus `/enable` and `/disable`. `GET /api/models/available?provider=openai` returns the live catalog for a given provider.
-- **UI** — the Models / Providers screens in the desktop app.
+- **UI** — **Settings → Models** in the app: one grid of every configured model, with its access (subscription, API key or local server), type, inputs and status, and **Add model** to register more.
 
 The per-provider **model list** (which ids are available to route to) lives in the `models` table. Each row carries `kind` (`llm` / `tts` / `stt`) so the router never crosses capabilities.
+
+## What a model can receive
+
+Each language model declares the inputs it accepts natively in
+`metadata.input_modalities` (`text`, `image`, `audio`, `video`, `file`), and
+`metadata.input_modalities_source` says where that came from: `provider` (the
+provider's model catalog), `default` (inferred from the model family) or
+`manual` (set by a person). Images, audio and video reach a model only when it
+declares them; otherwise the turn uses a compatible model or an attachment
+reference.
+
+You rarely set this by hand. Registering a model reads the provider's
+declaration, and changing a provider's endpoint, key or accounts (for example
+after a sign-in) re-reads it for every model of that provider. To re-read it on
+demand, call `POST /api/providers/{id}/refresh-capabilities` or use **Refresh
+from provider** in the app. A declaration you set by hand (`input_modalities`
+on `PUT /api/models/{id}`) is never overwritten; send
+`input_modalities_source: "auto"` to hand it back to the provider.
+`GET /api/models/available` shows the inputs each listed model would be
+registered with (`detected_input_modalities`).
+
+## Who is serving a provider
+
+`GET /api/accounts` lists the accounts behind each provider that reports them
+(a subscription service or OpenAgent's own credential pool). Each account and
+each provider carries a `status`: `ok`, `rate_limited`, `auth_expired` (the
+sign-in no longer works and must be renewed on the service) or `unreachable`.
+Quota appears only when the upstream reports it.
 
 ## Local / self-hosted models
 

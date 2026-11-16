@@ -37,6 +37,9 @@ def _with_discovered_capabilities(
         value = entry.get(key)
         if key not in out and isinstance(value, list) and all(isinstance(item, str) for item in value):
             out[key] = value
+            if key == "input_modalities":
+                # Declared by the provider, so a later refresh may update it.
+                out.setdefault("input_modalities_source", "provider")
     if "image_generation" in out.get("capabilities", []) and "image_model_id" not in out:
         out["image_model_id"] = entry.get("image_model_id") or model
     return out
@@ -281,6 +284,10 @@ async def handle_create_db(request: web.Request) -> web.Response:
     metadata = dict(raw_metadata or {})
     if "input_modalities" in body:
         metadata["input_modalities"] = body.get("input_modalities")
+        # Inputs chosen here without a stated source are a person's choice.
+        metadata.pop("input_modalities_source", None)
+    if "input_modalities_source" in body:
+        metadata["input_modalities_source"] = body.get("input_modalities_source")
     if kind == "llm" and ("input_modalities" not in metadata or "capabilities" not in metadata):
         provider_row = await db.get_provider(provider_id)
         if provider_row and provider_row.get("base_url"):
@@ -336,11 +343,15 @@ async def handle_update_db(request: web.Request) -> web.Response:
     metadata = dict(raw_metadata or {})
     if "input_modalities" in body:
         metadata["input_modalities"] = body.get("input_modalities")
+        # Inputs chosen here without a stated source are a person's choice.
+        metadata.pop("input_modalities_source", None)
+    if "input_modalities_source" in body:
+        metadata["input_modalities_source"] = body.get("input_modalities_source")
     try:
         from openagent_server.provider_management import for_request
         admin,context=await for_request(request)
-        fields={key:value for key,value in body.items() if key not in {"input_modalities","provider_id","kind"}}
-        if "metadata" in body or "input_modalities" in body:
+        fields={key:value for key,value in body.items() if key not in {"input_modalities","input_modalities_source","provider_id","kind"}}
+        if "metadata" in body or "input_modalities" in body or "input_modalities_source" in body:
             fields["metadata"]=metadata
         await admin.update_model(context,mid,fields)
     except ValueError as e:
@@ -446,11 +457,18 @@ async def handle_available_models(request: web.Request) -> web.Response:
     db_task = db.list_models(provider_id=provider_row["id"])
     models_list, db_rows = await asyncio.gather(discovery_task, db_task)
     configured = {r["model"] for r in db_rows}
+    from openagent_core.models.media_capabilities import refreshed_model_metadata
     for m in models_list:
         m["runtime_id"] = build_runtime_model_id(
             provider_row["name"], m["id"], provider_row["framework"],
         )
         m["added"] = m["id"] in configured
+        if (m.get("kind") or "llm") == "llm":
+            # What the model would be registered with: the provider's own
+            # declaration, else the model-family default.
+            detected = refreshed_model_metadata({}, provider=provider_row["name"], model=m["id"], discovered=m)
+            m["detected_input_modalities"] = detected["input_modalities"]
+            m["detected_input_modalities_source"] = detected["input_modalities_source"]
 
     return _web.json_response({
         "provider_id": provider_row["id"],

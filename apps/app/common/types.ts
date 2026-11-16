@@ -1263,6 +1263,12 @@ export type ModelFramework = 'api-based' | 'litellm';
 export type ProviderKind = 'llm' | 'tts' | 'stt';
 export type ModelKind = ProviderKind | 'image';
 
+// What a language model accepts as input. Stored in
+// ``metadata.input_modalities``; ``input_modalities_source`` says who set it:
+// the provider's own declaration, the model-family default, or a person.
+export type InputModality = 'text' | 'image' | 'audio' | 'video' | 'file';
+export type InputModalitiesSource = 'provider' | 'default' | 'manual';
+
 export interface ProviderConfig {
   id: number;
   name: string;
@@ -1483,6 +1489,9 @@ export interface AvailableModel {
   // ``whisper-1`` → stt). The Add Model flow forwards this to
   // /api/models so the row lands with the correct ``kind``.
   kind?: ModelKind;
+  // Language models only: the inputs the row would be registered with.
+  detected_input_modalities?: InputModality[];
+  detected_input_modalities_source?: InputModalitiesSource;
 }
 
 // Source-of-truth yaml fields. Providers, models, MCPs, and scheduled
@@ -2290,8 +2299,14 @@ export interface ServingAccount {
   source?: 'proxy' | 'pool';
 }
 
+/** One word for a provider's serving state, worst-first in the UI. */
+export type ProviderAccountStatus = 'ok' | 'rate_limited' | 'auth_expired' | 'unreachable';
+
 export interface ProviderAccounts {
   provider: string;
+  /** The ``providers`` row this entry describes (newer servers). */
+  provider_id?: number | null;
+  status?: ProviderAccountStatus;
   framework?: string;
   base_url?: string;
   enabled: boolean;

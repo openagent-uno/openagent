@@ -26,39 +26,18 @@ import EmptyState from './EmptyState';
 import { Skeleton } from './Skeleton';
 import { listServingAccounts, isUnsupportedByAgent } from '../services/api';
 import type { ProviderAccounts, ServingAccount } from '../../common/types';
+import {
+  accountState, formatDuration, headroomColor, limitedRemainingS, quotaWindows, quotaWindowText,
+} from './accountQuota';
 
-/** "6.4 days", "3h 12m", "45s" — whichever unit keeps it readable. */
-export function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return 'now';
-  if (seconds < 90) return `${Math.round(seconds)}s`;
-  const m = seconds / 60;
-  if (m < 90) return `${Math.round(m)}m`;
-  const h = m / 60;
-  if (h < 36) return `${Math.round(h)}h`;
-  return `${(h / 24).toFixed(1)} days`;
-}
-
-function windowLabel(minutes?: number): string | null {
-  if (!minutes || minutes <= 0) return null;
-  const h = minutes / 60;
-  if (h < 48) return `${Math.round(h)}h window`;
-  return `${Math.round(h / 24)}-day window`;
-}
-
-/** Colour by how much is LEFT, not by how much is used. */
-function headroomColor(usedPercent: number): string {
-  if (usedPercent >= 90) return colors.error;
-  if (usedPercent >= 70) return colors.warning;
-  return colors.accent;
-}
+// Re-exported: other screens import the formatter from here.
+export { formatDuration };
 
 export function AccountRow({ account }: { account: ServingAccount }) {
+  const state = accountState(account);
+  const windows = quotaWindows(account);
+  const remaining = limitedRemainingS(account);
   const q = account.quota;
-  const used = q?.primary_used_percent;
-  const hasQuota = typeof used === 'number';
-  const left = hasQuota ? Math.max(0, 100 - used) : null;
-  const limited = !!account.limited;
-  const dead = !!account.dead;
 
   return (
     <View style={styles.account}>
@@ -67,55 +46,45 @@ export function AccountRow({ account }: { account: ServingAccount }) {
           <Text style={styles.accountName}>{account.name || account.id}</Text>
           <Text style={styles.accountMeta}>
             {[
-              account.plan,
+              account.plan || q?.plan,
               account.priority !== undefined ? `priority ${account.priority}` : null,
               account.request_count !== undefined ? `${account.request_count} requests` : null,
+              typeof q?.credits_balance === 'number' ? `${q.credits_balance} credits` : null,
             ].filter(Boolean).join(' · ') || '—'}
           </Text>
         </View>
-        {dead ? (
-          <Badge tone="error" icon="x-octagon" label="Auth failed" />
-        ) : limited ? (
+        {state === 'auth_expired' ? (
+          <Badge tone="error" icon="x-octagon" label="Sign-in expired" />
+        ) : state === 'rate_limited' ? (
           <Badge
             tone="warning"
             icon="clock"
-            label={
-              account.cooldown_remaining_s
-                ? `Limited · ${formatDuration(account.cooldown_remaining_s)}`
-                : account.limited_until_ms
-                  ? `Limited · ${formatDuration((account.limited_until_ms - Date.now()) / 1000)}`
-                  : 'Limited'
-            }
+            label={remaining !== null ? `Limited · ${formatDuration(remaining)}` : 'Limited'}
           />
         ) : (
           <Badge tone="success" icon="check" label="Available" />
         )}
       </View>
 
-      {hasQuota ? (
-        <>
-          <View style={styles.meterTrack}>
-            <View
-              style={[
-                styles.meterFill,
-                { width: `${Math.min(100, used)}%`, backgroundColor: headroomColor(used) },
-              ]}
-            />
+      {windows.length > 0 ? (
+        windows.map((w) => (
+          <View key={w.label} style={{ gap: 4 }}>
+            <View style={styles.meterTrack}>
+              <View
+                style={[
+                  styles.meterFill,
+                  { width: `${Math.min(100, Math.max(0, w.usedPercent))}%`, backgroundColor: headroomColor(w.usedPercent) },
+                ]}
+              />
+            </View>
+            <View style={styles.meterLabels}>
+              <Text style={[styles.meterLeft, { color: headroomColor(w.usedPercent) }]}>
+                {Math.max(0, 100 - Math.round(w.usedPercent))}% left
+              </Text>
+              <Text style={styles.meterHint}>{quotaWindowText(w)}</Text>
+            </View>
           </View>
-          <View style={styles.meterLabels}>
-            <Text style={[styles.meterLeft, { color: headroomColor(used) }]}>
-              {left}% left
-            </Text>
-            <Text style={styles.meterHint}>
-              {[
-                windowLabel(q?.primary_window_minutes),
-                q?.primary_reset_after_s
-                  ? `resets in ${formatDuration(q.primary_reset_after_s)}`
-                  : null,
-              ].filter(Boolean).join(' · ')}
-            </Text>
-          </View>
-        </>
+        ))
       ) : (
         <Text style={styles.noQuota}>
           Quota not reported by this provider — it only learns an account is

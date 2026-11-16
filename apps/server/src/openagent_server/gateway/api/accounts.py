@@ -118,7 +118,40 @@ def _pick(src: Any, fields: tuple[str, ...]) -> dict:
     return {k: src[k] for k in fields if k in src}
 
 
-def _normalise_account(raw: Any) -> dict | None:
+# Signs that an account's sign-in no longer works, as opposed to a usage
+# limit. Read from the proxy's own error text only to classify it; the text
+# itself is not relayed.
+_AUTH_ERROR_MARKERS = (
+    "invalid_grant", "refresh_token", "refresh token", "session has ended",
+    "log in again", "login again", "unauthorized", "authentication", "401",
+)
+
+
+def account_status(raw: dict, now_ms: int) -> str:
+    """``ok``, ``rate_limited`` or ``auth_expired`` for one account entry."""
+    error = " ".join(str(raw.get(key) or "") for key in ("last_error", "error", "reason")).lower()
+    expires = raw.get("expires_at_ms")
+    expired_without_refresh = (isinstance(expires, (int, float)) and expires < now_ms
+                               and raw.get("has_refresh_token") is False)
+    if raw.get("auth_expired") is True or expired_without_refresh or any(m in error for m in _AUTH_ERROR_MARKERS):
+        return "auth_expired"
+    until = raw.get("limited_until_ms")
+    if raw.get("limited") and (not isinstance(until, (int, float)) or until > now_ms):
+        return "rate_limited"
+    return "ok"
+
+
+def provider_status(entry: dict) -> str:
+    """One word for a provider: the best state among its accounts."""
+    if not entry.get("reachable"):
+        return "unreachable"
+    states = {account.get("status") for account in entry.get("accounts") or []}
+    if not states or "ok" in states:
+        return "ok"
+    return "rate_limited" if "rate_limited" in states else "auth_expired"
+
+
+def _normalise_account(raw: Any, now_ms: int | None = None) -> dict | None:
     if not isinstance(raw, dict):
         return None
     out = _pick(raw, _ACCOUNT_FIELDS)
@@ -129,6 +162,8 @@ def _normalise_account(raw: Any) -> dict | None:
     # "this upstream does not report quota", which is a different claim.
     out["quota"] = quota or None
     out["source"] = "proxy"
+    import time
+    out["status"] = account_status(raw, int(time.time() * 1000) if now_ms is None else now_ms)
     return out
 
 
@@ -227,9 +262,13 @@ async def handle_list(request):
                 "metrics": None,
                 "error": str(entry)[:200],
             }
-        pooled = _pool_accounts(provider.get("name") or "")
+        pooled = [{**account, "status": "auth_expired" if account.get("dead")
+                   else "rate_limited" if account.get("limited") else "ok"}
+                  for account in _pool_accounts(provider.get("name") or "")]
         if pooled:
             entry["accounts"] = list(entry["accounts"]) + pooled
+        entry["provider_id"] = provider.get("id")
+        entry["status"] = provider_status(entry) if entry.get("accounts") or entry.get("reachable") else "unreachable"
         out.append(entry)
 
     return web.json_response({"providers": out})

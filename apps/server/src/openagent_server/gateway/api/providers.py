@@ -199,10 +199,36 @@ async def handle_update(request: web.Request) -> web.Response:
         admin,context=await for_request(request)
         await admin.update_provider(context,pid,{key:value for key,value in body.items()
             if key not in {"framework","kind"}})
+        if existing.get("kind", "llm") == "llm" and {"api_key", "base_url", "metadata"} & set(body):
+            # A new endpoint, key or account (a sign-in) can change what the
+            # provider declares about its models.
+            await admin.refresh_capabilities(context, pid)
     except ValueError as e:
         return _web.json_response({"error": str(e)}, status=400)
     row = await db.get_provider(pid)
     return _web.json_response({"ok": True, "provider": _shape_provider(row)})
+
+
+async def handle_refresh_capabilities(request: web.Request) -> web.Response:
+    """POST /api/providers/{id}/refresh-capabilities — re-read model media support.
+
+    Applies the provider's current ``input_modalities`` declaration to every
+    language model of this provider that nobody set by hand.
+    """
+    from aiohttp import web as _web
+
+    pid = _parse_provider_id(request)
+    if pid is None:
+        return _web.json_response({"error": "invalid provider id"}, status=400)
+    try:
+        from openagent_server.provider_management import for_request
+        admin, context = await for_request(request)
+        result = await admin.refresh_capabilities(context, pid)
+    except LookupError:
+        return _web.json_response({"error": f"Provider id={pid} not found"}, status=404)
+    except ValueError as e:
+        return _web.json_response({"error": str(e)}, status=400)
+    return _web.json_response({"ok": True, **result})
 
 
 async def handle_delete(request: web.Request) -> web.Response:
