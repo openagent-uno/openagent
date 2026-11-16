@@ -660,3 +660,117 @@ test('client tool events survive a stale/lost ACK and retry on heartbeat', async
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+function mutatingCancellationHarness(onCall) {
+  return async () => {
+    const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+    await new Promise((resolve) => server.once('listening', resolve));
+    const address = server.address();
+    let connections = 0;
+    let invocations = 0;
+    const outcome = new Promise((resolve, reject) => {
+      server.on('connection', (ws) => {
+        connections += 1;
+        const frames = [];
+        ws.on('message', (raw) => {
+          const frame = JSON.parse(raw.toString());
+          frames.push(frame);
+          if (frame.type === 'capability_hello') {
+            ws.send(JSON.stringify({
+              type: 'capability_hello_ack', protocol: frame.protocol,
+              device_id: 'device-cancel', account_id: 'network-cancel',
+              client_instance_id: frame.client_instance_id,
+              generation: frame.generation, accepted: true,
+            }));
+          }
+          onCall(ws, frame, frames, resolve, reject);
+        });
+        ws.on('close', () => reject(new Error('mutating cancellation dropped the capability socket')));
+        ws.on('error', reject);
+      });
+    });
+    const socket = new CapabilitySocket({
+      accountId: 'account-cancel',
+      trustedAccountId: 'network-cancel',
+      trustedDeviceId: 'device-cancel',
+      url: `ws://127.0.0.1:${address.port}/ws/capabilities`,
+      clientInstanceId: 'instance-cancel',
+      deviceLabel: 'Cancel Desktop',
+      reconnect: false,
+      getOffer: () => ({
+        generation: 1,
+        servers: [{ name: 'shell', tools: [{ name: 'shell_exec', classification: 'mutating' }] }],
+      }),
+      invoke: async (call, signal) => {
+        invocations += 1;
+        if (call.call_id === 'after-cancel') return { content: [{ type: 'text', text: 'ok' }] };
+        return new Promise((_, reject) => {
+          signal.addEventListener('abort', () => reject(new CapabilityProtocolError(
+            'cancelled', String(signal.reason || 'cancelled'),
+          )), { once: true });
+        });
+      },
+    });
+    socket.start();
+    try {
+      await Promise.race([
+        outcome,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('mutating cancellation timed out')), 3000)),
+      ]);
+      assert.equal(connections, 1);
+      assert.equal(invocations, 2, 'the Desktop must not retry the cancelled mutation');
+    } finally {
+      socket.stop();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  };
+}
+
+function mutatingCall(ws, frame, callId, deadlineMs) {
+  ws.send(JSON.stringify({
+    type: 'client_tool_call', call_id: callId, generation: frame.generation,
+    server: 'shell', tool: 'shell_exec', args: { command: 'sleep 999' }, session_id: null,
+    account_id: 'network-cancel', idempotency_key: callId,
+    ...(deadlineMs ? { deadline_ms: deadlineMs } : {}),
+    arguments_sha256: '0'.repeat(64),
+  }));
+}
+
+test('a Gateway cancel of a mutating call keeps the capability socket and reports nothing', mutatingCancellationHarness(
+  (ws, frame, frames, resolve, reject) => {
+    if (frame.type === 'capability_hello') {
+      mutatingCall(ws, frame, 'cancelled-mutation');
+      setTimeout(() => ws.send(JSON.stringify({
+        type: 'client_tool_cancel', call_id: 'cancelled-mutation',
+        generation: frame.generation, reason: 'deadline_exceeded',
+      })), 50);
+      // The Gateway already settled the cancelled call; the next call on the
+      // same socket must still run.
+      setTimeout(() => mutatingCall(ws, frame, 'after-cancel'), 150);
+    } else if (frame.type === 'client_tool_result') {
+      try {
+        assert.equal(frame.call_id, 'after-cancel');
+        assert.equal(frame.result.content[0].text, 'ok');
+        assert.equal(frames.filter((item) => item.type === 'client_tool_result').length, 1);
+        resolve();
+      } catch (error) { reject(error); }
+    }
+  },
+));
+
+test('a local deadline on a mutating call reports indeterminate on the same socket', mutatingCancellationHarness(
+  (ws, frame, frames, resolve, reject) => {
+    if (frame.type === 'capability_hello') {
+      mutatingCall(ws, frame, 'deadline-mutation', Date.now() + 60);
+    } else if (frame.type === 'client_tool_result' && frame.call_id === 'deadline-mutation') {
+      try {
+        assert.equal(frame.error.code, 'CLIENT_RESULT_INDETERMINATE');
+        assert.equal(frame.error.data.local_code, 'cancelled');
+        assert.equal(frame.error.data.retryable, false);
+      } catch (error) { reject(error); return; }
+      mutatingCall(ws, { generation: frame.generation }, 'after-cancel');
+    } else if (frame.type === 'client_tool_result' && frame.call_id === 'after-cancel') {
+      resolve();
+    }
+  },
+));

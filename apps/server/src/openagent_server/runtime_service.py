@@ -201,6 +201,9 @@ class NativeRuntimeService:
         self._interactive_sources: dict[str, tuple[Any, Any]] = {}
         self._interactive_leases: dict[str, tuple] = {}
         self._interactive_origins: dict[str, tuple] = {}
+        # Exact origins whose transport dropped while turns held their leases,
+        # mapped to the timer that revokes them if the origin does not return.
+        self._detached_origins: dict[tuple, asyncio.TimerHandle] = {}
         self.authorizer = NativeRuntimeAuthorizer(
             gateway,
             agent.memory_db.db_path,
@@ -617,15 +620,21 @@ class NativeRuntimeService:
         if self.dashboards is not None:
             self.dashboards.revoke_connection(self.runtime.capabilities, connection_id)
 
+    @staticmethod
+    def _origin_key(origin) -> tuple:
+        return (origin.device_id, origin.client_instance_id,
+                origin.generation, origin.auth_epoch)
+
     def revoke_device_origin(self, origin):
+        """Revoke an exact origin's interactive leases now."""
+        self._revoke_origin_key(self._origin_key(origin))
+
+    def _revoke_origin_key(self, origin_key) -> None:
         from openagent_core.mcp.catalog import revoke_interactive_capabilities
 
-        origin_key = (
-            origin.device_id,
-            origin.client_instance_id,
-            origin.generation,
-            origin.auth_epoch,
-        )
+        timer = self._detached_origins.pop(origin_key, None)
+        if timer is not None:
+            timer.cancel()
         for namespace in tuple(self._interactive_leases):
             if self._interactive_origins.get(namespace) == origin_key:
                 self._interactive_origins.pop(namespace, None)
@@ -633,6 +642,48 @@ class NativeRuntimeService:
                 revoke_interactive_capabilities(self.runtime.capabilities, leases)
                 for lease in leases:
                     self._interactive_sources.pop(lease.source_id, None)
+
+    def detach_device_origin(self, origin, *, grace_s: float) -> None:
+        """Keep an exact origin's leases while only its transport is down.
+
+        A running turn's capability catalog is frozen at admission, so a
+        lease revoked here could never come back to that turn. The registry
+        already refuses every discovery and call while the origin is offline,
+        and only the same device, instance, generation and authorization
+        epoch can register again; then the turn's existing leases simply work
+        again. Nothing new is granted. Without that return within
+        ``grace_s`` the leases are revoked as before.
+        """
+        origin_key = self._origin_key(origin)
+        if (origin_key in self._detached_origins
+                or origin_key not in self._interactive_origins.values()):
+            return
+        loop = asyncio.get_running_loop()
+        self._detached_origins[origin_key] = loop.call_later(
+            max(0.0, float(grace_s)), self._revoke_origin_key, origin_key)
+
+    def reattach_device_origin(self, origin) -> None:
+        """The exact origin registered again; older origins of it end.
+
+        Leases held for this same origin stay valid for running turns. Any
+        other generation or authorization epoch of the same client instance
+        can never register again, so its leases are revoked immediately.
+        """
+        origin_key = self._origin_key(origin)
+        timer = self._detached_origins.pop(origin_key, None)
+        if timer is not None:
+            timer.cancel()
+        superseded = {key for key in (*self._interactive_origins.values(), *self._detached_origins)
+                      if key[:2] == origin_key[:2] and key != origin_key}
+        for key in superseded:
+            self._revoke_origin_key(key)
+
+    def revoke_device_origins(self, device_id: str, below_epoch: int) -> None:
+        """Revoke every origin of a device authorized before ``below_epoch``."""
+        ended = {key for key in (*self._interactive_origins.values(), *self._detached_origins)
+                 if key[0] == device_id and key[3] < below_epoch}
+        for key in ended:
+            self._revoke_origin_key(key)
 
     async def context(self, request: Any, session_id: str):
         identity = await self.authorizer.bind_request(request)

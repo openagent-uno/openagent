@@ -75,6 +75,9 @@ export class CapabilitySocket {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private connectTimer: ReturnType<typeof setTimeout> | null = null;
   private active = new Map<string, AbortController>();
+  // Calls the Gateway itself cancelled (deadline or turn cancellation). The
+  // Gateway has already settled and forgotten them, so they need no frame.
+  private serverCancelled = new Set<string>();
   private pendingEvents = new Map<string, Record<string, unknown>>();
   private eventFlush: Promise<void> | null = null;
   private heartbeatPending = false;
@@ -272,7 +275,10 @@ export class CapabilitySocket {
         return;
       case 'client_tool_cancel': {
         if (frame.generation !== this.options.getOffer().generation) return;
-        this.active.get(frame.call_id)?.abort(frame.reason || 'Cancelled by server');
+        const controller = this.active.get(frame.call_id);
+        if (!controller) return;
+        this.serverCancelled.add(frame.call_id);
+        controller.abort(frame.reason || 'Cancelled by server');
         return;
       }
       case 'client_media_close':
@@ -379,6 +385,7 @@ export class CapabilitySocket {
     }
 
     const controller = new AbortController();
+    const callSocket = this.socket;
     this.active.set(call.call_id, controller);
     this.options.onActivity?.(this.active.size);
     const timeoutMs = localDeadline(call.deadline_ms);
@@ -404,10 +411,32 @@ export class CapabilitySocket {
         result: prepared.result,
       }, controller.signal);
     } catch (error) {
-      if (
-        isAmbiguousHostTransportError(error) ||
-        (mutating && error instanceof CapabilityProtocolError && error.code === 'cancelled')
-      ) {
+      const deadlineOrCancel = error instanceof CapabilityProtocolError &&
+        (error.code === 'cancelled' || error.code === 'host_timeout');
+      if (mutating && deadlineOrCancel) {
+        // A cancelled or timed-out mutation may already have taken effect
+        // locally, but the capability channel itself is healthy. Dropping it
+        // would also drop every other call and the device's tools from turns
+        // that are still running. When the Gateway cancelled the call it has
+        // already settled it as indeterminate and forgotten its id; otherwise
+        // report the explicit indeterminate outcome on the same channel.
+        // A call aborted because its socket closed is settled by the Gateway's
+        // own disconnect handling; it never reports on a newer socket.
+        if (!this.serverCancelled.has(call.call_id) && this.socket === callSocket) {
+          await this.send({
+            type: 'client_tool_result',
+            call_id: call.call_id,
+            generation: call.generation,
+            error: {
+              code: 'CLIENT_RESULT_INDETERMINATE',
+              message: 'The local tool call was stopped before it reported a result; it may have taken effect',
+              data: { local_code: error.code, retryable: false },
+            },
+          });
+        }
+        return;
+      }
+      if (isAmbiguousHostTransportError(error)) {
         // Do not turn a lost broker/stdio transport into a determinate tool
         // result: an effect may already have happened locally. Dropping this
         // exact capability socket lets the Gateway apply the catalog's safety
@@ -422,6 +451,7 @@ export class CapabilitySocket {
       await this.sendError(call, error);
     } finally {
       if (timer) clearTimeout(timer);
+      this.serverCancelled.delete(call.call_id);
       this.active.delete(call.call_id);
       this.options.onActivity?.(this.active.size);
     }
@@ -542,6 +572,7 @@ export class CapabilitySocket {
     this.media.clear();
     for (const controller of this.active.values()) controller.abort(reason);
     this.active.clear();
+    this.serverCancelled.clear();
     this.options.onActivity?.(0);
   }
 }
@@ -576,7 +607,6 @@ function classificationForArguments(
 function isAmbiguousHostTransportError(error: unknown): boolean {
   return error instanceof CapabilityProtocolError && [
     'host_transport_lost',
-    'host_timeout',
     'host_stopped',
     'host_protocol_error',
     'capability_transport_lost',

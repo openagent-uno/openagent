@@ -2645,3 +2645,144 @@ async def t_wire_and_prompt_tail(ctx: TestContext) -> None:
     body, tail = _split_session_id_tag(prompt)
     assert body == "shared framework"
     assert "<execution-host>" in tail and tail.endswith("<session-id>s</session-id>")
+
+
+def _interactive_turn(registry, conn, namespace):
+    """A NativeRuntimeService holding one running turn's leases for ``conn``."""
+    from openagent_core.capabilities import CapabilityCatalog
+    from openagent_core.contracts import ExecutionContext, PrincipalRef
+    from openagent_core.mcp.catalog import register_interactive_capabilities
+    from openagent_server.runtime_service import NativeRuntimeService
+
+    service = NativeRuntimeService.__new__(NativeRuntimeService)
+    service.runtime = SimpleNamespace(capabilities=CapabilityCatalog(None))
+    service._interactive_sources = {}
+    service._interactive_leases = {}
+    service._interactive_origins = {}
+    service._detached_origins = {}
+    leases = register_interactive_capabilities(
+        service.runtime.capabilities, conn.origin(registry), source_namespace=namespace,
+    )
+    service._interactive_leases[namespace] = leases
+    service._interactive_origins[namespace] = (
+        conn.device_id, conn.client_instance_id, conn.generation, conn.auth_epoch)
+    principal = PrincipalRef("openagent", "network-1", "alice")
+    context = ExecutionContext(principal, principal, principal, "session", "agent",
+                               (principal,), capabilities=leases)
+    return service, leases, context
+
+
+def _registrations(catalog):
+    return {key: id(registration) for key, registration in catalog._sources.items()}
+
+
+async def _register_mac(registry, *, generation=1, auth_epoch=0, ws=None):
+    return await registry.register(
+        device_id="dev", account_id="network-1", client_instance_id="desktop",
+        generation=generation, device_label="Mac", ws=ws or _Ws(),
+        send_json=lambda *_args: asyncio.sleep(0, result=True),
+        servers=_shell_catalog(), auth_epoch=auth_epoch,
+    )
+
+
+@test(
+    "client_capabilities",
+    "a same-origin capability reconnect keeps a running turn's device leases",
+)
+async def t_same_origin_reconnect_keeps_turn_leases(ctx: TestContext) -> None:
+    from openagent_server.gateway.capabilities import CapabilityRegistry
+
+    registry = CapabilityRegistry()
+    first = await _register_mac(registry)
+    turn_origin = first.origin(registry)
+    service, leases, context = _interactive_turn(registry, first, "app/r/dev/desktop/1/0")
+    catalog = service.runtime.capabilities
+    admitted = _registrations(catalog)
+    revision = catalog.revision
+    assert leases and all(catalog.has_source(lease.source_id, context) for lease in leases)
+
+    # Transport loss (e.g. after a timed-out mutating call): the origin may
+    # come back, so the turn keeps its leases while calls are refused.
+    assert registry.origin_status(first) == "reconnectable"
+    service.detach_device_origin(first, grace_s=60)
+    await registry.unregister(first)
+    assert _registrations(catalog) == admitted
+    try:
+        registry.list_servers(turn_origin)
+        raise AssertionError("an offline origin must refuse discovery")
+    except Exception as exc:  # noqa: BLE001
+        assert getattr(exc, "code", None) == "CLIENT_OFFLINE"
+
+    # The same device, instance, generation and authorization epoch returns:
+    # the turn's admitted registrations (and catalog revision) are untouched,
+    # so a turn frozen at admission sees the device again.
+    second = await _register_mac(registry)
+    service.reattach_device_origin(second)
+    assert not service._detached_origins
+    assert _registrations(catalog) == admitted and catalog.revision == revision
+    assert all(catalog.has_source(lease.source_id, context) for lease in leases)
+    assert [item["name"] for item in registry.list_servers(turn_origin)] == ["client:shell"]
+
+    # A late close of the replaced socket must not revoke the returned origin.
+    stale_socket = await _register_mac(registry)
+    assert registry.origin_status(second) == "live"
+    assert registry.connection("dev", "desktop") is stale_socket
+
+
+@test(
+    "client_capabilities",
+    "detached device leases end on grace expiry, new generation or revocation",
+)
+async def t_detached_origin_boundaries(ctx: TestContext) -> None:
+    from openagent_server.gateway.capabilities import CapabilityRegistry
+    from openagent_server.gateway.server import Gateway
+
+    # No return within the grace: revoked as before.
+    registry = CapabilityRegistry()
+    conn = await _register_mac(registry)
+    service, leases, context = _interactive_turn(registry, conn, "app/r/dev/desktop/1/0")
+    service.detach_device_origin(conn, grace_s=0.01)
+    await registry.unregister(conn)
+    await asyncio.sleep(0.05)
+    assert not service._interactive_leases and not service._detached_origins
+    assert not any(service.runtime.capabilities.has_source(lease.source_id, context)
+                   for lease in leases)
+
+    # A new generation of the same instance supersedes the detached origin
+    # immediately; it never inherits the older turn's leases.
+    registry = CapabilityRegistry()
+    conn = await _register_mac(registry)
+    service, leases, context = _interactive_turn(registry, conn, "app/r/dev/desktop/1/0")
+    service.detach_device_origin(conn, grace_s=60)
+    await registry.unregister(conn)
+    newer = await _register_mac(registry, generation=2)
+    service.reattach_device_origin(newer)
+    assert not service._interactive_leases and not service._detached_origins
+    assert registry.origin_status(conn) == "ended"
+
+    # A still-open socket replaced by a newer generation has ended too.
+    registry = CapabilityRegistry()
+    old = await _register_mac(registry)
+    await _register_mac(registry, generation=2)
+    assert registry.origin_status(old) == "ended"
+
+    # Device revocation while the origin is detached revokes at once, and a
+    # revoked origin is never kept for reconnect.
+    registry = CapabilityRegistry()
+    conn = await _register_mac(registry)
+    service, leases, context = _interactive_turn(registry, conn, "app/r/dev/desktop/1/0")
+    service.detach_device_origin(conn, grace_s=60)
+    await registry.unregister(conn)
+    await registry.close_device("dev")
+    assert registry.origin_status(conn) == "ended"
+    service.revoke_device_origins("dev", registry.device_block_epoch("dev"))
+    assert not service._interactive_leases and not service._detached_origins
+
+    # The Gateway's revocation path revokes detached leases as well.
+    calls = []
+    gateway = Gateway(SimpleNamespace(name="test"), SimpleNamespace(auth_state=None))
+    gateway.runtime_service = SimpleNamespace(
+        revoke_device_origins=lambda device_id, epoch: calls.append((device_id, epoch)))
+    await gateway._close_device_connections("dev")
+    assert calls == [("dev", gateway.capabilities.device_block_epoch("dev"))]
+    assert calls[0][1] >= 1

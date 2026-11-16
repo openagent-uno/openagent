@@ -53,6 +53,9 @@ MAX_ARTIFACT_REFERENCES_PER_CALL = 64
 MAX_ARTIFACT_RESULT_NODES = 100_000
 MAX_ARTIFACT_MIME_LENGTH = 255
 CLIENT_SHELL_RECONNECT_GRACE_S = 300.0
+# How long a running turn keeps an exact device origin's capability leases
+# after that origin's transport drops, waiting for the same origin to return.
+CLIENT_ORIGIN_RECONNECT_GRACE_S = 300.0
 MAX_DETACHED_SHELL_HOSTS = 256
 MAX_DETACHED_SHELLS = 4096
 
@@ -505,6 +508,33 @@ class CapabilityRegistry:
             return None
         conn = self.connection(device_id, client_instance_id)
         return conn.origin(self) if conn is not None else None
+
+    def device_block_epoch(self, device_id: str) -> int:
+        """Authorization epoch below which ``device_id`` may never register."""
+        return self._device_block_epoch.get(device_id, -1)
+
+    def origin_status(self, conn: CapabilityConnection) -> str:
+        """How a closing connection's exact origin may continue.
+
+        ``"live"``: the same device, instance, generation and authorization
+        epoch is already registered on another socket.
+        ``"reconnectable"``: only the transport was lost; that same exact
+        origin may still register again.
+        ``"ended"``: the device was revoked or the instance moved to a newer
+        generation or authorization; this origin can never return.
+        """
+        if conn.auth_epoch < self._device_block_epoch.get(conn.device_id, -1):
+            return "ended"
+        key = (conn.device_id, conn.client_instance_id)
+        if self._generation_floor.get(key, 0) > conn.generation:
+            return "ended"
+        current = self._connections.get(key)
+        if current is not None and current is not conn:
+            if (current.generation == conn.generation
+                    and current.auth_epoch == conn.auth_epoch):
+                return "live"
+            return "ended"
+        return "reconnectable"
 
     def owned_connections(self, identity) -> tuple[CapabilityConnection, ...]:
         """Only certificate-owned, consented and live devices of this human."""

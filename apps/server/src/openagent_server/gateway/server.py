@@ -26,6 +26,7 @@ from openagent_server.gateway.commands import COMMAND_SPECS
 from openagent_server.gateway.sessions import SessionManager
 from openagent_server.gateway.terminals import TerminalManager
 from openagent_server.gateway.capabilities import (
+    CLIENT_ORIGIN_RECONNECT_GRACE_S,
     CAPABILITY_HEARTBEAT_TIMEOUT_S,
     CAPABILITY_PROTOCOL,
     CapabilityConnection,
@@ -318,16 +319,27 @@ class Gateway:
         # roster watcher invokes listeners from another thread.
         loop.call_soon_threadsafe(_schedule_close)
 
+    async def _close_device_capabilities(
+        self, device_id: str, *, revocation_epoch: int | None = None,
+    ) -> None:
+        await self.capabilities.close_device(
+            device_id, reason="device revoked", revocation_epoch=revocation_epoch,
+        )
+        if getattr(self, "runtime_service", None) is not None:
+            # Also covers origins already detached by a transport loss: their
+            # sockets are gone, so no close callback would revoke them.
+            self.runtime_service.revoke_device_origins(
+                device_id, self.capabilities.device_block_epoch(device_id),
+            )
+
     async def _close_device_connections(
         self,
         device_id: str,
         *,
         revocation_epoch: int | None = None,
     ) -> None:
-        cleanup: list[Awaitable[Any]] = [self.capabilities.close_device(
-            device_id,
-            reason="device revoked",
-            revocation_epoch=revocation_epoch,
+        cleanup: list[Awaitable[Any]] = [self._close_device_capabilities(
+            device_id, revocation_epoch=revocation_epoch,
         )]
         collaboration = getattr(self, "_collaboration", None)
         if collaboration is not None:
@@ -2115,6 +2127,10 @@ class Gateway:
                 auth_epoch=auth_epoch,
                 auth_epoch_reader=lambda: auth_state.device_epoch(cert.device_pubkey),
             )
+            if getattr(self, "runtime_service", None) is not None:
+                # A transport reconnect of this exact origin resumes the
+                # leases its running turns already hold.
+                self.runtime_service.reattach_device_origin(conn)
             from openagent_server.device_directory import directory_for
             await directory_for(self).remember(conn)
             await self._safe_ws_send_json(ws, {
@@ -2209,7 +2225,18 @@ class Gateway:
         finally:
             if conn is not None:
                 if getattr(self, "runtime_service", None) is not None:
-                    self.runtime_service.revoke_device_origin(conn)
+                    status = self.capabilities.origin_status(conn)
+                    if status == "reconnectable":
+                        # Only the transport dropped. Running turns keep the
+                        # exact origin's leases for a bounded grace; the
+                        # registry refuses calls until that origin returns.
+                        self.runtime_service.detach_device_origin(
+                            conn, grace_s=CLIENT_ORIGIN_RECONNECT_GRACE_S,
+                        )
+                    elif status == "ended":
+                        self.runtime_service.revoke_device_origin(conn)
+                    # "live": the same origin already re-registered on a
+                    # newer socket and keeps its leases.
                 from openagent_server.device_directory import directory_for
                 try:
                     await directory_for(self).remember(conn)

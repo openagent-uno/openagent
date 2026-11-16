@@ -227,6 +227,20 @@ hash and deadline. The local host keeps an idempotency ledger: a completed
 duplicate replays its result, while a crash after a possible side effect returns
 an indeterminate result and is not silently retried.
 
+A cancelled or timed-out call ends only that call, never the capability channel.
+When the Gateway cancels a call (deadline or turn cancellation) it has already
+settled it, so the client sends nothing more for it. When the client's own
+deadline stops a mutating call first, it reports `CLIENT_RESULT_INDETERMINATE`
+on the same channel. Only a lost local host transport still drops the channel.
+
+A running turn's device grants are fixed when the turn starts. If only the
+capability transport drops, the turn keeps the grants of that exact origin
+(device, instance, generation and authorization epoch) for up to five minutes.
+Calls and discovery fail while it is offline; when that same origin
+reconnects, the turn uses the device again without any new grant. A new
+generation, a revoked or re-authorized device, or no reconnect within that time
+ends the grants for good.
+
 The capability endpoint accepts only a coordinator-issued device certificate
 whose public key matches the Iroh peer. Shared HTTP tokens, bridges and
 agent-to-agent connections cannot register computer tools. Revoking the device
