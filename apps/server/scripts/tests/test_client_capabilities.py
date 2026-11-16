@@ -1042,6 +1042,56 @@ async def _record_send(target: list[dict], frame: dict) -> bool:
 
 @test(
     "client_capabilities",
+    "a foreground shell call waits for the shell's own timeout",
+)
+async def t_shell_call_deadline_follows_shell_timeout(ctx: TestContext) -> None:
+    import time
+    from openagent_server.gateway.capabilities import (
+        DEFAULT_CALL_TIMEOUT_S, MAX_CALL_TIMEOUT_S, CapabilityRegistry,
+    )
+
+    registry = CapabilityRegistry()
+    sent: list[dict] = []
+
+    async def capture(_ws, payload):
+        sent.append(payload)
+        return True
+
+    await registry.register(
+        device_id="dev", account_id="network-1", client_instance_id="desktop",
+        generation=1, device_label="Mac", ws=_Ws(), send_json=capture,
+        servers=_shell_catalog(),
+    )
+    origin = registry.origin_for("dev", "desktop")
+    assert origin is not None
+    # A live run lost its device when "sleep 120" with timeout=180000 hit the
+    # generic 120 s deadline. The deadline now follows the shell's timeout,
+    # bounded by the maximum; absent or invalid values keep the default.
+    for requested, expected in (
+        (180_000, 185.0), (30_000, DEFAULT_CALL_TIMEOUT_S),
+        (5_000_000, MAX_CALL_TIMEOUT_S), ("180000", DEFAULT_CALL_TIMEOUT_S),
+        (True, DEFAULT_CALL_TIMEOUT_S), (None, DEFAULT_CALL_TIMEOUT_S),
+    ):
+        sent.clear()
+        before = time.time()
+        args = {"command": "sleep 1"} if requested is None else {"command": "sleep 1", "timeout": requested}
+        call = asyncio.create_task(registry.call_tool(origin, "shell", "shell_exec", args))
+        for _ in range(100):
+            if any(frame.get("type") == "client_tool_call" for frame in sent):
+                break
+            await asyncio.sleep(0.01)
+        call.cancel()
+        try:
+            await call
+        except BaseException:  # noqa: BLE001 - the call is abandoned on purpose
+            pass
+        frame = next(frame for frame in sent if frame.get("type") == "client_tool_call")
+        waited = frame["deadline_ms"] / 1000 - before
+        assert abs(waited - expected) < 2, (requested, waited, expected)
+
+
+@test(
+    "client_capabilities",
     "mutating timeout and transport ambiguity are never reported retryable",
 )
 async def t_indeterminate_timeout_and_transport(ctx: TestContext) -> None:

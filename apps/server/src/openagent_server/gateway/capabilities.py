@@ -27,6 +27,9 @@ from openagent_core.jobs import BackgroundJobs, JobEvent
 CAPABILITY_PROTOCOL = "client-capabilities/1"
 DEFAULT_CALL_TIMEOUT_S = 120.0
 MAX_CALL_TIMEOUT_S = 600.0
+# Extra time a foreground shell call gets beyond the shell's own ``timeout``,
+# so the shell's timeout result arrives before the call deadline.
+SHELL_TIMEOUT_MARGIN_S = 5.0
 MAX_PENDING_CALLS_PER_CONNECTION = 64
 CAPABILITY_HEARTBEAT_TIMEOUT_S = 90.0
 MAX_ACTIVE_CAPABILITY_CONNECTIONS = 128
@@ -1109,6 +1112,15 @@ class CapabilityRegistry:
                 "MISSING_EXECUTION_CONTEXT", "background jobs require their authorized capability context",
             )
         classification = _classification_for_arguments(tool_manifest, args)
+        if server_name == "shell" and tool_name == "shell_exec" and not background_requested:
+            # The shell enforces its own ``timeout`` (milliseconds). Wait for
+            # it instead of the generic deadline: a command allowed to run
+            # three minutes must not end at 120 s as an indeterminate
+            # mutating call, which also cancels it on the client.
+            requested_ms = args.get("timeout")
+            if (isinstance(requested_ms, (int, float)) and not isinstance(requested_ms, bool)
+                    and math.isfinite(requested_ms) and requested_ms > 0):
+                timeout_s = max(float(timeout_s), requested_ms / 1000.0 + SHELL_TIMEOUT_MARGIN_S)
         timeout_s = max(0.1, min(float(timeout_s), MAX_CALL_TIMEOUT_S))
         call_id = uuid.uuid4().hex
         try:
