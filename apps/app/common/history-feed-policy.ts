@@ -155,3 +155,34 @@ export function mergeBoundedHistory(
 export function sessionDiscoveryStrategy(historyVersion?: number): 'history_page' | 'legacy_sessions' {
   return historyVersion === 2 ? 'history_page' : 'legacy_sessions';
 }
+
+/** What a sidebar pin follows. A conversation pins itself; a run pins its
+ * definition (task, workflow or event), so the pinned row always opens the
+ * newest run of a routine that starts a fresh session every time. */
+export function historyPinKey(item: ActivityItem): string | null {
+  if (item.kind === 'chat') return `chat:${item.session_id || item.resource_id}`;
+  const parent = item.parent?.id;
+  if (!parent) return null;
+  if (item.kind === 'scheduled_run') return `task:${parent}`;
+  if (item.kind === 'workflow_run') return `workflow:${parent}`;
+  if (item.kind === 'event_delivery') return `event:${parent}`;
+  return null;
+}
+
+/** Split rows into the pinned ones (in pin order, newest row per pin) and the
+ * rest. A pin with no loaded row yields nothing; the row it picked leaves the
+ * rest, other runs of the same routine stay in Recent. */
+export function splitPinnedRows<T extends { pinKey?: string | null; ts: number }>(
+  rows: readonly T[],
+  pins: readonly string[],
+): { pinned: T[]; rest: T[] } {
+  const newest = new Map<string, T>();
+  for (const row of rows) {
+    if (!row.pinKey || !pins.includes(row.pinKey)) continue;
+    const seen = newest.get(row.pinKey);
+    if (!seen || row.ts > seen.ts) newest.set(row.pinKey, row);
+  }
+  const pinned = pins.map((pin) => newest.get(pin)).filter((row): row is T => !!row);
+  const picked = new Set(pinned);
+  return { pinned, rest: rows.filter((row) => !picked.has(row)) };
+}

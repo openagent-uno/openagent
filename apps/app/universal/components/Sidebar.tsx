@@ -49,6 +49,8 @@ import type { ActivityItem, SearchTarget } from '../../common/unified-history';
 import {
   HISTORY_REFRESH_RESOURCES,
   historyKindsForFilters,
+  historyPinKey,
+  splitPinnedRows,
   isTopLevelSidebarActivity,
   localSessionIdsMissingFromHistory,
   sidebarActivityTitle,
@@ -58,6 +60,7 @@ import { useConfirm } from './ConfirmDialog';
 import { useRenameSession } from './RenameSessionDialog';
 import PopupMenu, { type PopupMenuHandle } from './PopupMenu';
 import { useEvents } from '../stores/events';
+import { usePins } from '../stores/pins';
 import { useUIViews } from '../stores/uiViews';
 import type { UIViewSummary } from '../../common/ui-views';
 import BrandLogo from './BrandLogo';
@@ -114,6 +117,10 @@ interface FeedItem {
   onDelete?: () => void;
   /** Conversation-only rename action, shared by the row and its menu. */
   onRename?: () => void;
+  /** What a pin of this row follows (``historyPinKey``); v2 rows only. */
+  pinKey?: string | null;
+  pinned?: boolean;
+  onTogglePin?: () => void;
 }
 
 export default function Sidebar({
@@ -428,6 +435,7 @@ function RecentFeed({
             : undefined,
         );
         if (mapped) {
+          mapped.pinKey = historyPinKey(item);
           const sessionId = item.session_id || item.resource_id;
           if (item.kind === 'chat' && processing.has(sessionId)) mapped.running = true;
           items.push(mapped);
@@ -442,15 +450,18 @@ function RecentFeed({
         const missingIds = new Set(localSessionIdsMissingFromHistory(sessions, unifiedItems));
         for (const session of sessions) {
           if (!missingIds.has(session.id)) continue;
-          items.push(chatFeedItem(
-            session,
-            router,
-            activeSessionId,
-            onChat,
-            onNavigate,
-            () => renameSession({ id: session.id, title: session.title }),
-            () => confirmAndRemove(session.id, session.title || 'New Chat'),
-          ));
+          items.push({
+            ...chatFeedItem(
+              session,
+              router,
+              activeSessionId,
+              onChat,
+              onNavigate,
+              () => renameSession({ id: session.id, title: session.title }),
+              () => confirmAndRemove(session.id, session.title || 'New Chat'),
+            ),
+            pinKey: `chat:${session.id}`,
+          });
         }
       }
       // Every v2 page was explicitly requested by the user reaching the end
@@ -499,12 +510,23 @@ function RecentFeed({
     filters, onChat, activeSessionId, activeRunId,
   ]);
 
+  const accountId = useConnection((s) => s.activeAccountId);
+  const pins = usePins((s) => s.pins);
+  const togglePin = usePins((s) => s.toggle);
+  useEffect(() => { void usePins.getState().load(accountId); }, [accountId]);
+  const { pinned, rest } = useMemo(() => {
+    const withPins = feed.map((row) => row.pinKey
+      ? { ...row, pinned: pins.includes(row.pinKey), onTogglePin: () => togglePin(row.pinKey as string) }
+      : row);
+    return splitPinnedRows(withPins, pins);
+  }, [feed, pins, togglePin]);
+
   return (
     <View style={styles.recent}>
       <FlatList
         style={styles.recentScroll}
         contentContainerStyle={styles.recentContent}
-        data={feed}
+        data={rest}
         keyExtractor={feedKeyExtractor}
         renderItem={renderFeedItem}
         showsVerticalScrollIndicator={false}
@@ -585,6 +607,15 @@ function RecentFeed({
                 })}
               </View>
             ) : null}
+            {pinned.length ? (
+              <View testID="oa-sidebar-pinned">
+                <View style={styles.recentDivider} />
+                <View style={styles.recentHeader}>
+                  <Text style={styles.recentHeading}>Pinned</Text>
+                </View>
+                {pinned.map((row) => <FeedRow key={`pin-${row.key}`} item={row} />)}
+              </View>
+            ) : null}
             <View style={styles.recentDivider} />
             <View style={styles.recentHeader}>
               <Text style={styles.recentHeading}>Recent</Text>
@@ -648,7 +679,7 @@ function renderFeedItem({ item }: { item: FeedItem }) {
 
 function FeedRow({ item }: { item: FeedItem }) {
   const menuRef = useRef<PopupMenuHandle>(null);
-  const hasMenu = !!(item.onDelete || item.onRename);
+  const hasMenu = !!(item.onDelete || item.onRename || item.onTogglePin);
 
   const contextMenuProps = Platform.OS === 'web' && hasMenu
     ? {
@@ -715,6 +746,9 @@ onPress={item.active && item.onRename ? item.onRename : item.onPress}
           triggerClassName="oa-feed-row-control"
           accessibilityLabel={`Options for ${item.label}`}
           items={[
+            ...(item.onTogglePin
+              ? [{ label: item.pinned ? 'Unpin' : 'Pin', icon: 'bookmark' as const, onPress: item.onTogglePin }]
+              : []),
             ...(item.onRename
               ? [{ label: 'Rename', icon: 'edit-2' as const, onPress: item.onRename }]
               : []),

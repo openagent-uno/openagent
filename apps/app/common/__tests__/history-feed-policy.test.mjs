@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import * as policy from '../history-feed-policy.ts';
 import {
   HISTORY_REFRESH_RESOURCES,
   historyCoversAllKinds,
@@ -142,4 +143,25 @@ test('Recent reloads on every resource whose runs or rows it lists', () => {
   // Scheduled runs, workflow runs and event deliveries come and go with their
   // definitions; conversations with session events. Missing one leaves stale rows.
   assert.deepEqual([...HISTORY_REFRESH_RESOURCES].sort(), ['event', 'scheduled_task', 'session', 'workflow']);
+});
+
+test('a conversation pins itself and a run pins its routine', () => {
+  const { historyPinKey } = policy;
+  assert.equal(historyPinKey(item('s1', '2026-01-01T00:00:00Z')), 'chat:s1');
+  const run = { ...item('r1', '2026-01-01T00:00:00Z'), kind: 'scheduled_run', parent: { kind: 'scheduled_task', id: 'daily' } };
+  assert.equal(historyPinKey(run), 'task:daily');
+  assert.equal(historyPinKey({ ...run, parent: undefined }), null);
+});
+
+test('pinned rows come first in pin order, one newest row per pin', () => {
+  const { splitPinnedRows } = policy;
+  const rows = [
+    { key: 'a', pinKey: 'chat:a', ts: 5 },
+    { key: 'run-old', pinKey: 'task:daily', ts: 1 },
+    { key: 'run-new', pinKey: 'task:daily', ts: 9 },
+    { key: 'b', pinKey: 'chat:b', ts: 7 },
+  ];
+  const { pinned, rest } = splitPinnedRows(rows, ['task:daily', 'chat:a', 'chat:missing']);
+  assert.deepEqual(pinned.map((row) => row.key), ['run-new', 'a']);
+  assert.deepEqual(rest.map((row) => row.key), ['run-old', 'b']);
 });
