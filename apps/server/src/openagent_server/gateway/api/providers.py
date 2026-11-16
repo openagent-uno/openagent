@@ -32,6 +32,28 @@ def _mask_key(key: str | None) -> str:
     return "****" + key[-4:]
 
 
+def _shape_metadata(metadata: Any) -> dict[str, Any]:
+    """Provider metadata without credentials.
+
+    ``metadata.accounts`` is Core's credential pool: every entry's ``api_key``
+    is write-only like the provider's own key and is shown as
+    ``api_key_display`` (the same rule as Core's management API).
+    """
+    if not isinstance(metadata, dict):
+        return {}
+    accounts = metadata.get("accounts")
+    if not isinstance(accounts, list):
+        return metadata
+    shaped = []
+    for account in accounts:
+        if isinstance(account, dict):
+            key = account.get("api_key")
+            account = {k: v for k, v in account.items() if k != "api_key"}
+            account["api_key_display"] = "—" if key is None else (key if isinstance(key, str) and key.startswith("${") else _mask_key(key))
+        shaped.append(account)
+    return {**metadata, "accounts": shaped}
+
+
 def _shape_provider(row: dict[str, Any]) -> dict[str, Any]:
     """Public response shape for a provider row — masked api_key."""
     out = {
@@ -41,7 +63,7 @@ def _shape_provider(row: dict[str, Any]) -> dict[str, Any]:
         "kind": row.get("kind", "llm"),
         "base_url": row.get("base_url"),
         "enabled": bool(row.get("enabled", True)),
-        "metadata": row.get("metadata") or {},
+        "metadata": _shape_metadata(row.get("metadata") or {}),
         "created_at": row.get("created_at"),
         "updated_at": row.get("updated_at"),
     }
