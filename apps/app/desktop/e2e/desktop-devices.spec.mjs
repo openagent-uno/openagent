@@ -114,6 +114,8 @@ class DeviceGateway extends DeterministicGateway {
         let body='';for await(const chunk of request)body+=chunk;
         const change=JSON.parse(body);this.goalPatches.push(change);
         if(typeof change.objective==='string')this.goal={...this.goal,objective:change.objective};
+        if(change.action==='pause')this.goal={...this.goal,status:'paused',updated_at_ms:Date.now()};
+        if(change.action==='resume')this.goal={...this.goal,status:'active',updated_at_ms:Date.now()};
       }
       if(request.method==='DELETE'){this.goalDeletes+=1;this.goal=null;return reply({ok:true});}
       return reply({goal:this.goal});
@@ -209,13 +211,22 @@ for(const live of [false,true])test(`device directory, session inspector and res
     expect(gateway.goalPatches).toEqual([{objective:'Triage the reports and answer every reporter.'}]);
     await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveText('Triage the reports and answer every reporter.');
     // The same goal sits on one line above the composer; its dialog can remove it.
-    const bar=page.getByRole('button',{name:'Goal bar',exact:true});
+    const bar=page.getByLabel('Goal bar',{exact:true});
     await expect(bar).toContainText('Triage the reports and answer every reporter.');
+    // The bar shows how long the goal has been running (set in 2023 here: days).
+    await expect(page.getByLabel(/^Running for \d+d \d+h$/)).toBeVisible();
+    // Pause and resume from the bar, without opening the dialog.
+    await page.getByRole('button',{name:'Pause goal',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Resume goal',exact:true})).toBeVisible();
+    await expect(bar).toContainText('Paused');
+    await page.getByRole('button',{name:'Resume goal',exact:true}).click();
+    await expect(page.getByRole('button',{name:'Pause goal',exact:true})).toBeVisible();
+    expect(gateway.goalPatches.slice(-2)).toEqual([{action:'pause'},{action:'resume'}]);
     expect((await bar.boundingBox()).height).toBeLessThanOrEqual(34);
     const composerBox=await page.getByPlaceholder('Message OpenAgent...').boundingBox();
     expect((await bar.boundingBox()).y).toBeLessThan(composerBox.y);
     await page.screenshot({path:join(temporary,'goal-bar.png')});
-    await bar.click();
+    await page.getByRole('button',{name:'Open goal dialog',exact:true}).click();
     await page.getByRole('button',{name:'Remove goal',exact:true}).click();
     await expect(bar).toHaveCount(0);
     expect(gateway.goalDeletes).toBe(1);

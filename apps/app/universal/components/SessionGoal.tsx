@@ -126,33 +126,98 @@ function useSessionGoal(sessionId: string | undefined, isProcessing: boolean | u
     await clearSessionGoal(sessionId);
     announceGoalChange(sessionId);
   }, [sessionId]);
-  return { state, key, goal, refresh, setError, save, clear };
+  const setStatus = useCallback(async (action: 'pause' | 'resume' | 'done') => {
+    if (!sessionId) return;
+    await updateSessionGoal(sessionId, { action });
+    announceGoalChange(sessionId);
+  }, [sessionId]);
+  return { state, key, goal, refresh, setError, save, clear, setStatus };
 }
 
 /** One line above the composer: the goal's state and the start of its
  *  objective, with a button that opens the goal dialog (read, edit, remove).
  *  Renders nothing without a goal. */
+/** Time the goal has been running: since it was set, up to now while it is
+ *  active, up to its last change while paused, up to completion once achieved. */
+export function goalElapsedMs(goal: Goal, now: number): number {
+  const end = goal.status === 'active' ? now
+    : goal.status === 'achieved' ? (goal.achieved_at_ms ?? goal.updated_at_ms)
+    : goal.updated_at_ms;
+  return Math.max(0, end - goal.created_at_ms);
+}
+
+export function formatElapsed(ms: number): string {
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return '<1m';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`;
+  return `${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
+
+/** Re-renders every 30 s while the goal is active, so its timer moves. */
+function useNow(active: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    setNow(Date.now());
+    if (!active) return;
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, [active]);
+  return now;
+}
+
+/** One line above the composer: the goal's state, the start of its objective,
+ *  how long it has been running, a pause/resume control and a button that
+ *  opens the goal dialog (read, edit, remove). Renders nothing without a goal. */
 export function SessionGoalBar({ sessionId, isProcessing }: { sessionId?: string; isProcessing?: boolean }) {
-  const { goal, save, clear } = useSessionGoal(sessionId, isProcessing);
+  const { goal, save, clear, setStatus } = useSessionGoal(sessionId, isProcessing);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const now = useNow(goal?.status === 'active');
   if (!sessionId || !goal) return null;
+  const toggle = async () => {
+    setBusy(true);
+    try { await setStatus(goal.status === 'active' ? 'pause' : 'resume'); } catch { /* the panel shows errors */ }
+    finally { setBusy(false); }
+  };
+  const elapsed = formatElapsed(goalElapsedMs(goal, now));
   return (
-    <>
+    <View style={styles.bar} accessibilityLabel="Goal bar">
       <Pressable
         onPress={() => setDialogOpen(true)}
-        style={styles.bar}
+        style={styles.barMain}
         accessibilityRole="button"
-        accessibilityLabel="Goal bar"
+        accessibilityLabel="Open goal dialog"
         {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
       >
         <Feather name="target" size={12} color={statusColor(goal.status)} />
         <Text style={[styles.barStatus, { color: statusColor(goal.status) }]}>{STATUS_LABEL[goal.status]}</Text>
         <Text style={styles.barObjective} numberOfLines={1}>{goal.objective.replace(/\s+/g, ' ')}</Text>
-        <Text style={styles.barMeta}>{goal.continuations}/{goal.max_continuations}</Text>
-        <View style={styles.barButton}>
-          <Feather name="edit-2" size={11} color={colors.textSecondary} />
-          <Text style={styles.barButtonText}>Goal</Text>
-        </View>
+      </Pressable>
+      <Text style={styles.barMeta} accessibilityLabel={`Running for ${elapsed}`}>{elapsed}</Text>
+      <Text style={styles.barMeta}>{goal.continuations}/{goal.max_continuations}</Text>
+      {goal.status !== 'achieved' ? (
+        <Pressable
+          onPress={() => void toggle()}
+          disabled={busy}
+          style={[styles.barIconButton, busy && { opacity: 0.5 }]}
+          accessibilityRole="button"
+          accessibilityLabel={goal.status === 'active' ? 'Pause goal' : 'Resume goal'}
+          {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
+        >
+          <Feather name={goal.status === 'active' ? 'pause' : 'play'} size={11} color={colors.textSecondary} />
+        </Pressable>
+      ) : null}
+      <Pressable
+        onPress={() => setDialogOpen(true)}
+        style={styles.barButton}
+        accessibilityRole="button"
+        accessibilityLabel="Edit goal from bar"
+        {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
+      >
+        <Feather name="edit-2" size={11} color={colors.textSecondary} />
+        <Text style={styles.barButtonText}>Goal</Text>
       </Pressable>
       <GoalDialog
         visible={dialogOpen}
@@ -162,7 +227,7 @@ export function SessionGoalBar({ sessionId, isProcessing }: { sessionId?: string
         onSave={save}
         onClear={clear}
       />
-    </>
+    </View>
   );
 }
 
@@ -170,6 +235,7 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
   const { state, key, goal, setError, save, clear } = useSessionGoal(sessionId, isProcessing);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const now = useNow(goal?.status === 'active');
 
   const run = useCallback(async (change: () => Promise<unknown>) => {
     setBusy(true);
@@ -223,7 +289,7 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
       <View style={styles.statusRow}>
         <View style={[styles.dot, { backgroundColor: statusColor(goal.status) }]} />
         <Text style={styles.status}>{STATUS_LABEL[goal.status]}</Text>
-        <Text style={styles.meta}>{goal.continuations} of {goal.max_continuations} continuations</Text>
+        <Text style={styles.meta}>{formatElapsed(goalElapsedMs(goal, now))} · {goal.continuations} of {goal.max_continuations} continuations</Text>
       </View>
       <Pressable
         onPress={() => setDialogOpen(true)}
@@ -429,6 +495,11 @@ const styles = StyleSheet.create({
   } as any,
   counter: { fontFamily: font.sans, fontSize: 11.5, color: colors.textMuted, marginTop: 6 },
   dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
+  barMain: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.sm },
+  barIconButton: {
+    width: 22, height: 20, alignItems: 'center', justifyContent: 'center',
+    borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
+  },
   bar: {
     flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 10, paddingVertical: 5,
     backgroundColor: colors.sidebar,
