@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            The goal bar shows how long the goal has run and pauses or resumes it; a connected device stays in its running turn after a cancelled call. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            A loop can use this computer while it is connected, once you allow it from the Loops panel. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
