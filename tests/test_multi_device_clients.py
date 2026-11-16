@@ -48,6 +48,7 @@ class MultiDeviceClients(unittest.IsolatedAsyncioTestCase):
         self.service.runtime = SimpleNamespace(capabilities=self.catalog)
         self.service.dashboards = None
         self.service._interactive_sources = {}
+        self.service._detached_origins = {}
         self.service._interactive_leases = {}
         self.service._interactive_origins = {}
         p = PrincipalRef('openagent', 'network', 'alice')
