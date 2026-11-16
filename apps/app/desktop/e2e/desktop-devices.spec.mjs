@@ -25,6 +25,9 @@ class DeviceGateway extends DeterministicGateway {
   sharedRevision=0;
   sharedTurns=[];
   heldTurn=null;
+  goalPatches=[];
+  goal={session_id:'e2e-session',status:'active',max_continuations:20,continuations:3,remaining:17,note:null,outcome:null,paused_reason:null,created_at_ms:1700000000000,updated_at_ms:1700000000000,achieved_at_ms:null,
+    objective:Array.from({length:14},(_,i)=>`Rule ${i+1}: triage every new report, fix it with tests and answer the reporter in their own channel.`).join('\n')+'\nFinal rule: never declare the goal achieved.'};
   async start(){
     await super.start();const original=this.server.listeners('upgrade');this.server.removeAllListeners('upgrade');
     this.videoServer=new WebSocketServer({noServer:true});
@@ -105,6 +108,14 @@ class DeviceGateway extends DeterministicGateway {
       }
       return reply({can_manage:true,members:this.members});
     }
+    if(path==='/api/sessions/e2e-session/goal'){
+      if(request.method==='PATCH'){
+        let body='';for await(const chunk of request)body+=chunk;
+        const change=JSON.parse(body);this.goalPatches.push(change);
+        if(typeof change.objective==='string')this.goal={...this.goal,objective:change.objective};
+      }
+      return reply({goal:this.goal});
+    }
     if(path==='/api/devices')return reply({devices:[{device_id:'one',client_instance_id:'a',label:'Studio laptop',online:true,modules:['shell','editor','computer-control','agent-in-chrome'],last_seen_at:1700000000},{device_id:'two',client_instance_id:'b',label:'Home desktop',online:false,modules:['filesystem'],last_seen_at:1700000000}]});
     if(path==='/api/devices/computer-targets')return reply({
       host: {label:'Agent computer',platform:'Linux',desktop:'available'},
@@ -180,6 +191,22 @@ for(const live of [false,true])test(`device directory, session inspector and res
     await expect(page.getByText('Participants',{exact:true})).toBeVisible();
     await expect(page.getByText('Session details',{exact:true})).toHaveCount(0);
     await expect(page.getByText('Participated',{exact:true})).toBeVisible();
+    // A long goal is previewed in five lines; reading and editing it happen in its own dialog.
+    const preview=page.getByRole('button',{name:'Open goal',exact:true});
+    await expect(preview).toBeVisible();
+    expect((await preview.boundingBox()).height).toBeLessThanOrEqual(5*18+4);
+    await page.screenshot({path:join(temporary,'goal-preview.png')});
+    await preview.click();
+    await expect(page.getByText('Goal',{exact:true})).toBeVisible();
+    await expect(page.getByText(/Final rule: never declare the goal achieved\./)).toBeVisible();
+    await page.screenshot({path:join(temporary,'goal-dialog.png')});
+    await page.getByRole('button',{name:'Edit',exact:true}).click();
+    const objective=page.getByLabel('Goal objective',{exact:true});
+    await objective.fill('Triage the reports and answer every reporter.');
+    await page.getByRole('button',{name:'Save',exact:true}).click();
+    await expect(objective).toHaveCount(0);
+    expect(gateway.goalPatches).toEqual([{objective:'Triage the reports and answer every reporter.'}]);
+    await expect(page.getByRole('button',{name:'Open goal',exact:true})).toHaveText('Triage the reports and answer every reporter.');
     await page.getByRole('button',{name:'Share session',exact:true}).click();
     await page.getByRole('button',{name:'Select bob',exact:true}).click();
     await expect(page.getByLabel('Collaborator username',{exact:true})).toHaveValue('bob');
@@ -360,6 +387,6 @@ for(const live of [false,true])test(`device directory, session inspector and res
     // Screenshots are retained separately by the task; the isolated profile is disposable.
     const {copyFile,mkdir:make}=await import('node:fs/promises');
     const evidence=process.env.OPENAGENT_DEVICE_UI_EVIDENCE;
-    if(evidence){await make(evidence,{recursive:true});for(const name of ['devices-wide','devices-narrow','computer-wide','computer-narrow'])await copyFile(join(temporary,name+'.png'),join(evidence,name+'.png'));}
+    if(evidence){await make(evidence,{recursive:true});for(const name of ['devices-wide','devices-narrow','computer-wide','computer-narrow','goal-preview','goal-dialog'])await copyFile(join(temporary,name+'.png'),join(evidence,name+'.png'));}
   }finally{if(app)await app.close().catch(()=>{});await gateway.close();await rm(temporary,{recursive:true,force:true});}
 });

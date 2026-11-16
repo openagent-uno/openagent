@@ -6,12 +6,16 @@
  * ``openagent_core.session_goal``). The panel shows its state and offers the
  * same controls as ``/goal``: set, pause, resume, mark done and clear.
  *
+ * A goal can run to a few thousand characters, so the panel previews its
+ * first lines only; reading the whole objective, setting a goal and editing
+ * it happen in a dedicated dialog (``GoalDialog``).
+ *
  * It refreshes when the session's turn starts or ends (the agent changes the
  * goal with its ``[goal: …]`` markers), on a ``session`` resource event (REST
  * changes from any client) and after a ``/goal`` command result.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 import {
   clearSessionGoal,
@@ -23,9 +27,15 @@ import {
 } from '../services/api';
 import { useConnection } from '../stores/connection';
 import { useEvents } from '../stores/events';
-import { colors, font, radius, spacing } from '../theme';
+import { colors, font, glassSurface, radius, spacing } from '../theme';
+import Button from './Button';
 
 type State = { key: string; goal: Goal | null; loading: boolean; unsupported: boolean; error: string | null };
+
+/** Core caps an objective at 4000 characters (``session_goal.MAX_OBJECTIVE``). */
+const MAX_OBJECTIVE = 4000;
+/** Lines of the objective shown in the side panel before "Open goal". */
+const PREVIEW_LINES = 5;
 
 const STATUS_LABEL: Record<Goal['status'], string> = { active: 'Active', paused: 'Paused', achieved: 'Achieved' };
 
@@ -57,7 +67,7 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
   const ws = useConnection((s) => s.ws);
   const key = sessionId ?? '';
   const [state, setState] = useState<State>({ key, goal: null, loading: true, unsupported: false, error: null });
-  const [draft, setDraft] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [revision, setRevision] = useState(0);
   const refresh = useCallback(() => setRevision((value) => value + 1), []);
@@ -89,7 +99,6 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
     setBusy(true);
     try {
       await change();
-      setDraft('');
     } catch (error: any) {
       setState((previous) => ({ ...previous, error: String(error?.message ?? error) }));
     } finally {
@@ -109,24 +118,21 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
   }
   const goal = state.key === key ? state.goal : null;
 
-  const setForm = (
-    <View style={styles.form}>
-      <TextInput
-        value={draft}
-        onChangeText={setDraft}
-        placeholder={goal ? 'New objective…' : 'What should the agent achieve here?'}
-        placeholderTextColor={colors.textMuted}
-        multiline
-        style={styles.input}
-        accessibilityLabel="Goal objective"
-      />
-      <ActionButton
-        icon="target"
-        label={goal ? 'Replace goal' : 'Set goal'}
-        disabled={busy || !draft.trim()}
-        onPress={() => run(() => setSessionGoal(sessionId, draft.trim()))}
-      />
-    </View>
+  const save = async (objective: string) => {
+    // Editing keeps an active or paused goal running with its budget; saving
+    // over an achieved goal starts a new one.
+    if (goal && goal.status !== 'achieved') await updateSessionGoal(sessionId, { objective });
+    else await setSessionGoal(sessionId, objective);
+    refresh();
+  };
+  const dialog = (
+    <GoalDialog
+      visible={dialogOpen}
+      goal={goal}
+      startEditing={!goal}
+      onClose={() => setDialogOpen(false)}
+      onSave={save}
+    />
   );
 
   if (!goal) {
@@ -135,8 +141,11 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
         <Text style={styles.empty}>
           No goal. With a goal the agent keeps working in this conversation until it is done. You can also type /goal &lt;objective&gt;.
         </Text>
-        {setForm}
+        <View style={styles.actions}>
+          <ActionButton icon="target" label="Set goal" onPress={() => setDialogOpen(true)} />
+        </View>
         {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
+        {dialog}
       </View>
     );
   }
@@ -148,21 +157,150 @@ export default function SessionGoal({ sessionId, isProcessing }: { sessionId?: s
         <Text style={styles.status}>{STATUS_LABEL[goal.status]}</Text>
         <Text style={styles.meta}>{goal.continuations} of {goal.max_continuations} continuations</Text>
       </View>
-      <Text selectable style={styles.objective}>{goal.objective}</Text>
-      {goal.note ? <Text selectable style={styles.detail}>Note: {goal.note}</Text> : null}
-      {goal.status === 'paused' && goal.paused_reason ? <Text selectable style={styles.detail}>Paused: {goal.paused_reason}</Text> : null}
-      {goal.status === 'achieved' && goal.outcome ? <Text selectable style={styles.detail}>Outcome: {goal.outcome}</Text> : null}
+      <Pressable
+        onPress={() => setDialogOpen(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Open goal"
+        {...(Platform.OS === 'web' ? { className: 'oa-side-row' } as any : {})}
+      >
+        <Text style={styles.objective} numberOfLines={PREVIEW_LINES}>{goal.objective}</Text>
+      </Pressable>
+      {goal.status === 'paused' && goal.paused_reason ? <Text style={styles.detail} numberOfLines={2}>Paused: {goal.paused_reason}</Text> : null}
+      {goal.status === 'achieved' && goal.outcome ? <Text style={styles.detail} numberOfLines={2}>Outcome: {goal.outcome}</Text> : null}
       <View style={styles.actions}>
+        <ActionButton icon="maximize-2" label="Open" onPress={() => setDialogOpen(true)} />
         {goal.status === 'active' ? <ActionButton icon="pause" label="Pause" disabled={busy} onPress={() => run(() => updateSessionGoal(sessionId, { action: 'pause' }))} /> : null}
         {goal.status === 'paused' ? <ActionButton icon="play" label="Resume" disabled={busy} onPress={() => run(() => updateSessionGoal(sessionId, { action: 'resume' }))} /> : null}
         {goal.status !== 'achieved' ? <ActionButton icon="check" label="Mark done" disabled={busy} onPress={() => run(() => updateSessionGoal(sessionId, { action: 'done' }))} /> : null}
         <ActionButton icon="x" label="Clear" disabled={busy} onPress={() => run(() => clearSessionGoal(sessionId))} />
       </View>
-      {goal.status !== 'active' ? setForm : null}
       {goal.status === 'active' && isProcessing ? <Text style={styles.detail}>The agent is working on it.</Text> : null}
       {goal.status === 'active' && !isProcessing ? <Text style={styles.detail}>Send a message to continue working on it.</Text> : null}
       {state.error ? <Text style={styles.error}>{state.error}</Text> : null}
+      {dialog}
     </View>
+  );
+}
+
+/** The whole goal: read it, edit its objective, or set a new one. */
+function GoalDialog({ visible, goal, startEditing, onClose, onSave }: {
+  visible: boolean;
+  goal: Goal | null;
+  startEditing: boolean;
+  onClose: () => void;
+  onSave: (objective: string) => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(startEditing);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    setEditing(startEditing);
+    setDraft(goal?.objective ?? '');
+    setError(null);
+  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps -- reset on open only
+
+  const close = useCallback(() => { if (!saving) onClose(); }, [saving, onClose]);
+
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      close();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [visible, close]);
+
+  const submit = async () => {
+    const objective = draft.trim();
+    if (!objective) { setError('Describe what the agent should achieve.'); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave(objective);
+      onClose();
+    } catch (reason: any) {
+      setError(String(reason?.message ?? reason));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const replacing = goal?.status === 'achieved';
+  const title = !goal ? 'Set goal' : editing ? (replacing ? 'New goal' : 'Edit goal') : 'Goal';
+
+  return (
+    <Modal animationType="fade" transparent visible={visible} onRequestClose={close}>
+      <View style={styles.overlay}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={close}
+          {...(Platform.OS === 'web' ? ({ dataSet: { oaHover: 'off' } } as any) : {})}
+        />
+        <View style={styles.dialog} {...(Platform.OS === 'web' ? { className: 'oa-slide-up' } as any : {})}>
+          <View style={styles.dialogHeader}>
+            <Text style={styles.dialogTitle}>{title}</Text>
+            {goal ? (
+              <View style={styles.statusRow}>
+                <View style={[styles.dot, { backgroundColor: statusColor(goal.status) }]} />
+                <Text style={styles.status}>{STATUS_LABEL[goal.status]}</Text>
+                <Text style={styles.metaInline}>· {goal.continuations} of {goal.max_continuations} continuations</Text>
+              </View>
+            ) : null}
+          </View>
+          {editing ? (
+            <>
+              <TextInput
+                value={draft}
+                onChangeText={(value) => { setDraft(value); if (error) setError(null); }}
+                placeholder="What should the agent achieve here?"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                autoFocus
+                maxLength={MAX_OBJECTIVE}
+                editable={!saving}
+                style={styles.dialogInput}
+                accessibilityLabel="Goal objective"
+              />
+              <Text style={styles.counter}>
+                {draft.length} / {MAX_OBJECTIVE}
+                {replacing ? ' · Saving starts a new goal.' : goal ? ' · The goal keeps its status and budget.' : ''}
+              </Text>
+            </>
+          ) : goal ? (
+            <ScrollView style={styles.dialogBody} contentContainerStyle={{ paddingRight: 6 }}>
+              <Text selectable style={styles.dialogObjective}>{goal.objective}</Text>
+              {goal.note ? <Text selectable style={styles.dialogDetail}>Note: {goal.note}</Text> : null}
+              {goal.status === 'paused' && goal.paused_reason ? <Text selectable style={styles.dialogDetail}>Paused: {goal.paused_reason}</Text> : null}
+              {goal.status === 'achieved' && goal.outcome ? <Text selectable style={styles.dialogDetail}>Outcome: {goal.outcome}</Text> : null}
+            </ScrollView>
+          ) : null}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.dialogActions}>
+            {editing ? (
+              <>
+                <Button
+                  variant="secondary"
+                  label="Cancel"
+                  disabled={saving}
+                  onPress={() => (goal ? (setEditing(false), setDraft(goal.objective), setError(null)) : close())}
+                />
+                <Button variant="primary" label={saving ? 'Saving…' : replacing || !goal ? 'Set goal' : 'Save'} disabled={saving || !draft.trim()} onPress={() => void submit()} />
+              </>
+            ) : (
+              <>
+                <Button variant="secondary" label="Close" onPress={close} />
+                <Button variant="primary" label={replacing ? 'New goal' : 'Edit'} onPress={() => setEditing(true)} />
+              </>
+            )}
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -181,10 +319,30 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border,
   },
   buttonText: { fontFamily: font.sans, fontSize: 11.5, color: colors.textSecondary },
-  form: { gap: 6, marginTop: spacing.sm },
-  input: {
-    minHeight: 54, padding: 8, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border, backgroundColor: colors.inputBg, color: colors.text,
-    fontFamily: font.sans, fontSize: 12, textAlignVertical: 'top',
+  overlay: {
+    flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24,
+    backgroundColor: 'rgba(2, 4, 10, 0.45)',
   },
+  dialog: {
+    width: 680, maxWidth: '100%', maxHeight: '85%', padding: 20,
+    borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: glassSurface.backgroundColor,
+    ...(Platform.OS === 'web'
+      ? { backdropFilter: glassSurface.webFilter, WebkitBackdropFilter: glassSurface.webFilter }
+      : {}),
+    shadowColor: 'rgba(0,0,0,0.18)', shadowOffset: { width: 0, height: 24 }, shadowOpacity: 1, shadowRadius: 48,
+  } as any,
+  dialogHeader: { gap: 6, marginBottom: 14 },
+  dialogTitle: { color: colors.text, fontFamily: font.display, fontSize: 16, fontWeight: '600', letterSpacing: -0.2 },
+  metaInline: { fontFamily: font.sans, fontSize: 11.5, color: colors.textMuted },
+  dialogBody: { flexShrink: 1 },
+  dialogObjective: { fontFamily: font.sans, fontSize: 13.5, lineHeight: 21, color: colors.text },
+  dialogDetail: { fontFamily: font.sans, fontSize: 12.5, lineHeight: 19, color: colors.textSecondary, marginTop: spacing.sm },
+  dialogInput: {
+    minHeight: 320, flexShrink: 1, padding: 12, borderRadius: radius.md, borderWidth: 1,
+    borderColor: colors.border, backgroundColor: colors.surface, color: colors.text,
+    fontFamily: font.sans, fontSize: 13.5, lineHeight: 21, textAlignVertical: 'top', outlineStyle: 'none',
+  } as any,
+  counter: { fontFamily: font.sans, fontSize: 11.5, color: colors.textMuted, marginTop: 6 },
+  dialogActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 });
