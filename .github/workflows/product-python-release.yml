@@ -57,7 +57,19 @@ jobs:
         run: |
           curl --fail --location --retry 3 https://github.com/openagent-uno/openagent/releases/download/v1.1.9-beta.13/install.sh -o "$RUNNER_TEMP/bootstrap.sh"
           echo "da3fdb59cd59fb6a58a878e4fc55d03227647621791dbb07a7d2b774ee45ff85  $RUNNER_TEMP/bootstrap.sh" | sha256sum --check
-          OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/qualified-base" sh "$RUNNER_TEMP/bootstrap.sh" --server --prefix "$RUNNER_TEMP/qualified-bin"
+          # The pinned installer reads release manifests through the
+          # unauthenticated GitHub API, whose shared runner quota is easily
+          # exhausted ("403 rate limit exceeded"). Retry with backoff from a
+          # clean root instead of failing the release.
+          for attempt in 1 2 3 4; do
+            rm -rf "$RUNNER_TEMP/qualified-base" "$RUNNER_TEMP/qualified-bin"
+            if OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/qualified-base" sh "$RUNNER_TEMP/bootstrap.sh" --server --prefix "$RUNNER_TEMP/qualified-bin"; then
+              break
+            fi
+            if [ "$attempt" = 4 ]; then exit 1; fi
+            echo "Installer attempt $attempt failed; retrying in $((attempt * 90))s"
+            sleep $((attempt * 90))
+          done
           PYTHON="$RUNNER_TEMP/qualified-base/venv/bin/python"
           "$PYTHON" -m pip install pytest pytest-asyncio pytest-subtests
           "$PYTHON" scripts/qualify_python_product.py --wheels "$RUNNER_TEMP/product-wheels"
