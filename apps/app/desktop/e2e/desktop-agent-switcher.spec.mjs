@@ -221,7 +221,9 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await page.getByRole('button', { name: /^all members$/i }).click();
     await expect.poll(() => gateways[0].visibility).toBe('members');
     await page.getByRole('tab', { name: 'Models & Providers', exact: true }).click();
-    await expect(page.getByText('Accounts', { exact: true })).toBeVisible();
+    // Accounts are part of the models grid (status and quota on each tile), not a section or a tab.
+    await expect(page.getByText('Models', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /add model/i }).first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Accounts', exact: true })).toHaveCount(0);
     await page.getByRole('tab', { name: 'Costs', exact: true }).click();
     await expect(page.getByText('Budgets', { exact: true })).toBeVisible();
