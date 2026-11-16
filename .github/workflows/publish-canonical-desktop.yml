@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            Settings shows every model in one grid with its inputs, status and subscription quota, and Add model walks you through a new one. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            You can sign an account in to a subscription provider from Settings, and sign in again when it expires. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
