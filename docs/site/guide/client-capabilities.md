@@ -214,6 +214,26 @@ There is no default device, last-used device or online-device fallback. A
 synchronous delegated child inside the same interactive turn may inherit the
 exact client origin; a later durable execution may not.
 
+### Lending a device to one automation
+
+The person who approved a scheduled task (including a loop bound to a
+conversation) can lend it one of their own devices, from that device:
+
+- `GET /api/scheduled-tasks/{id}/devices` lists the devices lent to it and
+  whether the requesting device is one of them;
+- `PUT /api/scheduled-tasks/{id}/devices/current` lends the requesting device;
+  `DELETE` on the same path withdraws it at once.
+
+Only the approver of the task's active grant may do this, only with a signed-in
+device certificate, and only for their own device. While the device is
+connected, the task's firings (and the goal continuations of its turns) see the
+device's sources through Core's `DelegatedDeviceSource`; every discovery and
+call rechecks that the run is a deferred run of exactly that grant, that the
+definition is enabled and unchanged, and that the consent still exists. A
+device's own consent and modules still apply, a disconnect ends the loan, and
+background shell jobs still need an interactive turn. Without a consent the
+behaviour above is unchanged.
+
 ## Capability protocol
 
 The client main process opens an authenticated `/ws/capabilities` WebSocket over

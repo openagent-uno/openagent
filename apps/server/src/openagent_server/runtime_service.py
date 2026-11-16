@@ -223,6 +223,13 @@ class NativeRuntimeService:
         from openagent_server.official_connectors import OfficialConnectors
         self.official_connectors = OfficialConnectors(self)
         self.store = SqliteRuntimeStore(agent.memory_db.db_path)
+        from openagent_server.automation_device_consent import AutomationDeviceConsents
+
+        self.device_consents = AutomationDeviceConsents(agent.memory_db.db_path)
+        # Devices lent to their owner's automations: namespace -> loan, and
+        # each lent source id -> its namespace.
+        self._lent_devices: dict[str, dict] = {}
+        self._lent_sources: dict[str, str] = {}
         self.runtime = None
         self.prepared_runs: dict[str, PreparedRun] = {}
         self.dashboards = None
@@ -642,6 +649,7 @@ class NativeRuntimeService:
                 revoke_interactive_capabilities(self.runtime.capabilities, leases)
                 for lease in leases:
                     self._interactive_sources.pop(lease.source_id, None)
+        self._end_loans(lambda loan: loan["origin_key"] == origin_key)
 
     def detach_device_origin(self, origin, *, grace_s: float) -> None:
         """Keep an exact origin's leases while only its transport is down.
@@ -790,6 +798,115 @@ class NativeRuntimeService:
             granted.extend(leases)
         return (*dashboard_leases, *granted)
 
+    async def _consented_grant(self, context):
+        """The active grant behind a deferred automation run, with its owner.
+
+        Only a deferred run without ingress on an active, unrevoked grant whose
+        definition is enabled and unchanged, and whose user principal is the
+        run's initiator and authority, qualifies. Interactive turns never do.
+        """
+        import json
+        from openagent_core.contracts import PrincipalRef
+        from openagent_server.automation_authority import definition_digest
+
+        if (not getattr(context, "deferred", False) or not context.delegation_id
+                or context.ingress_id or context.capabilities):
+            return None
+        grant = await self.automations._grant(context.delegation_id)
+        if grant is None:
+            return None
+        principal = PrincipalRef(**json.loads(grant["principal_json"]))
+        if (principal.kind != "user" or context.initiator != principal
+                or context.authority != principal):
+            return None
+        try:
+            current = await self.automations.definition(grant["kind"], grant["definition_id"])
+        except LookupError:
+            return None
+        if (not current.get("enabled", True)
+                or definition_digest(grant["kind"], current) != grant["digest"]
+                or not await self.automations.principal_active(principal)):
+            return None
+        return grant, principal
+
+    async def _active_grant_owner(self, kind: str, definition_id: str):
+        import json
+
+        import aiosqlite
+        from openagent_core.contracts import PrincipalRef
+
+        async with aiosqlite.connect(self.agent.memory_db.db_path) as conn:
+            row = await (await conn.execute(
+                "SELECT principal_json FROM standalone_automation_grants "
+                "WHERE kind=? AND definition_id=? AND revoked=0", (kind, definition_id),
+            )).fetchone()
+        return PrincipalRef(**json.loads(row[0])) if row else None
+
+    async def lend_consented_devices(self, connection) -> None:
+        """Lend a newly connected device to the automations its owner allowed."""
+        from openagent_core.mcp.catalog import register_delegated_device_capabilities
+
+        registry = getattr(self.gateway, "capabilities", None)
+        catalog = getattr(self.runtime, "capabilities", None)
+        if registry is None or catalog is None or getattr(connection, "owner_kind", "user") != "user":
+            return
+        tenant_id, owner = connection.network_id, connection.owner_handle
+        for kind, definition_id in await self.device_consents.for_device(
+                tenant_id=tenant_id, owner=owner, device_id=connection.device_id):
+            principal = await self._active_grant_owner(kind, definition_id)
+            if principal is None or principal.tenant_id != tenant_id or principal.subject_id != owner:
+                continue
+            origin = connection.origin(registry)
+            namespace = (f"automation/{kind}/{definition_id}/{origin.device_id}/"
+                         f"{origin.client_instance_id}/{origin.generation}/{origin.auth_epoch}")
+            if namespace in self._lent_devices:
+                continue
+            source_ids = register_delegated_device_capabilities(
+                catalog, origin, source_namespace=namespace, owner=principal, agent_id=self.agent.name)
+            self._lent_devices[namespace] = {
+                "kind": kind, "definition_id": definition_id, "device_id": origin.device_id,
+                "owner": principal, "source_ids": tuple(source_ids),
+                "origin_key": (origin.device_id, origin.client_instance_id,
+                               origin.generation, origin.auth_epoch),
+            }
+            for source_id in source_ids:
+                self._lent_sources[source_id] = namespace
+
+    def _end_loans(self, predicate) -> None:
+        from openagent_core.mcp.catalog import revoke_delegated_device_capabilities
+
+        loans = getattr(self, "_lent_devices", None)
+        if not loans:
+            return
+        for namespace, loan in tuple(loans.items()):
+            if not predicate(loan):
+                continue
+            loans.pop(namespace, None)
+            for source_id in loan["source_ids"]:
+                self._lent_sources.pop(source_id, None)
+            catalog = getattr(self.runtime, "capabilities", None)
+            if catalog is not None:
+                revoke_delegated_device_capabilities(catalog, loan["source_ids"])
+
+    def revoke_automation_device(self, kind: str, definition_id: str, device_id: str) -> None:
+        """End the loan a withdrawn consent had made, at once."""
+        self._end_loans(lambda loan: (loan["kind"], loan["definition_id"], loan["device_id"])
+                        == (kind, definition_id, device_id))
+
+    async def _lent_device_allows(self, context, loan) -> bool:
+        if loan is None:
+            return False
+        resolved = await self._consented_grant(context)
+        if resolved is None:
+            return False
+        grant, principal = resolved
+        return (grant["kind"] == loan["kind"] and grant["definition_id"] == loan["definition_id"]
+                and principal == loan["owner"]
+                and await self.device_consents.allows(
+                    tenant_id=principal.tenant_id, owner=principal.subject_id,
+                    device_id=loan["device_id"], kind=loan["kind"],
+                    definition_id=loan["definition_id"]))
+
     async def authorize_agent_identity(self, actor):
         """Authorize editable persona management with the host's actual ingress.
 
@@ -883,6 +1000,9 @@ class NativeRuntimeService:
         source = resource.resource_id
         if resource.kind == "tool":
             source = source.rsplit("/", 1)[0]
+        lent = getattr(self, "_lent_sources", {}).get(source)
+        if lent is not None:
+            return await self._lent_device_allows(context, self._lent_devices.get(lent))
         owner = self._interactive_sources.get(source)
         if owner is not None:
             granted_context, granted_owner = owner

@@ -1502,6 +1502,9 @@ class Gateway:
             ("POST", "/api/scheduled-tasks/{id}/stop", scheduled_tasks.handle_stop),
             ("PATCH", "/api/scheduled-tasks/{id}", scheduled_tasks.handle_update),
             ("DELETE", "/api/scheduled-tasks/{id}", scheduled_tasks.handle_delete),
+            ("GET", "/api/scheduled-tasks/{id}/devices", scheduled_tasks.handle_devices_list),
+            ("PUT", "/api/scheduled-tasks/{id}/devices/current", scheduled_tasks.handle_devices_allow_current),
+            ("DELETE", "/api/scheduled-tasks/{id}/devices/current", scheduled_tasks.handle_devices_withdraw_current),
             # Workflow engine (n8n-style multi-block pipelines). Durable GETs
             # remain available while background workers are parked; mutations
             # and execution return 503 when no Scheduler is attached, matching
@@ -2145,6 +2148,7 @@ class Gateway:
                 # A transport reconnect of this exact origin resumes the
                 # leases its running turns already hold.
                 self.runtime_service.reattach_device_origin(conn)
+                await self._lend_consented_devices(conn)
             from openagent_server.device_directory import directory_for
             await directory_for(self).remember(conn)
             await self._safe_ws_send_json(ws, {
@@ -2183,6 +2187,7 @@ class Gateway:
                         )
                         if getattr(self, "runtime_service", None) is not None:
                             self.runtime_service.revoke_device_origin(conn)
+                        await self._lend_consented_devices(conn)
                         await directory_for(self).remember(conn)
                     elif t in {"client_media_packet", "client_media_end"}:
                         self.capabilities.receive_media(conn, frame)
@@ -2555,6 +2560,18 @@ class Gateway:
                 except Exception as e:  # noqa: BLE001
                     logger.debug("terminal connection cleanup failed: %s", e)
         return ws
+
+    async def _lend_consented_devices(self, conn) -> None:
+        """Lend this device to the automations its owner allowed; never fatal."""
+        service = getattr(self, "runtime_service", None)
+        lend = getattr(service, "lend_consented_devices", None)
+        if lend is None:
+            return
+        try:
+            await lend(conn)
+        except Exception as error:  # noqa: BLE001 - a loan must never drop the device
+            elog("gateway.device_loan_failed", level="warning", device_id=conn.device_id,
+                 error_type=type(error).__name__)
 
     async def _handle_command(
         self, ws, client_id: str, name: str, session_id: str | None = None,

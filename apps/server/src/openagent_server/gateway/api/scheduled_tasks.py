@@ -563,3 +563,89 @@ async def handle_delete(request):
     gw = request.app["gateway"]
     await gw.broadcast_resource("scheduled_task", "deleted", task_id)
     return web.json_response({"ok": True, "id": task_id})
+
+
+# ── Devices an automation may use ─────────────────────────────────────────────
+# A connected device's tools serve its owner's own turns. The person who
+# approved an automation can let it use one of their devices while that device
+# is connected: GET lists the devices, PUT/DELETE .../devices/current add or
+# withdraw the device making the request (only from that device).
+
+
+async def _device_consent_target(request, *, require_device: bool):
+    import json
+
+    import aiosqlite
+    from aiohttp import web
+    from openagent_core.contracts import PrincipalRef
+    from openagent_core.core.on_behalf_context import OnBehalfIdentity
+
+    service = getattr(request.app["gateway"], "runtime_service", None)
+    if service is None or not hasattr(service, "device_consents"):
+        raise web.HTTPServiceUnavailable(text="Automation management is not ready")
+    device_id = None
+    if request.get("device_cert") is not None and request.get("auth_kind") == "device_cert":
+        device_id = OnBehalfIdentity.from_certificate(
+            request.get("device_cert"), auth_kind="device_cert").device_id
+    if require_device and not device_id:
+        raise web.HTTPForbidden(text="Only a signed-in device can lend itself to an automation")
+    context = await service.context(request, "__automation_management__")
+    task_id = request.match_info["id"]
+    async with aiosqlite.connect(service.agent.memory_db.db_path) as conn:
+        row = await (await conn.execute(
+            "SELECT principal_json FROM standalone_automation_grants "
+            "WHERE kind='task' AND definition_id=? AND revoked=0",
+            (task_id,),
+        )).fetchone()
+    if row is None:
+        raise web.HTTPConflict(text="This automation has no active approval")
+    principal = PrincipalRef(**json.loads(row[0]))
+    if principal != context.initiator:
+        raise web.HTTPForbidden(text="Only the person who approved this automation can lend it a device")
+    return service, principal, device_id, task_id
+
+
+async def handle_devices_list(request):
+    from aiohttp import web
+
+    service, principal, device_id, task_id = await _device_consent_target(request, require_device=False)
+    rows = await service.device_consents.devices(
+        tenant_id=principal.tenant_id, owner=principal.subject_id, kind="task", definition_id=task_id)
+    return web.json_response({
+        "devices": rows,
+        "this_device": device_id,
+        "this_device_allowed": any(row["device_id"] == device_id for row in rows),
+    })
+
+
+async def handle_devices_allow_current(request):
+    from aiohttp import web
+
+    service, principal, device_id, task_id = await _device_consent_target(request, require_device=True)
+    registry = getattr(request.app["gateway"], "capabilities", None)
+    label = next((conn.device_label for conn in (registry.connections_for_owner(
+        principal.tenant_id, principal.subject_id) if registry is not None else ())
+        if conn.device_id == device_id), None)
+    await service.device_consents.grant(
+        tenant_id=principal.tenant_id, owner=principal.subject_id, device_id=device_id,
+        kind="task", definition_id=task_id, device_label=label)
+    for conn in (registry.connections_for_owner(principal.tenant_id, principal.subject_id)
+                 if registry is not None else ()):
+        if conn.device_id == device_id:
+            await service.lend_consented_devices(conn)
+    elog("scheduled_task.device_allowed", id=task_id, device_id=device_id)
+    await request.app["gateway"].broadcast_resource("scheduled_task", "updated", task_id)
+    return web.json_response({"ok": True, "device_id": device_id, "allowed": True})
+
+
+async def handle_devices_withdraw_current(request):
+    from aiohttp import web
+
+    service, principal, device_id, task_id = await _device_consent_target(request, require_device=True)
+    removed = await service.device_consents.revoke(
+        tenant_id=principal.tenant_id, owner=principal.subject_id, device_id=device_id,
+        kind="task", definition_id=task_id)
+    service.revoke_automation_device("task", task_id, device_id)
+    elog("scheduled_task.device_withdrawn", id=task_id, device_id=device_id, removed=removed)
+    await request.app["gateway"].broadcast_resource("scheduled_task", "updated", task_id)
+    return web.json_response({"ok": True, "device_id": device_id, "allowed": False})
