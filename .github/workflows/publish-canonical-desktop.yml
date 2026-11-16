@@ -146,7 +146,7 @@ jobs:
           target_commitish: ${{ inputs.source_sha }}
           name: OpenAgent App ${{ env.APP_VERSION }}
           body: |
-            A long goal shows its first lines in the session panel; read, set and edit it in a dedicated dialog. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
+            The conversation's goal sits on one line above the composer; its dialog reads, edits and removes it. This release uses Host Tools ${{ env.HOST_TOOLS_VERSION }}.
 
             Existing application ID, protocol, profiles and consents are preserved. macOS ARM64/x64 signed and notarized; all six packaged targets passed native artifact and launch checks. Windows Authenticode, two physical remote machines and live-provider acceptance are not claimed.
 
