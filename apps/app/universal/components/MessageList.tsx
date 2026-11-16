@@ -304,7 +304,7 @@ function MessageListBase({
       const renderTool = (card: ReactNode) => wrap(
         <>
           {card}
-          {showFork && <View style={styles.msgActions}><TurnModel model={msg.model} /><ForkButton onFork={fork} /></View>}
+          {showFork && <View style={styles.msgActions}><TurnModel model={msg.model} /><ForkButton onFork={fork} /><TurnTime timestamp={msg.timestamp} /></View>}
         </>,
       );
       // A delegation renders as a card (deep-links into the sub-agent's
