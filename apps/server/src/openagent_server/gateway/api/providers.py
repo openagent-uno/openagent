@@ -294,6 +294,7 @@ async def handle_test(request: web.Request) -> web.Response:
             model_id=body.get("model") or body.get("model_id"),
             framework=provider_row["framework"],
             session_id="provider-test",
+            db=db,
         )
         return _web.json_response({"ok": True, "model": runtime_model, "response": resp.content})
     except Exception as e:  # noqa: BLE001 — surfaced to caller

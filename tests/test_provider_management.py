@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from openagent_core.engine import MemoryDB
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
-from openagent_server.gateway.api.providers import handle_update, handle_contract
+from openagent_server.gateway.api.providers import handle_update, handle_contract, handle_test
 from openagent_server.gateway.api.models import handle_update_db
 from openagent_server.provider_management import authorize_request
 from aiohttp import web
@@ -71,6 +71,15 @@ class ProviderManagementTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.db.close()
         self.temp.cleanup()
+
+    async def test_connection_probe_uses_its_authorized_host_database(self):
+        from unittest.mock import AsyncMock, patch
+        smoke=AsyncMock(return_value=("original:original-model", SimpleNamespace(content="ok")))
+        with patch("openagent_core.models.runtime.run_provider_smoke_test",smoke):
+            response=await handle_test(Request(self.gateway,"/api/providers/"+str(self.provider)+"/test",self.provider,{}))
+        self.assertEqual(response.status,200)
+        self.assertIs(smoke.await_args.kwargs["db"],self.db)
+        self.assertEqual(smoke.await_args.args[0],"original")
 
     async def test_connection_contract_advertises_installed_core_types(self):
         import json
