@@ -54,7 +54,7 @@ _PROBE_TIMEOUT_S = 2.5
 # rather not blindly relay to a client.
 _ACCOUNT_FIELDS = (
     "id", "name", "priority", "plan", "managed",
-    "limited", "limited_until_ms", "expires_at_ms", "has_refresh_token",
+    "limited", "limited_until_ms", "expires_at_ms", "has_refresh_token", "enabled",
 )
 
 _QUOTA_FIELDS = (
@@ -287,6 +287,14 @@ async def _sign_in_call(request, path: str, body: dict | None):
     provider = await db.get_provider(pid)
     if provider is None:
         return None, web.json_response({"error": f"Provider id={pid} not found"}, status=404)
+    if (provider.get("metadata") or {}).get("access") == "subscription":
+        from openagent_server.provider_management import for_request
+        admin, context = await for_request(request)
+        try:
+            payload = await admin.subscription(context, pid, "complete" if path.endswith("complete") else "start", body)
+            return (provider, payload), None
+        except (ValueError, LookupError) as exc:
+            return None, web.json_response({"error": str(exc)}, status=400)
     url = _admin_url(provider.get("base_url") or "", path)
     if url is None:
         return None, web.json_response(
@@ -395,7 +403,8 @@ async def handle_list(request):
         return web.json_response({"error": "No database configured"}, status=503)
 
     providers = await db.list_providers()
-    live = [p for p in providers if p.get("enabled")]
+    native = [p for p in providers if (p.get("metadata") or {}).get("access") == "subscription"]
+    live = [p for p in providers if p.get("enabled") and p not in native]
 
     import aiohttp
 
@@ -426,4 +435,36 @@ async def handle_list(request):
         entry["status"] = provider_status(entry) if entry.get("accounts") or entry.get("reachable") else "unreachable"
         out.append(entry)
 
+    if native:
+        from openagent_server.provider_management import for_request
+        admin, context = await for_request(request)
+        import time
+        for provider in native:
+            try:
+                accounts = await admin.subscription(context, provider["id"], "accounts")
+                accounts = [_normalise_account(a, int(time.time() * 1000)) for a in accounts]
+                accounts = [a for a in accounts if a is not None]
+                entry = {"provider": provider["name"], "provider_id": provider["id"],
+                         "enabled": provider["enabled"], "reachable": True, "sign_in": True,
+                         "accounts": accounts, "metrics": None, "error": None}
+                entry["status"] = provider_status(entry)
+            except (ValueError, OSError):
+                entry = {"provider": provider["name"], "provider_id": provider["id"],
+                         "enabled": provider["enabled"], "reachable": False, "sign_in": True,
+                         "accounts": [], "metrics": None, "status": "unreachable",
+                         "error": "Subscription adapter unavailable"}
+            out.append(entry)
     return web.json_response({"providers": out})
+
+
+async def handle_update_account(request):
+    from aiohttp import web
+    from openagent_server.provider_management import for_request
+    admin, context = await for_request(request)
+    try:
+        body = await request.json()
+        result = await admin.subscription(context, int(request.match_info["id"]), "update_account",
+                                          {**body, "id": request.match_info["account_id"]})
+        return web.json_response(result)
+    except (ValueError, LookupError) as exc:
+        return web.json_response({"error": str(exc)}, status=400)

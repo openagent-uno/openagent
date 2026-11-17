@@ -125,8 +125,6 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
       ) : (
         <>
           <ModelGrid />
-          <View style={{ height: 28 }} />
-          <BudgetsPanel />
         </>
       )}
       <View style={{ height: 40 }} />

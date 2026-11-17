@@ -1270,6 +1270,10 @@ export type InputModality = 'text' | 'image' | 'audio' | 'video' | 'file';
 export type InputModalitiesSource = 'provider' | 'default' | 'manual';
 
 export interface ProviderConfig {
+  vendor?: string;
+  access?: 'api' | 'subscription' | 'local';
+  label?: string;
+  account_id?: string | null;
   id: number;
   name: string;
   framework: ModelFramework;
@@ -1405,6 +1409,7 @@ export interface MCPEntry {
 //                   resolution; computed server-side from
 //                   (provider_name, model, framework).
 export interface ModelEntry {
+  settings_schema?: ModelSetting[];
   id: number;
   provider_id: number;
   provider_name: string;
@@ -1434,6 +1439,15 @@ export interface ModelEntry {
   metadata: Record<string, unknown>;
   created_at: number;
   updated_at: number;
+}
+
+export interface ModelSetting {
+  key: string;
+  label: string;
+  type: 'number' | 'integer' | 'enum' | 'string';
+  min?: number;
+  max?: number;
+  options?: string[];
 }
 
 // ── Family + effort ──────────────────────────────────────────────────
@@ -2132,6 +2146,8 @@ export interface BudgetRule {
 
 /** A rule plus its live meter, from `/api/budgets/usage`. */
 export interface BudgetUsage extends BudgetRule {
+  enforced_kinds?: ModelKind[];
+  metering_warning?: string;
   /** Spend so far in the current window. `null` for `per_run` (no window
    *  to sum over) or when the aggregation failed — see `error`. */
   spend: number | null;
@@ -2277,6 +2293,7 @@ export interface AccountQuota {
 }
 
 export interface ServingAccount {
+  enabled?: boolean;
   id: string;
   name: string;
   priority?: number;

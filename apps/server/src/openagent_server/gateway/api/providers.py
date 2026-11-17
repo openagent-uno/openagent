@@ -56,25 +56,8 @@ def _shape_metadata(metadata: Any) -> dict[str, Any]:
 
 def _shape_provider(row: dict[str, Any]) -> dict[str, Any]:
     """Public response shape for a provider row — masked api_key."""
-    out = {
-        "id": row["id"],
-        "name": row["name"],
-        "framework": row["framework"],
-        "kind": row.get("kind", "llm"),
-        "base_url": row.get("base_url"),
-        "enabled": bool(row.get("enabled", True)),
-        "metadata": _shape_metadata(row.get("metadata") or {}),
-        "created_at": row.get("created_at"),
-        "updated_at": row.get("updated_at"),
-    }
-    key = row.get("api_key")
-    if key is None:
-        out["api_key_display"] = "—"
-    elif isinstance(key, str) and key.startswith("${"):
-        out["api_key_display"] = key
-    else:
-        out["api_key_display"] = _mask_key(key)
-    return out
+    from openagent_core.administration import public_provider
+    return public_provider({**row, "metadata": row.get("metadata") or {}})
 
 
 def _parse_provider_id(request: "web.Request") -> int | None:
@@ -315,3 +298,12 @@ async def handle_test(request: web.Request) -> web.Response:
         return _web.json_response({"ok": True, "model": runtime_model, "response": resp.content})
     except Exception as e:  # noqa: BLE001 — surfaced to caller
         return _web.json_response({"ok": False, "error": str(e)}, status=400)
+
+
+async def handle_contract(request: "web.Request") -> "web.Response":
+    """Advertise the installed Core connection contract for staged client upgrades."""
+    from aiohttp import web
+    from openagent_core.models.connections import ACCESS_TYPES, MODEL_KINDS
+    return web.json_response({"version": 1, "access_types": sorted(ACCESS_TYPES),
+                              "model_kinds": list(MODEL_KINDS),
+                              "builtin_subscriptions": ["anthropic", "openai"]})

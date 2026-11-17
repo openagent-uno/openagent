@@ -50,9 +50,13 @@ import { attachmentContentRef } from '../../common/attachments';
 
 let baseUrl = '';
 let agentScope = 0;
+// Share only in-flight reads. A mutation or source switch immediately fences
+// new callers from the old snapshot; results are never retained as a cache.
+const pendingReads = new Map<string, Promise<unknown>>();
 export const currentAgentScope = () => agentScope;
 export function clearBaseUrl() {
   baseUrl = '';
+  pendingReads.clear();
   agentScope += 1;
 }
 
@@ -77,6 +81,7 @@ async function fetchAgent(input: string, init?: RequestInit): Promise<Response> 
 }
 
 export function setBaseUrl(host: string, port: number) {
+  pendingReads.clear();
   baseUrl = `http://${host}:${port}`;
 }
 
@@ -199,18 +204,32 @@ async function responseError(res: Response): Promise<ApiError> {
   );
 }
 
-async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+function get<T>(path: string, signal?: AbortSignal): Promise<T> {
+  // Independent cancellation must not cancel another consumer's read.
+  if (signal) return read<T>(path, signal);
+  const key = `${agentScope}:${baseUrl}:${path}`;
+  const pending = pendingReads.get(key);
+  if (pending) return pending as Promise<T>;
+  const request = read<T>(path);
+  pendingReads.set(key, request);
+  const clear = () => { if (pendingReads.get(key) === request) pendingReads.delete(key); };
+  void request.then(clear, clear);
+  return request;
+}
+
+async function read<T>(path: string, signal?: AbortSignal): Promise<T> {
   const init = withTimeout({ signal }, `GET ${path}`);
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }
 }
 
 async function put<T>(path: string, body: object): Promise<T> {
+  pendingReads.clear();
   const init = withTimeout({
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -219,13 +238,14 @@ async function put<T>(path: string, body: object): Promise<T> {
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }
 }
 
 async function post<T>(path: string, body: object = {}, signal?: AbortSignal): Promise<T> {
+  pendingReads.clear();
   const init = withTimeout({
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -235,13 +255,14 @@ async function post<T>(path: string, body: object = {}, signal?: AbortSignal): P
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }
 }
 
 async function del(path: string): Promise<void> {
+  pendingReads.clear();
   const init = withTimeout({ method: 'DELETE' }, `DELETE ${path}`);
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
@@ -252,6 +273,7 @@ async function del(path: string): Promise<void> {
 }
 
 async function patch<T>(path: string, body: object): Promise<T> {
+  pendingReads.clear();
   const init = withTimeout({
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -260,7 +282,7 @@ async function patch<T>(path: string, body: object): Promise<T> {
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw await responseError(res);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }
@@ -380,7 +402,7 @@ export async function writeNote(path: string, content: string): Promise<VaultWri
       return (await res.json()) as VaultWriteResult;
     }
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }
@@ -1069,7 +1091,7 @@ export async function updateConfigSection(
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-  return res.json();
+  return await res.json();
 }
 
 /** Read the owner-editable agent identity (not the framework prompt). */
@@ -1107,13 +1129,13 @@ export async function updateAgentIdentity(data: {
 export async function triggerUpdate(): Promise<{ updated: boolean; version?: string; old?: string; new?: string }> {
   const res = await fetchAgent(`${baseUrl}/api/update`, { method: 'POST' });
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-  return res.json();
+  return await res.json();
 }
 
 export async function triggerRestart(): Promise<{ ok: boolean }> {
   const res = await fetchAgent(`${baseUrl}/api/restart`, { method: 'POST' });
   if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-  return res.json();
+  return await res.json();
 }
 
 // ── Providers API (DB-backed) ──
@@ -1140,6 +1162,10 @@ function normalizeProvider(p: ProviderConfig): ProviderConfig {
 
 function normalizeModel(m: ModelEntry): ModelEntry {
   return { ...m, framework: normalizeFramework(m.framework) };
+}
+
+export function getProviderConnectionContract(): Promise<{ version: number }> {
+  return get('/api/providers/contract');
 }
 
 export async function getProviders(): Promise<ProviderConfig[]> {
@@ -1173,7 +1199,7 @@ export async function addProvider(body: {
 }
 
 export async function updateProvider(
-  providerId: number, body: { api_key?: string; base_url?: string; enabled?: boolean },
+  providerId: number, body: { api_key?: string; base_url?: string; enabled?: boolean; metadata?: Record<string, unknown> },
 ): Promise<{ ok: boolean; provider: ProviderConfig }> {
   const data = await put<{ ok: boolean; provider: ProviderConfig }>(
     `/api/providers/${providerId}`,
@@ -1184,6 +1210,10 @@ export async function updateProvider(
 
 export async function deleteProvider(providerId: number): Promise<void> {
   await del(`/api/providers/${providerId}`);
+}
+
+export async function updateSubscriptionAccount(providerId: number, accountId: string, body: { enabled?: boolean; name?: string }) {
+  return put(`/api/providers/${providerId}/accounts/${encodeURIComponent(accountId)}`, body);
 }
 
 /** Re-read what the provider declares about its language models' inputs.
@@ -2009,7 +2039,7 @@ async function delJson<T>(path: string): Promise<T> {
   try {
     const res = await fetchAgent(`${baseUrl}${path}`, init);
     if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-    return res.json();
+    return await res.json();
   } finally {
     clearTimer(init);
   }

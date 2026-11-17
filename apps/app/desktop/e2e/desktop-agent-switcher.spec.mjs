@@ -9,6 +9,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 class RailGateway extends DeterministicGateway {
   viewRequests = [];
+  identityReads = 0;
 
   async handleHttp(request, response) {
     const path = new URL(request.url, 'http://fixture').pathname;
@@ -25,6 +26,7 @@ class RailGateway extends DeterministicGateway {
       } }));
     }
     if (path === '/api/agent/identity' && request.method !== 'OPTIONS') {
+      this.identityReads += 1;
       if (request.method === 'PATCH') {
         const chunks = [];
         for await (const chunk of request) chunks.push(chunk);
@@ -202,6 +204,21 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await expect(atlas).toBeVisible();
 
     await page.getByRole('button', { name: 'Settings', exact: true }).click();
+    const nameDraft = page.getByPlaceholder('my-agent', { exact: true });
+    await nameDraft.fill('Unsent identity draft');
+    await page.getByRole('tab', { name: 'Channels', exact: true }).click();
+    const channelDraft = page.getByPlaceholder('123456789, 987654321', { exact: true });
+    await channelDraft.fill('42');
+    const identityReads = () => gateways[0].identityReads;
+    const beforeRefresh = identityReads();
+    gateways[0].profile = { ...gateways[0].profile, system_prompt: 'Remote persona' };
+    gateways[0].sendChatFrame({ type: 'agent_identity_changed', name: 'Atlas' });
+    await expect.poll(identityReads).toBeGreaterThan(beforeRefresh);
+    await expect(channelDraft).toHaveValue('42');
+    await page.getByRole('tab', { name: 'Agent Identity', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'System prompt', exact: true })).toHaveValue('Remote persona');
+    await expect(nameDraft).toHaveValue('Unsent identity draft');
+    await nameDraft.fill('Atlas');
     const choose = page.getByRole('button', { name: /choose thumbnail/i });
     await expect(choose).toBeEnabled();
     const [picker] = await Promise.all([page.waitForEvent('filechooser'), choose.click()]);
@@ -212,6 +229,9 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await expect(page.getByRole('button', { name: /^remove thumbnail$/i })).toBeVisible();
     await page.getByRole('button', { name: /^save identity$/i }).click();
     await expect.poll(() => gateways[0].profile?.thumbnail).toMatch(/^data:image\/jpeg;base64,/);
+    await page.getByRole('tab', { name: 'Channels', exact: true }).click();
+    await expect(channelDraft).toHaveValue('42');
+    await page.getByRole('tab', { name: 'Agent Identity', exact: true }).click();
     await expect(atlas.locator('img').first()).toBeVisible();
 
     await page.getByRole('tab', { name: 'Members', exact: true }).click();
@@ -222,8 +242,8 @@ test('switches agents in place, restores saved logins, and keeps drawer geometry
     await expect.poll(() => gateways[0].visibility).toBe('members');
     await page.getByRole('tab', { name: 'Models & Providers', exact: true }).click();
     // Accounts are part of the models grid (status and quota on each tile), not a section or a tab.
-    await expect(page.getByText('Models', { exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /add model/i }).first()).toBeVisible();
+    await expect(page.getByText('Models & providers', { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: /connect provider/i }).first()).toBeVisible();
     await expect(page.getByRole('tab', { name: 'Accounts', exact: true })).toHaveCount(0);
     await page.getByRole('tab', { name: 'Costs', exact: true }).click();
     await expect(page.getByText('Budgets', { exact: true })).toBeVisible();

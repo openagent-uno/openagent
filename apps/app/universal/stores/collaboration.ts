@@ -13,11 +13,24 @@ let client: CollaborationClient | null = null;
 // receipt can also replace a projection at the same wire revision.
 const projections = new Map<string, SharedSnapshot>();
 const active = new Map<string, boolean>();
-const latestFinished = new Map<string, string>();
+const refreshCycles = new Map<string, symbol>();
+const retryRefresh = new Set<string>();
 // Bumped whenever a session's shared state is dropped. Async follow-ups
 // (durable commands, model pin) captured before a revoke/regrant must not
 // apply their older answer on top of the state that replaced it.
 const generations = new Map<string, number>();
+
+function sameSharedHistory(previous: SharedSnapshot | undefined, next: SharedSnapshot): boolean {
+  if (!previous) return false;
+  // Wire revision and idle status/finish timestamps do not change durable
+  // transcript data. Messages, tool results and run identity still invalidate
+  // history even when no new turn was started or finished.
+  const history = (snapshot: SharedSnapshot) => snapshot.turns.map(turn => ({
+    id: turn.id, runId: turn.runId, providerRunId: turn.providerRunId,
+    messages: turn.messages, tools: turn.tools, error: turn.error, truncated: turn.truncated,
+  }));
+  return JSON.stringify(history(previous)) === JSON.stringify(history(next));
+}
 
 function observe() {
   const all = [...leases.values()];
@@ -30,7 +43,7 @@ export function observeShared(sessions: string[], focus: SharedTarget | null) {
   return () => { leases.delete(key); observe(); };
 }
 export function bindShared(next: CollaborationClient | null) {
-  client = next; projections.clear(); active.clear(); latestFinished.clear(); generations.clear();
+  client = next; projections.clear(); active.clear(); refreshCycles.clear(); retryRefresh.clear(); generations.clear();
   useCollaboration.setState({ client, people: [] });
   if (!next) return () => {};
   const unsubscribe = next.subscribe(() => {
@@ -46,7 +59,8 @@ export function bindShared(next: CollaborationClient | null) {
         const withdrawn = next.revoked(id);
         if (projections.delete(id) || (withdrawn && !sessionIsRevoked(id))) {
           generations.set(id, (generations.get(id) ?? 0) + 1);
-          latestFinished.delete(id);
+          refreshCycles.delete(id);
+          retryRefresh.delete(id);
           // A fresh attachment (including an empty/pruned projection) must
           // reconcile once even if the old attachment already appeared idle.
           active.delete(id);
@@ -70,7 +84,8 @@ export function bindShared(next: CollaborationClient | null) {
         setSessionRevoked(id, false);
         useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id ? { ...se, accessRevoked: false } : se) }));
       }
-      if (projections.get(id) === snapshot) continue;
+      const previous = projections.get(id);
+      if (previous === snapshot && !retryRefresh.has(id)) continue;
       projections.set(id, snapshot);
       // Native audio/automation turns already arrive through OpenAgentWS.
       // Only HTTP-owned turns use this transcript reducer; presence is common.
@@ -85,20 +100,43 @@ export function bindShared(next: CollaborationClient | null) {
         sharedSnapshot: snapshot, outbound: unconfirmedMessages(se.outbound, se.messages, snapshot),
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));
-      const finished = snapshot.turns.findLast(turn => !turn.active && turn.providerRunId)?.id;
-      const newFinish = finished !== undefined && latestFinished.get(id) !== finished;
-      if (finished) latestFinished.set(id, finished);
-      if (newFinish && running) void useChat.getState().reconcileSession(id);
-      if (!running && (active.get(id) !== false || snapshot.turns.length)) {
+      const newFinish = snapshot.turns.some(turn => !turn.active && turn.runId
+        && !previous?.turns.some(prior => prior.id === turn.id && prior.runId === turn.runId
+          && prior.providerRunId === turn.providerRunId && !prior.active));
+      const refreshIdle = !running && (active.get(id) !== false || newFinish
+        || retryRefresh.has(id) || !sameSharedHistory(previous, snapshot));
+      if ((newFinish && running) || refreshIdle) {
         const generation = generations.get(id) ?? 0;
-        const current = () => client === next && !!next.snapshot(id) && (generations.get(id) ?? 0) === generation;
-        void Promise.resolve(useChat.getState().reconcileSession(id)).then(() => next.commands(id)).then(history => {
-          if (current()) useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id
-            ? { ...se, messages: mergeSharedTranscript(se.messages, history) } : se) }));
-        }).catch(() => {});
-        void getSessionModelPin(id).then(pin => {
-          if (current()) useChat.getState().setLlmPin(id, pin.runtime_id || undefined);
-        }).catch(() => {});
+        const cycle = Symbol();
+        refreshCycles.set(id, cycle);
+        retryRefresh.delete(id);
+        const current = () => client === next && !!next.snapshot(id)
+          && (generations.get(id) ?? 0) === generation && refreshCycles.get(id) === cycle;
+        const reconcile = Promise.resolve(useChat.getState().reconcileSession(id));
+        if (running) {
+          void reconcile.then(ok => { if (!ok && current()) retryRefresh.add(id); })
+            .catch(() => { if (current()) retryRefresh.add(id); });
+        } else {
+          // A new active turn also fences idle-only ancillary responses: an
+          // older model pin or command projection must not replace its state.
+          const idle = () => current() && !next.snapshot(id)?.turns.some(turn => turn.active);
+          const commands = reconcile.then(async ok => {
+            if (!idle()) return false;
+            const history = await next.commands(id);
+            if (!idle()) return false;
+            useChat.setState(s => ({ sessions: s.sessions.map(se => se.id === id
+              ? { ...se, messages: mergeSharedTranscript(se.messages, history) } : se) }));
+            return ok;
+          }).catch(() => false);
+          const pin = getSessionModelPin(id).then(value => {
+            if (!idle()) return false;
+            useChat.getState().setLlmPin(id, value.runtime_id || undefined);
+            return true;
+          }).catch(() => false);
+          void Promise.all([commands, pin]).then(results => {
+            if (current() && results.some(ok => !ok)) retryRefresh.add(id);
+          });
+        }
       }
       active.set(id, running);
     }

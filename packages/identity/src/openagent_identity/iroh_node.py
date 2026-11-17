@@ -175,6 +175,8 @@ class IrohNode:
         self._node: "iroh.Iroh | None" = None
         self._endpoint: "iroh.Endpoint | None" = None
         self._cached_node_id: str | None = None
+        self._coordinator_rpc_pool = None
+        self._coordinator_rpc_stopped = False
 
     # ── Lifecycle ────────────────────────────────────────────────────
 
@@ -215,9 +217,14 @@ class IrohNode:
         # path are not.
         self._endpoint = self._node.node().endpoint()
         self._cached_node_id = self._endpoint.node_id()
+        self._coordinator_rpc_pool = None
+        self._coordinator_rpc_stopped = False
         logger.info("iroh node started: node_id=%s", self._cached_node_id)
 
     async def stop(self) -> None:
+        self._coordinator_rpc_stopped = True
+        if self._coordinator_rpc_pool is not None:
+            await self._coordinator_rpc_pool.close()
         if self._node is None:
             return
         try:

@@ -120,7 +120,7 @@ jobs:
           OPENAGENT_DEVICE_UI_EVIDENCE: ${{ runner.temp }}/session-ui-evidence
         run: |
           npm --prefix universal run build:web
-          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs --repeat-each=2 --workers=1)
+          (cd desktop && xvfb-run -a npx playwright test e2e/desktop-devices.spec.mjs e2e/desktop-models.spec.mjs --repeat-each=2 --workers=1)
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -1564,6 +1564,7 @@ class Gateway:
             # canonical. Rows are keyed on surrogate integer ``id`` so the
             # same vendor can coexist under both frameworks.
             ("GET", "/api/providers", providers.handle_list),
+            ("GET", "/api/providers/contract", providers.handle_contract),
             ("POST", "/api/providers", providers.handle_create),
             ("GET", r"/api/providers/{id:\d+}", providers.handle_get),
             ("PUT", r"/api/providers/{id:\d+}", providers.handle_update),
@@ -1572,6 +1573,7 @@ class Gateway:
             ("POST", r"/api/providers/{id:\d+}/disable", providers.handle_disable),
             ("POST", r"/api/providers/{id:\d+}/test", providers.handle_test),
             ("POST", r"/api/providers/{id:\d+}/refresh-capabilities", providers.handle_refresh_capabilities),
+            ("PUT", r"/api/providers/{id:\d+}/accounts/{account_id}", accounts_api.handle_update_account),
             ("POST", r"/api/providers/{id:\d+}/sign-in/start", accounts_api.handle_sign_in_start),
             ("POST", r"/api/providers/{id:\d+}/sign-in/complete", accounts_api.handle_sign_in_complete),
             # Models. ``/api/models`` is the DB-backed catalog.

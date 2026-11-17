@@ -36,6 +36,7 @@ export default function Input({
 
   const input = Platform.OS === 'web' && multiline ? (
     <textarea
+      aria-label={textProps.accessibilityLabel ?? label}
       value={(textProps.value as any) ?? ''}
       onChange={(e: any) => (textProps as any).onChangeText?.(e.target.value)}
       placeholder={textProps.placeholder}
@@ -61,6 +62,7 @@ export default function Input({
     />
   ) : (
     <TextInput
+      accessibilityLabel={label}
       placeholderTextColor={colors.textMuted}
       multiline={multiline}
       {...textProps}

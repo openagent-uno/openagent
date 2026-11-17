@@ -25,6 +25,8 @@ Wire format mirrors ``coordinator.service``:
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 import logging
 import time
 import uuid
@@ -49,6 +51,115 @@ logger = logging.getLogger(__name__)
 
 class LoginError(Exception):
     """Raised on any client-side failure (wire, PAKE, cert) during login."""
+
+
+@dataclass(eq=False)
+class _CoordinatorConnection:
+    node_id: str
+    opening: asyncio.Task
+    users: int = 0
+    retired: bool = False
+    closed: bool = False
+
+
+class _CoordinatorRpcPool:
+    """Reuse transport connections, never roster or other RPC results.
+
+    Owned by one IrohNode (and therefore one cryptographic identity). Each
+    caller owns a separate stream. A failed stream retires its connection
+    for new calls without closing other callers' in-flight streams.
+    """
+
+    def __init__(self, node: IrohNode) -> None:
+        self._node = node
+        self._connections: dict[str, _CoordinatorConnection] = {}
+        self._owned: set[_CoordinatorConnection] = set()
+        self._closed = False
+
+    def _close_if_unused(self, entry: _CoordinatorConnection, *, force=False) -> None:
+        if not entry.retired or (entry.users and not force) or not entry.opening.done():
+            return
+        if not entry.closed:
+            entry.closed = True
+            try:
+                entry.opening.result().close(0, b"")
+            except (Exception, asyncio.CancelledError):
+                pass
+        self._owned.discard(entry)
+
+    def _retire(self, entry: _CoordinatorConnection) -> None:
+        entry.retired = True
+        if self._connections.get(entry.node_id) is entry:
+            self._connections.pop(entry.node_id)
+        self._close_if_unused(entry, force=self._closed)
+
+    def _opened(self, entry: _CoordinatorConnection) -> None:
+        try:
+            entry.opening.result()
+        except (Exception, asyncio.CancelledError):
+            self._retire(entry)
+        self._close_if_unused(entry, force=self._closed)
+
+    def _release(self, entry: _CoordinatorConnection) -> None:
+        entry.users -= 1
+        # Nobody needs an unfinished dial after the last waiter leaves.
+        # Its callback closes any eventual result, including a native dial
+        # that completes after Python cancellation was requested.
+        if not entry.users and not entry.opening.done():
+            self._retire(entry)
+            entry.opening.cancel()
+        self._close_if_unused(entry)
+
+    @asynccontextmanager
+    async def connection(self, node_id: str, *, relay_url=None, addresses=None):
+        if self._closed:
+            raise LoginError("coordinator RPC pool is closed")
+        entry = self._connections.get(node_id)
+        if entry is None:
+            opening = asyncio.create_task(self._node.dial(
+                node_id, NetworkAlpn.COORDINATOR,
+                relay_url=relay_url, addresses=addresses,
+            ), name="coordinator-rpc-dial")
+            entry = _CoordinatorConnection(node_id=node_id, opening=opening)
+            self._connections[node_id] = entry
+            self._owned.add(entry)
+            opening.add_done_callback(lambda _task: self._opened(entry))
+        entry.users += 1
+        acquired = False
+        try:
+            # One caller's timeout/cancellation must not cancel the dial
+            # another caller is sharing.
+            connection = await asyncio.shield(entry.opening)
+            if self._closed:
+                raise LoginError("coordinator RPC pool is closed")
+            acquired = True
+            yield connection
+        except BaseException:
+            if acquired or entry.opening.done():
+                self._retire(entry)
+            raise
+        finally:
+            self._release(entry)
+
+    async def close(self) -> None:
+        self._closed = True
+        for entry in tuple(self._owned):
+            self._retire(entry)
+            if not entry.opening.done():
+                entry.opening.cancel()
+        # Do not await an unresponsive native dial during shutdown. The
+        # completion callback owns late results; node.shutdown also tears
+        # down the endpoint that owns those pending transport operations.
+
+
+def _coordinator_pool(node: IrohNode) -> _CoordinatorRpcPool:
+    if getattr(node, "_coordinator_rpc_stopped", False):
+        raise LoginError("Iroh node is stopped")
+    pool = getattr(node, "_coordinator_rpc_pool", None)
+    if pool is None:
+        pool = _CoordinatorRpcPool(node)
+        node._coordinator_rpc_pool = pool
+    return pool
 
 
 async def register(
@@ -361,30 +472,25 @@ async def _rpc(
     relay_url: str | None = None,
     addresses: list[str] | None = None,
 ) -> dict:
-    """Open a coordinator stream, send one CBOR-framed request, read the response."""
-    connection = await node.dial(
-        coordinator_node_id, NetworkAlpn.COORDINATOR,
-        relay_url=relay_url, addresses=addresses,
-    )
-    bi = await connection.open_bi()
-    # iroh-py 0.35: BiStream.send() / .recv() are methods returning the
-    # underlying SendStream / RecvStream — invoking them once unwraps the
-    # bidirectional stream into the two halves.
-    send, recv = bi.send(), bi.recv()
-    try:
-        request = {"id": uuid.uuid4().hex, "method": method, "params": params}
-        await _write_frame(send, request)
-        # Half-close so the coordinator knows we're done sending.
-        finish = getattr(send, "finish", None) or getattr(send, "close", None)
-        if finish is not None:
-            await finish()
-        response = await asyncio.wait_for(_read_frame(recv), timeout=timeout)
-    finally:
-        # ``Connection.close`` is sync in iroh-py 0.35.
-        try:
-            connection.close(0, b"")
-        except Exception:
-            pass
+    """Send one fresh RPC on its own stream over a node-owned connection.
+
+    The deadline covers dial, stream open, write and response. Transport
+    failures retire the connection; this request is never replayed because
+    callers include stateful login and registration operations.
+    """
+    async with asyncio.timeout(timeout):
+        async with _coordinator_pool(node).connection(
+            coordinator_node_id, relay_url=relay_url, addresses=addresses,
+        ) as connection:
+            bi = await connection.open_bi()
+            # iroh-py 0.35 exposes send()/recv() methods on BiStream.
+            send, recv = bi.send(), bi.recv()
+            request = {"id": uuid.uuid4().hex, "method": method, "params": params}
+            await _write_frame(send, request)
+            finish = getattr(send, "finish", None) or getattr(send, "close", None)
+            if finish is not None:
+                await finish()
+            response = await _read_frame(recv)
     if not isinstance(response, dict):
         raise LoginError(f"coordinator returned non-map response: {type(response)!r}")
     if "error" in response:

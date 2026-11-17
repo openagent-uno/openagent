@@ -102,19 +102,85 @@ export function tick(nodes: SimNode[], edges: SimEdge[], alpha: number) {
   //   2. minimum-distance floor — a close encounter can't inject a huge
   //      1/d² impulse that the damping is unable to dissipate.
   const repulse = 2000 * alpha;
-  const repelRange2 = 280 * 280;
-  for (let i = 0; i < N; i++) {
-    for (let j = i + 1; j < N; j++) {
-      const dx = nodes[j].x - nodes[i].x;
-      const dy = nodes[j].y - nodes[i].y;
-      let d2 = dx * dx + dy * dy;
-      if (d2 > repelRange2) continue;
-      if (d2 < 100) d2 = 100;
-      const f = repulse / d2;
-      const fx = dx * f;
-      const fy = dy * f;
-      if (!nodes[i].pinned) { nodes[i].vx -= fx; nodes[i].vy -= fy; }
-      if (!nodes[j].pinned) { nodes[j].vx += fx; nodes[j].vy += fy; }
+  const repelRange = 280;
+  const repelRange2 = repelRange * repelRange;
+  // For small graphs the measured grid bookkeeping costs more than the
+  // distance checks it avoids. Keep their allocation-free all-pairs path.
+  if (N <= 1024) {
+    for (let i = 0; i < N; i++) {
+      const current = nodes[i];
+      const x = current.x, y = current.y, pinned = current.pinned;
+      for (let j = i + 1; j < N; j++) {
+        const target = nodes[j];
+        const dx = target.x - x;
+        const dy = target.y - y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 > repelRange2) continue;
+        if (d2 < 100) d2 = 100;
+        const f = repulse / d2;
+        const fx = dx * f;
+        const fy = dy * f;
+        if (!pinned) { current.vx -= fx; current.vy -= fy; }
+        if (!target.pinned) { target.vx += fx; target.vy += fy; }
+      }
+    }
+  } else {
+    // Positions stay fixed until integration: one grid per tick finds every
+    // pair within the cutoff exactly. Numeric columns avoid string creation
+    // in neighborhood lookup, the dominant cost in the V8 baseline profile.
+    type Cell = { x: number; y: number; neighbors: Cell[]; candidates: number[]; start: number };
+    const columns = new Map<number, Map<number, Cell>>();
+    const nodeCells: Cell[] = [];
+    for (let i = 0; i < N; i++) {
+      const x = Math.floor(nodes[i].x / repelRange);
+      const y = Math.floor(nodes[i].y / repelRange);
+      let column = columns.get(x);
+      if (!column) { column = new Map(); columns.set(x, column); }
+      let cell = column.get(y);
+      if (!cell) {
+        cell = { x, y, neighbors: [], candidates: [], start: 0 };
+        column.set(y, cell);
+      }
+      nodeCells.push(cell);
+    }
+    for (const column of columns.values()) {
+      for (const cell of column.values()) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const adjacent = columns.get(cell.x + dx);
+          if (!adjacent) continue;
+          for (let dy = -1; dy <= 1; dy++) {
+            const neighbor = adjacent.get(cell.y + dy);
+            // Large finite coordinates can round adjacent keys together.
+            if (neighbor && !cell.neighbors.includes(neighbor)) cell.neighbors.push(neighbor);
+          }
+        }
+      }
+    }
+    // Populate neighborhoods in global node order. This produces sorted
+    // candidates without flatMap/sort and preserves the all-pairs sum order.
+    for (let i = 0; i < N; i++) {
+      for (const neighbor of nodeCells[i].neighbors) neighbor.candidates.push(i);
+    }
+    for (let i = 0; i < N; i++) {
+      const current = nodes[i];
+      const x = current.x, y = current.y, pinned = current.pinned;
+      const cell = nodeCells[i];
+      const candidates = cell.candidates;
+      // Nodes visit a cell in ascending index order; the cursor only advances.
+      while (cell.start < candidates.length && candidates[cell.start] <= i) cell.start++;
+      for (let k = cell.start; k < candidates.length; k++) {
+        const target = nodes[candidates[k]];
+        const dx = target.x - x;
+        const dy = target.y - y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 > repelRange2) continue;
+        if (d2 < 100) d2 = 100;
+        const f = repulse / d2;
+        const fx = dx * f;
+        const fy = dy * f;
+        if (!pinned) { current.vx -= fx; current.vy -= fy; }
+        if (!target.pinned) { target.vx += fx; target.vy += fy; }
+      }
     }
   }
 

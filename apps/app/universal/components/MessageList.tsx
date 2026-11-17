@@ -36,7 +36,7 @@ import {
 import type { MessagePart } from '../../common/ui-views';
 import { attachmentKey } from '../../common/attachments';
 import { messageHeaderVisibility, messageTurnTimeline } from '../../common/message-groups';
-import { placeSharedTools } from '../../common/shared-transcript';
+import { createSharedToolPlacement } from '../../common/shared-tool-placement';
 import {
   compactToolFallback,
   legacyToolInfoFromText,
@@ -123,7 +123,8 @@ function MessageListBase({
   const accountId = useConnection(state => state.activeAccountId);
   const agentName = useConnection(activeAgentName);
   const appSessionId = sessionId ?? (transcript === activeMessages ? activeId ?? undefined : undefined);
-  const messages = useMemo(() => placeSharedTools(transcript), [transcript]);
+  const placeTools = useMemo(() => createSharedToolPlacement(), [appSessionId, accountId]);
+  const messages = useMemo(() => placeTools(transcript), [placeTools, transcript]);
   const reducedMotion = useReducedMotion();
   const canonical = useMemo(() => new Map(transcript.map(message => [message.id, message])), [transcript]);
   const singleUserRuns = useMemo(() => {

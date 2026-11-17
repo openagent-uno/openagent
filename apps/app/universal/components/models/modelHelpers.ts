@@ -13,13 +13,13 @@ import type {
 } from '../../../common/types';
 
 export const KIND_LABELS: Record<ModelKind, string> = {
-  llm: 'Language',
-  tts: 'Speech',
-  stt: 'Transcription',
+  llm: 'Text / multimodal',
+  tts: 'Speech (TTS)',
+  stt: 'Transcription (STT)',
   image: 'Images',
 };
 
-export const KIND_ORDER: ModelKind[] = ['llm', 'tts', 'stt', 'image'];
+export const KIND_ORDER: ModelKind[] = ['llm', 'image', 'tts', 'stt'];
 
 /** Image models are served by language-model providers. */
 export function providerKindFor(kind: ModelKind): ProviderKind {

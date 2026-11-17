@@ -32,9 +32,9 @@ Provider credentials (`api_key`, `base_url`) live in the `providers` SQLite tabl
 
 - **From the agent** — the `model-manager` built-in MCP exposes `list_providers`, `add_provider`, `list_models`, `list_available_models` (dynamic discovery via the provider's `/v1/models` or OpenRouter fallback), `add_model`, `update_model`, `enable_model`, `disable_model`, `remove_model`, `test_model`.
 - **REST** — `GET/POST/PUT/DELETE /api/providers` and `/api/models`, plus `/enable` and `/disable`. `GET /api/models/available?provider=openai` returns the live catalog for a given provider.
-- **UI** — **Settings → Models** in the app: one grid of every configured model, with its access (subscription, API key or local server), type, inputs and status, and **Add model** to register more.
+- **UI** — **Settings → Models & Providers**: a provider grid containing independent named API connections and subscription accounts. Open a card to manage its models, connection and budget. **Connect provider** adds another connection, including another account with the same vendor.
 
-The per-provider **model list** (which ids are available to route to) lives in the `models` table. Each row carries `kind` (`llm` / `tts` / `stt`) so the router never crosses capabilities.
+The per-provider **model list** (which ids are available to route to) lives in the `models` table. Each row carries `kind` (`llm` / `image` / `tts` / `stt`) so the router never crosses capabilities.
 
 ## What a model can receive
 
@@ -64,26 +64,46 @@ each provider carries a `status`: `ok`, `rate_limited`, `auth_expired` (the
 sign-in no longer works and must be renewed on the service) or `unreachable`.
 Quota appears only when the upstream reports it.
 
-## Signing in to a subscription service
+The app probes `GET /api/providers/contract` before creating native connection
+aliases. Servers without that contract keep the existing provider/model
+wizard and edit forms, so clients can be upgraded independently of their
+agents during a staged rollout.
 
-A provider whose endpoint is a local subscription service (a service on your
-network that serves models through accounts you sign in to) owns its sign-in:
-it exposes `POST /admin/oauth/start` and `POST /admin/oauth/complete` beside
-its `/v1` endpoint. The server drives that flow for the agent's owner and never
-sees a token:
+## Subscription accounts and API connections
 
-- `POST /api/providers/{id}/sign-in/start` returns `{authorize_url, state}`.
-  Open the page and sign in.
-- `POST /api/providers/{id}/sign-in/complete` with `{state, code, name?}`
-  finishes it. `code` is the code the page shows, or the whole address of the
-  page you land on. The provider's models then re-read their inputs.
+Claude and Codex subscription protocols run inside Core. New subscription
+connections need no external proxy URL or process. Each named account has its
+own card and toggle, and can coexist with API connections to the same vendor.
+The connection's stable alias selects credentials independently of its vendor
+and the model id. Legacy external compatible endpoints continue to work until
+the host explicitly migrates them offline.
 
-In the app this is **Sign in again** on an expired account and **Add account**
-under a subscription's accounts, in the Add model wizard and in a model's
-provider section. `GET /api/accounts` also reads accounts from the service's
-`/admin/diagnostics` when its `/health` does not list them, and marks such
-providers with `sign_in: true`. Only a plain-HTTP endpoint on your own network
-is ever contacted this way; a vendor's public API is left alone.
+The owner starts sign-in at `POST /api/providers/{id}/sign-in/start`, opens the
+returned authorization URL, and completes it at
+`POST /api/providers/{id}/sign-in/complete` with `{state, code, name?}`. A code
+or complete callback address is accepted. Tokens and PKCE verifiers never
+reach the app. `PUT /api/providers/{id}/accounts/{account_id}` changes the
+exact account's name or enabled state; disabling it never spends a sibling
+account's quota. Use another connection for another simultaneous account.
+
+## Model settings and budgets
+
+Text/multimodal, image, speech (TTS) and transcription (STT) are peer model
+categories within each connection. Model forms use Core's `settings_schema`;
+credentials stay in connection settings. Blank parameters inherit defaults,
+while zero is explicit. Supported inputs and default-model selection remain
+available for text models. Discovery and manual model ids share the same path.
+
+Provider headers open a budget shared across that vendor. Connection cards and
+models have their own scoped budgets; migrated shared caps remain visible.
+Quota is independent of those caps and appears only when upstream reports it.
+Usage enrichment loads progressively: a slow quota endpoint cannot hold the
+catalog behind a spinner. An unreported quota or unavailable usage source is
+shown explicitly. Recorded zero cost is not evidence of a free API model.
+
+Routing caps currently govern reasoning models. Image/audio adapters that do
+not record billable usage cannot offer reliable monetary meters or hard spend
+caps; their forms explain this coverage instead of claiming enforcement.
 
 ## Local / self-hosted models
 

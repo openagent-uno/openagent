@@ -77,6 +77,7 @@ export default function Button({
       activeOpacity={activeOpacity}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={typeof label === 'string' ? label : undefined}
       // @ts-ignore web className
       {...(Platform.OS === 'web' ? { className: 'oa-hover-lift' } : {})}
       style={[

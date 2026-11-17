@@ -9,7 +9,7 @@ import { colors, font, radius } from '../../theme';
  */
 
 import Feather from '@expo/vector-icons/Feather';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Platform,
 } from 'react-native';
@@ -31,6 +31,10 @@ import TabStrip from '../../components/TabStrip';
 import ThemedSwitch from '../../components/ThemedSwitch';
 import ModelScreen from './model';
 import type { DesktopCapabilityStatus } from '../../../common/client-capabilities';
+import {
+  acceptedSettingsField, ownedSettingsValue, reconcileSettingsDraft, settingsDraftValues,
+  type SettingsDraftBaseline, type SettingsDraftValues,
+} from '../../../common/settings-draft-policy';
 
 type CategoryId =
   | 'identity'
@@ -88,24 +92,35 @@ export default function SettingsScreen() {
   const router = useRouter();
   const headerInset = useHeaderInset();
   const { agentName, agentVersion, config: connConfig, activeAccountId, accounts, disconnect, removeAccount } = useConnection();
+  const apiScope = currentAgentScope();
   const {
-    config: agentConfig,
-    identityError,
+    config: cachedConfig,
+    sourceScope,
+    error: cachedConfigError,
+    identityError: cachedIdentityError,
     identityLoading,
-    identityReadOnly,
-    thumbnail,
-    channelPresentation,
+    identityReadOnly: cachedIdentityReadOnly,
+    thumbnail: cachedThumbnail,
+    channelPresentation: cachedChannelPresentation,
     refreshChannelPresentation,
     loadConfig,
     updateSection,
     updateIdentity,
   } = useConfig();
+  const ownsConfig = sourceScope === apiScope;
+  const configError = ownsConfig ? cachedConfigError : null;
+  const agentConfig = ownsConfig ? cachedConfig : null;
+  const identityError = ownsConfig ? cachedIdentityError : null;
+  const identityReadOnly = ownsConfig ? cachedIdentityReadOnly : true;
+  const thumbnail = ownsConfig ? cachedThumbnail : undefined;
+  const channelPresentation = ownsConfig ? cachedChannelPresentation : {};
   const voiceCfg = useVoiceConfig((s) => s.config);
   const setVoiceCfg = useVoiceConfig((s) => s.setConfig);
   const resetVoiceCfg = useVoiceConfig((s) => s.reset);
   const themeMode = useTheme((s) => s.mode);
   const setThemeMode = useTheme((s) => s.setMode);
   const activeAccount = accounts.find((a) => a.id === activeAccountId);
+  const draftScope = `${activeAccountId ?? ''}:${apiScope}`;
   const confirm = useConfirm();
 
   // Active category (drives what's rendered in the main area)
@@ -117,9 +132,11 @@ export default function SettingsScreen() {
   const [name, setName] = useState('');
   const [systemPrompt, setSystemPrompt] = useState('');
   const [thumbnailEdit, setThumbnailEdit] = useState<string | null | undefined>();
+  const thumbnailDraftScope = useRef(draftScope);
+  const ownedThumbnailEdit = ownedSettingsValue(thumbnailDraftScope.current, draftScope, thumbnailEdit);
   const [thumbnailError, setThumbnailError] = useState('');
   const [pickingThumbnail, setPickingThumbnail] = useState(false);
-  const previewThumbnail = thumbnailEdit !== undefined ? thumbnailEdit
+  const previewThumbnail = ownedThumbnailEdit !== undefined ? ownedThumbnailEdit
     : thumbnail !== undefined ? thumbnail : activeAccount?.agentThumbnail;
   const pendingPresentation = Object.values(channelPresentation).includes('pending');
   useEffect(() => {
@@ -150,6 +167,26 @@ export default function SettingsScreen() {
   const [whPort, setWhPort] = useState('8899');
   const [whPublicUrl, setWhPublicUrl] = useState('');
 
+  const draftBaseline = useRef<SettingsDraftBaseline | null>(null);
+  const [hydratedDraftScope, setHydratedDraftScope] = useState<string | null>(null);
+  const fieldSetters = useRef({
+    name: setName, systemPrompt: setSystemPrompt,
+    dreamEnabled: setDreamEnabled, dreamTime: setDreamTime,
+    autoUpdateEnabled: setAutoUpdateEnabled, autoUpdateMode: setAutoUpdateMode,
+    autoUpdateInterval: setAutoUpdateInterval,
+    tgToken: setTgToken, tgUsers: setTgUsers, tgModel: setTgModel,
+    dcToken: setDcToken, dcUsers: setDcUsers, dcModel: setDcModel,
+    waId: setWaId, waToken: setWaToken, waUsers: setWaUsers, waModel: setWaModel,
+    whEnabled: setWhEnabled, whHost: setWhHost, whPort: setWhPort, whPublicUrl: setWhPublicUrl,
+  }).current;
+  const currentFields = useRef<SettingsDraftValues>(settingsDraftValues(null));
+  currentFields.current = {
+    name, systemPrompt, dreamEnabled, dreamTime,
+    autoUpdateEnabled, autoUpdateMode, autoUpdateInterval,
+    tgToken, tgUsers, tgModel, dcToken, dcUsers, dcModel,
+    waId, waToken, waUsers, waModel, whEnabled, whHost, whPort, whPublicUrl,
+  };
+
   const [saved, setSaved] = useState<string | null>(null);
   const [capabilityStatus, setCapabilityStatus] = useState<DesktopCapabilityStatus | null>(null);
   const [capabilityBusy, setCapabilityBusy] = useState(false);
@@ -176,36 +213,24 @@ export default function SettingsScreen() {
   }, [connConfig, loadConfig]);
 
   useEffect(() => {
-    if (!agentConfig) return;
-    setName(agentConfig.name || '');
-    setSystemPrompt(agentConfig.system_prompt || '');
-    setDreamEnabled(agentConfig.dream_mode?.enabled ?? false);
-    setDreamTime(agentConfig.dream_mode?.time || '3:00');
-    setAutoUpdateEnabled(agentConfig.auto_update?.enabled ?? false);
-    setAutoUpdateMode(agentConfig.auto_update?.mode || 'auto');
-    setAutoUpdateInterval(agentConfig.auto_update?.check_interval || '17 */6 * * *');
+    const next = reconcileSettingsDraft(
+      draftBaseline.current, draftScope, currentFields.current, settingsDraftValues(agentConfig),
+    );
+    draftBaseline.current = next.baseline;
+    for (const key of Object.keys(fieldSetters) as (keyof SettingsDraftValues)[]) {
+      const setter = fieldSetters[key] as (value: string | boolean) => void;
+      setter(next.values[key]);
+    }
+    setHydratedDraftScope(agentConfig ? draftScope : null);
+  }, [agentConfig, draftScope, fieldSetters]);
 
-    // Channels
-    const ch = agentConfig.channels || {};
-    const tg = ch.telegram || {};
-    setTgToken(tg.token || '');
-    setTgUsers((tg.allowed_users || []).join(', '));
-    setTgModel(tg.model || '');
-    const dc = ch.discord || {};
-    setDcToken(dc.token || '');
-    setDcUsers((dc.allowed_users || []).join(', '));
-    setDcModel(dc.model || '');
-    const wa = ch.whatsapp || {};
-    setWaId(wa.green_api_id || '');
-    setWaToken(wa.green_api_token || '');
-    setWaUsers((wa.allowed_users || []).join(', '));
-    setWaModel(wa.model || '');
-    const wh = ch.webhook || {};
-    setWhEnabled(!!wh.enabled);
-    setWhHost(wh.host || '0.0.0.0');
-    setWhPort(String(wh.port ?? 8899));
-    setWhPublicUrl(wh.public_url || '');
-  }, [agentConfig]);
+  useEffect(() => {
+    thumbnailDraftScope.current = draftScope;
+    setThumbnailEdit(undefined);
+    setThumbnailError('');
+    setPickingThumbnail(false);
+    setSaved(null);
+  }, [draftScope]);
 
   useEffect(() => {
     const api = desktopCapabilities();
@@ -224,10 +249,25 @@ export default function SettingsScreen() {
   }, []);
 
   const saveSection = async (section: string, data: any, label: string) => {
+    const scope = currentAgentScope();
+    const submitted = { ...currentFields.current };
     const ok = await updateSection(section, data);
-    if (ok) {
+    if (ok && scope === currentAgentScope()) {
+      const confirmed = settingsDraftValues(useConfig.getState().config);
+      const keys: (keyof SettingsDraftValues)[] = section === 'dream_mode'
+        ? ['dreamEnabled', 'dreamTime']
+        : section === 'auto_update'
+          ? ['autoUpdateEnabled', 'autoUpdateMode', 'autoUpdateInterval']
+          : label === 'telegram' ? ['tgToken', 'tgUsers', 'tgModel']
+            : label === 'discord' ? ['dcToken', 'dcUsers', 'dcModel']
+              : label === 'whatsapp' ? ['waId', 'waToken', 'waUsers', 'waModel']
+                : label === 'webhook' ? ['whEnabled', 'whHost', 'whPort', 'whPublicUrl'] : [];
+      for (const key of keys) {
+        const setter = fieldSetters[key] as (update: (value: string | boolean) => string | boolean) => void;
+        setter(value => acceptedSettingsField(value, submitted[key], confirmed[key]));
+      }
       setSaved(label);
-      setTimeout(() => setSaved(null), 3000);
+      setTimeout(() => { if (scope === currentAgentScope()) setSaved(null); }, 3000);
     }
   };
 
@@ -237,7 +277,9 @@ export default function SettingsScreen() {
     setPickingThumbnail(true);
     try {
       const next = await pickAgentThumbnail();
-      if (scope === currentAgentScope() && next) setThumbnailEdit(next);
+      if (scope === currentAgentScope() && next) {
+        setThumbnailEdit(value => acceptedSettingsField(value, ownedThumbnailEdit, next));
+      }
     } catch (error) {
       if (scope === currentAgentScope()) setThumbnailError(error instanceof Error ? error.message : 'Could not open the image.');
     } finally {
@@ -248,14 +290,16 @@ export default function SettingsScreen() {
   const saveIdentity = async () => {
     const scope = currentAgentScope();
     const localOnly = thumbnail === undefined;
-    const identity = await updateIdentity(name, systemPrompt, localOnly ? undefined : thumbnailEdit);
+    const identity = await updateIdentity(name, systemPrompt, localOnly ? undefined : ownedThumbnailEdit);
     if (identity && scope === currentAgentScope() && activeAccountId) {
       useConnection.getState().rememberAgentPresentation(
-        activeAccountId, identity.name, localOnly ? thumbnailEdit : identity.thumbnail,
+        activeAccountId, identity.name, localOnly ? ownedThumbnailEdit : identity.thumbnail,
       );
-      setThumbnailEdit(undefined);
+      setName(value => acceptedSettingsField(value, name, identity.name));
+      setSystemPrompt(value => acceptedSettingsField(value, systemPrompt, identity.system_prompt || ''));
+      setThumbnailEdit(value => acceptedSettingsField(value, ownedThumbnailEdit, undefined));
       setSaved('identity');
-      setTimeout(() => setSaved(null), 3000);
+      setTimeout(() => { if (scope === currentAgentScope()) setSaved(null); }, 3000);
     }
   };
 
@@ -342,7 +386,7 @@ export default function SettingsScreen() {
           <AgentAvatar name={name || agentName || ''} thumbnail={previewThumbnail} size={56} />
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Name</Text>
-            <TextInput style={styles.input} value={name} editable={!identityReadOnly} onChangeText={setName} placeholder="my-agent" placeholderTextColor={colors.textMuted} />
+            <TextInput accessibilityLabel="Agent name" style={styles.input} value={name} editable={!identityReadOnly} onChangeText={setName} placeholder="my-agent" placeholderTextColor={colors.textMuted} />
           </View>
         </View>
         {identityReadOnly ? (
@@ -362,6 +406,7 @@ export default function SettingsScreen() {
         <Text style={[styles.label, { marginTop: 12 }]}>System Prompt</Text>
         {Platform.OS === 'web' ? (
           <textarea
+            aria-label="System prompt"
             value={systemPrompt}
             onChange={(e: any) => setSystemPrompt(e.target.value)}
             rows={6}
@@ -854,6 +899,11 @@ export default function SettingsScreen() {
     }
   };
 
+  // A scope switch renders before passive effects replace local input state.
+  // Keep server forms hidden until both their source and draft belong here.
+  const serverForm = ['identity', 'channels', 'dream', 'controls'].includes(activeCategory);
+  const waitingForSettings = serverForm && (!agentConfig || hydratedDraftScope !== draftScope);
+
   return (
     <View style={[styles.screen, { paddingTop: headerInset }]}>
       <SectionTabs<CategoryId>
@@ -871,7 +921,13 @@ export default function SettingsScreen() {
         <ModelScreen view="costs" embedded />
       ) : (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-          {renderCategory()}
+          {waitingForSettings ? (
+            <View testID="settings-awaiting-current-agent" accessibilityLiveRegion="polite">
+              <Text style={styles.fieldHint}>{configError || 'Loading agent settings…'}</Text>
+              {configError ? <Button label="Retry loading settings" variant="secondary"
+                disabled={!connConfig} onPress={() => { void loadConfig(); }} /> : null}
+            </View>
+          ) : renderCategory()}
           <View style={{ height: 40 }} />
         </ScrollView>
       )}

@@ -104,7 +104,9 @@ const BLANK_DRAFT: DraftState = {
   webhook_url: '',
 };
 
-export default function BudgetsPanel() {
+export default function BudgetsPanel({ scopeKind, scopeValue, scopeTitle, defaultMetric = "cost_usd", routingSupported = true }: {
+  scopeKind?: BudgetScopeKind; scopeValue?: string; scopeTitle?: string; defaultMetric?: BudgetMetric; routingSupported?: boolean;
+} = {}) {
   const confirm = useConfirm();
   const [rules, setRules] = useState<BudgetUsage[] | null>(null);
   const [failed, setFailed] = useState(false);
@@ -114,7 +116,8 @@ export default function BudgetsPanel() {
 
   const refresh = useCallback(async () => {
     try {
-      setRules(await listBudgetUsage());
+      const all = await listBudgetUsage();
+      setRules(scopeKind ? all.filter((r) => r.scope_kind === scopeKind && r.scope_value === scopeValue) : all);
       setError(null);
       setFailed(false);
     } catch (e) {
@@ -127,9 +130,9 @@ export default function BudgetsPanel() {
       setRules(null);
       setFailed(true);
     }
-  }, []);
+  }, [scopeKind, scopeValue]);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { setDraft(null); void refresh(); }, [refresh]);
 
   // The meter moves as turns are billed, so a panel left open would go
   // stale and quietly misreport headroom. 30s matches the guard's own
@@ -182,7 +185,7 @@ export default function BudgetsPanel() {
   const remove = useCallback(async (rule: BudgetUsage) => {
     const ok = await confirm({
       title: 'Delete budget',
-      message: `Remove the ${formatAmount(rule.amount, rule.metric)} ${rule.window} cap on ${scopeLabel(rule)}? Spend stops being capped immediately.`,
+      message: `Remove the ${formatAmount(rule.amount, rule.metric)} ${rule.window} cap on ${scopeTitle || scopeLabel(rule)}? Spend stops being capped immediately.`,
       confirmLabel: 'Delete',
       confirmVariant: 'danger',
     });
@@ -199,18 +202,18 @@ export default function BudgetsPanel() {
     <View style={styles.content}>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Budgets</Text>
+          <Text style={styles.title}>{scopeTitle || 'Budgets'}</Text>
           <Text style={styles.subtitle}>
-            Spend caps the agent enforces while it routes. Read live against
-            the same usage log the cost breakdown uses.
+            {routingSupported ? 'Caps apply to recorded reasoning usage and model routing. Image/audio billing depends on the adapter.' : 'This adapter does not guarantee billable image/audio usage reporting or a hard spend cap. A saved rule monitors only recorded usage.'}
           </Text>
         </View>
         {!draft && (
           <Button
             label="New cap"
+            accessibilityLabel={scopeTitle ? `New cap for ${scopeTitle}` : "New cap"}
             icon="plus"
             size="sm"
-            onPress={() => setDraft({ ...BLANK_DRAFT })}
+            onPress={() => setDraft({ ...BLANK_DRAFT, scope_kind: scopeKind ?? "global", scope_value: scopeValue ?? "", metric: defaultMetric })}
           />
         )}
       </View>
@@ -221,7 +224,7 @@ export default function BudgetsPanel() {
         <Card style={styles.formCard}>
           <Text style={styles.formTitle}>{draft.id ? 'Edit cap' : 'New cap'}</Text>
 
-          <Text style={styles.label}>Applies to</Text>
+          {!scopeKind && <><Text style={styles.label}>Applies to</Text>
           <View style={styles.chipRow}>
             {SCOPE_KINDS.map((s) => (
               <Pressable
@@ -239,7 +242,8 @@ export default function BudgetsPanel() {
             {SCOPE_KINDS.find((s) => s.id === draft.scope_kind)?.hint}
           </Text>
 
-          {draft.scope_kind !== 'global' && (
+          </>}
+          {!scopeKind && draft.scope_kind !== 'global' && (
             <Input
               label="Scope"
               placeholder={draft.scope_kind === 'model' ? 'anthropic:claude-opus-4-8' : 'openai'}
@@ -296,11 +300,9 @@ export default function BudgetsPanel() {
             mono
           />
 
-          {!isEnforceableShape(draft.scope_kind, draft.window) && (
+          {(!routingSupported || !isEnforceableShape(draft.scope_kind, draft.window)) && (
             <Notice tone="warning">
-              This shape alerts but cannot stop a turn. Only Everything /
-              Provider / Model caps over an hour, day or month window can
-              take a model out of routing.
+              {routingSupported ? 'This shape alerts but cannot change routing. Hour, day and month caps on reasoning models can affect model selection.' : 'This rule cannot stop image or audio calls. Missing billing data is not zero spend.'}
             </Notice>
           )}
 
@@ -322,7 +324,7 @@ export default function BudgetsPanel() {
         <EmptyState
           icon="shield"
           title="No spend caps"
-          message="Nothing limits what the agent can spend. Add a cap to put a ceiling on a provider, a model, or everything at once."
+          message="No caps are configured for this scope. Shared provider or global rules may still apply."
         />
       ) : (
         rules.map((rule) => {
@@ -332,7 +334,7 @@ export default function BudgetsPanel() {
             <Card key={rule.id} style={styles.ruleCard}>
               <View style={styles.ruleHead}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.ruleScope}>{scopeLabel(rule)}</Text>
+                  <Text style={styles.ruleScope}>{scopeTitle || scopeLabel(rule)}</Text>
                   <Text style={styles.ruleMeta}>
                     {formatAmount(rule.amount, rule.metric)}
                     {' · '}
@@ -364,8 +366,9 @@ export default function BudgetsPanel() {
                 )}
               </View>
 
+              {rule.metering_warning && <Notice tone="warning">{rule.metering_warning}</Notice>}
               <View style={styles.badgeRow}>
-                {!rule.enforced && (
+                {(!rule.enforced || !routingSupported) && (
                   <View style={styles.badge}>
                     <Feather name="bell" size={10} color={colors.textMuted} />
                     <Text style={styles.badgeText}>Alert only</Text>

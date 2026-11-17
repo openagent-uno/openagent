@@ -132,7 +132,10 @@ def _shape_model(row: dict[str, Any]) -> dict[str, Any]:
         if default_voice:
             metadata["voice_id"] = default_voice
             metadata["voice_id_source"] = "default"
+    from openagent_core.models.settings_schema import model_settings_schema
+    schema = model_settings_schema({"name": row["provider_name"], "metadata": row.get("provider_metadata") or {}}, row)
     return {
+        "settings_schema": schema,
         "id": row["id"],
         "provider_id": row["provider_id"],
         "provider_name": row["provider_name"],
@@ -449,11 +452,9 @@ async def handle_available_models(request: web.Request) -> web.Response:
     if provider_row is None:
         return _web.json_response({"error": "provider not found"}, status=404)
 
-    discovery_task = list_provider_models(
-        provider_row["name"],
-        api_key=provider_row.get("api_key"),
-        base_url=provider_row.get("base_url"),
-    )
+    from openagent_server.provider_management import for_request
+    admin, context = await for_request(request)
+    discovery_task = admin.discover(context, provider_row["id"])
     db_task = db.list_models(provider_id=provider_row["id"])
     models_list, db_rows = await asyncio.gather(discovery_task, db_task)
     configured = {r["model"] for r in db_rows}

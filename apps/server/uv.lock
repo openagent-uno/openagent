@@ -21,12 +21,12 @@ constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.87/openagent_capability_host-1.0.0b4-py3-none-any.whl?download=1" },
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.27/openagent_channel_bridges-0.1.0b27-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_core-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_core-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_execution-1.0.0b4-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_gateway-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_gateway-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-host-tools", url = "https://github.com/openagent-uno/openagent/releases/download/v1.0.0b18/openagent_host_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-module-attachments", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_attachments-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-module-budget", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_budget-1.1.0b1-py3-none-any.whl?download=1" },
@@ -45,9 +45,9 @@ constraints = [
     { name = "openagent-module-workflows", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_workflows-1.1.0b2-py3-none-any.whl?download=1" },
     { name = "openagent-modules", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules-1.1.0b6-py3-none-any.whl?download=1" },
     { name = "openagent-modules-full", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules_full-1.1.0b6-py3-none-any.whl?download=1" },
-    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_sdk-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_sdk-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_shell-1.0.0b4-py3-none-any.whl?download=1" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_storage_sqlite-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_storage_sqlite-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" },
 ]
 
@@ -938,6 +938,48 @@ wheels = [
 ]
 
 [[package]]
+name = "curl-cffi"
+version = "0.17.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "cffi" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/96/4c/69074f9797d83a5401b3c6bc58c5de5aad6d1a085d0497b87a093a152e87/curl_cffi-0.17.0.tar.gz", hash = "sha256:31ee8500d06d6502ce1ec0b7ded1c5aa8e8f3401bbe37ccd78d6153d859d8f3c", size = 282294, upload-time = "2026-10-26T04:13:39.396Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c6/f8/6e289cc68d943c4625732eb253bdeec92c5022c7d5ea9215c0581c526789/curl_cffi-0.17.0-cp310-abi3-macosx_10_9_x86_64.whl", hash = "sha256:56d622930eac5cee4cc6ebe63eaba3ecca65a2c73aa6bdf099c2ffae55ee988c", size = 3171349, upload-time = "2026-10-26T04:12:42.896Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/ab/cd7e71bc96c36521193d3dcd38e1a08a9939538fc34b50ba81f30201f9b3/curl_cffi-0.17.0-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:88cb5e34eb23eb2106711b06df68027209c72be709df239c6029345551e0acfd", size = 2921615, upload-time = "2026-10-26T04:12:44.941Z" },
+    { url = "https://files.pythonhosted.org/packages/e6/6f/063eb68f3353bde506f4ca01005b24a07f59103bc8640889ea1954af9302/curl_cffi-0.17.0-cp310-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:aa91d26234516ddb9eb97310d5fe1705aa6f677f101d57ffdb76d5f75439506e", size = 13438302, upload-time = "2026-10-26T04:12:46.663Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/94/3a45c5c9742bbfca3dbbcb3734d4451f769a14fb87a81e2704569fb4fb01/curl_cffi-0.17.0-cp310-abi3-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:93f706c46370cf83c53ffe08cf33892e657c21a6597802f67f1559e4c642ee65", size = 13226053, upload-time = "2026-10-26T04:12:48.904Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/ef/7bb612007cf254ad6406e9563201baf87f57686308353b0fefde4b356212/curl_cffi-0.17.0-cp310-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:af0782d5e340b65fd76701630f0284a8f8243d77df5f2637efd09a4b009f4e24", size = 14053278, upload-time = "2026-10-26T04:12:51.053Z" },
+    { url = "https://files.pythonhosted.org/packages/82/54/ba4debb95ac4ea365e189c8ed10bf6d28c4d9406b967d0b2bb4636e6b0a6/curl_cffi-0.17.0-cp310-abi3-manylinux_2_28_armv7l.manylinux_2_31_armv7l.whl", hash = "sha256:7e126f4675d100f1ad6247a0d8e0b3ebe3fa2f4a123e2b9b78e4880b40f5bedd", size = 13410090, upload-time = "2026-10-26T04:12:53.222Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/c5/5d95229b9e237671365f0a320ea65f96dee515e798103f0ec006b1cf3402/curl_cffi-0.17.0-cp310-abi3-manylinux_2_34_riscv64.manylinux_2_39_riscv64.whl", hash = "sha256:c11b405fa10530cec589349c1cc8d60a3a4fac20fb7be0b2713e7271a2737f57", size = 13510704, upload-time = "2026-10-26T04:12:55.554Z" },
+    { url = "https://files.pythonhosted.org/packages/46/b0/0339a88f8b9236721f80e598b26173a2f1cbf415c1270b55a270a2f3ab4e/curl_cffi-0.17.0-cp310-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:3f737d386e77d4e5ac64998fac8b494b35d37e8cbda22f675b0126913e0e4d6d", size = 13160153, upload-time = "2026-10-26T04:12:57.623Z" },
+    { url = "https://files.pythonhosted.org/packages/29/95/6d760e34a9935def9fdf4180a20080d6fb44153f79a5db76c7777724a3a2/curl_cffi-0.17.0-cp310-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:539eb6708c46433cd61745fda756f2754807f4774b31255d8ee56db0e97068fe", size = 13791120, upload-time = "2026-10-26T04:12:59.747Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/9f/e860ed1a3fc55c06ea2a148613d07342dc6c6ec2844a2f0ee864eb1b19ce/curl_cffi-0.17.0-cp310-abi3-win_amd64.whl", hash = "sha256:4c3993c7df155d622869b82a56adb018440587fd3faffeaf8d01cc016d2e1357", size = 2108164, upload-time = "2026-10-26T04:13:01.756Z" },
+    { url = "https://files.pythonhosted.org/packages/69/30/f9609e68941179904c9a96498d4b83d9085887aa01192f81dffbec37d98d/curl_cffi-0.17.0-cp310-abi3-win_arm64.whl", hash = "sha256:e8cfb7eee2019fe879ab3304b33e84ba60dbcec148c34c343c49b8c67f9ddad5", size = 1828546, upload-time = "2026-10-26T04:13:03.152Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/74/e085f86545e823f0da48e2f922e28e56596a477333ad76913bcf5be856a2/curl_cffi-0.17.0-cp313-cp313-android_24_arm64_v8a.whl", hash = "sha256:ae0442e45d6e0c987f84cb88bd6a99d7b91c8e2b017c18048a6c4fed63847c80", size = 8659725, upload-time = "2026-10-26T04:13:04.517Z" },
+    { url = "https://files.pythonhosted.org/packages/ea/ef/40e7c64a01d9928c16f79cf0bf7f1afc9be02f331a8a32e4617b60b815f1/curl_cffi-0.17.0-cp314-cp314-android_24_arm64_v8a.whl", hash = "sha256:0d85bec9648bf7c14c3b43056ba82521740f72cd96ed7700a0e1973e7fc93f74", size = 8659709, upload-time = "2026-10-26T04:13:06.308Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/67/4c0d6a0bd44da23f36c53752825583785242ce714f63737e4d2dc813047f/curl_cffi-0.17.0-cp314-cp314t-macosx_10_15_x86_64.whl", hash = "sha256:8a08236aac049468d83fc19699102a3d953769ccbfe2b31b63e1d26c5bb07af3", size = 3171701, upload-time = "2026-10-26T04:13:08.14Z" },
+    { url = "https://files.pythonhosted.org/packages/43/23/44a51c58960590a8a588a0ed4593bb124f86c54f7e052b5e2894607b25ec/curl_cffi-0.17.0-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:9426fa386a0f299ab043f64e59689d52e6ee2370f19238aa0bb42e6bf3620aaf", size = 2921843, upload-time = "2026-10-26T04:13:09.566Z" },
+    { url = "https://files.pythonhosted.org/packages/71/5d/52559ff48b2ff03f307e059421038a491f888d674e68b655a2b28a169b7d/curl_cffi-0.17.0-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:a93d3cd83aed4307001ca560b931317e0690ddf3c17e86c2d5b6e0722780b40c", size = 13446820, upload-time = "2026-10-26T04:13:11.419Z" },
+    { url = "https://files.pythonhosted.org/packages/19/f9/b2df601e21aeece023f61e75bfb7cbf8c93c400267263ca4a9a238fc2bfd/curl_cffi-0.17.0-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:f7e0817633948a8b00e65ef3662bf139cef3fb4d3847e29a720f8072c3d76a18", size = 14056775, upload-time = "2026-10-26T04:13:13.33Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/e9/f01dc638b6b97b51fcad2852a4ae981a176503d883af4f7a43102d065f0e/curl_cffi-0.17.0-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:2cc7d939014953223c96e78098bb24c336e7268eb6529c0d5fa9a53805a4acee", size = 13167425, upload-time = "2026-10-26T04:13:15.621Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/50/2b72426b0860a0b551bf69f3c085519b69d1f7d6ec098f5fac9fd5cdcfa9/curl_cffi-0.17.0-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:fc33ca76371bc96df3c4e8593449a1e0e28086bf8016addb851905090069178c", size = 13796024, upload-time = "2026-10-26T04:13:17.846Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/07/8eeeb3516ebfa4677ef6b74109bee3a72790123a850d4ff0936a8d2d6ed3/curl_cffi-0.17.0-cp314-cp314t-win_amd64.whl", hash = "sha256:51199328450e07c8ef8430a7ccce1acfb199b5cd7595e8f958e84f2faedccdac", size = 2161866, upload-time = "2026-10-26T04:13:19.908Z" },
+    { url = "https://files.pythonhosted.org/packages/36/fc/35c6216d7140bed71b3b54b3cb3e7d16a380fb0bb5e47d9b19056198d729/curl_cffi-0.17.0-cp314-cp314t-win_arm64.whl", hash = "sha256:b09f03f1aafcbbf6175610005e4e0192413148fe44c65b789a2aadfff9384a7d", size = 1898770, upload-time = "2026-10-26T04:13:21.228Z" },
+    { url = "https://files.pythonhosted.org/packages/62/72/9b1e633ebfc860e08ddb9346b54f7bcb59701dbbd5b0c9c3af5d65443389/curl_cffi-0.17.0-cp315-abi3.abi3t-macosx_10_15_x86_64.whl", hash = "sha256:a055f709029d2deaafed6a3a2a58c219d7ee2776a1d2357272d3ef230fb30c5c", size = 3171558, upload-time = "2026-10-26T04:13:23.09Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/ab/770a84343fbf72d07d6829bc0f633b77391ab710b28078e9c93a4b9f7f93/curl_cffi-0.17.0-cp315-abi3.abi3t-macosx_11_0_arm64.whl", hash = "sha256:f8cf840646d3e57637b8caae7d0d93334dfed0bfbf6f160b36479a7d6069d547", size = 2921865, upload-time = "2026-10-26T04:13:24.474Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/81/4562d29ee38fc71864ce1157a620024dd6d91bed50542ee944abd8d51e64/curl_cffi-0.17.0-cp315-abi3.abi3t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:ad88837e627896f794ab77c5d61245f5fbc0da1e86a39043404b94bef45e98ef", size = 13437898, upload-time = "2026-10-26T04:13:25.908Z" },
+    { url = "https://files.pythonhosted.org/packages/e0/c1/3790bbfd5051ead4d00bb8c3beefa985c071b0630e2ed0c03afcb3247e5a/curl_cffi-0.17.0-cp315-abi3.abi3t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2dac9c915a0ee7d7cc4285203d210816bb187c8deb5c20ee21e0613639c2a8bf", size = 14052826, upload-time = "2026-10-26T04:13:27.954Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/04/6f439a1e6ff837996f604892455d0513d380f5db59b7957968896b6811e9/curl_cffi-0.17.0-cp315-abi3.abi3t-musllinux_1_2_aarch64.whl", hash = "sha256:0e70d25d88adc66818d831805e460704088f445269eaabbf884ab05d437c2f99", size = 13160741, upload-time = "2026-10-26T04:13:29.952Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/2f/cb78f0af5a48853638553023bc360718a8a371424591c5c1f7f9cd5d80ce/curl_cffi-0.17.0-cp315-abi3.abi3t-musllinux_1_2_x86_64.whl", hash = "sha256:4f3413b62c780f2a5c7f8a0f6a1d8114f055043a273981b9732abedb5367202b", size = 13791446, upload-time = "2026-10-26T04:13:32.161Z" },
+    { url = "https://files.pythonhosted.org/packages/1d/4c/b577dbd652069ad4860d3ab06ed9e72b4e71959d5fce2dcc920e1fc4e00a/curl_cffi-0.17.0-cp315-abi3.abi3t-win_amd64.whl", hash = "sha256:5ca006230676c7c2f2e5708d02e5852a09caee49d82f1f2a469d5d6537a11baa", size = 2161586, upload-time = "2026-10-26T04:13:34.042Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/c5/3bba2797e70d8e392caa4fe1543dc9398b859bec7f8e2f8b4dd6988cefd9/curl_cffi-0.17.0-cp315-abi3.abi3t-win_arm64.whl", hash = "sha256:32f9508a92adaa8c9c35fd4cda786c9e697643afc2eda8dc4c3d426a910b453a", size = 1898563, upload-time = "2026-10-26T04:13:35.354Z" },
+    { url = "https://files.pythonhosted.org/packages/61/c2/4ab387b783b61b6fb43bcb0bbd9c126b33e0398241c7179dec343d428465/curl_cffi-0.17.0-cp315-cp315-android_24_arm64_v8a.whl", hash = "sha256:918a493717da703bc10507b811e347f4ad94132e30c6709fc1e85daf79979565", size = 8659769, upload-time = "2026-10-26T04:13:37.043Z" },
+]
+
+[[package]]
 name = "discord-py"
 version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -988,6 +1030,24 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.163.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "anyio" },
+    { name = "opentelemetry-api" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a4/62/19000d0f3699cacaeffe8a3c4cc7046d87aac3291163ffeb2ef08b82d859/fastapi-0.163.1.tar.gz", hash = "sha256:3d364b02a68b67292e833ff2dfed3b8dc3aeadf73e271c15316c6c166668792f", size = 544796, upload-time = "2026-11-15T09:51:31.271Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/20/b6/2424da1e40825d3fc54539621811f34e21472499677c9490e4967270e38e/fastapi-0.163.1-py3-none-any.whl", hash = "sha256:68f2d8050f5c3583121c0d203046cc7def5c16a7d6c43a0e7707a8ea610fe2d3", size = 154541, upload-time = "2026-11-15T09:51:29.726Z" },
 ]
 
 [[package]]
@@ -2307,7 +2367,7 @@ provides-extras = ["discord", "slack", "telegram", "test", "whatsapp"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -2316,8 +2376,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b127" },
-    { name = "openagent-identity", specifier = "==1.1.9b80" },
+    { name = "openagent-core", specifier = "==1.1.0b129" },
+    { name = "openagent-identity", specifier = "==1.1.9b81" },
 ]
 
 [[package]]
@@ -2336,10 +2396,10 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b127"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_core-1.1.0b127-py3-none-any.whl?download=1" }
+version = "1.1.0b129"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_core-1.1.0b129-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_core-1.1.0b127-py3-none-any.whl?download=1", hash = "sha256:f24ee13a0f78bda1a93ecd3d5ca03cf742fb47deab3051980c40a998d8165684" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_core-1.1.0b129-py3-none-any.whl?download=1", hash = "sha256:2342e0621ee20728433b2dfd7f0de85e82182c64759f89307761abe8881ccc2d" },
 ]
 
 [package.optional-dependencies]
@@ -2359,6 +2419,13 @@ engine = [
     { name = "rich" },
     { name = "sqlalchemy", extra = ["asyncio"] },
 ]
+subscriptions = [
+    { name = "curl-cffi" },
+    { name = "fastapi" },
+    { name = "filelock" },
+    { name = "httpx" },
+    { name = "python-multipart" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2366,11 +2433,15 @@ requires-dist = [
     { name = "anthropic", marker = "extra == 'providers'", specifier = ">=0.34" },
     { name = "certifi", marker = "extra == 'engine'" },
     { name = "croniter", marker = "extra == 'engine'", specifier = ">=2" },
+    { name = "curl-cffi", marker = "extra == 'subscriptions'", specifier = ">=0.7,<1" },
     { name = "docstring-parser", marker = "extra == 'engine'", specifier = ">=0.16" },
+    { name = "fastapi", marker = "extra == 'subscriptions'", specifier = ">=0.110,<1" },
+    { name = "filelock", marker = "extra == 'subscriptions'", specifier = ">=3.20,<4" },
     { name = "google-genai", marker = "extra == 'providers'", specifier = ">=1" },
     { name = "groq", marker = "extra == 'providers'", specifier = ">=0.4" },
     { name = "httpx", marker = "extra == 'audio'", specifier = ">=0.24,<1" },
     { name = "httpx", marker = "extra == 'engine'", specifier = ">=0.24" },
+    { name = "httpx", marker = "extra == 'subscriptions'", specifier = ">=0.24,<1" },
     { name = "jinja2", marker = "extra == 'engine'", specifier = ">=3.1" },
     { name = "jsonschema", marker = "extra == 'engine'", specifier = ">=4.20" },
     { name = "litellm", marker = "extra == 'audio'", specifier = ">=1.60,<2" },
@@ -2382,16 +2453,17 @@ requires-dist = [
     { name = "packaging", marker = "extra == 'engine'", specifier = ">=21" },
     { name = "pydantic", marker = "extra == 'engine'", specifier = ">=2" },
     { name = "pypdf", marker = "extra == 'retrieval'", specifier = ">=5" },
+    { name = "python-multipart", marker = "extra == 'subscriptions'", specifier = ">=0.0.20,<1" },
     { name = "pyyaml", marker = "extra == 'engine'", specifier = ">=6" },
     { name = "regex", marker = "extra == 'engine'", specifier = ">=2024.11.6" },
     { name = "rich", marker = "extra == 'engine'", specifier = ">=13" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'engine'", specifier = ">=2" },
 ]
-provides-extras = ["capabilities", "engine", "providers", "audio", "retrieval", "modules"]
+provides-extras = ["capabilities", "engine", "providers", "subscriptions", "audio", "retrieval", "modules"]
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2404,8 +2476,8 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
-    { name = "openagent-core", specifier = "==1.1.0b127" },
-    { name = "openagent-identity", specifier = "==1.1.9b80" },
+    { name = "openagent-core", specifier = "==1.1.0b129" },
+    { name = "openagent-identity", specifier = "==1.1.9b81" },
 ]
 
 [[package]]
@@ -2466,7 +2538,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2496,7 +2568,7 @@ dependencies = [
     { name = "openagent-channel-bridges" },
     { name = "openagent-client-transport" },
     { name = "openagent-connectors" },
-    { name = "openagent-core", extra = ["engine"] },
+    { name = "openagent-core", extra = ["engine", "subscriptions"] },
     { name = "openagent-dashboards" },
     { name = "openagent-device-tools" },
     { name = "openagent-execution" },
@@ -2578,7 +2650,7 @@ requires-dist = [
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.27/openagent_channel_bridges-0.1.0b27-py3-none-any.whl?download=1" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", extras = ["engine"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_core-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-core", extras = ["engine", "subscriptions"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_core-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-dashboards", directory = "../../packages/dashboards" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_execution-1.0.0b4-py3-none-any.whl?download=1" },
@@ -2587,7 +2659,7 @@ requires-dist = [
     { name = "openagent-mcp", directory = "../mcp-bridge" },
     { name = "openagent-modules", specifier = "==1.1.0b6" },
     { name = "openagent-product-config", directory = "../../packages/product-config" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_storage_sqlite-1.1.0b127-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_storage_sqlite-1.1.0b129-py3-none-any.whl?download=1" },
     { name = "openagent-support-integration", directory = "../../packages/integrations/support" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "packaging", specifier = ">=21.0" },
@@ -2642,7 +2714,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -2663,13 +2735,13 @@ requires-dist = [
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b127" },
+    { name = "openagent-core", specifier = "==1.1.0b129" },
     { name = "srptools", specifier = ">=1.0.1,<3" },
 ]
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
@@ -2688,7 +2760,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.9b80" },
+    { name = "openagent-identity", specifier = "==1.1.9b81" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2998,28 +3070,28 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-storage-sqlite"
-version = "1.1.0b127"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_storage_sqlite-1.1.0b127-py3-none-any.whl?download=1" }
+version = "1.1.0b129"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_storage_sqlite-1.1.0b129-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.127/openagent_storage_sqlite-1.1.0b127-py3-none-any.whl?download=1", hash = "sha256:e44f13d8cd2ae512763a20e261cd923c862015ab6ca316fde71378b039d58c94" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.129/openagent_storage_sqlite-1.1.0b129-py3-none-any.whl?download=1", hash = "sha256:868d784f60003fa966bd342e3ca88ff1b3b1563aac3e5cd8732d546269deb392" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b127" }]
+requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b129" }]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.9b80"
+version = "1.1.9b81"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b127" }]
+requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b129" }]
 
 [[package]]
 name = "openagent-tool-protocol"

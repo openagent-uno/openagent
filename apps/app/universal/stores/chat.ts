@@ -808,8 +808,9 @@ interface ChatState {
    *  to the authoritative `_expand_run_messages` output (real authorship,
    *  delegation cards with child_session_id, no missing/duplicated messages).
    *  No-op while the session is still processing (so it never clobbers a turn
-   *  the user just started) or when the server returns nothing. */
-  reconcileSession: (sessionId: string) => Promise<void>;
+   *  the user just started) or when the server returns nothing.
+   *  Returns false for failed/superseded reads or history not yet persisted. */
+  reconcileSession: (sessionId: string) => Promise<boolean>;
   /** Set a session's live context-window composition (from the
    *  ``context_report`` push frame or the ``/context`` command_result). */
   applyContextReport: (sessionId: string, report: SessionContext) => void;
@@ -1856,20 +1857,21 @@ export const useChat = create<ChatState>((set, get) => ({
     // Without one, replacing the transcript mid-turn loses the live rows.
     const canReconcile = (session: ChatSession) => !session.isProcessing
       || session.sharedSnapshot?.turns.some(turn => turn.active && turn.runId);
-    if (!ses || !canReconcile(ses)) return;
+    if (!ses || !canReconcile(ses)) return false;
     const mode = get().sessionHistoryMode;
     const current = sessionReadGuard(sessionId);
     const request = Symbol();
     latestReconciliation.set(sessionId, request);
     return loadSessionTranscript(sessionId, mode)
       .then((loaded) => {
-        if (!current() || latestReconciliation.get(sessionId) !== request) return;
+        if (!current() || latestReconciliation.get(sessionId) !== request) return false;
         // Empty result → keep the optimistic transcript (the runs may not be
         // flushed yet); never wipe a visible conversation to nothing.
         const hasMessages = loaded.kind === 'v2'
           ? loaded.page.messages.length > 0
           : loaded.messages.length > 0;
-        if (!hasMessages) return;
+        if (!hasMessages) return !ses.messages.length
+          && !ses.sharedSnapshot?.turns.some(turn => turn.messages.length || turn.tools?.length);
         set((s) => ({
           sessions: s.sessions.map((se) => {
             if (se.id !== sessionId) return se;
@@ -1879,8 +1881,9 @@ export const useChat = create<ChatState>((set, get) => ({
             return { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) };
           }),
         }));
+        return true;
       })
-      .catch(() => {})
+      .catch(() => false)
       .finally(() => {
         if (latestReconciliation.get(sessionId) === request) latestReconciliation.delete(sessionId);
       });

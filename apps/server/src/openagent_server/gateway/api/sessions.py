@@ -379,12 +379,19 @@ async def handle_get_context(request):
     if problem is not None:
         return problem
     try:
-        from openagent_core.core.context_report import build_context_report
+        from openagent_core.core.context_report import build_context_report_async
 
-        report = build_context_report(agent, session_id)
+        report = await build_context_report_async(agent, session_id)
     except Exception as exc:  # noqa: BLE001
         return web.json_response({"error": str(exc)}, status=500)
 
+    # The worker yielded while reading and tokenizing the full transcript.
+    # Recheck current access before publishing, including an empty report.
+    _conn, _access, _acl, problem = await _authorized_session(
+        request, db, session_id
+    )
+    if problem is not None:
+        return problem
     if report is None:
         # No DB-backed session (yet) — return an empty-but-valid shape so
         # the client renders "no data" rather than erroring.

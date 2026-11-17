@@ -16,6 +16,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
 import type { ChatMessage } from '../../../common/types';
 import type { SessionTurn } from '../../../common/unified-history';
+import { createTurnRailMerge, type RailTurn } from '../../../common/turn-rail';
 import { useSessionTurns } from '../../stores/sessionTurns';
 import { useLayout } from '../../hooks/useLayout';
 import { colors, font, radius } from '../../theme';
@@ -31,15 +32,6 @@ const RAIL_WIDTH = 22;
 const POPOVER_WIDTH = 264;
 const WEB_POINTER = { cursor: 'pointer' } as object;
 
-interface RailTurn {
-  id: string;
-  ordinal?: number;
-  own: boolean;
-  author?: string;
-  preview: string;
-  timestamp?: number;
-}
-
 function fromIndex(turn: SessionTurn): RailTurn {
   const parsed = turn.created_at ? Date.parse(turn.created_at) : NaN;
   return {
@@ -53,18 +45,6 @@ function fromIndex(turn: SessionTurn): RailTurn {
 }
 
 const isHumanPrompt = (message: ChatMessage) => message.role === 'user' && message.author?.kind !== 'agent';
-
-function fromMessage(message: ChatMessage, currentUserHandle?: string): RailTurn {
-  const handle = message.author?.handle;
-  return {
-    id: message.id,
-    ordinal: message.ordinal,
-    own: !handle || !currentUserHandle || handle === currentUserHandle,
-    author: message.author?.display || handle,
-    preview: message.text.replace(/\s+/g, ' ').trim(),
-    timestamp: message.timestamp || undefined,
-  };
-}
 
 function clip(text: string): string {
   return text.length > PREVIEW_CHARS ? `${text.slice(0, PREVIEW_CHARS - 1).trimEnd()}…` : text;
@@ -108,14 +88,12 @@ function TurnRail({ sessionId, messages, controller, currentUserHandle }: Props)
     if (newestCanonical > lastOrdinal && index?.status !== 'loading') refresh(sessionId);
   }, [newestCanonical, lastOrdinal, index?.status, refresh, sessionId]);
 
-  const turns = useMemo<RailTurn[]>(() => {
-    const base = unsupported ? [] : (indexed ?? []).map(fromIndex);
-    const known = new Set(base.map((turn) => turn.id));
-    for (const message of recent) {
-      if (!known.has(message.id)) base.push(fromMessage(message, currentUserHandle));
-    }
-    return base;
-  }, [indexed, recent, unsupported, currentUserHandle]);
+  const indexedTurns = useMemo(() => unsupported ? [] : (indexed ?? []).map(fromIndex), [indexed, unsupported]);
+  const mergeTurns = useMemo(() => createTurnRailMerge(), [sessionId]);
+  const turns = useMemo(
+    () => mergeTurns(indexedTurns, recent, currentUserHandle),
+    [mergeTurns, indexedTurns, recent, currentUserHandle],
+  );
 
   const [height, setHeight] = useState(0);
   const [hover, setHover] = useState<number | null>(null);

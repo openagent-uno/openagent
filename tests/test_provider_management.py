@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from openagent_core.engine import MemoryDB
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
-from openagent_server.gateway.api.providers import handle_update
+from openagent_server.gateway.api.providers import handle_update, handle_contract
 from openagent_server.gateway.api.models import handle_update_db
 from openagent_server.provider_management import authorize_request
 from aiohttp import web
@@ -71,6 +71,16 @@ class ProviderManagementTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
         await self.db.close()
         self.temp.cleanup()
+
+    async def test_connection_contract_advertises_installed_core_types(self):
+        import json
+        response = await handle_contract(Request(self.gateway, "/api/providers/contract", 0, {}))
+        body = json.loads(response.text)
+        self.assertEqual(body["version"], 1)
+        self.assertEqual(set(body["access_types"]), {"api", "subscription", "local"})
+        self.assertEqual(set(body["model_kinds"]), {"llm", "image", "tts", "stt"})
+        self.assertEqual(set(body["builtin_subscriptions"]), {"anthropic", "openai"})
+        self.assertNotIn("preserved-secret", response.text)
 
     async def test_partial_rename_updates_same_rows_and_keeps_credentials(self):
         response = await handle_update(
