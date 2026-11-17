@@ -44,3 +44,10 @@ A live Electron renderer profile with 6000 recovered plain-text messages and
 renderer errors and about a 10 ms p95 frame gap. The fixed-rate input drives
 its duration; that test does not establish an end-to-end speedup. The tool-heavy
 pure derivation benchmark measures the separate placement improvement.
+
+A separate operator-only read benchmark used three private snapshot sessions
+with legacy envelopes of 12–31 MB. The isolated transcript projection measured
+roughly 40–175 ms in the candidate. This excludes authorization transport and
+client rendering and does not establish a 3× improvement in initial session
+opening. Complete projection and input decoding remain measured follow-up work;
+streaming gains above must not be presented as initial-opening speedups.

@@ -1,5 +1,9 @@
 # OpenAgent documentation
 
+- [Server beta 83 and App beta 61 qualification](releases/v1.1.9-beta.83.md).
+- [Provider accounts, typed models and settings](site/guide/models.md).
+- [Measured loading changes and remaining performance limits](performance-2026-11-17.md).
+
 ## Architecture and use
 
 - [Agnostic architecture: mandatory in every OpenAgent repository](AGNOSTICISM.md)

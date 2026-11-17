@@ -63,14 +63,16 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.9-beta.33', 'manifest.json', '6f09a7b035a02e6d13af089cd07ed55d19b79ab5da0db204bebc9a6e85281ac8', 'all'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.81', 'manifest.json', '6a9f73a3e7e3937764d7ae68564bb47abb805d221f0a158fe1623efcb3cad92b', 'kernel'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.53', 'manifest.json', '6f2c22fd7de22943e0df2c93068aa057f110122f3919585047a99770ae87a23b', 'modules'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.40', 'manifest.json', '6da7326924459cebe3f73aea3797fdafb10c02b8c211193a332cc399b80f80e3', 'capability-host'),
-    ('openagent-uno/openagent-tools', 'v1.0.0-beta.6', 'manifest.json', 'f7d4dbb5c2a17687266ad3c74a8d796c9e2787d8bf5a2617dadcdce1f0fc46bd', 'tools-base'),
-    ('openagent-uno/openagent-tools', 'device-tools-v1.0.0-beta.18', 'manifest.json', '34a56c6adaaf4c84ad5da82b5bedb034e7a5facdb22fc098c3b8c3db55f6b7ea', 'all'),
-    ('openagent-uno/openagent', 'channel-bridges-v0.1.0-beta.23', 'manifest.json', '0448454d97a76a5c3b10c8ca42fef1d2de5a03e16e4a4d1439c8538ec8118668', 'all'),
-    ('openagent-uno/openagent', 'v1.0.0b15', 'manifest.json', '3f2706789a52cc08b42dff5177d54936205ba3843da1af7c65d51434e97580fe', 'all'),
+    ('openagent-uno/openagent', 'v1.1.9-beta.83', 'manifest.json', 'bf41110c695cb4d69635cc02df4bd96ac3961a70d4aea757febd73f2e206d071', 'all'),
+    ('openagent-uno/openagent', 'channel-bridges-v0.1.0-beta.27', 'manifest.json', 'c5461d91a4763e3b1c4602621ad81a464bfb4cce8b19715d077f2b44977719c7', 'only:openagent_channel_bridges'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'only:openagent_module_attachments,openagent_module_budget,openagent_module_delegation,openagent_module_logs,openagent_module_models,openagent_module_ptc,openagent_module_skills'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.100', 'manifest.json', '710f9457677480645e9fdd9af06fb1996b3123e5aa84ce421872ce68893d9066', 'only:openagent_module_events,openagent_module_mcp,openagent_module_scheduler,openagent_module_search,openagent_module_sessions,openagent_module_vault,openagent_module_workflows'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.110', 'manifest.json', '9d446b59f48147d38d649b6300383f50091ee77c0fd9e024d846bc1da220101d', 'only:openagent_module_tool_discovery,openagent_modules,openagent_modules_full'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.87', 'manifest.json', 'cdbc39faa10794df26d9d6fb0cbb4ff32e6ad0e3f662b19a3e99a93b2537978d', 'only:openagent_capability_host'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.131', 'manifest.json', 'ac1b01ab274134cd61b284b5124b5640544b16b365ff6f626a29e05e4d1f6b70', 'only:openagent_core,openagent_gateway,openagent_sdk,openagent_storage_sqlite'),
+    ('openagent-uno/openagent-tools', 'device-tools-v1.0.0-beta.18', 'manifest.json', '34a56c6adaaf4c84ad5da82b5bedb034e7a5facdb22fc098c3b8c3db55f6b7ea', 'only:openagent_device_tools'),
+    ('openagent-uno/openagent-tools', 'v1.0.0-beta.7', 'manifest.json', 'c8ce5b9b7b8fafbd232cc802d82bcd0e601c2041df697432de832526afd43315', 'only:openagent_editor,openagent_execution,openagent_filesystem,openagent_shell,openagent_tool_protocol'),
+    ('openagent-uno/openagent', 'v1.0.0b18', 'manifest.json', 'b7fba7619d41ff6a522e36ca08c12438b1a5a94d45a7ba086c5ff0c3481d369b', 'only:openagent_host_tools'),
 )
 headers = {"Accept": "application/vnd.github+json", "User-Agent": "openagent-site-installer"}
 
@@ -79,7 +81,12 @@ def fetch(url: str, *, max_bytes: int = 64 << 20) -> bytes:
     attempts = 5
     for attempt in range(attempts):
         try:
-            with urlopen(Request(url, headers=headers), timeout=60) as response:
+            request_headers = dict(headers)
+            # Explicit installer token, scoped only to GitHub's API host.
+            token = __import__("os").environ.get("OPENAGENT_INSTALL_GITHUB_TOKEN")
+            if token and url.startswith("https://api.github.com/"):
+                request_headers["Authorization"] = "Bearer " + token
+            with urlopen(Request(url, headers=request_headers), timeout=60) as response:
                 payload = response.read(max_bytes + 1)
                 if len(payload) > max_bytes:
                     raise RuntimeError(f"Download exceeds the size limit: {url}")
@@ -128,7 +135,10 @@ for repository, tag, manifest_name, manifest_digest, selection in releases:
         }
 
     wheel_assets = {name: url for name, url in assets.items() if name.endswith(".whl")}
-    if selection == "modules":
+    if selection.startswith("only:"):
+        prefixes = tuple(name + "-" for name in selection[5:].split(","))
+        wheel_assets = {name: url for name, url in wheel_assets.items() if name.startswith(prefixes)}
+    elif selection == "modules":
         wheel_assets = {name: url for name, url in wheel_assets.items()
                         if name.startswith(("openagent_module_", "openagent_modules-", "openagent_modules_full-"))}
     elif selection == "capability-host":
@@ -205,7 +215,7 @@ product = sys.argv[2]
 if product == "server":
     requirements = [
         "openagent-framework[discord,slack,whatsapp]==" + versions["openagent-framework"],
-        "openagent-core[engine,providers,modules]==" + versions["openagent-core"],
+        "openagent-core[engine,providers,subscriptions]==" + versions["openagent-core"],
     ]
 else:
     requirements = ["openagent-cli==" + versions["openagent-cli"]]
