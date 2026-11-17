@@ -84,6 +84,20 @@ def command_bypasses_shared_runtime(name: str) -> bool:
     return str(name or "").strip().lower() in COMMANDS_OUTSIDE_SHARED_RUNTIME
 
 
+def report_handler_failure(request: Any, exc: Exception) -> None:
+    """Log a request handler's failure; call it while handling ``exc``.
+
+    A client that closes its connection mid-request, for example during a
+    WebSocket handshake, is not a server error: it is noted without a
+    traceback. Everything else is an error with its traceback.
+    """
+    if isinstance(exc, ConnectionResetError):
+        elog("gateway.client_gone", path=request.path, method=request.method)
+        return
+    elog("gateway.rest_error", level="error", exc_info=True,
+         path=request.path, method=request.method, error=str(exc))
+
+
 @dataclass
 class _StreamHolder:
     """A server-owned stream session with a rebindable client transport."""
@@ -1045,8 +1059,7 @@ class Gateway:
                 except web.HTTPException as ex:
                     resp = ex
                 except Exception as exc:
-                    elog("gateway.rest_error", level="error", exc_info=True,
-                         path=request.path, method=request.method, error=str(exc))
+                    report_handler_failure(request, exc)
                     resp = web.Response(status=500, text=str(exc))
             resp.headers["Access-Control-Allow-Origin"] = "*"
             resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
