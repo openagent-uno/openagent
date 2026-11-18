@@ -1,4 +1,6 @@
 # OpenAgent documentation
+- [Server beta88: nullable runtime history recovery](releases/v1.1.9-beta.88.md).
+- [App beta68: legacy timestamp display](releases/app-beta.68.md).
 - [Server beta87: typed account policy and shared custody accounting](releases/v1.1.9-beta.87.md).
 
 - [Server beta86: shared subscription custody and public host CLI composition](releases/v1.1.9-beta.86.md).
