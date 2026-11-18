@@ -1,6 +1,7 @@
 """A history read waits for the worker to project fresh writes once history is prepared."""
 
 import asyncio
+import json
 import time
 from types import SimpleNamespace
 
@@ -77,3 +78,33 @@ async def test_the_wait_is_bounded(db, monkeypatch):
 
     assert problem.value.status == 503
     assert time.monotonic() - started < 1.5
+
+
+@pytest.mark.asyncio
+async def test_background_history_becomes_ready_with_a_nullable_runtime_mirror(db):
+    from openagent_dashboards.migration import ensure_custom_views_storage
+
+    await db.upsert_session("nullable-mirror", client_id="alice", title="Preserved title")
+    conn = await db._ensure_connected()
+    await ensure_custom_views_storage(conn, app_version="test")
+    await conn.execute("UPDATE sessions_v2 SET metadata_json=json_set(metadata_json,'$.runtime_contract',1) "
+                       "WHERE id='nullable-mirror'")
+    await conn.execute("UPDATE sessions SET metadata='null' WHERE session_id='nullable-mirror'")
+    await conn.commit()
+    gateway = gateway_for(db, prepared=False)
+    worker = asyncio.create_task(operational._background_bootstrap(gateway, db))
+    try:
+        await asyncio.wait_for(gateway._operational_ready_event.wait(), 5)
+        assert gateway._operational_history_ready is True
+        assert gateway._operational_bootstrap_error is False
+        assert (await (await conn.execute(
+            "SELECT count(*) FROM legacy_session_changes WHERE processed_at_ms IS NULL"
+        )).fetchone())[0] == 0
+        row = await (await conn.execute(
+            "SELECT title,metadata_json FROM sessions_v2 WHERE id='nullable-mirror'"
+        )).fetchone()
+        assert row[0] == "Preserved title" and json.loads(row[1])["runtime_contract"] == 1
+    finally:
+        worker.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await worker
