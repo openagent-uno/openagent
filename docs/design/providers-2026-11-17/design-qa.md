@@ -79,3 +79,23 @@ in Electron. The workflow also verifies failed/successful test feedback survives
 the subsequent catalog load, with no stale notice. First cards rendered in
 122–123 ms with independently delayed account/quota data. These fixture results
 do not establish the production session-opening target.
+
+## App beta 64 — account policy and deferred tool inspection
+
+The connection screen exposes automatic account fallback only when Core's
+declared migration group exists. The switch changes group participation without
+changing account enablement, model settings or the saved group identity.
+
+A collapsed canonical tool card loads its authorized detail only when opened.
+Every reopen rechecks access, clears the earlier detail while loading, and shows
+a retryable error on refusal instead of retaining another result. Aborts and
+agent/session boundaries fence late responses. Normal live tool payloads keep
+their existing expansion behavior.
+
+Universal TypeScript and 257 common tests passed. Provider management (including
+the new policy switch), delayed enrichment/focus and deferred tool inspection
+each passed twice in Electron: six complete runs. Detail checks cover deferred
+loading, reopening after authorization refusal, error retry and unchanged chat
+content. These fixtures are separate from native publication and live-host
+acceptance. App beta 63 also passed actual provider connection and new-chat
+checks against the Server beta 84 pilot.

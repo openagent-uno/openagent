@@ -1680,6 +1680,7 @@ export async function listSessionMessages(
   signal?: AbortSignal,
 ): Promise<SessionMessagePage> {
   const params = new URLSearchParams();
+  params.set('tool_details', 'deferred');
   if ('around' in query && query.around) {
     params.set('around', query.around);
     if (query.before != null) params.set('before', String(query.before));

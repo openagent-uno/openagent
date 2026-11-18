@@ -10,6 +10,8 @@ test('providers keep concurrent accounts and API connections independent and exp
   const temporary = await mkdtemp(join(tmpdir(), 'openagent-providers-ui-'));
   const userData = join(temporary, 'profile'); await mkdir(userData);
   const gateway = await new ProvidersGateway({ webRoot: resolve(ROOT, '../universal/dist'), accountId: 'models-test', networkId: 'models-network', deviceId: 'device-certificate', agentNodeId: 'agent-node' }).start();
+  for (const provider of gateway.providers.slice(0, 2)) Object.assign(provider.metadata,
+    { account_fallback_group: 'declared-fixture-group', account_fallback_enabled: true });
   // Plain API vendors have no subscription-account endpoint. That probe's
   // negative result must never masquerade as an inference outage.
   gateway.accounts.push({ provider: gateway.providers[2].name, provider_id: 3,
@@ -51,6 +53,15 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByTestId('provider-card-1:account-1').getByRole('switch')).not.toBeChecked();
     await expect(page.getByTestId('provider-card-2:account-2').getByRole('switch')).toBeChecked();
     expect(gateway.mutations.at(-1).path).toBe('/api/providers/1/accounts/account-1');
+    await page.getByTestId('provider-card-2:account-2').getByRole('button', { name: /^Models & settings$/i }).click();
+    await page.getByRole('button', { name: 'Connection', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).toBeChecked();
+    await page.getByRole('switch', { name: 'Automatic account fallback', exact: true }).click();
+    await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).not.toBeChecked();
+    expect(gateway.mutations.at(-1).value.metadata).toMatchObject({ account_fallback_group: 'declared-fixture-group', account_fallback_enabled: false });
+    await page.getByRole('button', { name: /^All providers$/i }).click();
+    await expect(page.getByTestId('provider-card-1:account-1').getByRole('switch')).not.toBeChecked();
+    await expect(page.getByTestId('provider-card-2:account-2').getByRole('switch')).toBeChecked();
     await page.getByTestId('provider-card-6:connection').getByRole('button', { name: /^Models\ \&\ settings$/i, exact: true }).click();
     await expect(page.getByRole('button', { name: 'All providers', exact: true })).toBeInViewport();
     await expect(page.getByText('Speech model', { exact: true })).toBeVisible();

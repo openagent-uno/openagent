@@ -163,6 +163,12 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
           <Field label="Endpoint" value={endpoint} onChangeText={setEndpoint} autoCapitalize="none" placeholder={active.access === 'local' ? 'http://localhost:11434/v1' : 'Provider default'} />
           <Button label="Save connection" disabled={busy} onPress={() => { void run(() => updateProvider(active.provider.id, { base_url: endpoint.trim(), ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}) })); }} />
         </>}
+        {!!active.provider.metadata?.account_fallback_group && <View style={styles.header}>
+          <View style={{ flex: 1 }}><Text style={styles.section}>Automatic account fallback</Text>
+            <Text style={styles.subtitle}>Use another enabled account in this group for the same text model when this account is unavailable. Each account's model settings and budget still apply.</Text></View>
+          <ThemedSwitch accessibilityLabel="Automatic account fallback" value={active.provider.metadata.account_fallback_enabled !== false} disabled={busy}
+            onValueChange={(value) => { void run(() => updateProvider(active.provider.id, { metadata: { ...active.provider.metadata, account_fallback_enabled: value } })); }} />
+        </View>}
         <View style={styles.row}><Button variant="secondary" label="Refresh capabilities" disabled={busy} onPress={() => { void run(async () => { const result = await refreshProviderCapabilities(active.provider.id); setNotice(result.reachable ? 'Model capabilities refreshed.' : 'Provider did not report a catalog. Saved capabilities were kept.'); }); }} />
           <Button variant="secondary" label="Test connection" disabled={busy} onPress={() => { void run(async () => { const result = await testProvider(active.provider.id); if (result.ok) setNotice('Connection works.'); else throw new Error('Connection test failed.'); }); }} />
           <Button variant="danger" label="Remove connection" disabled={busy} onPress={() => { void removeConnection(active); }} /></View>

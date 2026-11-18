@@ -42,6 +42,7 @@ import {
   legacyToolInfoFromText,
   toolCardHasExpandableDetails,
   toolMessageRenderKey,
+  toolInfoFromInvocationDetail,
 } from '../../common/tool-presentation';
 import AttachmentBlock from './Attachments';
 import Markdown from './Markdown';
@@ -54,6 +55,7 @@ import UIViewSurface from './ui/UIViewSurface';
 import McpAppSurface from './McpAppSurface';
 import { mcpAppHint } from '../services/mcp-apps';
 import { useChat } from '../stores/chat';
+import { getToolInvocationDetail } from '../services/api';
 import { activeAgentName, useConnection } from '../stores/connection';
 import { useReducedMotion } from '../hooks/useDrawerMotion';
 import type { LoadedRange } from '../../common/transcript-window';
@@ -743,7 +745,24 @@ const ToolCard = memo(function ToolCard({
     return legacyToolInfoFromText(fallbackText);
   }, [toolInfo, fallbackText]);
 
-  const info = parsed;
+  const detailId = toolInvocationId || parsed?.tool_invocation_id;
+  const needsDetail = parsed?.details_deferred === true;
+  const detailKey = `${appScopeKey || ''}:${sessionId || ''}:${detailId || ''}`;
+  const [detail, setDetail] = useState<{ key: string; info?: ToolInfo; error?: string } | null>(null);
+  const [detailLoading, setDetailLoading] = useState<string | null>(null);
+  useEffect(() => {
+    if (!expanded || !needsDetail || !detailId) return;
+    const controller = new AbortController();
+    setDetail(null);
+    setDetailLoading(detailKey);
+    void getToolInvocationDetail(detailId, controller.signal).then((value) => {
+      if (!controller.signal.aborted) setDetail({ key: detailKey, info: toolInfoFromInvocationDetail(value) });
+    }, () => {
+      if (!controller.signal.aborted) setDetail({ key: detailKey, error: 'Tool details could not be loaded. Close and reopen to retry.' });
+    }).finally(() => { if (!controller.signal.aborted) setDetailLoading(null); });
+    return () => controller.abort();
+  }, [expanded, needsDetail, detailId, detailKey]);
+  const info = detail?.key === detailKey && detail.info ? { ...detail.info, ...parsed, ...Object.fromEntries(Object.entries(detail.info).filter(([, value]) => value !== undefined)) } : parsed;
 
   if (!info) {
     const isRunning = durableStatus === 'streaming';
@@ -812,13 +831,17 @@ const ToolCard = memo(function ToolCard({
     : executionHost?.device_label || null;
   const hasArgs = !!(info.tool_args && Object.keys(info.tool_args).length > 0);
   const hasResult = !isError && info.result != null && info.result !== '';
-  const canExpand = toolCardHasExpandableDetails(info);
+  const canExpand = needsDetail || toolCardHasExpandableDetails(info);
   const interactive = mcpAppHint(info);
 
   return (
     <>
     <TouchableOpacity
       activeOpacity={canExpand ? 0.85 : 1}
+      accessibilityRole={canExpand ? 'button' : undefined}
+      accessibilityLabel={canExpand ? `${expanded ? 'Hide' : 'Show'} tool details: ${display.title}` : undefined}
+      accessibilityState={canExpand ? { expanded } : undefined}
+      testID={detailId ? `tool-invocation-${detailId}` : undefined}
       onPress={() => { if (canExpand) setExpanded(!expanded); }}
       style={[
         styles.toolCard,
@@ -886,6 +909,8 @@ const ToolCard = memo(function ToolCard({
 
       {expanded && canExpand && (
         <View style={styles.toolCardBody}>
+          {detailLoading === detailKey && <ActivityIndicator accessibilityLabel="Loading tool details" />}
+          {detail?.key === detailKey && detail.error && <Text accessibilityRole="alert" style={styles.toolCodeText}>{detail.error}</Text>}
           <Text style={styles.toolSectionTitle}>Tool</Text>
           <View style={styles.toolCodeBlock}>
             <Text style={styles.toolCodeText}>

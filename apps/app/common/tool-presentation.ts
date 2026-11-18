@@ -136,13 +136,15 @@ export function toolInfoFromSummary(
   invocationId?: string,
 ): ToolInfo | undefined {
   if (!summary) return undefined;
-  return toolInfoFromInput(summary, invocationId);
+  const info = toolInfoFromInput(summary, invocationId);
+  return info ? { ...info, details_deferred: !!info.tool_invocation_id } : undefined;
 }
 
 /** The search detail resolver carries authorized args/result previews. It
  * shares the exact same phase and card adapter as transcript summaries. */
 export function toolInfoFromInvocationDetail(detail: ToolInvocationDetail): ToolInfo | undefined {
-  return toolInfoFromInput(detail, detail.id);
+  const info = toolInfoFromInput(detail, detail.id);
+  return info ? { ...info, details_deferred: false } : undefined;
 }
 
 /** Legacy history used to embed ToolExecution JSON directly in message text.
