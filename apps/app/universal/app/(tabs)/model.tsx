@@ -12,11 +12,11 @@ import { colors, font } from '../../theme';
  * pins use.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import BudgetsPanel from '../../components/BudgetsPanel';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useConnection } from '../../stores/connection';
-import { setBaseUrl, getDailyUsage } from '../../services/api';
+import { setBaseUrl, getDailyUsage, currentAgentScope } from '../../services/api';
 import Card from '../../components/Card';
 import TabStrip from '../../components/TabStrip';
 import ModelGrid from '../../components/models/ModelGrid';
@@ -27,7 +27,14 @@ import type { DailyUsageEntry } from '../../../common/types';
 type ModelView = 'manage' | 'costs';
 
 export default function ModelScreen({ view = 'manage', embedded = false }: { view?: ModelView; embedded?: boolean } = {}) {
+  const { config, activeAccountId } = useConnection();
+  return <ScopedModelScreen key={`${activeAccountId}:${currentAgentScope()}:${config?.sidecarPort ?? ''}`} view={view} embedded={embedded} />;
+}
+
+function ScopedModelScreen({ view, embedded }: { view: ModelView; embedded: boolean }) {
   const connConfig = useConnection((s) => s.config);
+  const scroll = useRef<ScrollView>(null);
+  const navigate = useCallback(() => scroll.current?.scrollTo({ y: 0, animated: false }), []);
   // Standalone (Model tab) draws behind the transparent header and offsets
   // its own content; when embedded in Settings the parent already insets.
   const headerInset = useHeaderInset();
@@ -108,6 +115,7 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
 
   return (
     <ScrollView
+      ref={scroll}
       style={styles.container}
       contentContainerStyle={[
         styles.content,
@@ -124,7 +132,7 @@ export default function ModelScreen({ view = 'manage', embedded = false }: { vie
         </>
       ) : (
         <>
-          <ModelGrid />
+          <ModelGrid onNavigate={navigate} />
         </>
       )}
       <View style={{ height: 40 }} />

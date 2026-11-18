@@ -17,7 +17,9 @@ export default function ProviderTile({ card, budgets, usage, busy, onOpen, onTog
   const { provider, account, access } = card;
   const enabled = provider.enabled && (account as { enabled?: boolean } | null)?.enabled !== false;
   const state = account ? accountState(account) : null;
-  const reachable = card.accounts?.reachable;
+  // API vendors do not implement the subscription-account probe. Its negative
+  // result says nothing about their inference endpoint.
+  const reachable = access === 'api' ? undefined : card.accounts?.reachable;
   const status = !enabled ? 'Disabled' : access === 'subscription' && !card.accounts ? 'Account status unavailable' : state === 'auth_expired' ? 'Sign-in expired'
     : state === 'rate_limited' ? 'Rate limited' : reachable === false ? 'Not reachable'
       : account ? 'Connected' : access === 'subscription' ? 'Sign in to connect' : 'Configured';
@@ -51,7 +53,7 @@ export default function ProviderTile({ card, budgets, usage, busy, onOpen, onTog
       {access === 'subscription' ? windows.length ? windows.map((w) => <View key={w.label} style={styles.window}>
         <View style={styles.between}><Text style={styles.meta}>{w.label}</Text><Text style={styles.amount}>{w.usedPercent}% used</Text></View>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, Math.max(0, w.usedPercent))}%` }]} /></View>
-        {w.resetAfterS != null && <Text style={styles.meta}>Resets in {formatDuration(w.resetAfterS)}</Text>}
+        {w.resetAfterS != null && w.resetAfterS > 0 && <Text style={styles.meta}>Resets in {formatDuration(w.resetAfterS)}</Text>}
       </View>) : <Text style={styles.meta}>Quota not reported</Text> : null}
       {rules.slice(0, 1).map((rule) => <BudgetMeter key={rule.id} rule={rule} />)}
       {budgets === null ? <Text style={styles.meta}>Budget data unavailable</Text> : rules.length === 0 ? <Text style={styles.meta}>No connection budget</Text> : null}

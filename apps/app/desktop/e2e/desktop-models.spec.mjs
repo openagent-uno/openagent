@@ -10,6 +10,10 @@ test('providers keep concurrent accounts and API connections independent and exp
   const temporary = await mkdtemp(join(tmpdir(), 'openagent-providers-ui-'));
   const userData = join(temporary, 'profile'); await mkdir(userData);
   const gateway = await new ProvidersGateway({ webRoot: resolve(ROOT, '../universal/dist'), accountId: 'models-test', networkId: 'models-network', deviceId: 'device-certificate', agentNodeId: 'agent-node' }).start();
+  // Plain API vendors have no subscription-account endpoint. That probe's
+  // negative result must never masquerade as an inference outage.
+  gateway.accounts.push({ provider: gateway.providers[2].name, provider_id: 3,
+    enabled: true, reachable: false, status: 'unreachable', accounts: [] });
   let app;
   try {
     app = await electron.launch({ ...(process.env.OPENAGENT_E2E_ELECTRON_PATH ? { executablePath: process.env.OPENAGENT_E2E_ELECTRON_PATH } : {}),
@@ -30,6 +34,8 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByTestId('provider-card-1:account-1')).toBeVisible();
     await expect(page.getByTestId('provider-card-2:account-2')).toBeVisible();
     await expect(page.getByTestId('provider-card-3:connection')).toBeVisible();
+    await expect(page.getByTestId('provider-card-3:connection').getByText('Configured', { exact: true })).toBeVisible();
+    await expect(page.getByTestId('provider-card-3:connection').getByText('Not reachable', { exact: true })).toHaveCount(0);
     await expect(page.getByTestId('provider-card-4:account-4')).toBeVisible();
     await expect(page.getByTestId('provider-card-5:account-5')).toBeVisible();
     await expect(page.getByTestId('provider-card-6:connection')).toBeVisible();
@@ -42,6 +48,7 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByTestId('provider-card-2:account-2').getByRole('switch')).toBeChecked();
     expect(gateway.mutations.at(-1).path).toBe('/api/providers/1/accounts/account-1');
     await page.getByTestId('provider-card-6:connection').getByRole('button', { name: /^Models\ \&\ settings$/i, exact: true }).click();
+    await expect(page.getByRole('button', { name: 'All providers', exact: true })).toBeInViewport();
     await expect(page.getByText('Speech model', { exact: true })).toBeVisible();
     await expect(page.getByText('Image model', { exact: true })).toBeVisible();
     await expect(page.getByText('Transcription model', { exact: true })).toBeVisible();

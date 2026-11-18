@@ -29,3 +29,30 @@ illustrative, not source data. The implementation uses reported values only.
 Visual result: pass for hierarchy, grouping, spacing, contrast, modal phases,
 responsive layout and identity distinction. Real provider/OAuth acceptance and
 signed distribution remain separate release gates.
+
+## Installed-app follow-up, 18 November 2026
+
+A signed, notarized beta 61 was installed over the existing desktop app without
+replacing its profile. The live host connected and restored its conversation;
+provider cards, nested models, model settings and shared/connection budgets
+rendered. The actual Claude connection test succeeded. This walkthrough exposed
+an API-account probe being mistaken for inference unreachability and retained
+scroll offsets hiding provider headings after navigation.
+
+Beta 62 ignores subscription-account probe failures for plain API connections,
+resets the provider navigation scroll, clears stale action feedback on navigation,
+and displays successful connection feedback with the success tone at the top.
+Expired quota reset timestamps no longer render “Resets in now”. Model management
+and cost forms remount at the current connection scope, preserving source isolation
+during reconnects. No provider/model identifiers or user preferences are migrated.
+
+Provider regression exercises API connections with no account endpoint, real
+Electron navigation, independent account switches, typed model forms and budgets.
+Installed beta 62 acceptance and release receipts must be recorded separately.
+The initial session-opening 3x target remains unproven.
+
+Local beta 62 follow-up gates: 269 common/component tests passed, the universal
+TypeScript check passed, and the provider workflow plus agent-switching/loading
+workflows each passed twice in Electron (6 runs total). Delayed-enrichment first
+cards remained usable in 113–116 ms. These measurements are fixture-based and do
+not establish a threefold improvement for production session opening.

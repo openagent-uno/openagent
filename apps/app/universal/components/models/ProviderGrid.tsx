@@ -27,7 +27,7 @@ import { Chip, Field, ModalShell, ModalityChips } from './ui';
 import { ACCESS_LABELS, KIND_LABELS, KIND_ORDER, errorMessage, fallbackPriority, modelModalities } from './modelHelpers';
 import { connectionCards, connectionInfo, vendorLabel, type ConnectionCard } from './connectionHelpers';
 
-export default function ProviderGrid() {
+export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void } = {}) {
   const config = useConnection((s) => s.config);
   const confirm = useConfirm();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
@@ -51,6 +51,7 @@ export default function ProviderGrid() {
   const [budgetGroup, setBudgetGroup] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState('');
   const [endpoint, setEndpoint] = useState('');
+  useEffect(() => { if (notice || error) onNavigate?.(); }, [notice, error, onNavigate]);
 
   const loadGeneration = useRef(0);
   const load = useCallback(async () => {
@@ -90,7 +91,9 @@ export default function ProviderGrid() {
   };
   const open = (card: ConnectionCard) => {
     setSelected(card.key); setTab('models'); setKind('all'); setApiKey(''); setEndpoint(card.provider.base_url || '');
+    setNotice(null); setError(null); onNavigate?.();
   };
+  const selectTab = (next: typeof tab) => { setTab(next); setNotice(null); setError(null); onNavigate?.(); };
   const toggle = (card: ConnectionCard) => run(async () => {
     if (card.account && connectionInfo(card.provider).access === 'subscription') {
       const enabled = card.provider.enabled && (card.account as { enabled?: boolean }).enabled !== false;
@@ -113,17 +116,19 @@ export default function ProviderGrid() {
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
 
   return <View style={styles.wrap} onLayout={onLayout}>
+    {error && <Notice tone="error" onDismiss={() => setError(null)}>{error}</Notice>}
+    {notice && <Notice tone="success" onDismiss={() => setNotice(null)}>{notice}</Notice>}
     {active ? <>
-      <Button variant="ghost" icon="arrow-left" label="All providers" onPress={() => setSelected(null)} />
+      <Button variant="ghost" icon="arrow-left" label="All providers" onPress={() => { setSelected(null); setNotice(null); setError(null); onNavigate?.(); }} />
       <View style={styles.header}>
         <ProviderMark vendor={active.vendor} access={active.access} />
         <View style={{ flex: 1 }}><Text style={styles.title}>{active.label}</Text><Text style={styles.subtitle}>{vendorLabel(active.vendor)} · {ACCESS_LABELS[active.access]}</Text></View>
         <ThemedSwitch value={active.provider.enabled && active.account?.enabled !== false} disabled={busy} onValueChange={() => { void toggle(active); }} accessibilityLabel="Enable connection" />
       </View>
       <View style={styles.row}>
-        <Chip label="Models" active={tab === 'models'} onPress={() => setTab('models')} />
-        <Chip label="Usage & budget" active={tab === 'budget'} onPress={() => setTab('budget')} />
-        <Chip label="Connection" active={tab === 'connection'} onPress={() => setTab('connection')} />
+        <Chip label="Models" active={tab === 'models'} onPress={() => selectTab('models')} />
+        <Chip label="Usage & budget" active={tab === 'budget'} onPress={() => selectTab('budget')} />
+        <Chip label="Connection" active={tab === 'connection'} onPress={() => selectTab('connection')} />
       </View>
       {tab === 'models' && <>
         <View style={styles.header}><Text style={styles.section}>Models</Text><Button icon="plus" label="Add models" disabled={connectionContract === null} onPress={() => connectionContract ? setCatalog(active.provider) : setConnecting(true)} /></View>
@@ -173,8 +178,6 @@ export default function ProviderGrid() {
       {!loading && providers.length > 0 && !groups.length && <Text style={styles.subtitle}>No connections match your search.</Text>}
       <Text style={styles.subtitle}>Each card represents one connection or subscription account. Disabling it keeps its settings.</Text>
     </>}
-    {error && <Notice tone="error" onDismiss={() => setError(null)}>{error}</Notice>}
-    {notice && <Notice onDismiss={() => setNotice(null)}>{notice}</Notice>}
     {budgetGroup && <ModalShell visible title={`${vendorLabel(budgetGroup)} · Shared budget`} width={760} onClose={() => setBudgetGroup(null)}>
       <Text style={styles.subtitle}>Applies to every connection in this provider group. Each account and model can also have its own limit.</Text>
       <BudgetsPanel scopeKind="provider" scopeValue={budgetGroup} scopeTitle={`${vendorLabel(budgetGroup)} · All connections`} defaultMetric="tokens" />
