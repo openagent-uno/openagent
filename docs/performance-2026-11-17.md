@@ -59,3 +59,32 @@ roughly 40–175 ms in the candidate. This excludes authorization transport and
 client rendering and does not establish a 3× improvement in initial session
 opening. Complete projection and input decoding remain measured follow-up work;
 streaming gains above must not be presented as initial-opening speedups.
+
+## Installed remote history qualification — 18 November
+
+The official, signed macOS arm64 App beta67 was installed with the existing
+profile and connected to a live Server beta87/Core beta137 host. Six renderer
+reloads of the same canonical conversation retained three assistant messages
+and 55 linked tool invocations, without reading legacy runs. Tool detail opening,
+closing and reopening passed; a separate bounded chat returned the expected
+answer with no tool invocation. The named subscription connection probe passed
+twice. No stored message or tool result is included in these measurements.
+
+Three alternating paired trials measured navigation to the first visible
+assistant after the complete expected message/tool projection was present.
+The baseline removed only `tool_details=deferred` from the same read request;
+host, installed client, profile, authorization and conversation stayed the same.
+The probe was installed before navigation and removed after every trial.
+
+| Trial | Full linked output | Deferred linked output |
+| --- | ---: | ---: |
+| 1 | 4,347 ms | 888 ms |
+| 2 | 11,969 ms | 987 ms |
+| 3 | 18,781 ms | 1,031 ms |
+
+The medians were 11,969 ms and 987 ms, a 12.1× improvement for this remote,
+tool-heavy history. Network time dominated and varied substantially: the full
+message response transferred about 2.08 MB, while deferred reads transferred
+about 22 KB plus an 8.9 KB anchor page. These field measurements qualify this
+history path. They do not establish that initial enrollment, settings, graph
+layout, every session or every client improved by at least 3×.

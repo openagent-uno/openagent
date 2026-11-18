@@ -18,3 +18,12 @@ times, retaining its 60 messages and 55 linked tools without a legacy read.
 The installed native App is a separate acceptance gate. The mutable update
 channel was temporarily held at qualified beta65 after beta66 startup acceptance
 found the empty-snapshot race; immutable artifacts and profiles are preserved.
+
+The official build and publisher subsequently passed for all six native targets.
+The signed macOS arm64 package passed signature/Gatekeeper checks and was tested
+with its existing authorized profile against a live Server beta87/Core beta137.
+Six canonical history reloads retained all expected assistant/tool rows, linked
+tool details opened and reopened, a bounded chat produced its expected answer
+without tools, and the named subscription probe passed twice. The update feed
+now advertises beta67. See the [paired visible-history measurements](../performance-2026-11-17.md#installed-remote-history-qualification--18-november)
+for the scoped performance result and its limits.
