@@ -4,6 +4,8 @@
 - [Provider accounts, typed models and settings](site/guide/models.md).
 - [Measured loading changes and remaining performance limits](performance-2026-11-17.md).
 
+- [Server beta84: negotiated JSON transfer](releases/v1.1.9-beta.84.md).
+
 ## Architecture and use
 
 - [Agnostic architecture: mandatory in every OpenAgent repository](AGNOSTICISM.md)

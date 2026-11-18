@@ -1,5 +1,6 @@
 """Real coordinator/member/device wire: fresh authorization on every HTTP request."""
 import asyncio
+import gzip
 import json
 import statistics
 import time
@@ -8,6 +9,7 @@ import tempfile
 import unittest
 from aiohttp import web, ClientSession, ClientTimeout
 from openagent_core.engine import MemoryDB
+from openagent_gateway import json_compression
 from openagent_identity.identity import Identity
 from openagent_identity.iroh_node import IrohNode, NetworkAlpn
 from openagent_identity.state import NetworkState
@@ -49,10 +51,10 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                         hints = {'relay_url':coordinator_hints[0], 'addresses':list(coordinator_hints[1])}
                     return await native_dial(node_id, alpn, **hints)
                 member.iroh_node.dial = member_dial
-                app = web.Application(middlewares=[make_auth_middleware(member.auth_state)])
+                app = web.Application(middlewares=[json_compression, make_auth_middleware(member.auth_state)])
                 async def catalog(request):
                     handled.append(request['user_handle'])
-                    return web.json_response({'providers': [], 'authorized': request['user_handle']})
+                    return web.json_response({'providers': [], 'authorized': request['user_handle'], 'catalog': 'fixture capability ' * 2000})
                 app.router.add_get('/api/providers', catalog)
                 runner = web.AppRunner(app); await runner.setup()
                 site = IrohSite(runner, member.iroh_node)
@@ -70,12 +72,21 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                 client.dial = direct
                 dialer = SessionDialer(node=client, binding=NetworkBinding('fixture-network','Fixture',coordinator_id,coordinator.identity.public_bytes,'alice'), cert_wire=cert)
                 proxy = LoopbackProxy(dialer=dialer, target_node_id=member_id); await proxy.start()
-                async with ClientSession(timeout=ClientTimeout(total=15)) as http:
+                async with ClientSession(timeout=ClientTimeout(total=15), auto_decompress=False) as http:
                     async def read(expected=200):
                         started = time.perf_counter()
                         async with http.get(proxy.base_url + '/api/providers') as response:
-                            text = await response.text(); self.assertEqual(response.status, expected, text)
-                            if expected == 200: self.assertEqual(json.loads(text)['authorized'], 'alice')
+                            payload = await response.read()
+                            if expected == 200:
+                                self.assertEqual(response.headers.get('Content-Encoding'), 'gzip')
+                                self.assertEqual(int(response.headers['Content-Length']), len(payload))
+                                self.assertLess(len(payload), 1000)
+                                body = json.loads(gzip.decompress(payload))
+                                self.assertEqual(body['authorized'], 'alice')
+                                self.assertEqual(body['catalog'], 'fixture capability ' * 2000)
+                            else:
+                                self.assertNotIn('Content-Encoding', response.headers)
+                            self.assertEqual(response.status, expected)
                         return (time.perf_counter() - started) * 1000
                     cold = await read()
                     before = len(live_checks)

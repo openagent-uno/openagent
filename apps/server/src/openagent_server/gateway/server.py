@@ -1070,9 +1070,11 @@ class Gateway:
         # going through auth), then auth (every other request needs a
         # valid device cert). Both run for every route added below.
         auth_middleware = make_auth_middleware(self._network_state.auth_state)
+        from openagent_gateway import json_compression
         app = web.Application(
             middlewares=[
                 cors,
+                json_compression,
                 custom_views_api.body_limit_middleware,
                 auth_middleware,
                 bind_runtime_identity,
