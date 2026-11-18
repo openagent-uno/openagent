@@ -1085,13 +1085,7 @@ export async function updateConfigSection(
   section: string,
   data: any,
 ): Promise<{ ok: boolean; restart_required: boolean }> {
-  const res = await fetchAgent(`${baseUrl}/api/config/${section}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new ApiError(res.status, `API ${res.status}: ${await res.text()}`);
-  return await res.json();
+  return patch<{ ok: boolean; restart_required: boolean }>(`/api/config/${section}`, data);
 }
 
 /** Read the owner-editable agent identity (not the framework prompt). */

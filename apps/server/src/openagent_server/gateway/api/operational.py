@@ -25,7 +25,7 @@ from aiohttp import web
 
 from openagent_identity.runtime_access import AccessContext
 
-from openagent_core.memory.operational.access import resource_is_visible
+from openagent_core.memory.operational.access import resource_is_visible, resources_are_visible
 from openagent_core.memory.operational.repository import (
     backfill_batch_async,
     projection_coverage_async,
@@ -702,11 +702,10 @@ async def _activity_rows(conn: Any, access: AccessContext, filters: dict[str, An
     rows = await cursor.fetchall()
     if len(rows) > _MAX_SNAPSHOT_ITEMS:
         raise ApiProblem(503, "degraded", "History snapshot is temporarily too large")
-    visible: list[Any] = []
-    for row in rows:
-        if await resource_is_visible(conn, row, access):
-            visible.append(row)
-    return visible
+    # Recheck grants after candidate capture, without a query for every
+    # principal on every row. Selected pages still recheck current ACLs below.
+    decisions = await resources_are_visible(conn, rows, access)
+    return [row for row, allowed in zip(rows, decisions) if allowed]
 
 
 def _activity_json(row: Any) -> dict[str, Any]:

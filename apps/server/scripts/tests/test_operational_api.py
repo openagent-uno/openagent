@@ -1495,6 +1495,82 @@ async def t_foreign_ready_index_is_rebuilt(_ctx: TestContext) -> None:
             await new_db.close()
 
 
+@test("operational_api", "large granted history uses bounded fresh ACL reads and rechecks its cursor")
+async def t_history_snapshot_batch_acl(_ctx: TestContext) -> None:
+    from openagent_core.memory.db import MemoryDB
+    from openagent_identity.runtime_access import AccessContext
+    from openagent_server.gateway.api import operational
+
+    with TemporaryDirectory(prefix="openagent-history-snapshot-batch-") as directory:
+        db = MemoryDB(str(Path(directory) / "openagent.db"))
+        await db.connect()
+        conn = await db._ensure_connected()
+        gateway = SimpleNamespace(agent=SimpleNamespace(memory_db=db), _operational_history_ready=True)
+        try:
+            count, base, tenant = 501, 1_800_000_000_000, "snapshot-tenant"
+            await conn.executemany(
+                "INSERT INTO sessions_v2 "
+                "(id,tenant_id,owner_principal_id,title,session_type,kind,status,"
+                "created_at_ms,updated_at_ms,last_activity_at_ms) "
+                "VALUES (?,?,'user:owner','Conversation','agent','chat','active',?,?,?)",
+                [(f"snapshot-{i:04d}", tenant, base+i, base+i, base+i) for i in range(count)],
+            )
+            await conn.executemany(
+                "INSERT INTO activity_items "
+                "(activity_id,kind,resource_type,resource_id,session_id,tenant_id,owner_principal_id,"
+                "visibility,acl_version,title,origin,occurred_at_ms,updated_at_ms,source_version,"
+                "created_revision,updated_revision) "
+                "VALUES (?,'chat','session',?,?,?,'user:owner','private',1,'Conversation','chat',?,?,1,1,1)",
+                [(f"snapshot-{i:04d}", f"snapshot-{i:04d}", f"snapshot-{i:04d}", tenant, base+i, base+i)
+                 for i in range(count)],
+            )
+            await conn.executemany(
+                "INSERT INTO resource_acl "
+                "(tenant_id,resource_type,resource_id,principal_type,principal_id,permission,acl_version,granted_at_ms) "
+                "VALUES (?,'session',?,'user','reader','view',1,?)",
+                [(tenant, f"snapshot-{i:04d}", base) for i in range(count)],
+            )
+            await conn.commit()
+            request = _Request(gateway, tenant=tenant, handle="reader", device="reader-device", query={"limit":"10"})
+            filters, _ = operational._history_filters(request)
+            statements = []
+            await conn.set_trace_callback(statements.append)
+            rows = await operational._activity_rows(conn, AccessContext.from_request(request), filters)
+            await conn.set_trace_callback(None)
+            expected = [f"snapshot-{i:04d}" for i in range(count-1, -1, -1)]
+            assert [str(row["activity_id"]) for row in rows] == expected
+            reads = [sql for sql in statements if sql.lstrip().upper().startswith(("SELECT", "WITH"))]
+            assert len(reads) <= 10, f"Snapshot ACL regressed to per-resource queries: {len(reads)}"
+
+            first = _payload(await operational.handle_history(request))
+            assert [item["resource_id"] for item in first["items"]] == expected[:10]
+            assert first["has_more"] and first["next_cursor"]
+            # Keep the captured ID and resource row, but revoke the current
+            # grant. The continuation must not inherit a batch's old decision.
+            revoked = expected[10]
+            await conn.execute(
+                "DELETE FROM resource_acl WHERE tenant_id=? AND resource_type='session' AND resource_id=?",
+                (tenant, revoked),
+            )
+            await conn.commit()
+            second = _payload(await operational.handle_history(_Request(
+                gateway, tenant=tenant, handle="reader", device="reader-device",
+                query={"limit":"10", "cursor":first["next_cursor"]},
+            )))
+            assert [item["resource_id"] for item in second["items"]] == expected[11:20]
+            assert second["snapshot"]["snapshot_id"] == first["snapshot"]["snapshot_id"]
+            assert second["has_more"] and second["next_cursor"]
+            other = await operational.handle_history(_Request(
+                gateway, tenant=tenant, handle="owner", device="owner-device",
+                query={"limit":"10", "cursor":first["next_cursor"]},
+            ))
+            assert other.status == 409
+        finally:
+            await conn.set_trace_callback(None)
+            await operational.stop_background_maintenance(gateway)
+            await db.close()
+
+
 @test("operational_api", "history/messages/search enforce ACL and stable snapshots")
 async def t_acl_history_messages_and_snapshot(_ctx: TestContext) -> None:
     from openagent_server.gateway.api import operational

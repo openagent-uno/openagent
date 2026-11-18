@@ -1,4 +1,6 @@
 # OpenAgent documentation
+- [Server beta89: bounded fresh history authorization](releases/v1.1.9-beta.89.md).
+- [App beta69: settings refresh and large graph simulation](releases/app-beta.69.md).
 - [Server beta88: nullable runtime history recovery](releases/v1.1.9-beta.88.md).
 - [App beta68: legacy timestamp display](releases/app-beta.68.md).
 - [Server beta87: typed account policy and shared custody accounting](releases/v1.1.9-beta.87.md).

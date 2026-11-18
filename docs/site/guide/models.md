@@ -88,6 +88,9 @@ account's quota. Use another connection for another simultaneous account.
 
 ## Model settings and budgets
 
+After a section save, the App invalidates older in-flight configuration reads
+before fetching current settings. A refresh cannot reuse a pre-save response.
+
 Text/multimodal, image, speech (TTS) and transcription (STT) are peer model
 categories within each connection. Model forms use Core's `settings_schema`;
 credentials stay in connection settings. Blank parameters inherit defaults,

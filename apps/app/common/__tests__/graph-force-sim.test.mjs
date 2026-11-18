@@ -173,3 +173,109 @@ test('seeded buildSim cold layout remains deterministic and exactly equivalent o
   const second = assertEquivalent(repeated.nodes, repeated.edges);
   assert.deepEqual(first, second);
 });
+
+function interactionFixture(count, seed = 42) {
+  const rng = random(seed);
+  return Array.from({ length: count }, (_, i) => {
+    const span = i < 80 ? 200 : 5000;
+    return node((rng() - 0.5) * span, (rng() - 0.5) * span, i, i % 53 === 0);
+  });
+}
+
+function assertInteractionTick(actual, expected, edges, alpha, label) {
+  const held = actual.filter(n => n.pinned).map(n => ({ id: n.id, x: n.x, y: n.y, vx: n.vx, vy: n.vy }));
+  tick(actual, edges, alpha);
+  quadraticTick(expected, edges, alpha);
+  assert.deepEqual(actual, expected, `${label}: exact layout and velocity`);
+  assert.deepEqual(actual.filter(n => n.pinned).map(n => ({ id: n.id, x: n.x, y: n.y, vx: n.vx, vy: n.vy })), held,
+    `${label}: currently pinned nodes preserve externally supplied position/velocity`);
+  for (const n of actual) for (const key of ['x', 'y', 'vx', 'vy']) {
+    assert.ok(Number.isFinite(n[key]), `${label}: finite ${n.id}.${key}`);
+  }
+}
+
+test('large-graph ticks observe drag, pin/unpin and external velocity changes between frames', () => {
+  const actual = interactionFixture(1100), expected = structuredClone(actual);
+  const edges = actual.slice(1).map((_, i) => ({ source: i, target: i + 1 }));
+  const edits = [
+    () => {},
+    nodes => Object.assign(nodes[5], { pinned: true, x: -560.25, y: 280, vx: 17.25, vy: -23.5 }),
+    nodes => {
+      Object.assign(nodes[5], { x: 280 + 1e-10, y: -280 - 1e-10 });
+      Object.assign(nodes[6], { vx: 20000, vy: -10000 });
+    },
+    nodes => { nodes[5].pinned = false; },
+    nodes => {
+      Object.assign(nodes[0], { pinned: true, x: -0, y: 0, vx: -0, vy: 0 });
+      Object.assign(nodes[1099], { pinned: true, x: 1500, y: -1500, vx: -7.5, vy: 12 });
+    },
+    nodes => Object.assign(nodes[5], { x: -0, y: 0, vx: -0, vy: 0 }),
+    nodes => {
+      nodes[0].pinned = false;
+      nodes[1099].pinned = false;
+      Object.assign(nodes[6], { vx: -100, vy: 35 });
+    },
+    nodes => Object.assign(nodes[107], { x: -280.000001, y: 560.000001, vx: 0.125, vy: -0.25 }),
+  ];
+  edits.forEach((edit, step) => {
+    edit(actual); edit(expected);
+    assertInteractionTick(actual, expected, edges, 0.985 ** step, `drag frame ${step}`);
+  });
+});
+
+test('large-graph ticks refresh replaced nodes and replacement arrays at the same length', () => {
+  let actual = interactionFixture(1100), expected = structuredClone(actual);
+  const edges = [{ source: 0, target: 1 }, { source: 10, target: 1099 }];
+  assertInteractionTick(actual, expected, edges, 1, 'initial array');
+  const replacement = { ...node(-281, 561, 10, true), vx: 37, vy: -19, label: 'Replacement node' };
+  actual[10] = structuredClone(replacement);
+  expected[10] = structuredClone(replacement);
+  assertInteractionTick(actual, expected, edges, 0.985, 'replaced node, same array');
+  const fresh = interactionFixture(1100, 12345);
+  actual.splice(0, actual.length, ...structuredClone(fresh));
+  expected.splice(0, expected.length, ...structuredClone(fresh));
+  assertInteractionTick(actual, expected, edges, 0.97, 'replaced all nodes, same array');
+  actual = [...actual]; expected = [...expected];
+  assertInteractionTick(actual, expected, edges, 0.95, 'replacement array, same nodes');
+  actual.reverse(); expected.reverse();
+  assertInteractionTick(actual, expected, edges, 0.92, 'reordered nodes');
+  actual = structuredClone(actual); expected = structuredClone(expected);
+  actual[17].vx += 71; expected[17].vx += 71;
+  assertInteractionTick(actual, expected, edges, 0.9, 'replacement array and nodes');
+});
+
+test('resizing the same array across the 1024/1025 dispatch boundary refreshes reusable buffers', () => {
+  const original = interactionFixture(1100, 717);
+  const actual = structuredClone(original), expected = structuredClone(original);
+  const actualIdentity = actual;
+  const sizes = [1100, 1025, 1024, 600, 1025, 1100, 1024, 1100];
+  sizes.forEach((size, step) => {
+    for (const nodes of [actual, expected]) {
+      if (nodes.length > size) nodes.length = size;
+      else if (nodes.length < size) nodes.push(...structuredClone(original.slice(nodes.length, size)));
+    }
+    assert.strictEqual(actual, actualIdentity);
+    assert.equal(actual.length, size);
+    assertInteractionTick(actual, expected, [{ source: 0, target: size - 1 }, { source: 1, target: 2 }], 0.985 ** step, `resize frame ${step}, N=${size}`);
+  });
+});
+
+test('alternating two large arrays isolates cached buffers and interactive state', () => {
+  const first = interactionFixture(1100, 1), second = interactionFixture(1100, 987);
+  const expectedFirst = structuredClone(first), expectedSecond = structuredClone(second);
+  const edges = [{ source: 0, target: 1099 }, { source: 12, target: 13 }];
+  for (let frame = 0; frame < 6; frame++) {
+    for (const nodes of [first, expectedFirst]) {
+      Object.assign(nodes[12], { pinned: frame % 2 === 0, x: -560 + frame * 10, vy: 11 - frame });
+    }
+    for (const nodes of [second, expectedSecond]) {
+      Object.assign(nodes[12], { pinned: frame % 2 !== 0, y: 840 - frame * 20, vx: frame - 15 });
+    }
+    const secondBefore = structuredClone(second);
+    assertInteractionTick(first, expectedFirst, edges, 0.985 ** frame, `first graph frame ${frame}`);
+    assert.deepEqual(second, secondBefore, 'ticking first graph does not mutate second graph');
+    const firstBefore = structuredClone(first);
+    assertInteractionTick(second, expectedSecond, edges, 0.98 ** frame, `second graph frame ${frame}`);
+    assert.deepEqual(first, firstBefore, 'ticking second graph does not mutate first graph');
+  }
+});

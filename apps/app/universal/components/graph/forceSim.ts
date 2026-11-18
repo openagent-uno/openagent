@@ -28,6 +28,11 @@ export interface SimEdge {
   target: number;
 }
 
+type RepulsionBuffers = {
+  x: Float64Array; y: Float64Array; vx: Float64Array; vy: Float64Array; pinned: Uint8Array;
+};
+const repulsionBuffers = new WeakMap<SimNode[], RepulsionBuffers>();
+
 /** Palette must be passed in (not imported) because Canvas 2D can't
  *  resolve the `var(--oa-*)` references on the web `colors` proxy — we
  *  need actual hex values from `getRawColors()`.
@@ -125,6 +130,14 @@ export function tick(nodes: SimNode[], edges: SimEdge[], alpha: number) {
       }
     }
   } else {
+    let buffers = repulsionBuffers.get(nodes);
+    if (!buffers || buffers.x.length !== N) {
+      buffers = { x: new Float64Array(N), y: new Float64Array(N), vx: new Float64Array(N),
+        vy: new Float64Array(N), pinned: new Uint8Array(N) };
+      repulsionBuffers.set(nodes, buffers);
+    }
+    const { x: xs, y: ys, vx: vxs, vy: vys, pinned: pins } = buffers;
+    const cellSize = repelRange / 2;
     // Positions stay fixed until integration: one grid per tick finds every
     // pair within the cutoff exactly. Numeric columns avoid string creation
     // in neighborhood lookup, the dominant cost in the V8 baseline profile.
@@ -132,8 +145,13 @@ export function tick(nodes: SimNode[], edges: SimEdge[], alpha: number) {
     const columns = new Map<number, Map<number, Cell>>();
     const nodeCells: Cell[] = [];
     for (let i = 0; i < N; i++) {
-      const x = Math.floor(nodes[i].x / repelRange);
-      const y = Math.floor(nodes[i].y / repelRange);
+      const node = nodes[i];
+      // Refresh on every tick so drag, pin and velocity edits between frames
+      // remain authoritative. Buffers retain only reusable numeric storage.
+      xs[i] = node.x; ys[i] = node.y; vxs[i] = node.vx; vys[i] = node.vy;
+      pins[i] = node.pinned ? 1 : 0;
+      const x = Math.floor(xs[i] / cellSize);
+      const y = Math.floor(ys[i] / cellSize);
       let column = columns.get(x);
       if (!column) { column = new Map(); columns.set(x, column); }
       let cell = column.get(y);
@@ -145,10 +163,10 @@ export function tick(nodes: SimNode[], edges: SimEdge[], alpha: number) {
     }
     for (const column of columns.values()) {
       for (const cell of column.values()) {
-        for (let dx = -1; dx <= 1; dx++) {
+        for (let dx = -2; dx <= 2; dx++) {
           const adjacent = columns.get(cell.x + dx);
           if (!adjacent) continue;
-          for (let dy = -1; dy <= 1; dy++) {
+          for (let dy = -2; dy <= 2; dy++) {
             const neighbor = adjacent.get(cell.y + dy);
             // Large finite coordinates can round adjacent keys together.
             if (neighbor && !cell.neighbors.includes(neighbor)) cell.neighbors.push(neighbor);
@@ -162,25 +180,31 @@ export function tick(nodes: SimNode[], edges: SimEdge[], alpha: number) {
       for (const neighbor of nodeCells[i].neighbors) neighbor.candidates.push(i);
     }
     for (let i = 0; i < N; i++) {
-      const current = nodes[i];
-      const x = current.x, y = current.y, pinned = current.pinned;
+      const x = xs[i], y = ys[i], pinned = pins[i];
+      let vx = vxs[i], vy = vys[i];
       const cell = nodeCells[i];
       const candidates = cell.candidates;
       // Nodes visit a cell in ascending index order; the cursor only advances.
       while (cell.start < candidates.length && candidates[cell.start] <= i) cell.start++;
       for (let k = cell.start; k < candidates.length; k++) {
-        const target = nodes[candidates[k]];
-        const dx = target.x - x;
-        const dy = target.y - y;
+        const j = candidates[k];
+        const dx = xs[j] - x;
+        const dy = ys[j] - y;
         let d2 = dx * dx + dy * dy;
         if (d2 > repelRange2) continue;
         if (d2 < 100) d2 = 100;
         const f = repulse / d2;
         const fx = dx * f;
         const fy = dy * f;
-        if (!pinned) { current.vx -= fx; current.vy -= fy; }
-        if (!target.pinned) { target.vx += fx; target.vy += fy; }
+        if (!pinned) { vx -= fx; vy -= fy; }
+        if (!pins[j]) { vxs[j] += fx; vys[j] += fy; }
       }
+      vxs[i] = vx; vys[i] = vy;
+    }
+    // Keep each node's addition order identical to the object path. Springs
+    // and integration still operate on the original public simulation nodes.
+    for (let i = 0; i < N; i++) {
+      nodes[i].vx = vxs[i]; nodes[i].vy = vys[i];
     }
   }
 

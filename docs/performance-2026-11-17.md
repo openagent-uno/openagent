@@ -3,6 +3,32 @@
 Profiling covers Core, standalone server transport and the app. Results below
 are scoped measurements; no universal 3× improvement is claimed.
 
+## Follow-up qualification — 19 November
+
+Core beta140 adds fresh batched operational visibility checks, used by Server
+beta89 during history snapshot capture. A 50,000-row explicit-grant SQLite
+fixture measured 15,125 ms to 593 ms (25.51×), and 250,001 to 251 authorization
+reads, preserving IDs, order and digest. Owner-only capture stayed approximately
+183–185 ms. Revocation, cursor and principal isolation regressions pass. This
+measurement excludes client rendering and transport.
+
+App beta69's retained numeric buffers and finer graph grid measured 5,841 ms
+to 2,261 ms in five alternating paired trials against the original implementation:
+2.58× for 168 exact ticks on 5,000 nodes, with an identical layout hash.
+Dragging, pinning, replacing/reordering nodes, boundary resizing and independent
+arrays retain exact reference behavior. This paired result supersedes the older
+single graph comparison below; the graph's 3× target remains unmet.
+
+The settings follow-up fixes a correctness race: after PATCH, a fresh GET could
+join an older pre-write GET. The shared mutation lifecycle now invalidates that
+pending read and retains error/deadline behavior. The existing 180 ms mocked
+network floor remains; no new settings speedup is claimed.
+
+Publication, signed native acceptance and deployed adoption of these candidates
+are separate from the source and controlled measurements above.
+
+## Original measurements
+
 | Path | Before | After | Evidence boundary |
 | --- | ---: | ---: | --- |
 | Provider first card, delayed quota fixture | 4929 ms | 129 ms | Electron navigation/network/render |
