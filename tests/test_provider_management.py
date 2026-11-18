@@ -89,6 +89,7 @@ class ProviderManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(body["access_types"]), {"api", "subscription", "local"})
         self.assertEqual(set(body["model_kinds"]), {"llm", "image", "tts", "stt"})
         self.assertEqual(set(body["builtin_subscriptions"]), {"anthropic", "openai"})
+        self.assertEqual(set(body["account_policy_fields"]), {"name", "enabled", "priority", "fallback_enabled"})
         self.assertNotIn("preserved-secret", response.text)
 
     async def test_partial_rename_updates_same_rows_and_keeps_credentials(self):

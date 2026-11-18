@@ -304,7 +304,8 @@ async def handle_test(request: web.Request) -> web.Response:
 async def handle_contract(request: "web.Request") -> "web.Response":
     """Advertise the installed Core connection contract for staged client upgrades."""
     from aiohttp import web
-    from openagent_core.models.connections import ACCESS_TYPES, MODEL_KINDS
+    from openagent_core.models.connections import ACCESS_TYPES, MODEL_KINDS, ACCOUNT_CONNECTION_FIELDS
     return web.json_response({"version": 1, "access_types": sorted(ACCESS_TYPES),
                               "model_kinds": list(MODEL_KINDS),
+                              "account_policy_fields": list(ACCOUNT_CONNECTION_FIELDS),
                               "builtin_subscriptions": ["anthropic", "openai"]})

@@ -1,4 +1,5 @@
 # OpenAgent documentation
+- [Server beta87: typed account policy and shared custody accounting](releases/v1.1.9-beta.87.md).
 
 - [Server beta86: shared subscription custody and public host CLI composition](releases/v1.1.9-beta.86.md).
 
