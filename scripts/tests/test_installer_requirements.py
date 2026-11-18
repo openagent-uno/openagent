@@ -55,7 +55,12 @@ class InstallerRequirementsTests(unittest.TestCase):
                     'manifest_sha256': __import__('hashlib').sha256(sdk_manifest).hexdigest(),
                     'assets': {sdk_name: sdk_receipt}}
                 for index, (repo, tag, manifest_name, _, selection) in enumerate(releases):
-                    if selection in ('kernel', 'modules') and tag != 'fixture-modules':
+                    if selection.startswith('only:'):
+                        prefixes = selection[5:].split(',')
+                        names = [(prefix.replace('_', '-'), '1.0.0b10' if prefix == 'openagent_device_tools'
+                                  else '6.1.0b8' if prefix in {'openagent_core','openagent_gateway','openagent_sdk','openagent_storage_sqlite'}
+                                  else '1.0.0b3' if prefix == 'openagent_capability_host' else '1.1.0b3') for prefix in prefixes]
+                    elif selection in ('kernel', 'modules') and tag != 'fixture-modules':
                         # One immutable release may supply both selections;
                         # its manifest/asset bytes must not change per consumer.
                         names = [('openagent-core','6.1.0b8'), ('openagent-modules','1.1.0b3')]
@@ -83,7 +88,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                         buf=io.BytesIO()
                         metadata = zipfile.ZipInfo(name.replace('-','_')+'-'+version+'.dist-info/METADATA', date_time=(1980,1,1,0,0,0))
                         with zipfile.ZipFile(buf,'w') as archive:
-                            archive.writestr(metadata,'Name: '+name+'\nVersion: '+version+'\n')
+                            archive.writestr(metadata,'Name: '+name+'\nVersion: '+version+'\n'+('Requires-Dist: openagent-modules==1.1.0b3\n' if name == 'openagent-framework' else ''))
                             if name == 'openagent-framework':
                                 archive.writestr('openagent_server/connectors.lock.json', json.dumps(sdk_lock))
                         data=buf.getvalue();url='https://github.com/'+repo+'/releases/download/'+tag+'/'+filename
@@ -98,7 +103,7 @@ class InstallerRequirementsTests(unittest.TestCase):
                 self.assertFalse((destination/'openagent_device_tools-1.0.0b8-py3-none-any.whl').exists())
                 self.assertTrue((destination/'openagent_device_tools-1.0.0b10-py3-none-any.whl').exists())
                 self.assertEqual((destination/sdk_name).read_bytes(), sdk_bytes)
-                expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,modules]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
+                expected=['openagent-framework[discord,slack,whatsapp]==7.2.0b9','openagent-core[engine,providers,subscriptions]==6.1.0b8'] if product=='server' else ['openagent-cli==7.2.0b9']
                 self.assertEqual((destination/'install-requirements.txt').read_text().splitlines(),expected)
                 constraints = (destination/'first-party-constraints.txt').read_text().splitlines()
                 self.assertEqual(sum(line.startswith('openagent-product-config @ ') for line in constraints), 1)

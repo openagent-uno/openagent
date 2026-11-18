@@ -63,13 +63,13 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.9-beta.83', 'manifest.json', 'bf41110c695cb4d69635cc02df4bd96ac3961a70d4aea757febd73f2e206d071', 'all'),
+    ('openagent-uno/openagent', 'v1.1.9-beta.84', 'manifest.json', '4a900ff0675ec9aaaabe0ad495da0644c0f113bfc8f4c0498edc49563760d297', 'all'),
     ('openagent-uno/openagent', 'channel-bridges-v0.1.0-beta.27', 'manifest.json', 'c5461d91a4763e3b1c4602621ad81a464bfb4cce8b19715d077f2b44977719c7', 'only:openagent_channel_bridges'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'only:openagent_module_attachments,openagent_module_budget,openagent_module_delegation,openagent_module_logs,openagent_module_models,openagent_module_ptc,openagent_module_skills'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.100', 'manifest.json', '710f9457677480645e9fdd9af06fb1996b3123e5aa84ce421872ce68893d9066', 'only:openagent_module_events,openagent_module_mcp,openagent_module_scheduler,openagent_module_search,openagent_module_sessions,openagent_module_vault,openagent_module_workflows'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.110', 'manifest.json', '9d446b59f48147d38d649b6300383f50091ee77c0fd9e024d846bc1da220101d', 'only:openagent_module_tool_discovery,openagent_modules,openagent_modules_full'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.87', 'manifest.json', 'cdbc39faa10794df26d9d6fb0cbb4ff32e6ad0e3f662b19a3e99a93b2537978d', 'only:openagent_capability_host'),
-    ('openagent-uno/openagent-core', 'v1.1.0-beta.131', 'manifest.json', 'ac1b01ab274134cd61b284b5124b5640544b16b365ff6f626a29e05e4d1f6b70', 'only:openagent_core,openagent_gateway,openagent_sdk,openagent_storage_sqlite'),
+    ('openagent-uno/openagent-core', 'v1.1.0-beta.133', 'manifest.json', 'ee9ac6810979bf856a7f61f15e40150ddcdd02eefb2673540fcf829e1640f8a4', 'only:openagent_core,openagent_gateway,openagent_sdk,openagent_storage_sqlite'),
     ('openagent-uno/openagent-tools', 'device-tools-v1.0.0-beta.18', 'manifest.json', '34a56c6adaaf4c84ad5da82b5bedb034e7a5facdb22fc098c3b8c3db55f6b7ea', 'only:openagent_device_tools'),
     ('openagent-uno/openagent-tools', 'v1.0.0-beta.7', 'manifest.json', 'c8ce5b9b7b8fafbd232cc802d82bcd0e601c2041df697432de832526afd43315', 'only:openagent_editor,openagent_execution,openagent_filesystem,openagent_shell,openagent_tool_protocol'),
     ('openagent-uno/openagent', 'v1.0.0b18', 'manifest.json', 'b7fba7619d41ff6a522e36ca08c12438b1a5a94d45a7ba086c5ff0c3481d369b', 'only:openagent_host_tools'),
