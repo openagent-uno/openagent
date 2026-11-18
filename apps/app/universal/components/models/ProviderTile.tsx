@@ -47,9 +47,9 @@ export default function ProviderTile({ card, budgets, usage, busy, onOpen, onTog
     <Text style={styles.meta}>{card.models.filter((m) => m.enabled).length} of {card.models.length} models enabled</Text>
     <View style={styles.usage}>
       {usage === null ? <Text style={styles.meta}>Usage unavailable</Text> : reported.length ? <>
-        <Text style={styles.meta}>Last 30 days · {new Intl.NumberFormat('en', { notation: 'compact' }).format(tokens)} tokens</Text>
-        {access === 'api' && <Text style={styles.meta}>Recorded cost · ${spend.toFixed(2)}{spend === 0 ? ' · pricing may be unavailable' : ' · estimated'}</Text>}
-      </> : <Text style={styles.meta}>No usage reported</Text>}
+        <Text style={styles.meta}>Tracked text · 30 days · {new Intl.NumberFormat('en', { notation: 'compact' }).format(tokens)} tokens</Text>
+        {access === 'api' && <Text style={styles.meta}>Recorded text cost · ${spend.toFixed(2)}{spend === 0 ? ' · pricing may be unavailable' : ' · estimated'}</Text>}
+      </> : <Text style={styles.meta}>{card.models.some((model) => model.kind === 'llm') ? 'No text usage reported' : 'Image/audio usage is not metered here'}</Text>}
       {access === 'subscription' ? windows.length ? windows.map((w) => <View key={w.label} style={styles.window}>
         <View style={styles.between}><Text style={styles.meta}>{w.label}</Text><Text style={styles.amount}>{w.usedPercent}% used</Text></View>
         <View style={styles.track}><View style={[styles.fill, { width: `${Math.min(100, Math.max(0, w.usedPercent))}%` }]} /></View>

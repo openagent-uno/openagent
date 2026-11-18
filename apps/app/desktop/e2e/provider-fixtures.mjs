@@ -23,6 +23,7 @@ export class ProvidersGateway extends DeterministicGateway {
       status: p.id === 5 ? 'auth_expired' : 'ok', quota: p.vendor === 'openai' && p.id !== 5 ? { primary_used_percent: 42, primary_window_minutes: 300, primary_reset_after_s: 8100 } : null }] }));
   budgets = [];
   connectionTestOk = true;
+  accountPolicyFields = [];
   mutations = [];
 
   async handleHttp(request, response) {
@@ -30,7 +31,7 @@ export class ProvidersGateway extends DeterministicGateway {
     const reply = (value, status = 200) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
     const body = async () => { let data = ''; for await (const chunk of request) data += chunk; return JSON.parse(data || '{}'); };
     if (/^\/api\/providers\/\d+\/test$/.test(path)) return reply({ ok: this.connectionTestOk });
-    if (path === '/api/providers/contract') return reply({ version: 1 });
+    if (path === '/api/providers/contract') return reply({ version: 1, account_policy_fields: this.accountPolicyFields });
     if (path === '/api/providers' && request.method === 'GET') return reply({ providers: this.providers });
     if (path === '/api/models' && request.method === 'GET') return reply({ models: this.models });
     if (path === '/api/accounts') return reply({ providers: this.accounts });
@@ -60,7 +61,9 @@ export class ProvidersGateway extends DeterministicGateway {
       const value = await body(); this.mutations.push({ path, value });
       const entry = this.accounts.find((p) => p.provider_id === Number(account[1]));
       Object.assign(entry.accounts.find((a) => a.id === account[2]), value);
-      this.providers.find((p) => p.id === Number(account[1])).enabled = value.enabled;
+      const provider = this.providers.find((p) => p.id === Number(account[1]));
+      if ('enabled' in value) provider.enabled = value.enabled;
+      if ('fallback_enabled' in value) provider.metadata.account_fallback_enabled = value.fallback_enabled;
       return reply({ ok: true });
     }
     const model = /^\/api\/models\/(\d+)$/.exec(path);

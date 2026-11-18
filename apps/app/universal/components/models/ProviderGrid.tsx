@@ -47,6 +47,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   const [kind, setKind] = useState<ModelKind | 'all'>('all');
   const [connecting, setConnecting] = useState(false);
   const [connectionContract, setConnectionContract] = useState<boolean | null>(null);
+  const [accountPolicy, setAccountPolicy] = useState(false);
   const [catalog, setCatalog] = useState<ProviderConfig | null>(null);
   const [editing, setEditing] = useState<ModelEntry | null>(null);
   const [budgetGroup, setBudgetGroup] = useState<string | null>(null);
@@ -60,7 +61,9 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     const generation = ++loadGeneration.current;
     const current = () => generation === loadGeneration.current;
     const catalog = Promise.allSettled([getProviders(), listDbModels()]);
-    void getProviderConnectionContract().then((value) => { if (current()) setConnectionContract(value.version === 1); }, () => { if (current()) setConnectionContract(false); });
+    void getProviderConnectionContract().then((value) => {
+      if (current()) { setConnectionContract(value.version === 1); setAccountPolicy(value.account_policy_fields?.includes('fallback_enabled') === true); }
+    }, () => { if (current()) { setConnectionContract(false); setAccountPolicy(false); } });
     // Enrichment must never hold the usable catalog behind a slow quota probe.
     void listServingAccounts().then((value) => { if (current()) setAccounts(value); }, () => { if (current()) setAccounts(null); });
     void listBudgetUsage().then((value) => { if (current()) setBudgets(value); }, () => { if (current()) setBudgets(null); });
@@ -75,6 +78,11 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   useFocusEffect(useCallback(() => { void load(); const timer = setInterval(() => { void load(); }, 60_000); return () => { loadGeneration.current += 1; clearInterval(timer); }; }, [load]));
   const cards = useMemo(() => connectionCards(providers, models, accounts), [providers, models, accounts]);
   const active = cards.find((c) => c.key === selected) ?? null;
+  const fallbackKinds = new Set(active?.providers.flatMap((p) => {
+    const value = p.metadata?.account_fallback_kinds;
+    return Array.isArray(value) ? value.filter((kind): kind is string => typeof kind === 'string') : ['llm'];
+  }) ?? []);
+  const fallbackModels = fallbackKinds.has('image') ? fallbackKinds.has('llm') ? 'text or image model' : 'image model' : 'text model';
   const groups = useMemo(() => {
     const result = new Map<string, ConnectionCard[]>();
     for (const card of cards) {
@@ -165,9 +173,11 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
         </>}
         {!!active.provider.metadata?.account_fallback_group && <View style={styles.header}>
           <View style={{ flex: 1 }}><Text style={styles.section}>Automatic account fallback</Text>
-            <Text style={styles.subtitle}>Use another enabled account in this group for the same text model when this account is unavailable. Each account's model settings and budget still apply.</Text></View>
+            <Text style={styles.subtitle}>Use another enabled account in this group for the same {fallbackModels} when this account is unavailable. Each account's model settings and budget still apply.</Text></View>
           <ThemedSwitch accessibilityLabel="Automatic account fallback" value={active.provider.metadata.account_fallback_enabled !== false} disabled={busy}
-            onValueChange={(value) => { void run(() => updateProvider(active.provider.id, { metadata: { ...active.provider.metadata, account_fallback_enabled: value } })); }} />
+            onValueChange={(value) => { void run(() => accountPolicy && active.account
+              ? updateSubscriptionAccount(active.provider.id, active.account.id, { fallback_enabled: value })
+              : updateProvider(active.provider.id, { metadata: { ...active.provider.metadata, account_fallback_enabled: value } })); }} />
         </View>}
         <View style={styles.row}><Button variant="secondary" label="Refresh capabilities" disabled={busy} onPress={() => { void run(async () => { const result = await refreshProviderCapabilities(active.provider.id); setNotice(result.reachable ? 'Model capabilities refreshed.' : 'Provider did not report a catalog. Saved capabilities were kept.'); }); }} />
           <Button variant="secondary" label="Test connection" disabled={busy} onPress={() => { void run(async () => { const result = await testProvider(active.provider.id); if (result.ok) setNotice('Connection works.'); else throw new Error('Connection test failed.'); }); }} />

@@ -1164,7 +1164,7 @@ function normalizeModel(m: ModelEntry): ModelEntry {
   return { ...m, framework: normalizeFramework(m.framework) };
 }
 
-export function getProviderConnectionContract(): Promise<{ version: number }> {
+export function getProviderConnectionContract(): Promise<{ version: number; account_policy_fields?: string[] }> {
   return get('/api/providers/contract');
 }
 
@@ -1212,7 +1212,7 @@ export async function deleteProvider(providerId: number): Promise<void> {
   await del(`/api/providers/${providerId}`);
 }
 
-export async function updateSubscriptionAccount(providerId: number, accountId: string, body: { enabled?: boolean; name?: string }) {
+export async function updateSubscriptionAccount(providerId: number, accountId: string, body: { enabled?: boolean; name?: string; fallback_enabled?: boolean }) {
   return put(`/api/providers/${providerId}/accounts/${encodeURIComponent(accountId)}`, body);
 }
 

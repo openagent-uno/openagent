@@ -6,12 +6,14 @@ import { _electron as electron, expect, test } from '@playwright/test';
 import { ProvidersGateway } from './provider-fixtures.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-test('providers keep concurrent accounts and API connections independent and expose every model kind', async () => {
+for (const accountPolicy of [false, true]) {
+test(`providers keep concurrent accounts and typed models independent (account policy ${accountPolicy})`, async () => {
   const temporary = await mkdtemp(join(tmpdir(), 'openagent-providers-ui-'));
   const userData = join(temporary, 'profile'); await mkdir(userData);
   const gateway = await new ProvidersGateway({ webRoot: resolve(ROOT, '../universal/dist'), accountId: 'models-test', networkId: 'models-network', deviceId: 'device-certificate', agentNodeId: 'agent-node' }).start();
+  gateway.accountPolicyFields = accountPolicy ? ['fallback_enabled'] : [];
   for (const provider of gateway.providers.slice(0, 2)) Object.assign(provider.metadata,
-    { account_fallback_group: 'declared-fixture-group', account_fallback_enabled: true });
+    { account_fallback_group: 'declared-fixture-group', account_fallback_enabled: true, ...(accountPolicy ? { account_fallback_kinds: ['llm', 'image'] } : {}) });
   // Plain API vendors have no subscription-account endpoint. That probe's
   // negative result must never masquerade as an inference outage.
   gateway.accounts.push({ provider: gateway.providers[2].name, provider_id: 3,
@@ -58,7 +60,13 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).toBeChecked();
     await page.getByRole('switch', { name: 'Automatic account fallback', exact: true }).click();
     await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).not.toBeChecked();
-    expect(gateway.mutations.at(-1).value.metadata).toMatchObject({ account_fallback_group: 'declared-fixture-group', account_fallback_enabled: false });
+    if (accountPolicy) {
+      expect(gateway.mutations.at(-1)).toMatchObject({ path: '/api/providers/2/accounts/account-2', value: { fallback_enabled: false } });
+      await expect(page.getByText(/same text or image model/)).toBeVisible();
+    } else {
+      expect(gateway.mutations.at(-1).value.metadata).toMatchObject({ account_fallback_group: 'declared-fixture-group', account_fallback_enabled: false });
+      await expect(page.getByText(/same text model/)).toBeVisible();
+    }
     await page.getByRole('button', { name: /^All providers$/i }).click();
     await expect(page.getByTestId('provider-card-1:account-1').getByRole('switch')).not.toBeChecked();
     await expect(page.getByTestId('provider-card-2:account-2').getByRole('switch')).toBeChecked();
@@ -136,3 +144,5 @@ test('providers keep concurrent accounts and API connections independent and exp
     console.log('Provider screenshots:', temporary);
   } finally { await app?.close(); await gateway.close(); }
 });
+
+}
