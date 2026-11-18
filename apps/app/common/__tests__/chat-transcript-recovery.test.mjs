@@ -110,3 +110,17 @@ test('a local draft is never fetched', async (t) => {
   await settle();
   assert.equal(calls, 0);
 });
+
+
+test('an empty observer snapshot is not a durable transcript and cannot suppress loading', async t => {
+  setup(t, { sharedSnapshot: { session_id: 'chat', revision: 1, turns: [] } });
+  let calls = 0;
+  globalThis.__page = async () => { calls++; return page([wire(0), wire(1)]); };
+  useChat.getState().ensureActiveTranscript();
+  await settle();
+  assert.equal(calls, 1);
+  assert.deepEqual(useChat.getState().sessions[0].messages.map(m => m.ordinal), [0, 1]);
+  useChat.getState().ensureActiveTranscript();
+  await settle();
+  assert.equal(calls, 1);
+});

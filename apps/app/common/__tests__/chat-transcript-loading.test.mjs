@@ -115,6 +115,8 @@ for (const mode of ['v2', 'legacy']) {
     assert.equal(await useChat.getState().reconcileSession('chat'), false);
     assert.equal(canonicalCalls + legacyCalls, 0);
     assert.equal(useChat.getState().transcriptChecked.chat, undefined);
+    useChat.setState(state => ({ sessions: state.sessions.map(session => session.id === 'chat'
+      ? { ...session, sharedSnapshot: { session_id: 'chat', revision: 1, turns: [] } } : session) }));
     useChat.getState().setSessionHistoryMode(mode);
     useChat.getState().setSessionHistoryMode(mode);
     await new Promise(resolve => setTimeout(resolve, 0));

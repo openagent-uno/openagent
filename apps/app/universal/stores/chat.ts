@@ -925,7 +925,7 @@ export const useChat = create<ChatState>((set, get) => ({
     const id = state.activeSessionId;
     if (!id || state.sessionHistoryMode === 'unknown') return;
     const session = state.sessions.find((s) => s.id === id);
-    if (!session || session.localDraft || session.messages.length > 0 || session.sharedSnapshot) return;
+    if (!session || session.localDraft || session.messages.length > 0) return;
     if (state.transcriptLoading[id] || state.transcriptLoadError[id] || state.transcriptChecked[id]) return;
     void get().loadInitialTranscript(id);
   },
