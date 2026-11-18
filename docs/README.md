@@ -1,5 +1,7 @@
 # OpenAgent documentation
 
+- [Server beta85: deferred linked-tool bodies and explicit account routing](releases/v1.1.9-beta.85.md).
+
 - [App beta 64: deferred tool inspection and declared account policy](releases/app-beta.64.md).
 
 - [Server beta 83 and App beta 61 qualification](releases/v1.1.9-beta.83.md).

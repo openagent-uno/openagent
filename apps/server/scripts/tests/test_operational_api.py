@@ -23,6 +23,7 @@ class _Request(dict):
             capabilities=[],
         )
         super().__init__(
+            auth_kind='device_cert',
             device_cert=cert,
             network_id=tenant,
             user_handle=handle,
@@ -105,6 +106,8 @@ async def t_run_local_tool_deep_links(_ctx: TestContext) -> None:
     with TemporaryDirectory(prefix="openagent-operational-tool-links-") as directory:
         db = MemoryDB(str(Path(directory) / "openagent.db"))
         await db.connect()
+        from openagent_dashboards.migration import ensure_custom_views_storage
+        await ensure_custom_views_storage(db._conn, app_version='fixture')
         conn = db._conn
         assert conn is not None
         gateway = SimpleNamespace(
@@ -215,6 +218,7 @@ async def t_run_local_tool_deep_links(_ctx: TestContext) -> None:
                     "tool_call_id": "reused-call",
                     "tool_server": "shell",
                     "tool_name": "shell_execute",
+                    "execution_host": None,
                     "effective_tool_server": None,
                     "effective_tool_name": None,
                     "status": "success",
@@ -312,6 +316,7 @@ async def _seed_complete_fixture(db) -> tuple[str, object]:
         (json.dumps(runs), int(now) + 1),
     )
     await db._project_operational_session("orchid-chat")
+    await db._conn.commit()
     await db.upsert_session(
         "orchid-child", client_id="alice", title="Orchid delegated child",
         parent_session_id="orchid-chat", origin="delegation", kind="subagent",
@@ -384,8 +389,10 @@ async def _seed_complete_fixture(db) -> tuple[str, object]:
     # ACL/revision check; dynamic data, scripts, and source configs remain out
     # of FTS. Seed one private static definition to pin that tenth target.
     from openagent_dashboards.repository import CustomViewRepository
+    from openagent_dashboards.migration import ensure_custom_views_storage
     from openagent_core.memory.operational.access import AccessContext
 
+    await ensure_custom_views_storage(c, app_version='fixture')
     await CustomViewRepository(db).create(
         AccessContext(
             tenant_id=tenant,
@@ -2458,6 +2465,8 @@ async def t_live_canary_fixture_cleanup(_ctx: TestContext) -> None:
         path = Path(directory) / "openagent.db"
         db = MemoryDB(str(path))
         await db.connect()
+        from openagent_dashboards.migration import ensure_custom_views_storage
+        await ensure_custom_views_storage(db._conn, app_version='fixture')
         fixture = None
         sources_removed = False
         gateway = SimpleNamespace(agent=SimpleNamespace(memory_db=db))
@@ -3045,6 +3054,46 @@ async def t_detail_resolver_deep_link_acl(_ctx: TestContext) -> None:
                 "run_id": "orchid-task-run",
                 "task_id": "orchid-task",
             }
+        finally:
+            await operational.stop_background_maintenance(gateway)
+            await db.close()
+
+
+@test("operational_api", "deferred tool bodies preserve detail authority and stored content")
+async def t_deferred_tool_message_content(_ctx: TestContext) -> None:
+    from openagent_server.gateway.api import operational
+    from openagent_core.engine import MemoryDB
+    with TemporaryDirectory(prefix="openagent-deferred-tool-") as directory:
+        db = MemoryDB(str(Path(directory) / "state.sqlite")); await db.connect()
+        gateway = None
+        try:
+            tenant, gateway = await _seed_complete_fixture(db)
+            alice = lambda **kwargs: _Request(gateway, tenant=tenant, handle="alice", device="alice-device", **kwargs)
+            bob = lambda **kwargs: _Request(gateway, tenant=tenant, handle="bob", device="bob-device", **kwargs)
+            await _ready_capabilities(operational, alice())
+            row = await (await db._conn.execute("SELECT id FROM session_messages WHERE session_id='orchid-chat' AND role='tool' ORDER BY sequence LIMIT 1")).fetchone()
+            payload = 'large tool result ' * 10000
+            await db._conn.execute('UPDATE session_messages SET text=? WHERE id=?', (payload, row[0]))
+            await db._conn.execute("UPDATE session_message_parts SET text_content=? WHERE message_id=? AND kind='text'", (payload, row[0]))
+            await db._conn.commit()
+            request = dict(match={'session_id': 'orchid-chat'}, query={'around': row[0], 'before': '1', 'after': '1'})
+            full = _payload(await operational.handle_session_messages(alice(**request)))
+            compact_request = {**request, 'query': {**request['query'], 'tool_details': 'deferred'}}
+            compact = _payload(await operational.handle_session_messages(alice(**compact_request)))
+            original = next(m for m in full['messages'] if m['id'] == row[0])
+            deferred = next(m for m in compact['messages'] if m['id'] == row[0])
+            assert original['text'] == payload.strip()
+            assert deferred['text'] == '' and deferred['tool_summary']['details_deferred']
+            assert all(part['kind'] != 'text' for part in deferred['parts'])
+            assert deferred['attachments'] == original['attachments']
+            assert [(m['id'], m['text'], m['parts']) for m in compact['messages'] if m['role'] != 'tool'] == [(m['id'], m['text'], m['parts']) for m in full['messages'] if m['role'] != 'tool']
+            assert len(json.dumps(compact)) < len(json.dumps(full)) / 10
+            tool = {'tool_id': deferred['tool_invocation_id']}
+            detail = await operational.handle_tool_invocation(alice(match=tool))
+            assert detail.status == 200 and _payload(detail)['tool_name'] == 'orchid_tool'
+            assert (await operational.handle_tool_invocation(bob(match=tool))).status == 404
+            assert (await operational.handle_session_messages(bob(**compact_request))).status == 404
+            assert (await (await db._conn.execute('SELECT text FROM session_messages WHERE id=?', (row[0],))).fetchone())[0] == payload
         finally:
             if gateway is not None:
                 await operational.stop_background_maintenance(gateway)

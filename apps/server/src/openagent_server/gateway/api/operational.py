@@ -2092,7 +2092,15 @@ async def _validated_message_run_targets(
     return result
 
 
-def _message_json(
+def _message_json(row, *, compact_tools=False, **kwargs):
+    result = _message_json_full(row, **kwargs)
+    if compact_tools:
+        from openagent_core.session_transcript import defer_tool_message_content
+        return defer_tool_message_content(result)
+    return result
+
+
+def _message_json_full(
     row: Any,
     *,
     attachments: list[dict[str, Any]] | None = None,
@@ -2436,6 +2444,7 @@ async def handle_session_messages(request: web.Request) -> web.Response:
                         attachments=attachment_map.get(str(row["id"]), []),
                         ui_parts=ui_part_map.get(str(row["id"]), []),
                         canonical_parts=canonical_part_map.get(str(row["id"])),
+                        compact_tools=request.query.get('tool_details') == 'deferred',
                         run_target=run_target_map.get(str(row["resolved_tool_id"])),
                     )
                     for row in rows

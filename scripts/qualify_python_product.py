@@ -85,13 +85,15 @@ def qualify(wheels: Path) -> None:
     import importlib
     sys.path.insert(0, str(ROOT/'apps/server'))
     importlib.import_module('scripts.tests.test_custom_views')
+    importlib.import_module('scripts.tests.test_operational_api')
     from scripts.tests._framework import TESTS
     async def custom_views():
-        checks = [(name, fn) for category, name, fn in TESTS if category == 'custom_views']
-        assert len(checks) >= 20
-        for name, fn in checks:
-            await fn(None)
-            print('Custom Views: ' + name, flush=True)
+        for category_name, minimum in [('custom_views', 20), ('operational_api', 25)]:
+            checks = [(name, fn) for category, name, fn in TESTS if category == category_name]
+            assert len(checks) >= minimum, category_name
+            for name, fn in checks:
+                await fn(None)
+                print(category_name + ': ' + name, flush=True)
     asyncio.run(custom_views())
     # Installed packages, rather than source PYTHONPATH, own the public imports.
     import openagent_dashboards.repository as repository

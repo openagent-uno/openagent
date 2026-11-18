@@ -39,11 +39,19 @@ Cold model-catalog JSON decoding remains a separate cost: about 2 ms for
 not met 3×. Timing below a millisecond for Core session list/read and model
 catalog does not justify speculative caching or changes to history semantics.
 
-A live Electron renderer profile with 6000 recovered plain-text messages and
-120 streamed deltas passed twice. Both before and after had no long tasks or
-renderer errors and about a 10 ms p95 frame gap. The fixed-rate input drives
-its duration; that test does not establish an end-to-end speedup. The tool-heavy
-pure derivation benchmark measures the separate placement improvement.
+An earlier 6000-message Electron performance fixture opened the rename dialog
+by clicking an already selected session. Its frame timings do not qualify the
+visible transcript path. The corrected App beta64 Electron fixture passed twice;
+the separate pure derivation benchmark above remains valid.
+
+A real tool-heavy session returned a 2.08 MB compressed response and took
+7.16 seconds cold, about 3.77 seconds on a repeated read. Most decoded text was
+linked tool output duplicated in message parts. App beta64 requests the opt-in
+`tool_details=deferred` projection from Server beta85/Core beta135: collapsed
+linked tool messages retain attachment bindings, invocation identity and summaries;
+full content is fetched through the existing authorized detail endpoint on each
+opening. Default/older clients retain full messages. Stored history is unchanged.
+The real before/after remote timing still requires live qualification.
 
 A separate operator-only read benchmark used three private snapshot sessions
 with legacy envelopes of 12–31 MB. The isolated transcript projection measured
