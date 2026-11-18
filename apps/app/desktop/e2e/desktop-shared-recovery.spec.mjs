@@ -74,10 +74,10 @@ class RecoveryGateway extends DeterministicGateway {
           toolInfo: { tool_name: 'vault_write_note', tool_call_id: `write-${i}`, ...(i < 2 ? { result: 'Saved' } : {}) } })) });
       this.pendingReply = () => {
         this.runMessages = [
-          { id: 'input', role: 'user', text: body.message, timestamp: now * 1000 },
-          ...Array.from({ length: 6 }, (_, i) => ({ id: `tool-${i}`, role: 'tool', text: '', timestamp: now * 1000,
+          { id: 'input', role: 'user', text: body.message, timestamp: now },
+          ...Array.from({ length: 6 }, (_, i) => ({ id: `tool-${i}`, role: 'tool', text: '', timestamp: now,
             toolInfo: { tool_name: 'vault_write_note', tool_call_id: `write-${i}`, result: 'Saved' } })),
-          { id: 'answer', role: 'assistant', text: 'All six notes were saved', model: 'local:turn-specialist', timestamp: now * 1000 + 1000 },
+          { id: 'answer', role: 'assistant', text: 'All six notes were saved', model: 'local:turn-specialist', timestamp: now + 1 },
         ];
         // The backend completed, but this reader misses every final frame.
         this.current = { ...this.current, revision: this.current.revision + 1, turns: [] };
@@ -131,6 +131,9 @@ test('recovers missing terminal frames and a silent observer in the real Mac ren
     const model = answer.getByTestId('oa-message-turn-model');
     await expect(model).toHaveText('local:turn-specialist');
     const time = answer.getByTestId('oa-message-turn-time');
+    // Legacy /runs timestamps use seconds; both visible and accessible times
+    // must identify the same modern day as canonical millisecond messages.
+    await expect(time).toHaveAttribute('aria-label', new RegExp(String(new Date().getFullYear())));
     const typography = locator => locator.evaluate(element => {
       const style = getComputedStyle(element);
       return [style.color, style.fontFamily, style.fontSize, style.fontWeight, style.lineHeight];

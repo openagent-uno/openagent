@@ -35,7 +35,7 @@ import {
 } from '../../common/types';
 import type { MessagePart } from '../../common/ui-views';
 import { attachmentKey } from '../../common/attachments';
-import { messageHeaderVisibility, messageTurnTimeline } from '../../common/message-groups';
+import { messageHeaderVisibility, messageTimestampMs, messageTurnTimeline } from '../../common/message-groups';
 import { createSharedToolPlacement } from '../../common/shared-tool-placement';
 import {
   compactToolFallback,
@@ -694,15 +694,17 @@ function TurnModel({ model }: { model?: string }) {
 }
 
 function TurnTime({ timestamp }: { timestamp?: number }) {
-  if (!timestamp || !Number.isFinite(timestamp)) return null;
-  const label = new Date(timestamp).toLocaleTimeString(undefined, {
+  const milliseconds = messageTimestampMs(timestamp);
+  if (milliseconds == null) return null;
+  const date = new Date(milliseconds);
+  const label = date.toLocaleTimeString(undefined, {
     hour: '2-digit',
     minute: '2-digit',
   });
   return (
     <Text
       style={styles.turnTime}
-      accessibilityLabel={new Date(timestamp).toLocaleString()}
+      accessibilityLabel={date.toLocaleString()}
       testID="oa-message-turn-time"
     >
       {label}

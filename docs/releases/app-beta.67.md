@@ -27,3 +27,13 @@ tool details opened and reopened, a bounded chat produced its expected answer
 without tools, and the named subscription probe passed twice. The update feed
 now advertises beta67. See the [paired visible-history measurements](../performance-2026-11-17.md#installed-remote-history-qualification--18-november)
 for the scoped performance result and its limits.
+
+## Follow-up source qualification — turn timestamps
+
+A legacy transcript can supply epoch seconds while the day divider already
+normalizes them to milliseconds. The follow-up renderer uses that same bounded
+normalizer for turn times and their accessible date, preventing a modern message
+from showing a 1970 date. The real Electron recovery fixture now supplies legacy
+seconds and checks the accessible year alongside the existing tool, model-label
+and reconnect assertions. Ten timeline tests and the Electron recovery scenario
+passed locally. This follow-up is not yet in the signed beta67 artifact.
