@@ -12,7 +12,7 @@ const bundle = await build({
     api.onResolve({ filter: /^\.\.\/services\/api$/ }, () => ({ path: 'api', namespace: 'fixture' }));
     api.onLoad({ filter: /^api$/, namespace: 'fixture' }, () => ({ contents: `
       export const deleteSession = async () => {};
-      export const fetchSessionRuns = async () => [];
+      export const fetchSessionRuns = (...args) => globalThis.__legacyPage?.(...args) ?? Promise.resolve([]);
       export const listSessionMessages = (...args) => globalThis.__page(...args);
       export const getSessionContext = async () => ({});
       export const getSessionModelPin = async () => ({});
@@ -101,3 +101,26 @@ test('an in-app destination is recorded and consumed with the stale route value'
   useChat.getState().clearAll();
   assert.equal(useChat.getState().staleRouteSession, null);
 });
+
+for (const mode of ['v2', 'legacy']) {
+  test(`early hydration waits for capability discovery, then uses ${mode} once`, async (t) => {
+    useChat.getState().clearAll();
+    let canonicalCalls = 0, legacyCalls = 0;
+    globalThis.__page = async () => { canonicalCalls++; return page; };
+    globalThis.__legacyPage = async () => { legacyCalls++; return [{ id: 'legacy-answer', role: 'assistant', text: 'Legacy answer', timestamp: 1 }]; };
+    t.after(() => { useChat.getState().clearAll(); delete globalThis.__legacyPage; });
+    useChat.getState().setActiveSession('chat');
+    useChat.getState().hydrateFromServer([{ session_id: 'chat', title: 'Chat' }]);
+    await useChat.getState().loadInitialTranscript('chat');
+    assert.equal(await useChat.getState().reconcileSession('chat'), false);
+    assert.equal(canonicalCalls + legacyCalls, 0);
+    assert.equal(useChat.getState().transcriptChecked.chat, undefined);
+    useChat.getState().setSessionHistoryMode(mode);
+    useChat.getState().setSessionHistoryMode(mode);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(canonicalCalls, mode === 'v2' ? 1 : 0);
+    assert.equal(legacyCalls, mode === 'legacy' ? 1 : 0);
+    assert.equal(useChat.getState().sessions.find(s => s.id === 'chat').messages[0].id, mode === 'v2' ? 'm0' : 'legacy-answer');
+    assert.equal(useChat.getState().transcriptLoadError.chat, undefined);
+  });
+}

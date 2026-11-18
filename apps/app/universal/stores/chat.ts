@@ -103,7 +103,7 @@ type LoadedTranscript =
 
 async function loadSessionTranscript(
   sessionId: string,
-  mode: SessionHistoryMode,
+  mode: Exclude<SessionHistoryMode, 'unknown'>,
 ): Promise<LoadedTranscript> {
   if (mode === 'v2') {
     return {
@@ -869,7 +869,10 @@ export const useChat = create<ChatState>((set, get) => ({
   consumeChatDestination: (staleRouteSession) => set({ chatDestination: null, staleRouteSession }),
 
   loadInitialTranscript: async (id) => {
-    if (get().transcriptLoading[id]) return;
+    const mode = get().sessionHistoryMode;
+    // A live frame or a deep link can precede capability discovery. Unknown
+    // does not mean legacy: wait for the authenticated server contract.
+    if (mode === 'unknown' || get().transcriptLoading[id]) return;
     const current = sessionReadGuard(id);
     const attempt = (transcriptLoadAttempts.get(id) ?? 0) + 1;
     transcriptLoadAttempts.set(id, attempt);
@@ -889,7 +892,7 @@ export const useChat = create<ChatState>((set, get) => ({
           TRANSCRIPT_LOAD_TIMEOUT_MS,
         );
       });
-      const loaded = await Promise.race([loadSessionTranscript(id, get().sessionHistoryMode), timeout]);
+      const loaded = await Promise.race([loadSessionTranscript(id, mode), timeout]);
       if (!current() || transcriptLoadAttempts.get(id) !== attempt) return;
       const hasMessages = loaded.kind === 'v2'
         ? loaded.page.messages.length > 0
@@ -1112,7 +1115,13 @@ export const useChat = create<ChatState>((set, get) => ({
 
   markHydrated: () => set({ sessionsHydrated: true }),
 
-  setSessionHistoryMode: (sessionHistoryMode) => set({ sessionHistoryMode }),
+  setSessionHistoryMode: (sessionHistoryMode) => {
+    const previous = get().sessionHistoryMode;
+    set({ sessionHistoryMode });
+    if (previous !== sessionHistoryMode && sessionHistoryMode !== 'unknown') {
+      get().ensureActiveTranscript();
+    }
+  },
 
   mergeMessageWindow: (page, tool) => set((state) => {
     if (sessionIsRevoked(page.session_id)) return {};
@@ -1859,6 +1868,7 @@ export const useChat = create<ChatState>((set, get) => ({
       || session.sharedSnapshot?.turns.some(turn => turn.active && turn.runId);
     if (!ses || !canReconcile(ses)) return false;
     const mode = get().sessionHistoryMode;
+    if (mode === 'unknown') return false;
     const current = sessionReadGuard(sessionId);
     const request = Symbol();
     latestReconciliation.set(sessionId, request);
