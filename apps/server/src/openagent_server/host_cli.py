@@ -44,11 +44,11 @@ def create_host_cli(*, name='openagent', engine_extensions_factory, excluded_com
         ctx.obj[_FACTORY] = engine_extensions_factory
         return result
 
-    group = click.Group(name=name, params=list(stock.main.params), callback=callback, help=stock.main.help)
+    group = click.Group(name=name, params=[copy(param) for param in stock.main.params], callback=callback, help=stock.main.help)
     for command_name, command in stock.main.commands.items():
         if command_name not in excluded:
             owned = copy(command)
-            owned.params = list(command.params)
+            owned.params = [copy(param) for param in command.params]
             if isinstance(owned, click.Group): owned.commands = dict(command.commands)
             group.add_command(owned, command_name)
     return group

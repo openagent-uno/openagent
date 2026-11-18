@@ -48,6 +48,10 @@ def test_host_groups_do_not_change_stock_commands_or_leak_factories():
     assert stock.main.commands==commands
     assert 'update' not in a.commands and 'update' in b.commands
     assert a.commands['serve'] is not stock.serve and b.commands['serve'] is not a.commands['serve']
+    original_help=stock.serve.params[0].help
+    a.commands['serve'].params[0].help='Host-specific description'
+    assert stock.serve.params[0].help==original_help
+    assert b.commands['serve'].params[0].help==original_help
     with pytest.raises(ValueError):create_host_cli(engine_extensions_factory=None)
     with pytest.raises(ValueError):create_host_cli(engine_extensions_factory=first,excluded_commands=('unknown',))
 
