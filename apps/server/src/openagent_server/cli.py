@@ -422,6 +422,7 @@ def main(ctx, config: str, agent_dir: str | None, verbose: bool):
         pass
 
     ctx.ensure_object(dict)
+    ctx.obj.pop("_openagent_engine_extensions_factory", None)
     ctx.obj["verbose"] = verbose
 
     _setup_agent_dir(agent_dir)
@@ -778,7 +779,10 @@ def serve(
                     agent_dir=active_dir, config=config, network_row=network_row,
                 )
 
-        server = AgentServer.from_config(config, only_channels=only)
+        from openagent_server.host_cli import _FACTORY, resolve_engine_extensions
+        extensions = await resolve_engine_extensions(ctx.obj.get(_FACTORY), config, active_dir)
+        assembly = {"engine_extensions": extensions} if extensions is not None else {}
+        server = AgentServer.from_config(config, only_channels=only, **assembly)
 
         restart_code = 0
         served = False

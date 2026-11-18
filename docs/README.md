@@ -1,5 +1,7 @@
 # OpenAgent documentation
 
+- [Server beta86: shared subscription custody and public host CLI composition](releases/v1.1.9-beta.86.md).
+
 - [Server beta85: deferred linked-tool bodies and explicit account routing](releases/v1.1.9-beta.85.md).
 
 - [App beta 64: deferred tool inspection and declared account policy](releases/app-beta.64.md).

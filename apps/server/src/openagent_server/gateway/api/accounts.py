@@ -439,21 +439,28 @@ async def handle_list(request):
         from openagent_server.provider_management import for_request
         admin, context = await for_request(request)
         import time
-        for provider in native:
-            try:
-                accounts = await admin.subscription(context, provider["id"], "accounts")
-                accounts = [_normalise_account(a, int(time.time() * 1000)) for a in accounts]
-                accounts = [a for a in accounts if a is not None]
-                entry = {"provider": provider["name"], "provider_id": provider["id"],
-                         "enabled": provider["enabled"], "reachable": True, "sign_in": True,
-                         "accounts": accounts, "metrics": None, "error": None}
-                entry["status"] = provider_status(entry)
-            except (ValueError, OSError):
-                entry = {"provider": provider["name"], "provider_id": provider["id"],
-                         "enabled": provider["enabled"], "reachable": False, "sign_in": True,
-                         "accounts": [], "metrics": None, "status": "unreachable",
-                         "error": "Subscription adapter unavailable"}
-            out.append(entry)
+        import httpx
+        slots = asyncio.Semaphore(4)
+        async def native_entry(provider):
+            async with slots:
+                try:
+                    accounts = await admin.subscription(context, provider["id"], "accounts")
+                    capabilities = await admin.subscription(context, provider["id"], "capabilities")
+                    accounts = [_normalise_account(a, int(time.time() * 1000)) for a in accounts]
+                    accounts = [a for a in accounts if a is not None]
+                    entry = {"provider": provider["name"], "provider_id": provider["id"],
+                             "enabled": provider["enabled"], "reachable": True,
+                             "sign_in": capabilities.get("sign_in") is True,
+                             "accounts": accounts, "metrics": None, "error": None}
+                    entry["status"] = provider_status(entry)
+                    return entry
+                except (ValueError, OSError, httpx.HTTPError):
+                    return {"provider": provider["name"], "provider_id": provider["id"],
+                            "enabled": provider["enabled"], "reachable": False,
+                            "sign_in": not (provider.get("metadata") or {}).get("subscription_remote"),
+                            "accounts": [], "metrics": None, "status": "unreachable",
+                            "error": "Subscription adapter unavailable"}
+        out.extend(await asyncio.gather(*(native_entry(provider) for provider in native)))
     return web.json_response({"providers": out})
 
 

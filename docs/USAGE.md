@@ -196,3 +196,30 @@ quality scorer, quality digest or cost observability tasks. Upgrade disables
 those reserved tasks and keeps their run history and existing custom tasks.
 Use private custom dashboards and explicitly granted schedules for domain
 observability.
+
+## Composing an installed host CLI
+
+An installed domain adapter can use `openagent_server.host_cli.create_host_cli`
+with an explicit `engine_extensions_factory` instead of replacing the stock
+`AgentServer` or copying its startup/runner. The factory receives keyword
+arguments `configuration` and `agent_dir` and returns public Core
+`EngineExtensions`, `None`, or an awaitable of either. Resolution and validation
+happen before the stock server is constructed. Exceptions abort startup.
+
+```python
+from openagent_server.host_cli import create_host_cli
+
+async def extensions(*, configuration, agent_dir):
+    return await host_adapters.authorized_extensions(configuration, agent_dir)
+
+main = create_host_cli(name="example-host", engine_extensions_factory=extensions,
+                       excluded_commands=("update",))
+```
+
+The returned Click group owns its top-level command and option objects; adding
+host options does not mutate the stock CLI or another host group. Context owns
+the factory per invocation. Existing server ownership locks, bootstrap, restart
+handling, identity, config and channel selection remain stock behavior. Domain
+callbacks retain their own grants/data/policy and still use Core's public
+capability contracts. Do not load a host factory from remote input or an
+untrusted configuration file.

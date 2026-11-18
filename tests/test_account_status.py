@@ -25,3 +25,33 @@ def test_provider_status_is_the_best_account_state():
     assert provider_status({"reachable": True, "accounts": [{"status": "auth_expired"}, {"status": "ok"}]}) == "ok"
     assert provider_status({"reachable": True, "accounts": [{"status": "auth_expired"}, {"status": "rate_limited"}]}) == "rate_limited"
     assert provider_status({"reachable": True, "accounts": [{"status": "auth_expired"}]}) == "auth_expired"
+
+
+async def test_native_inventory_is_bounded_parallel_and_preserves_management_capabilities():
+    import asyncio,json
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock,patch
+    import httpx
+    from openagent_server.gateway.api.accounts import handle_list
+    providers=[{'id':i,'name':'fixture-'+str(i),'enabled':True,
+                'metadata':{'access':'subscription','subscription_remote':True}} for i in range(1,10)]
+    active=0; maximum=0
+    async def subscription(context,pid,operation):
+        nonlocal active,maximum
+        if operation=='capabilities':return {'sign_in':pid%2==1}
+        active+=1;maximum=max(maximum,active)
+        try:
+            await asyncio.sleep(.02)
+            if pid==3:raise httpx.ConnectError('private upstream diagnostic')
+            return [{'id':str(pid),'name':'Account '+str(pid),'enabled':True}]
+        finally:active-=1
+    admin=SimpleNamespace(subscription=subscription)
+    request=SimpleNamespace(app={'gateway':SimpleNamespace(agent=SimpleNamespace(memory_db=SimpleNamespace(list_providers=AsyncMock(return_value=providers))))})
+    with patch('openagent_server.provider_management.for_request',AsyncMock(return_value=(admin,object()))):
+        response=await handle_list(request)
+    entries=json.loads(response.text)['providers']
+    assert [e['provider_id'] for e in entries]==list(range(1,10))
+    assert maximum==4
+    assert entries[0]['sign_in'] is True and entries[1]['sign_in'] is False
+    assert entries[2]['reachable'] is False and entries[2]['sign_in'] is False
+    assert 'private upstream diagnostic' not in response.text
