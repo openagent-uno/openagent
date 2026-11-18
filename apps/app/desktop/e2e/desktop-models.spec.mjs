@@ -39,6 +39,10 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByTestId('provider-card-4:account-4')).toBeVisible();
     await expect(page.getByTestId('provider-card-5:account-5')).toBeVisible();
     await expect(page.getByTestId('provider-card-6:connection')).toBeVisible();
+    // A new vendor continues the connection grid instead of leaving empty columns.
+    const firstRow = await page.getByTestId('provider-card-1:account-1').boundingBox();
+    const nextRow = await page.getByTestId('provider-card-4:account-4').boundingBox();
+    expect(nextRow.y - firstRow.y - firstRow.height).toBeLessThan(20);
     await expect(page.getByText('Sign-in expired').first()).toBeVisible();
     await expect(page.getByText('Quota not reported').first()).toBeVisible();
     await expect(page.getByText('42% used').first()).toBeVisible();
@@ -87,6 +91,17 @@ test('providers keep concurrent accounts and API connections independent and exp
     await expect(page.getByRole('button', { name: /^New cap for Production · Connection budget$/i })).toBeVisible();
     expect(gateway.mutations.at(-1).value).toMatchObject({ scope_kind: 'provider', scope_value: 'openai-api-6', amount: 20 });
     await page.getByRole('button', { name: /^All\ providers$/i, exact: true }).click();
+    await page.getByTestId('provider-card-6:connection').getByRole('button', { name: /^Models & settings$/i }).click();
+    await page.getByRole('button', { name: 'Connection', exact: true }).click();
+    gateway.connectionTestOk = false;
+    await page.getByRole('button', { name: /^Test connection$/i }).click();
+    await expect(page.getByText('Connection test failed.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Connection works.', { exact: true })).toHaveCount(0);
+    gateway.connectionTestOk = true;
+    await page.getByRole('button', { name: /^Test connection$/i }).click();
+    await expect(page.getByText('Connection works.', { exact: true })).toBeVisible();
+    await expect(page.getByText('Connection test failed.', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: /^All providers$/i }).click();
     await page.setViewportSize({ width: 390, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ animations: 'disabled', path: join(temporary, 'providers-grid-narrow.png'), fullPage: true });

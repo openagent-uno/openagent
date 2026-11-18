@@ -22,12 +22,14 @@ export class ProvidersGateway extends DeterministicGateway {
     accounts: [{ id: `account-${p.id}`, name: p.label, enabled: true, managed: true, has_refresh_token: true,
       status: p.id === 5 ? 'auth_expired' : 'ok', quota: p.vendor === 'openai' && p.id !== 5 ? { primary_used_percent: 42, primary_window_minutes: 300, primary_reset_after_s: 8100 } : null }] }));
   budgets = [];
+  connectionTestOk = true;
   mutations = [];
 
   async handleHttp(request, response) {
     const path = new URL(request.url, 'http://fixture').pathname;
     const reply = (value, status = 200) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
     const body = async () => { let data = ''; for await (const chunk of request) data += chunk; return JSON.parse(data || '{}'); };
+    if (/^\/api\/providers\/\d+\/test$/.test(path)) return reply({ ok: this.connectionTestOk });
     if (path === '/api/providers/contract') return reply({ version: 1 });
     if (path === '/api/providers' && request.method === 'GET') return reply({ providers: this.providers });
     if (path === '/api/models' && request.method === 'GET') return reply({ models: this.models });

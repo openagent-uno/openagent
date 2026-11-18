@@ -11,8 +11,8 @@ import { ACCESS_LABELS } from './modelHelpers';
 import BudgetMeter from './BudgetMeter';
 import ProviderMark from './ProviderMark';
 
-export default function ProviderTile({ card, budgets, usage, busy, onOpen, onToggle }: {
-  card: ConnectionCard; budgets: BudgetUsage[] | null; usage: DailyUsageEntry[] | null; busy: boolean; onOpen: () => void; onToggle: () => void;
+export default function ProviderTile({ card, budgets, usage, busy, onOpen, onToggle, onProviderBudget }: {
+  card: ConnectionCard; budgets: BudgetUsage[] | null; usage: DailyUsageEntry[] | null; busy: boolean; onOpen: () => void; onToggle: () => void; onProviderBudget: () => void;
 }) {
   const { provider, account, access } = card;
   const enabled = provider.enabled && (account as { enabled?: boolean } | null)?.enabled !== false;
@@ -58,7 +58,7 @@ export default function ProviderTile({ card, budgets, usage, busy, onOpen, onTog
       {rules.slice(0, 1).map((rule) => <BudgetMeter key={rule.id} rule={rule} />)}
       {budgets === null ? <Text style={styles.meta}>Budget data unavailable</Text> : rules.length === 0 ? <Text style={styles.meta}>No connection budget</Text> : null}
     </View>
-    <View style={styles.footer}><Button variant="ghost" label="Models & settings" icon="arrow-right" iconPosition="right" onPress={onOpen} /></View>
+    <View style={styles.footer}><Button variant="ghost" label="Models & settings" icon="arrow-right" iconPosition="right" onPress={onOpen} /><Button variant="ghost" label="Provider budget" onPress={onProviderBudget} /></View>
   </View>;
 }
 const styles = StyleSheet.create({
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.7 }, head: { flexDirection: 'row', alignItems: 'center', gap: 10 }, identity: { flex: 1, minWidth: 0 },
   name: { color: colors.text, fontSize: 19, fontWeight: '600', marginBottom: 4 }, meta: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 7 }, statusText: { fontSize: 14, fontWeight: '500' },
-  usage: { flex: 1, gap: 12, paddingTop: 8 }, footer: { borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: 8, marginTop: 6, alignItems: 'flex-start' },
+  usage: { flex: 1, gap: 12, paddingTop: 8 }, footer: { borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: 8, marginTop: 6, gap: 8, alignItems: 'flex-start' },
   window: { gap: 7 }, between: { flexDirection: 'row', justifyContent: 'space-between' }, amount: { color: colors.text, fontSize: 13, fontWeight: '600' },
   track: { height: 6, backgroundColor: colors.border, borderRadius: 4, overflow: 'hidden' }, fill: { height: 6, backgroundColor: colors.primary, borderRadius: 4 },
 });

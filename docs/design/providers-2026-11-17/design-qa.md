@@ -56,3 +56,26 @@ TypeScript check passed, and the provider workflow plus agent-switching/loading
 workflows each passed twice in Electron (6 runs total). Delayed-enrichment first
 cards remained usable in 113–116 ms. These measurements are fixture-based and do
 not establish a threefold improvement for production session opening.
+
+
+## Installed beta 62 and compact-grid follow-up
+
+The official signed and notarized beta 62 preserved the existing profile and
+successfully replayed provider drill-in, a real connection test, return to the
+overview (20 steps), and a new chat with a real subscription answer (8 steps).
+
+The full-screen walkthrough exposed wasted columns when each vendor has only
+one account. Beta 63 lays all connection cards into the same responsive grid;
+account identity and the shared vendor-budget action remain inside each card.
+Provider polling runs only while the owning route has focus. The delayed-quota
+Electron regression advances 61 seconds of renderer timers after entering chat
+and verifies that the retained Settings route performs no provider reads.
+Connection-test failures retain their error notice instead of being cleared by
+a successful catalog reload or shown with the success tone.
+
+Local beta 63 gates: universal TypeScript check and 269 common/component tests
+passed. Provider management and delayed-enrichment/focus tests each passed twice
+in Electron. The workflow also verifies failed/successful test feedback survives
+the subsequent catalog load, with no stale notice. First cards rendered in
+122–123 ms with independently delayed account/quota data. These fixture results
+do not establish the production session-opening target.

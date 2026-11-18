@@ -1,5 +1,6 @@
 /** Provider-first management: independent connections/accounts, with typed models inside. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import type { BudgetUsage, DailyUsageEntry, ModelEntry, ModelKind, ProviderAccounts, ProviderConfig } from '../../../common/types';
 import { colors, font } from '../../theme';
@@ -71,7 +72,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     setError(p.status === 'rejected' ? errorMessage(p.reason) : m.status === 'rejected' ? errorMessage(m.reason) : null);
     setLoading(false);
   }, [config]);
-  useEffect(() => { void load(); const timer = setInterval(() => { void load(); }, 60_000); return () => { loadGeneration.current += 1; clearInterval(timer); }; }, [load]);
+  useFocusEffect(useCallback(() => { void load(); const timer = setInterval(() => { void load(); }, 60_000); return () => { loadGeneration.current += 1; clearInterval(timer); }; }, [load]));
   const cards = useMemo(() => connectionCards(providers, models, accounts), [providers, models, accounts]);
   const active = cards.find((c) => c.key === selected) ?? null;
   const groups = useMemo(() => {
@@ -163,17 +164,14 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
           <Button label="Save connection" disabled={busy} onPress={() => { void run(() => updateProvider(active.provider.id, { base_url: endpoint.trim(), ...(apiKey.trim() ? { api_key: apiKey.trim() } : {}) })); }} />
         </>}
         <View style={styles.row}><Button variant="secondary" label="Refresh capabilities" disabled={busy} onPress={() => { void run(async () => { const result = await refreshProviderCapabilities(active.provider.id); setNotice(result.reachable ? 'Model capabilities refreshed.' : 'Provider did not report a catalog. Saved capabilities were kept.'); }); }} />
-          <Button variant="secondary" label="Test connection" disabled={busy} onPress={() => { void run(async () => { const result = await testProvider(active.provider.id); setNotice(result.ok ? 'Connection works.' : 'Connection test failed.'); }); }} />
+          <Button variant="secondary" label="Test connection" disabled={busy} onPress={() => { void run(async () => { const result = await testProvider(active.provider.id); if (result.ok) setNotice('Connection works.'); else throw new Error('Connection test failed.'); }); }} />
           <Button variant="danger" label="Remove connection" disabled={busy} onPress={() => { void removeConnection(active); }} /></View>
       </View>}
     </> : <>
       <View style={styles.header}><View style={{ flex: 1 }}><Text style={styles.title}>Models & providers</Text><Text style={styles.subtitle}>Accounts and API connections work side by side. Open one to manage its models.</Text></View><Button label="Connect provider" icon="plus" disabled={connectionContract === null} onPress={() => setConnecting(true)} /></View>
       <Field label="Search connections" placeholder="Provider, account or connection" value={search} onChangeText={setSearch} />
       {loading && <Text style={styles.subtitle}>Loading connections…</Text>}
-      {groups.map(([vendor, group]) => <View key={vendor} style={styles.group}>
-        <View style={styles.vendorHead}><Text style={styles.section}>{vendorLabel(vendor)}</Text><View style={styles.divider} /><Button variant="ghost" label="Provider budget" onPress={() => setBudgetGroup(vendor)} /></View>
-        <Grid cols={cols}>{group.map((card) => <ProviderTile key={card.key} card={card} budgets={budgets} usage={usage} busy={busy} onOpen={() => open(card)} onToggle={() => { void toggle(card); }} />)}</Grid>
-      </View>)}
+      <Grid cols={cols}>{groups.flatMap(([vendor, group]) => group.map((card) => <ProviderTile key={card.key} card={card} budgets={budgets} usage={usage} busy={busy} onOpen={() => open(card)} onProviderBudget={() => setBudgetGroup(vendor)} onToggle={() => { void toggle(card); }} />))}</Grid>
       {!loading && !providers.length && <EmptyState icon="cpu" title="Connect your first provider" message="Add an API key, a subscription account or a local server, then choose its models." />}
       {!loading && providers.length > 0 && !groups.length && <Text style={styles.subtitle}>No connections match your search.</Text>}
       <Text style={styles.subtitle}>Each card represents one connection or subscription account. Disabling it keeps its settings.</Text>
@@ -193,7 +191,7 @@ const styles = StyleSheet.create({
   wrap: { gap: 22 }, header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, justifyContent: 'space-between' },
   title: { color: colors.text, fontSize: 28, fontFamily: font.display, fontWeight: '600', letterSpacing: -0.5 },
   subtitle: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 }, section: { color: colors.text, fontSize: 21, fontWeight: '600' },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' }, group: { gap: 16 }, vendorHead: { flexDirection: 'row', alignItems: 'center', gap: 18 }, divider: { height: 1, backgroundColor: colors.border, flex: 1 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
   model: { flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 10, padding: 20, gap: 14, minHeight: 210 },
   modelName: { color: colors.text, fontSize: 18, fontWeight: '600', flex: 1 }, connection: { gap: 20 },
 });

@@ -115,6 +115,14 @@ test('benchmark provider cards with independently delayed enrichment', async ({}
     const json = JSON.stringify(report, null, 2);
     console.log(`OPENAGENT_LOADING_PERFORMANCE ${JSON.stringify(report)}`);
     await testInfo.attach('loading-performance.json', { body: json, contentType: 'application/json' });
+    // Retained Settings routes must not poll providers while chat owns focus.
+    await page.clock.install();
+    await page.getByRole('button', { name: 'New session', exact: true }).click();
+    await expect(page.getByPlaceholder('Message OpenAgent...')).toBeVisible();
+    const hiddenReads = () => gateway.requests.filter((r) => ['/api/providers', '/api/accounts', '/api/models', '/api/budgets/usage', '/api/usage/daily'].includes(r.path)).length;
+    const readsBeforeIdle = hiddenReads();
+    await page.clock.fastForward(61_000);
+    expect(hiddenReads()).toBe(readsBeforeIdle);
     expect(pageErrors).toEqual([]);
   } finally {
     await app?.close();
