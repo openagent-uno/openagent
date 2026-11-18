@@ -35,6 +35,14 @@ metadata change. Native B7 remains unchanged for its current App consumers.
 
 ## Manual upgrade
 
+The imported [`packaging/legacy-image`](../packaging/legacy-image/README.md)
+assets are historical, not a maintained build context. The vendored Claude
+proxy and old machine/supervisor recipes have been retired from the current
+tree; Git history and retained binary artifacts preserve their provenance.
+Current subscription connections and the optional compatibility HTTP host use
+the versioned public Core implementation. An old service name or credential
+directory may remain for compatibility without depending on a proxy repository.
+
 Old updater URLs intentionally stop working. Install a build with the canonical
 updater: **App beta24** or **server/CLI 1.1.8**. Downloading an older installer
 from a different location does not rewrite its embedded updater. Replace an
