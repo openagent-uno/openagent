@@ -27,6 +27,13 @@ network floor remains; no new settings speedup is claimed.
 Publication, signed native acceptance and deployed adoption of these candidates
 are separate from the source and controlled measurements above.
 
+The public installed Server beta89 handler was also compared against the prior
+Server beta88 capture function on the same neutral 50,000-row fixture. Two trials
+per case measured explicit-grant first pages at 18,672 ms versus 633 ms, with
+identical items/order/digest and fresh revocation checks. Owner-only first pages
+measured 190 ms versus 185 ms. This is an installed Python/SQLite measurement,
+not an end-to-end field or universal improvement claim.
+
 ## Original measurements
 
 | Path | Before | After | Evidence boundary |

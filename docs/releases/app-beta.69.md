@@ -15,3 +15,13 @@ measured medians of 5,841 ms and 2,261 ms for 168 ticks: 2.58×, with an identic
 layout hash. This is a CPU benchmark, excluding network and first paint. The 3×
 goal for this graph workload remains unmet. Signed builds and installed UI
 acceptance are separate qualification gates.
+
+All six signed/platform package jobs and the verified publication workflow passed.
+The public macOS arm64 ZIP passed SHA256, deep strict code-signature verification
+and notarized Gatekeeper assessment. Two uninterrupted native-client repetitions
+passed the named-account connection probe, scoped model settings/budget dialog
+and return to the three-account grid, preserving the existing settings.
+
+One saved network login was rejected after the complete client restart and still
+requires fresh authentication. Other saved networks reconnected. This boundary
+is not counted as passed native acceptance for that network.
