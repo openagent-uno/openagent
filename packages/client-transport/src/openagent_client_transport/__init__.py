@@ -1,3 +1,3 @@
 """Client-only OpenAgent Iroh, authentication and stream transport."""
 
-__version__ = "1.1.9b91"
+__version__ = "1.1.9b92"
