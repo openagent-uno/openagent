@@ -29,6 +29,13 @@ model-response wait; the response subsequently arrived, and the repetitions used
 a 60-second provider allowance. These are correctness checks, not a chat latency
 or universal loading-speed qualification.
 
-One saved network login was rejected after the complete client restart and still
-requires fresh authentication. Other saved networks reconnected. This boundary
-is not counted as passed native acceptance for that network.
+The previously rejected saved network login passed after authenticating with the
+correct existing account. A complete normal client restart then reconnected
+automatically and restored the conversation. Two consecutive 18-step native
+provider/chat/history repetitions passed; session-identity readback confirmed
+that each reopened conversation was the newly created session. Equal-title
+history rows are scoped to the nearest entry after the Recent heading.
+
+Initial provider loading experienced transient empty network responses and
+recovered automatically. This observation is retained as a transport limitation;
+successful authentication does not establish its cause or qualify loading speed.
