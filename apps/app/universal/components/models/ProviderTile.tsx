@@ -40,6 +40,7 @@ export default function ProviderTile({ card, budgets, usage, busy, onOpen, onTog
       </View>
       <ThemedSwitch value={enabled} disabled={busy} onValueChange={onToggle} accessibilityLabel={`Enable ${card.label} ${card.vendor}`} />
     </View>
+    {access === 'subscription' && <Text selectable style={styles.meta}>Linked account · {card.accountIdentity || 'Not signed in'}</Text>}
     <View style={styles.status}>
       <Feather name={!enabled ? 'pause-circle' : warning ? 'alert-triangle' : account ? 'check-circle' : 'circle'} size={16} color={statusColor} />
       <Text style={[styles.statusText, { color: statusColor }]}>{status}</Text>

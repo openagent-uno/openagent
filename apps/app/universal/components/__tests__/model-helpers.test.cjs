@@ -108,3 +108,25 @@ test('serving account: first usable, else the first', () => {
   assert.equal(q.accountState({ dead: true }), 'auth_expired');
   assert.equal(q.accountState({ limited: true }), 'rate_limited');
 });
+
+const connections = load('../models/connectionHelpers.ts', { './modelHelpers': h });
+test('connection label stays independent from linked account and runtime IDs', () => {
+  const provider = { id: 1, name: 'stable-work', label: 'Personal', enabled: true,
+    metadata: { vendor: 'openai', access: 'subscription', account_id: 'account-one' } };
+  const models = [{ id: 9, provider_id: 1, runtime_id: 'stable-work:fixture' }];
+  const accounts = [{ provider_id: 1, accounts: [{ id: 'account-one', name: 'Personal', account_name: 'Work login' }] }];
+  const [card] = connections.connectionCards([provider], models, accounts);
+  assert.equal(card.label, 'Personal');
+  assert.equal(card.accountIdentity, 'Work login · account-one');
+  assert.equal(card.models[0].runtime_id, 'stable-work:fixture');
+  const [offline] = connections.connectionCards([provider], models, null);
+  assert.equal(offline.accountIdentity, 'account-one');
+  assert.equal(offline.key, card.key);
+  const legacy = { ...provider, label: undefined, metadata: { access: 'subscription' } };
+  const cards = connections.connectionCards([legacy], models, [{ provider_id: 1, accounts: [
+    { id: 'a', name: 'Account A' }, { id: 'b', name: 'Account B' },
+  ] }]);
+  assert.equal(cards.length, 2);
+  assert.equal(cards[0].label, 'Account A');
+  assert.equal(cards[1].accountIdentity, 'Account B · b');
+});

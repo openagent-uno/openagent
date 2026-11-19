@@ -8,6 +8,7 @@ export interface ConnectionCard {
   vendor: string;
   access: Access;
   label: string;
+  accountIdentity: string | null;
   account: ServingAccount | null;
   accounts: ProviderAccounts | null;
   models: ModelEntry[];
@@ -36,7 +37,10 @@ export function connectionCards(providers: ProviderConfig[], models: ModelEntry[
     return children.map((account) => ({
       key: `${provider.id}:${account?.id ?? info.accountId ?? 'connection'}`,
       provider, vendor: info.vendor, access,
-      label: account?.name || info.label,
+      label: account && !info.accountId ? account.name || info.label : info.label,
+      accountIdentity: access === 'subscription'
+        ? [account?.account_name || (account?.name !== info.label ? account?.name : null), account?.id || info.accountId].filter(Boolean).join(' · ') || null
+        : null,
       account, accounts: entry ? { ...entry, accounts: account ? [account] : [] } : null,
       models: models.filter((m) => m.provider_id === provider.id), providers: [provider],
     }));

@@ -19,7 +19,7 @@ export class ProvidersGateway extends DeterministicGateway {
   })));
   accounts = this.providers.filter((p) => p.access === 'subscription').map((p) => ({ provider: p.name, provider_id: p.id,
     enabled: true, reachable: true, sign_in: true, metrics: null, status: p.id === 5 ? 'auth_expired' : 'ok',
-    accounts: [{ id: `account-${p.id}`, name: p.label, enabled: true, managed: true, has_refresh_token: true,
+    accounts: [{ id: `account-${p.id}`, name: p.label, account_name: `Login ${p.id}`, enabled: true, managed: true, has_refresh_token: true,
       status: p.id === 5 ? 'auth_expired' : 'ok', quota: p.vendor === 'openai' && p.id !== 5 ? { primary_used_percent: 42, primary_window_minutes: 300, primary_reset_after_s: 8100 } : null }] }));
   budgets = [];
   connectionTestOk = true;
@@ -31,7 +31,7 @@ export class ProvidersGateway extends DeterministicGateway {
     const reply = (value, status = 200) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
     const body = async () => { let data = ''; for await (const chunk of request) data += chunk; return JSON.parse(data || '{}'); };
     if (/^\/api\/providers\/\d+\/test$/.test(path)) return reply({ ok: this.connectionTestOk });
-    if (path === '/api/providers/contract') return reply({ version: 1, account_policy_fields: this.accountPolicyFields });
+    if (path === '/api/providers/contract') return reply({ version: 1, account_policy_fields: this.accountPolicyFields, provider_update_fields: ['label'] });
     if (path === '/api/providers' && request.method === 'GET') return reply({ providers: this.providers });
     if (path === '/api/models' && request.method === 'GET') return reply({ models: this.models });
     if (path === '/api/accounts') return reply({ providers: this.accounts });

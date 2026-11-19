@@ -57,6 +57,13 @@ test(`providers keep concurrent accounts and typed models independent (account p
     expect(gateway.mutations.at(-1).path).toBe('/api/providers/1/accounts/account-1');
     await page.getByTestId('provider-card-2:account-2').getByRole('button', { name: /^Models & settings$/i }).click();
     await page.getByRole('button', { name: 'Connection', exact: true }).click();
+    await expect(page.getByText('Linked account · Login 2 · account-2', { exact: true })).toBeVisible();
+    await page.getByLabel('Connection name', { exact: true }).fill('Renamed work');
+    await page.getByRole('button', { name: 'Save name', exact: true }).click();
+    await expect(page.getByText('Renamed work', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Linked account · Login 2 · account-2', { exact: true })).toBeVisible();
+    expect(gateway.mutations.at(-1)).toMatchObject({ path: '/api/providers/2', value: { label: 'Renamed work' } });
+    expect(gateway.providers[1].name).toBe('anthropic-subscription-2');
     await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).toBeChecked();
     await page.getByRole('switch', { name: 'Automatic account fallback', exact: true }).click();
     await expect(page.getByRole('switch', { name: 'Automatic account fallback', exact: true })).not.toBeChecked();

@@ -130,3 +130,10 @@ Every dispatch gets logged to `usage_log` with input / output tokens and compute
 ## Hot reload
 
 Edit a model via the manager MCP, the REST endpoints, or the UI — the gateway sees the bumped `updated_at` on the next message, rebuilds the routing table, and the new model is live. Each `TeamRouterProvider` drops its cached per-session team, so the next turn rebuilds with the new membership. Pinned sessions keep their pin; enabling a second model promotes a single-agent deployment to a team on the very next turn.
+
+### Connection names and linked accounts
+
+Open a provider's **Connection** tab to edit its connection name and choose
+**Save name**. The server advertises support for this operation. Subscription
+cards and connection details show the linked account's name and identifier
+separately from the connection name. Search also matches this account identity.

@@ -48,6 +48,8 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   const [connecting, setConnecting] = useState(false);
   const [connectionContract, setConnectionContract] = useState<boolean | null>(null);
   const [accountPolicy, setAccountPolicy] = useState(false);
+  const [canRename, setCanRename] = useState(false);
+  const [connectionName, setConnectionName] = useState('');
   const [catalog, setCatalog] = useState<ProviderConfig | null>(null);
   const [editing, setEditing] = useState<ModelEntry | null>(null);
   const [budgetGroup, setBudgetGroup] = useState<string | null>(null);
@@ -62,8 +64,8 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     const current = () => generation === loadGeneration.current;
     const catalog = Promise.allSettled([getProviders(), listDbModels()]);
     void getProviderConnectionContract().then((value) => {
-      if (current()) { setConnectionContract(value.version === 1); setAccountPolicy(value.account_policy_fields?.includes('fallback_enabled') === true); }
-    }, () => { if (current()) { setConnectionContract(false); setAccountPolicy(false); } });
+      if (current()) { setCanRename(value.provider_update_fields?.includes('label') === true); setConnectionContract(value.version === 1); setAccountPolicy(value.account_policy_fields?.includes('fallback_enabled') === true); }
+    }, () => { if (current()) { setConnectionContract(false); setAccountPolicy(false); setCanRename(false); } });
     // Enrichment must never hold the usable catalog behind a slow quota probe.
     void listServingAccounts().then((value) => { if (current()) setAccounts(value); }, () => { if (current()) setAccounts(null); });
     void listBudgetUsage().then((value) => { if (current()) setBudgets(value); }, () => { if (current()) setBudgets(null); });
@@ -86,7 +88,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   const groups = useMemo(() => {
     const result = new Map<string, ConnectionCard[]>();
     for (const card of cards) {
-      if (!`${card.vendor} ${card.label} ${card.access}`.toLowerCase().includes(search.toLowerCase())) continue;
+      if (!`${card.vendor} ${card.label} ${card.accountIdentity || ''} ${card.access}`.toLowerCase().includes(search.toLowerCase())) continue;
       result.set(card.vendor, [...(result.get(card.vendor) ?? []), card]);
     }
     return [...result.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -99,7 +101,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     finally { setBusy(false); }
   };
   const open = (card: ConnectionCard) => {
-    setSelected(card.key); setTab('models'); setKind('all'); setApiKey(''); setEndpoint(card.provider.base_url || '');
+    setConnectionName(card.label); setSelected(card.key); setTab('models'); setKind('all'); setApiKey(''); setEndpoint(card.provider.base_url || '');
     setNotice(null); setError(null); onNavigate?.();
   };
   const selectTab = (next: typeof tab) => { setTab(next); setNotice(null); setError(null); onNavigate?.(); };
@@ -160,6 +162,12 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
         <BudgetsPanel key={active.provider.id} scopeKind="provider" scopeValue={active.provider.name} scopeTitle={`${active.label} · Connection budget`} defaultMetric={active.access === 'subscription' ? 'tokens' : 'cost_usd'} />
       </>}
       {tab === 'connection' && <View style={styles.connection}>
+        <Field label="Connection name" value={connectionName} onChangeText={setConnectionName} maxLength={80} />
+        <Button label="Save name" disabled={busy || !canRename || !connectionName.trim() || connectionName.trim() === active.label} onPress={() => {
+          void run(() => updateProvider(active.provider.id, { label: connectionName.trim() }));
+        }} />
+        {!canRename && <Text style={styles.subtitle}>Update the server to rename connections.</Text>}
+        {active.access === 'subscription' && <Text selectable style={styles.subtitle}>Linked account · {active.accountIdentity || 'Not signed in'}</Text>}
         {active.access === 'subscription' ? <>
           <Text style={styles.section}>{active.label}</Text>
           <Text style={styles.subtitle}>{active.account ? 'Account connected. Sign in again to renew access.' : 'Sign in to connect this account.'}</Text>

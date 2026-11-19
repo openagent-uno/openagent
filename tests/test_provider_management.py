@@ -89,8 +89,19 @@ class ProviderManagementTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(set(body["access_types"]), {"api", "subscription", "local"})
         self.assertEqual(set(body["model_kinds"]), {"llm", "image", "tts", "stt"})
         self.assertEqual(set(body["builtin_subscriptions"]), {"anthropic", "openai"})
+        self.assertIn("label", body["provider_update_fields"])
         self.assertEqual(set(body["account_policy_fields"]), {"name", "enabled", "priority", "fallback_enabled"})
         self.assertNotIn("preserved-secret", response.text)
+
+    async def test_label_update_preserves_technical_identity_and_pin(self):
+        await self.db.pin_session_model("test-pin", "original:original-model")
+        response = await handle_update(Request(self.gateway, "/api/providers/1", self.provider, {"label": "Display name"}))
+        self.assertEqual(response.status, 200)
+        row = await self.db.get_provider(self.provider)
+        self.assertEqual(row["name"], "original")
+        self.assertEqual(row["metadata"]["label"], "Display name")
+        self.assertEqual(row["api_key"], "preserved-secret")
+        self.assertEqual(await self.db.get_session_pin("test-pin"), "original:original-model")
 
     async def test_partial_rename_updates_same_rows_and_keeps_credentials(self):
         response = await handle_update(

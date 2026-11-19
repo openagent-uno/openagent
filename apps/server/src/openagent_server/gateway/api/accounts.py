@@ -53,7 +53,7 @@ _PROBE_TIMEOUT_S = 2.5
 # health payload is another program's shape and may grow fields we would
 # rather not blindly relay to a client.
 _ACCOUNT_FIELDS = (
-    "id", "name", "priority", "plan", "managed",
+    "id", "name", "account_name", "priority", "plan", "managed",
     "limited", "limited_until_ms", "expires_at_ms", "has_refresh_token", "enabled",
 )
 

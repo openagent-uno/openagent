@@ -2293,6 +2293,7 @@ export interface AccountQuota {
 }
 
 export interface ServingAccount {
+  account_name?: string;
   enabled?: boolean;
   id: string;
   name: string;

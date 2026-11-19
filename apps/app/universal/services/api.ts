@@ -1158,7 +1158,7 @@ function normalizeModel(m: ModelEntry): ModelEntry {
   return { ...m, framework: normalizeFramework(m.framework) };
 }
 
-export function getProviderConnectionContract(): Promise<{ version: number; account_policy_fields?: string[] }> {
+export function getProviderConnectionContract(): Promise<{ version: number; account_policy_fields?: string[]; provider_update_fields?: string[] }> {
   return get('/api/providers/contract');
 }
 
@@ -1193,7 +1193,7 @@ export async function addProvider(body: {
 }
 
 export async function updateProvider(
-  providerId: number, body: { api_key?: string; base_url?: string; enabled?: boolean; metadata?: Record<string, unknown> },
+  providerId: number, body: { label?: string; api_key?: string; base_url?: string; enabled?: boolean; metadata?: Record<string, unknown> },
 ): Promise<{ ok: boolean; provider: ProviderConfig }> {
   const data = await put<{ ok: boolean; provider: ProviderConfig }>(
     `/api/providers/${providerId}`,
