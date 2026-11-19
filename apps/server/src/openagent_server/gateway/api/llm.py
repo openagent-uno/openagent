@@ -5,14 +5,14 @@ service in the suite can make an LLM call THROUGH OpenAgent's
 already-configured providers (the ``providers`` registry + its stored
 API keys) without holding its own vendor credentials. This is a PURE
 PASSTHROUGH GATEWAY: the caller owns the prompt / rubric / schema; the
-gateway just resolves ``<provider>`` against the registry and forwards
-the request to that provider's OpenAI-compatible ``/chat/completions``.
+gateway resolves ``<provider>`` against the registry and forwards the request
+to the configured API or the in-process Core subscription service.
 
 Nothing here is specific to any caller, product, prompt, provider, or
 model — every one of those is data supplied at call time:
 
   - the provider name comes from the ``model`` field (``provider:model``),
-  - the base_url + api_key come from the matched ``providers`` row,
+  - the API endpoint or native subscription connection comes from that row,
   - the messages / response_format / sampling params come from the body.
 
 Path shape: an OpenAI client configured with
@@ -45,6 +45,9 @@ Contract:
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import aclosing
+import json
 import logging
 import os
 import time
@@ -70,16 +73,16 @@ _DEFAULT_TIMEOUT_S = 30.0
 _ERR_BODY_CAP = 2000
 
 
-def _timeout_seconds() -> float:
+def _timeout_seconds(default: float = _DEFAULT_TIMEOUT_S) -> float:
     """Resolve the upstream timeout from the environment (default 30s)."""
     raw = os.environ.get("OPENAGENT_LLM_GATEWAY_TIMEOUT", "").strip()
     if not raw:
-        return _DEFAULT_TIMEOUT_S
+        return default
     try:
         val = float(raw)
-        return val if val > 0 else _DEFAULT_TIMEOUT_S
+        return val if val > 0 else default
     except (TypeError, ValueError):
-        return _DEFAULT_TIMEOUT_S
+        return default
 
 
 def _error(message: str, status: int, *, err_type: str = "gateway_error",
@@ -165,6 +168,84 @@ async def _relay_stream(request: "web.Request", url: str, outbound: dict,
     return response
 
 
+async def _subscription_rows(db, row, providers, model_id):
+    from openagent_core.models.catalog import build_runtime_model_id
+    from openagent_core.models.subscription_routes import account_routes_for
+
+    metadata = row.get("metadata") or {}
+    if metadata.get("account_fallback_group"):
+        config = await db.materialise_providers_config()
+        requested = build_runtime_model_id(row["name"], model_id, row.get("framework"))
+        routes = account_routes_for(row, requested, config, db.db_path)
+        if routes is not None:
+            by_name = {provider["name"]: provider for provider in providers}
+            return [
+                by_name[entry.provider] for entry in routes.entries
+                if entry.provider in by_name
+                and not (by_name[entry.provider].get("metadata") or {}).get("subscription_remote")
+            ]
+    return [row]
+
+
+async def _subscription_reply(request, db, row, providers, body):
+    """Relay one raw Chat Completions request through the public Core service."""
+    from aiohttp import web
+    from openagent_core.core.runtime_errors import ModelProviderError
+    from openagent_core.models.credential_pool import rotates_account
+    from openagent_core.subscriptions.errors import SubscriptionError
+    from openagent_core.subscriptions.service import subscription_for
+
+    last = None
+    try:
+        for candidate in await _subscription_rows(db, row, providers, body["model"]):
+            metadata = candidate.get("metadata") or {}
+            service = subscription_for(candidate, db.db_path)
+            account = metadata.get("account_id")
+            if service is None or not account:
+                raise ValueError("Invalid subscription connection")
+            timeout = _timeout_seconds(service.settings.request_timeout)
+            try:
+                if not body["stream"]:
+                    result = await asyncio.wait_for(service.complete(body, account_id=account), timeout)
+                    return web.json_response(result)
+                iterator = service.stream_chat(body, account_id=account)
+                async with aclosing(iterator):
+                    first = await asyncio.wait_for(anext(iterator), timeout)
+                    response = web.StreamResponse(headers={
+                        "Content-Type": "text/event-stream", "Cache-Control": "no-cache",
+                        "X-Accel-Buffering": "no",
+                    })
+                    await response.prepare(request)
+                    try:
+                        await response.write(first.encode())
+                        while True:
+                            frame = await asyncio.wait_for(anext(iterator), timeout)
+                            await response.write(frame.encode())
+                    except StopAsyncIteration:
+                        pass
+                    except (SubscriptionError, TimeoutError) as exc:
+                        # The response is committed. Report the failure without
+                        # switching accounts or appending a completion marker.
+                        failure = exc if isinstance(exc, SubscriptionError) else SubscriptionError()
+                        payload = json.dumps({"error": failure.public()})
+                        await response.write(f"data: {payload}\n\n".encode())
+                    except ConnectionError:
+                        return response
+                    await response.write_eof()
+                    return response
+            except SubscriptionError as exc:
+                last = exc
+                if not rotates_account(ModelProviderError(exc.message, status_code=exc.status)):
+                    break
+        failure = last or SubscriptionError()
+        return web.json_response({"error": failure.public()}, status=failure.status, headers=failure.headers())
+    except TimeoutError:
+        return _error("Subscription request timed out", 502, err_type="upstream_timeout")
+    except Exception:
+        logger.warning("LLM gateway native subscription request failed")
+        return _error("Subscription request could not complete", 502, err_type="upstream_error")
+
+
 async def handle_chat_completions(request: "web.Request") -> "web.Response":
     """Forward one OpenAI chat-completions call to a registry provider.
 
@@ -220,6 +301,11 @@ async def handle_chat_completions(request: "web.Request") -> "web.Response":
         return _error(f"provider '{provider_name}' is disabled", 400,
                       err_type="invalid_request_error")
 
+    outbound = {**body, "model": model_id, "stream": body.get("stream") is True}
+    metadata = provider_row.get("metadata") or {}
+    if metadata.get("access") == "subscription" and not metadata.get("subscription_remote"):
+        return await _subscription_reply(request, db, provider_row, rows, outbound)
+
     base_url = (provider_row.get("base_url") or "").strip()
     if not base_url:
         # Genericity: the base_url IS the integration; we never guess a
@@ -237,10 +323,7 @@ async def handle_chat_completions(request: "web.Request") -> "web.Response":
     # ``model`` (bare id, prefix stripped) and ``stream``: a caller that asks
     # for ``stream: true`` gets the provider's server-sent events relayed as
     # they arrive; anything else is a single JSON answer.
-    outbound = dict(body)
-    outbound["model"] = model_id
-    streaming = body.get("stream") is True
-    outbound["stream"] = streaming
+    streaming = outbound["stream"]
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
