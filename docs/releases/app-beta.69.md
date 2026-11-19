@@ -22,6 +22,13 @@ and notarized Gatekeeper assessment. Two uninterrupted native-client repetitions
 passed the named-account connection probe, scoped model settings/budget dialog
 and return to the three-account grid, preserving the existing settings.
 
+Two consecutive native chat repetitions also passed a real default-model reply,
+navigation away and reopening the same conversation from history with its reply
+and current calendar date intact. One earlier attempt exceeded a 15-second
+model-response wait; the response subsequently arrived, and the repetitions used
+a 60-second provider allowance. These are correctness checks, not a chat latency
+or universal loading-speed qualification.
+
 One saved network login was rejected after the complete client restart and still
 requires fresh authentication. Other saved networks reconnected. This boundary
 is not counted as passed native acceptance for that network.
