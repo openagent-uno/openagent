@@ -38,6 +38,7 @@ GARBAGE = "totally-wrong-token-XXXX9999"
 # token must never reach. ``/api/config`` is the exact "everything else" the
 # least-privilege split is protecting (vault/config/scheduled-tasks/chat/...).
 LLM_PATH = "/api/llm/chat/completions"
+OPENAI_PATH = "/v1/chat/completions"
 OTHER_PATHS = ("/api/config", "/api/vault/notes/secrets.md", "/api/mcps")
 
 
@@ -119,16 +120,27 @@ def _bearer(token: str) -> dict:
 # LLM gateway and nothing else, and the full token must reach everything.
 
 
-@test("llm_scoped_token", "llm token authenticates /api/llm/* via BOTH header forms")
+@test("llm_scoped_token", "llm token authenticates both chat paths via both header forms")
 async def t_llm_token_reaches_llm_path(ctx: TestContext) -> None:
-    for label, headers in (("X-OpenAgent-Token", _x(LLM_TOKEN)),
-                           ("Authorization: Bearer", _bearer(LLM_TOKEN))):
+    for path in (LLM_PATH, OPENAI_PATH):
+        for label, headers in (("X-OpenAgent-Token", _x(LLM_TOKEN)),
+                               ("Authorization: Bearer", _bearer(LLM_TOKEN))):
+            status, ran = await _dial(
+                "POST", path, headers, http_token=FULL_TOKEN, llm_token=LLM_TOKEN,
+            )
+            assert ran and status == 200, (
+                f"scoped llm token via {label} was refused on {path} (status {status})"
+            )
+
+
+@test("llm_scoped_token", "OpenAI scope allows only the chat-completions POST")
+async def t_openai_scope_is_exact(ctx: TestContext) -> None:
+    for method, path in (("GET", OPENAI_PATH), ("POST", OPENAI_PATH + "/extra"),
+                         ("POST", "/v1/responses"), ("GET", "/v1/models")):
         status, ran = await _dial(
-            "POST", LLM_PATH, headers, http_token=FULL_TOKEN, llm_token=LLM_TOKEN,
+            method, path, _bearer(LLM_TOKEN), http_token=FULL_TOKEN, llm_token=LLM_TOKEN,
         )
-        assert ran and status == 200, (
-            f"scoped llm token via {label} was refused on {LLM_PATH} (status {status})"
-        )
+        assert not ran and status == 401, (method, path, status)
 
 
 @test("llm_scoped_token", "llm token is REJECTED on non-llm paths (both header forms)")

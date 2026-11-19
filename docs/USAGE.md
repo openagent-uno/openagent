@@ -127,6 +127,19 @@ unless your integration explicitly selects them. Follow the
 [Core usage guide](https://github.com/openagent-uno/openagent-core/blob/main/docs/USAGE.md)
 and [Tools usage guide](https://github.com/openagent-uno/openagent-tools/blob/main/docs/USAGE.md).
 
+### Stateless chat completions
+
+The standalone server accepts OpenAI-shaped requests at
+`POST /api/llm/chat/completions` and `POST /v1/chat/completions`. Both
+paths use the same configured model catalog and native subscription routing.
+Send the catalog's qualified model reference as `model` in the form
+`<provider>:<model_id>`. For clients that append `/chat/completions`, set
+the base URL to the server's `/api/llm` or `/v1`.
+
+Configure `OPENAGENT_LLM_TOKEN` on the server and send it as an
+`Authorization: Bearer` header from the integration. That token grants
+inference only. Under `/v1` it authorizes the exact chat-completions POST.
+
 ## Build and verification
 
 `python3 scripts/workspace.py wheel server --output /an/owned/artifact-directory`

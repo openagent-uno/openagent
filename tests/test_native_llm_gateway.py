@@ -10,7 +10,7 @@ import pytest
 from openagent_core.engine import MemoryDB
 from openagent_core.subscriptions import service as subscriptions
 from openagent_identity.auth.middleware import make_auth_middleware
-from openagent_server.gateway.api.llm import handle_chat_completions
+from openagent_server.gateway.server import Gateway
 
 
 @pytest.fixture
@@ -51,12 +51,7 @@ async def gateway(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENAGENT_LLM_TOKEN", "fixture-llm")
     app = web.Application(middlewares=[make_auth_middleware(SimpleNamespace(network_id="fixture"))])
     app["gateway"] = SimpleNamespace(agent=SimpleNamespace(memory_db=db))
-    app.router.add_post("/api/llm/chat/completions", handle_chat_completions)
-
-    async def settings(request):
-        return web.json_response({"private": True})
-
-    app.router.add_get("/api/settings", settings)
+    object.__new__(Gateway)._register_routes(app)
     try:
         async with TestClient(TestServer(app, host="127.0.0.1")) as client:
             yield client, calls, answers
@@ -75,7 +70,8 @@ BODY = {
 }
 
 
-async def test_native_json_uses_core_fallback_and_scope(gateway):
+@pytest.mark.parametrize("path", ("/api/llm/chat/completions", "/v1/chat/completions"))
+async def test_native_json_uses_core_fallback_and_scope(gateway, path):
     client, calls, answers = gateway
     answers["subscription-a"] = lambda: httpx.Response(
         429, json={"error": {"type": "rate_limit_error", "message": "fixture secret"}}
@@ -83,14 +79,15 @@ async def test_native_json_uses_core_fallback_and_scope(gateway):
     completion = {"choices": [{"message": {"role": "assistant", "content": "ok"}}]}
     answers["subscription-b"] = lambda: httpx.Response(200, json=completion)
 
-    response = await client.post("/api/llm/chat/completions", json=BODY, headers=HEADERS)
+    assert (await client.post(path, json=BODY)).status == 401
+    response = await client.post(path, json=BODY, headers=HEADERS)
     assert response.status == 200
     assert await response.json() == completion
     assert calls == [
         (account, {**BODY, "model": "claude-fixture", "stream": False})
         for account in ("subscription-a", "subscription-b")
     ]
-    assert (await client.get("/api/settings", headers=HEADERS)).status == 401
+    assert (await client.get("/api/config", headers=HEADERS)).status == 401
 
 
 async def test_native_stream_never_retries_after_output(gateway):

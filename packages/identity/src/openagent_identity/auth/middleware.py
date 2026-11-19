@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 logger = logging.getLogger(__name__)
+OPENAI_CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
 
 
 class NetworkAuthState:
@@ -195,7 +196,7 @@ def make_auth_middleware(state: NetworkAuthState):
     An OPTIONAL second token, ``OPENAGENT_LLM_TOKEN``, is a
     least-privilege credential scoped to the LLM gateway ONLY: a holder
     of that token (and NOT the full ``OPENAGENT_HTTP_TOKEN``) may reach
-    ``/api/llm/*`` and is rejected on every other route. This lets a
+    ``/api/llm/*`` and the exact OpenAI chat completions POST. This lets a
     caller that only needs the LLM gateway (e.g. an external reply guard
     calling ``/api/llm/chat/completions``) be handed a token that cannot
     reach vault, config, scheduled-tasks, terminal-backed chat, etc. It
@@ -268,7 +269,7 @@ def make_auth_middleware(state: NetworkAuthState):
             # Least-privilege scoping by request PATH. The full
             # ``OPENAGENT_HTTP_TOKEN`` is accepted on EVERY route (unchanged).
             # The optional ``OPENAGENT_LLM_TOKEN`` is accepted ONLY on the LLM
-            # gateway (paths under ``/api/llm/``) — so a caller holding only
+            # gateway, including the exact OpenAI chat completions POST. A caller holding only
             # that token reaches the LLM routes and is rejected everywhere
             # else (falling through to the device-cert path → 401). When
             # ``OPENAGENT_LLM_TOKEN`` is unset this list is just
@@ -277,7 +278,8 @@ def make_auth_middleware(state: NetworkAuthState):
             accepted: list[str] = []
             if http_token:
                 accepted.append(http_token)
-            if llm_token and path.startswith("/api/llm/"):
+            openai_completion = request.method == "POST" and path == OPENAI_CHAT_COMPLETIONS_PATH
+            if llm_token and (path.startswith("/api/llm/") or openai_completion):
                 accepted.append(llm_token)
 
             if candidates and accepted and any(

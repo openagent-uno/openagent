@@ -37,7 +37,7 @@ from openagent_server.gateway.api import official_connectors as official_connect
 from openagent_server.gateway.api import management_access as management_access_api
 from openagent_server.gateway.api import vault, config, health, logs, control, usage, providers, models, scheduled_tasks, workflow_tasks, mcps, marketplace, sessions as sessions_api, session_goal as session_goal_api, system as system_api, network as network_api, chat as chat_api, terminals as terminals_api, commands as commands_api, events as events_api, budgets as budgets_api, llm as llm_api, skills as skills_api, accounts as accounts_api, operational as operational_api, artifacts as artifacts_api, custom_views as custom_views_api, agent_identity as agent_identity_api, internal as internal_api
 from openagent_identity import peers as peers_api
-from openagent_identity.auth.middleware import make_auth_middleware
+from openagent_identity.auth.middleware import OPENAI_CHAT_COMPLETIONS_PATH, make_auth_middleware
 from openagent_identity.transport.aiohttp_iroh_site import IrohSite
 
 if TYPE_CHECKING:
@@ -1696,6 +1696,7 @@ class Gateway:
             # with model="<provider>:<model_id>". OpenAI-client compatible:
             # base_url=".../api/llm" + POST {base_url}/chat/completions.
             ("POST",   "/api/llm/chat/completions",          llm_api.handle_chat_completions),
+            ("POST",   OPENAI_CHAT_COMPLETIONS_PATH,          llm_api.handle_chat_completions),
             # Internal write-back from central skill runners (multi-tenant).
             # Auth: X-OpenAgent-Token (same shared secret as the HTTP listener).
             # See src/gateway/api/internal.py for payload spec.
