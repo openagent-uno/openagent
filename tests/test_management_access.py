@@ -10,7 +10,7 @@ import pytest
 from openagent_core.memory.db import MemoryDB
 from openagent_identity.coordinator.store import CoordinatorStore
 from openagent_server.automation_management import park_retired_observability_tasks
-from openagent_server.gateway.api import agent_identity, events, mcps, scheduled_tasks, workflow_tasks
+from openagent_server.gateway.api import agent_identity, events, mcps, providers, scheduled_tasks, workflow_tasks
 from openagent_server.catalog_service import NativeCatalogService
 from openagent_server.management_access import ManagementAccess
 from openagent_server.official_connectors import OfficialConnectors
@@ -46,12 +46,17 @@ async def gateway(tmp_path):
     async def still_authorized(_request, cert):
         return cert.handle != "revoked"
 
-    agent = SimpleNamespace(name="Test agent", config={}, memory_db=db, _db=db)
+    async def load_model_catalog():
+        pass
+
+    agent = SimpleNamespace(name="Test agent", config={}, memory_db=db, _db=db,
+                            load_model_catalog=load_model_catalog)
     config_path = tmp_path / "openagent.yaml"
     config_path.write_text('name: Test agent\nsystem_prompt: Private persona\n')
     gw = SimpleNamespace(agent=agent, config_path=config_path, _request_device_still_authorized=still_authorized,
                          _network_state=SimpleNamespace(identity=SimpleNamespace(public_hex="node")))
     runtime = object.__new__(NativeRuntimeService)
+    runtime.runtime = None
     runtime.agent, runtime.gateway = agent, gw
     runtime.dashboards = None
     runtime.directory = NativeRuntimeDirectory(gw, agent)
@@ -94,6 +99,33 @@ async def test_member_automation_lists_allow_only_safe_metadata(gateway, path, k
         return web.Response()
 
     assert (await bind_runtime_identity(Request(gateway, "alice", path), owner_route)).status == 200
+
+
+async def test_member_provider_overview_preserves_owner_only_configuration(gateway):
+    # Regression: verified members should see a safe overview, not an admin 403.
+    # Found by /qa on 2026-11-20.
+    db = gateway.agent.memory_db
+    identifier = await db.upsert_provider(name="connection", framework="api-based",
+        api_key="private-credential", base_url="https://private-endpoint.invalid",
+        metadata={"accounts": [{"name": "Private account", "api_key": "pool-secret"}]})
+    response = await bind_runtime_identity(Request(gateway, "bob", "/api/providers"), providers.handle_list)
+    assert json.loads(response.body) == {"providers": [], "summaries": [
+        {"id": identifier, "name": "connection", "enabled": True}]}
+    for request in (Request(gateway, "bob", "/api/providers", "POST"),
+                    Request(gateway, "bob", f"/api/providers/{identifier}"),
+                    Request(gateway, "former", "/api/providers"),
+                    Request(gateway, "revoked", "/api/providers"),
+                    Request(gateway, "bob", "/api/providers", kind="agent")):
+        with pytest.raises(web.HTTPForbidden):
+            await bind_runtime_identity(request, providers.handle_list)
+    owner = await bind_runtime_identity(Request(gateway, "alice", "/api/providers"), providers.handle_list)
+    assert "summaries" not in json.loads(owner.body)
+    assert (await db.get_provider(identifier))["api_key"] == "private-credential"
+    access = gateway.runtime_service.management_access
+    context = await gateway.runtime_service.context(Request(gateway, "alice", "/api/agent/access"), "settings")
+    await access.update(context, "owner")
+    with pytest.raises(web.HTTPForbidden):
+        await bind_runtime_identity(Request(gateway, "bob", "/api/providers"), providers.handle_list)
 
 
 async def test_visibility_and_owner_transfer_are_owner_only(gateway):

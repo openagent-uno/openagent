@@ -76,6 +76,9 @@ async def handle_list(request: web.Request) -> web.Response:
     if db is None:
         return _web.json_response({"providers": []})
     rows = await db.list_providers()
+    from openagent_server.management_access import MEMBER_OVERVIEW, member_overview
+    if request.get(MEMBER_OVERVIEW):
+        return _web.json_response(member_overview("providers", rows))
     return _web.json_response(
         {"providers": [_shape_provider(r) for r in rows]},
     )

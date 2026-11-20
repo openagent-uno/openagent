@@ -4,13 +4,15 @@ import { useFocusEffect } from 'expo-router';
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import type { BudgetUsage, DailyUsageEntry, ModelEntry, ModelKind, ProviderAccounts, ProviderConfig } from '../../../common/types';
 import { colors, font } from '../../theme';
-import { deleteDbModel, deleteProvider, disableDbModel, enableDbModel, getDailyUsage, getProviders, getProviderConnectionContract, listBudgetUsage,
+import { deleteDbModel, deleteProvider, disableDbModel, enableDbModel, getDailyUsage, getProviderList, getProviderConnectionContract, listBudgetUsage,
   listDbModels, listServingAccounts, refreshProviderCapabilities, setClassifierModel, testProvider,
   updateProvider, updateSubscriptionAccount } from '../../services/api';
 import { useConnection } from '../../stores/connection';
 import Button from '../Button';
 import Notice from '../Notice';
 import EmptyState from '../EmptyState';
+import ManagementOverview from '../ManagementOverview';
+import type { ManagementSummary } from '../../services/api';
 import ThemedSwitch from '../ThemedSwitch';
 import BudgetsPanel from '../BudgetsPanel';
 import { Grid, columnsForWidth } from '../TileGrid';
@@ -32,6 +34,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   const config = useConnection((s) => s.config);
   const confirm = useConfirm();
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
+  const [summaries, setSummaries] = useState<ManagementSummary[] | null>(null);
   const [models, setModels] = useState<ModelEntry[]>([]);
   const [accounts, setAccounts] = useState<ProviderAccounts[] | null>(null);
   const [budgets, setBudgets] = useState<BudgetUsage[] | null>(null);
@@ -62,7 +65,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     if (!config) return;
     const generation = ++loadGeneration.current;
     const current = () => generation === loadGeneration.current;
-    const catalog = Promise.allSettled([getProviders(), listDbModels()]);
+    const catalog = Promise.allSettled([getProviderList(), listDbModels()]);
     void getProviderConnectionContract().then((value) => {
       if (current()) { setCanRename(value.provider_update_fields?.includes('label') === true); setConnectionContract(value.version === 1); setAccountPolicy(value.account_policy_fields?.includes('fallback_enabled') === true); }
     }, () => { if (current()) { setConnectionContract(false); setAccountPolicy(false); setCanRename(false); } });
@@ -72,7 +75,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
     void getDailyUsage(30).then((value) => { if (current()) setUsage(value); }, () => { if (current()) setUsage(null); });
     const [p, m] = await catalog;
     if (!current()) return;
-    if (p.status === 'fulfilled') setProviders(p.value);
+    if (p.status === 'fulfilled') { setProviders(p.value.providers); setSummaries(p.value.summaries ?? null); }
     if (m.status === 'fulfilled') setModels(m.value.filter((row) => row.id > 0));
     setError(p.status === 'rejected' ? errorMessage(p.reason) : m.status === 'rejected' ? errorMessage(m.reason) : null);
     setLoading(false);
@@ -126,6 +129,7 @@ export default function ProviderGrid({ onNavigate }: { onNavigate?: () => void }
   };
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
 
+  if (summaries !== null) return <ManagementOverview items={summaries} title="No providers yet" icon="cpu" />;
   return <View style={styles.wrap} onLayout={onLayout}>
     {error && <Notice tone="error" onDismiss={() => setError(null)}>{error}</Notice>}
     {notice && <Notice tone="success" onDismiss={() => setNotice(null)}>{notice}</Notice>}

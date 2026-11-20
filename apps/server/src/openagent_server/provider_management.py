@@ -62,4 +62,11 @@ async def authorize_request(request):
     try:
         await admin.authorize(context, action)
     except PermissionError:
+        if request.method == "GET" and request.path == "/api/providers":
+            from openagent_server.management_access import MEMBER_OVERVIEW
+            service = request.app["gateway"].runtime_service
+            execution = await service.context(request, "__provider_overview__")
+            if await service.management_access.can_browse(execution):
+                request[MEMBER_OVERVIEW] = True
+                return
         raise web.HTTPForbidden(text="Model administration is not authorized") from None

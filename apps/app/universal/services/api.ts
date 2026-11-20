@@ -1163,8 +1163,12 @@ export function getProviderConnectionContract(): Promise<{ version: number; acco
 }
 
 export async function getProviders(): Promise<ProviderConfig[]> {
-  const data = await get<{ providers: ProviderConfig[] }>('/api/providers');
-  return (data.providers || []).map(normalizeProvider);
+  return (await getProviderList()).providers;
+}
+
+export async function getProviderList(): Promise<ManagementList<'providers', ProviderConfig>> {
+  const data = await get<ManagementList<'providers', ProviderConfig>>('/api/providers');
+  return { ...data, providers: (data.providers || []).map(normalizeProvider) };
 }
 
 export async function testProvider(

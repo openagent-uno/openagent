@@ -181,7 +181,7 @@ for the provider requirements.
 In **Settings → Members → Agent access**, the primary owner can choose who
 can consult Scheduled, Workflows, Events, Connectors and Agent Identity.
 **All members** is the default: active network members see automation names
-and status, connector summaries and the agent's name and thumbnail. Full
+and status, connector and provider summaries and the agent's name and thumbnail. Full
 definitions, run history, provider connections and edits retain their owner
 permissions. **Owner only** disables the member views.
 

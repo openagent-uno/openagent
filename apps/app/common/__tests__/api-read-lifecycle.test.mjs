@@ -35,6 +35,13 @@ test('failed reads are evicted and retry performs a new request', () => fixture(
   assert.equal((await api.getConfig()).name, 'recovered'); assert.equal(calls, 2);
 }));
 
+test('provider reads preserve member summaries and legacy owner catalog normalization', () => fixture(async () => {
+  globalThis.fetch = async () => response({ providers: [], summaries: [{ id: 1, name: 'Connection', enabled: true }] });
+  assert.deepEqual(await api.getProviderList(), { providers: [], summaries: [{ id: 1, name: 'Connection', enabled: true }] });
+  globalThis.fetch = async () => response({ providers: [{ id: 1, name: 'Connection', framework: 'agno' }] });
+  assert.deepEqual(await api.getProviders(), [{ id: 1, name: 'Connection', framework: 'api-based' }]);
+}));
+
 test('a write prevents a subsequent refresh from joining a pre-write snapshot', () => fixture(async () => {
   const old = deferred(); let calls = 0;
   globalThis.fetch = async (_url, init) => {
