@@ -1,6 +1,7 @@
 """Standalone gateway transport. Not part of the embeddable bridge wheel."""
 from __future__ import annotations
 import asyncio
+from contextlib import asynccontextmanager
 import hashlib
 import json
 import logging
@@ -82,6 +83,17 @@ class GatewayBridgeTransport:
             context.conversation_id, context.thread_id, hint,
         )
 
+    def configure_session_routes(self, db):
+        self._session_route_db = db
+
+    async def resolve_session(self, context):
+        session_id = self._session_for_context(context)
+        db = getattr(self, "_session_route_db", None)
+        if db is None or session_id is None:
+            return session_id
+        from .session_identity import resolve_conversation_route
+        return await resolve_conversation_route(db, session_id)
+
     def configure_legacy_private_sessions(self, value):
         """Trusted host configuration only; never accepts a message argument."""
         from .session_identity import LegacyPrivateSessions
@@ -92,14 +104,9 @@ class GatewayBridgeTransport:
         return expand_quick_command(text) or text
 
     async def send(self, request, *, on_event=None):
-        stopping = self.__dict__.get('_stopping_sessions', {}).get(self._session_for_context(request.context))
-        if stopping is not None:
-            await asyncio.wait_for(stopping.done.wait(), timeout=15)
-            bridge = getattr(self, '_bridge', None)
-            if bridge is not None:
-                await bridge._prepare_delivery_context(request.context)
         if not await self.authorize_context(request.context):
             raise PermissionError("gateway bridge context changed")
+        session_id = await self.resolve_session(request.context)
         text = "\n".join(part.text for part in request.parts if part.text is not None)
         history = render_history(request.history)
         if history:
@@ -116,21 +123,22 @@ class GatewayBridgeTransport:
         async def emit(kind, text):
             if on_event is not None:
                 await on_event(BridgeEvent(kind=kind, text=text))
-        response = await self._legacy_send_message(text, self._session_for_context(request.context),
-            target=_legacy_target_hint.get(), on_status=lambda text: emit("status", text),
+        response = await self._legacy_send_message(text, session_id,
+            routing_context=request.context, target=_legacy_target_hint.get(), on_status=lambda text: emit("status", text),
             on_delta=lambda text: emit("text", text),
             on_compaction=lambda value: emit("compaction", json.dumps(value)),
             on_child=lambda value: emit("child", json.dumps(value)),
             source="stt" if request.source == "voice" else "user_typed", attachments=attachments,
             author={"kind": "human", "handle": f"{request.context.provider}:{request.context.actor_id}",
                     "display": request.context.actor_id})
+        session_id = response.get("session_id") or session_id
         _legacy_reply_target.set(response.get("target"))
         parts = []
         if response.get("type") not in {"duplicate", "error"} and response.get("status") != "cancelled" and getattr(getattr(self, "_bridge", None), "_delivery_mode", "quiet") == "quiet":
             answer = terminal_answer(response)
             parts = await self._materialize_final_reply(request.context, answer)
             return BridgeReply(parts=tuple(parts), model=response.get("model"),
-                               session_ref=self._session_for_context(request.context))
+                               session_ref=session_id)
         if response.get("text"):
             parts.append(BridgePart(text=response["text"]))
         attachments = response.get("attachments") or ()
@@ -153,7 +161,7 @@ class GatewayBridgeTransport:
             parts.append(BridgePart(attachment=BridgeAttachment(kind=field("type", "file"), filename=field("filename") or Path(path).name,
                 local_path=path, mime_type=field("mime_type") or "application/octet-stream")))
         status = response.get("status") or ("coalesced" if response.get("type") == "duplicate" else "failed" if response.get("type") == "error" else "completed")
-        return BridgeReply(parts=tuple(parts), status=status, model=response.get("model"), session_ref=self._session_for_context(request.context))
+        return BridgeReply(parts=tuple(parts), status=status, model=response.get("model"), session_ref=session_id)
 
     async def _materialize_final_reply(self, context, answer):
         """Read canonical final media through the normal authenticated gateway."""
@@ -236,7 +244,14 @@ class GatewayBridgeTransport:
     async def command(self, request):
         if not await self.authorize_context(request.context):
             raise PermissionError("gateway bridge context changed")
-        result = await self._legacy_command_full(request.name, self._session_for_context(request.context), request.argument)
+        if (request.name in {"new", "reset", "clear"}
+                and getattr(request.context, "conversation_kind", "direct") != "direct"):
+            return BridgeCommandResult(status="unsupported", parts=(BridgePart(
+                text="Shared conversations cannot be reset. The conversation was not reset."),))
+        async with self._conversation_route_lock:
+            if not await self.authorize_context(request.context):
+                raise PermissionError("gateway bridge context changed")
+            result = await self._legacy_command_full(request.name, await self.resolve_session(request.context), request.argument)
         picker = result.get("picker") or {}
         options = []
         for option in picker.get("options") or ():
@@ -296,6 +311,7 @@ class GatewayBridgeTransport:
         self._gateway_loss_cleanup_task: asyncio.Task | None = None
         self._command_future: asyncio.Future | None = None
         self._command_lock = asyncio.Lock()
+        self._conversation_route_lock = asyncio.Lock()
         # NOTE: there is no ``_delta_callbacks`` field. Bridges run in
         # answer-response mode — the gateway streams deltas server-side
         # (the web app consumes them), but bridges only forward the
@@ -627,6 +643,29 @@ class GatewayBridgeTransport:
                 routes.pop(child, None)
 
 
+    @asynccontextmanager
+    async def _conversation_admission(self, session_id, context):
+        if context is None:
+            yield session_id
+            return
+        # Serialize only admission, never the model run. A reset owns this
+        # boundary until it has committed the next conversation selector.
+        async with self._conversation_route_lock:
+            if not await self.authorize_context(context):
+                raise PermissionError("gateway bridge context changed")
+            selected = await self.resolve_session(context)
+            stopping = self.__dict__.get('_stopping_sessions', {}).get(selected)
+            if stopping is not None:
+                await asyncio.wait_for(stopping.done.wait(), timeout=15)
+                bridge = getattr(self, "_bridge", None)
+                if bridge is not None:
+                    await bridge._prepare_delivery_context(context)
+                if not await self.authorize_context(context):
+                    raise PermissionError("gateway bridge context changed")
+                selected = await self.resolve_session(context)
+            yield selected
+
+
     async def _legacy_send_message(
         self,
         text: str,
@@ -641,6 +680,7 @@ class GatewayBridgeTransport:
         source: str = "user_typed",
         attachments: list[dict[str, Any]] | tuple[dict[str, Any], ...] | None = None,
         author: dict[str, Any] | None = None,
+        routing_context: Any = None,
     ) -> dict:
         """Push ``text`` into the user's stream session and await the reply.
 
@@ -665,68 +705,69 @@ class GatewayBridgeTransport:
         FIRST message in the burst, looking like it's "answering an
         old message".
         """
-        stopping = self.__dict__.get('_stopping_sessions', {}).get(session_id)
-        if stopping is not None:
-            # A stop acknowledgement can precede the stream's cancelled
-            # terminal. Never attach a new input to that old collector.
-            await asyncio.wait_for(stopping.done.wait(), timeout=15)
-        if session_id not in self._stream_opened:
-            await self._send_gateway_json(event_to_wire(SessionOpen(
-                session_id=session_id,
-                ts_ms=now_ms(),
-                profile="batched",
-                speak=False,
-                client_kind=self.name,
-                client_capabilities={
-                    "attachments": True,
-                    "ordered_parts": False,
-                    "inline_ui": False,
-                    "sidebar_ui": False,
-                    "custom_ui_version": 0,
-                },
-                coalesce_window_ms=BRIDGE_COALESCE_WINDOW_MS,
-            )))
-            self._stream_opened.add(session_id)
+        async with self._conversation_admission(session_id, routing_context) as session_id:
+            stopping = self.__dict__.get('_stopping_sessions', {}).get(session_id)
+            if stopping is not None:
+                # A stop acknowledgement can precede the stream's cancelled
+                # terminal. Never attach a new input to that old collector.
+                await asyncio.wait_for(stopping.done.wait(), timeout=15)
+            if session_id not in self._stream_opened:
+                await self._send_gateway_json(event_to_wire(SessionOpen(
+                    session_id=session_id,
+                    ts_ms=now_ms(),
+                    profile="batched",
+                    speak=False,
+                    client_kind=self.name,
+                    client_capabilities={
+                        "attachments": True,
+                        "ordered_parts": False,
+                        "inline_ui": False,
+                        "sidebar_ui": False,
+                        "custom_ui_version": 0,
+                    },
+                    coalesce_window_ms=BRIDGE_COALESCE_WINDOW_MS,
+                )))
+                self._stream_opened.add(session_id)
 
-        # Atomic ownership check — synchronous, no awaits between read
-        # and write so two concurrent tasks can't both win. A collector
-        # whose ``done`` is already set is in its post-turn cleanup
-        # window; treat it as no-owner so a fresh message starts a new
-        # turn instead of latching onto a corpse and overwriting the
-        # owner's ``latest_target`` after it's been read.
-        existing = self._stream_pending.get(session_id)
-        is_owner = (existing is None) or existing.done.is_set()
-        if is_owner:
-            collector = StreamCollector()
-            collector.on_status = on_status
-            collector.on_delta = on_delta
-            collector.on_compaction = on_compaction
-            collector.on_child = on_child
-            self._stream_pending[session_id] = collector
-        else:
-            collector = existing
+            # Atomic ownership check — synchronous, no awaits between read
+            # and write so two concurrent tasks can't both win. A collector
+            # whose ``done`` is already set is in its post-turn cleanup
+            # window; treat it as no-owner so a fresh message starts a new
+            # turn instead of latching onto a corpse and overwriting the
+            # owner's ``latest_target`` after it's been read.
+            existing = self._stream_pending.get(session_id)
+            is_owner = (existing is None) or existing.done.is_set()
+            if is_owner:
+                collector = StreamCollector()
+                collector.on_status = on_status
+                collector.on_delta = on_delta
+                collector.on_compaction = on_compaction
+                collector.on_child = on_child
+                self._stream_pending[session_id] = collector
+            else:
+                collector = existing
 
-        # Both owner and followers contribute their target so the owner
-        # posts the merged reply against the most-recent message — see
-        # docstring rationale. Skip once the collector has fired its
-        # ``done`` event so a late follower can't poison the OWNER's
-        # already-finalised target read.
-        if target is not None and not collector.done.is_set():
-            collector.latest_target = target
+            # Both owner and followers contribute their target so the owner
+            # posts the merged reply against the most-recent message — see
+            # docstring rationale. Skip once the collector has fired its
+            # ``done`` event so a late follower can't poison the OWNER's
+            # already-finalised target read.
+            if target is not None and not collector.done.is_set():
+                collector.latest_target = target
 
-        try:
-            await self._send_gateway_json(event_to_wire(TextFinal(
-                session_id=session_id,
-                ts_ms=now_ms(),
-                text=text,
-                source=source,  # type: ignore[arg-type]
-                attachments=tuple(attachments or ()),
-                author=author,
-            )))
-        except Exception:
-            if is_owner and self._stream_pending.get(session_id) is collector:
-                self._stream_pending.pop(session_id, None)
-            raise
+            try:
+                await self._send_gateway_json(event_to_wire(TextFinal(
+                    session_id=session_id,
+                    ts_ms=now_ms(),
+                    text=text,
+                    source=source,  # type: ignore[arg-type]
+                    attachments=tuple(attachments or ()),
+                    author=author,
+                )))
+            except Exception:
+                if is_owner and self._stream_pending.get(session_id) is collector:
+                    self._stream_pending.pop(session_id, None)
+                raise
 
         if not is_owner:
             # Follower: text_final has been pushed into the gateway's
@@ -735,6 +776,7 @@ class GatewayBridgeTransport:
             # posting a duplicate reply.
             return {
                 "type": "duplicate",
+                "session_id": session_id,
                 "text": "",
                 "model": None,
                 "attachments": [],
@@ -744,6 +786,7 @@ class GatewayBridgeTransport:
         try:
             await collector.done.wait()
             reply = collector.to_legacy_reply()
+            reply["session_id"] = session_id
             if getattr(collector, 'end_reason', None) in {'cancelled', 'interrupted', 'stopped'}:
                 reply['status'] = 'cancelled'
             return reply

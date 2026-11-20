@@ -92,7 +92,9 @@ class MessagingDeliveryRecorder:
         else:
             token = _legacy_session_hint.set(hint)
             try:
-                session_id = transport._session_for_context(external)
+                resolve_session = getattr(transport, "resolve_session", None)
+                session_id = (await resolve_session(external) if callable(resolve_session)
+                              else transport._session_for_context(external))
             finally:
                 _legacy_session_hint.reset(token)
             context = await service.authorizer.context_for_bridge_delivery(provider, session_id)

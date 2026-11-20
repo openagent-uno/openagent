@@ -9,6 +9,16 @@ fresh conversation while keeping long-term memory and the vault. Hosts retaining
 history keep the previous conversation readable. Shared conversations cannot be
 reset by one member.
 
+The standalone gateway-backed private bridges retain the previous conversation
+and persist the current conversation selector. A confirmed reset creates a new
+session, carries over an explicit model selection, and commits the selector
+before reporting success. Subsequent messages, commands and confirmed outgoing
+deliveries use it, including after a gateway reconnect or server restart.
+Admission is serialized with reset completion; the lock is released as soon as
+the input is submitted, so `/stop` and `/new` can still interrupt a running model.
+An unavailable storage write reports failure instead of claiming a reset.
+This does not add command support to hosts that do not advertise it.
+
 Hosts embedding their own runtime use the independently versioned
 [official channel bridges](./embedded-channels.md), rather than installing the
 standalone framework. Conversational channels and provider MCP connectors are

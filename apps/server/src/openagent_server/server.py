@@ -1285,6 +1285,11 @@ def _build_bridges(config: dict, per_bridge_url: dict[str, str], *, runtime_serv
         else:
             logger.warning(f"Unknown channel: {name}")
 
+    if runtime_service is not None:
+        from .bridges.gateway_transport import GatewayBridgeTransport
+        for bridge in out:
+            if isinstance(bridge.transport, GatewayBridgeTransport):
+                bridge.transport.configure_session_routes(runtime_service.agent.memory_db)
     return out
 
 

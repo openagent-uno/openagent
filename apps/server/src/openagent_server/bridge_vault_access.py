@@ -56,6 +56,8 @@ def _private_bridge_sender(context, config: Mapping, senders: frozenset[str]) ->
     allowed = {str(value) for value in channel.get("allowed_users") or []}
     senders = senders & allowed
     session_id = str(context.session_id or "")
+    from openagent_server.bridges.session_identity import conversation_route_root
+    session_id = conversation_route_root(session_id)
     prefix = "tg:" if provider == "telegram" else "wa:"
     if session_id.startswith(prefix):
         sender = session_id.removeprefix(prefix)

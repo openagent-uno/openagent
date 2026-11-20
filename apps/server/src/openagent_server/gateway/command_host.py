@@ -19,7 +19,12 @@ class GatewayCommandHost(ChatCommandHost):
         # The verified request behind this connection, when the command came
         # from a signed-in client.
         self.request = request
-        self.expose_errors = not client_id.startswith("bridge:")
+        bridge_identity = (client_id.startswith("bridge:") or handle in {
+            "__bridge_telegram", "__bridge_discord", "__bridge_slack", "__bridge_whatsapp",
+        })
+        self.expose_errors = not bridge_identity
+        self.retains_history = bool(bridge_identity
+            and getattr(gateway.agent, "memory_db", None) is not None)
 
     async def stop_session(self, session: SessionRef) -> StopOutcome:
         # ``_interrupt_stream_sessions`` cancels the LIVE StreamSession turn (the
@@ -43,6 +48,25 @@ class GatewayCommandHost(ChatCommandHost):
         return await self.gateway._forget_all_client_sessions(self.client_id)
 
     async def rotate_session(self, session: SessionRef) -> str:
+        if self.retains_history:
+            if not session.session_id:
+                raise ValueError("A channel conversation is required")
+            from uuid import uuid4
+            from openagent_server.bridges.session_identity import (
+                conversation_route_key, conversation_route_root,
+            )
+            db = self.gateway.agent.memory_db
+            root = conversation_route_root(session.session_id)
+            fresh = root + ":conversation:" + uuid4().hex
+            await db.upsert_session(fresh, client_id=self.handle or self.client_id, origin="chat")
+            pin = await db.get_session_pin(session.session_id)
+            if pin:
+                await db.pin_session_model(fresh, pin)
+            # Commit the new selector before acknowledging success. The bridge
+            # reads this same durable route after reconnect and process restart.
+            await db.set_state(conversation_route_key(root), fresh)
+            self.gateway.sessions.get_or_create_session(self.client_id, fresh, handle=self.handle)
+            return fresh
         return self.gateway.sessions.create_session(self.client_id, handle=self.handle)
 
     async def session_status(self, session: SessionRef) -> SessionStatus:

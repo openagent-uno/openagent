@@ -3,10 +3,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 
 
 LEGACY_PRIVATE_SESSION_API_VERSION = 1
+
+
+def conversation_route_root(session_id: str) -> str:
+    """Strip only an internally generated conversation generation."""
+    return re.sub(r":conversation:[0-9a-f]{32}$", "", session_id)
+
+
+def conversation_route_key(session_id: str) -> str:
+    return "channel-conversation:v1:" + conversation_route_root(session_id)
+
+
+async def resolve_conversation_route(db, session_id: str) -> str:
+    root = conversation_route_root(session_id)
+    selected = await db.get_state(conversation_route_key(root))
+    if selected is None:
+        return session_id
+    if (not isinstance(selected, str) or selected == root
+            or conversation_route_root(selected) != root):
+        raise ValueError("Invalid stored channel conversation route")
+    return selected
 
 
 @dataclass(frozen=True)
