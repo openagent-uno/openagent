@@ -171,9 +171,18 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                         ('quota_exhausted', 400, 'You exceeded your current quota PRIVATE-PROVIDER-TOKEN'),
                     ):
                         with self.subTest(code=code):
+                            # These are independent injected provider failures.
+                            # Reset only between cases: an auth cooldown from
+                            # the previous case must not mask the next fixture.
+                            # Both attempts below retain ordinary health state.
+                            from openagent_core.runtime import runtime_scope
+                            from openagent_core.models.providers.fallback import reset_breaker
+                            with runtime_scope(server._gateway.runtime_service.runtime):
+                                reset_breaker()
                             self.provider_failure=(status, diagnostic)
                             body={'session_id':'alice-session', 'request_id':'failure-'+code,
                                   'message':'Fixture provider failure '+code}
+                            calls_before=len(self.model_requests)
                             for attempt in range(2):
                                 async with http.post(urls['alice']+'/api/collaboration/turns',json=body) as response:
                                     result=await response.json()
@@ -181,6 +190,11 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                                     self.assertTrue(result['errored'],result)
                                     self.assertIn(result['response'],(PUBLIC_MESSAGES[code], 'Error: '+PUBLIC_MESSAGES[code]))
                                     self.assertNotIn('PRIVATE-PROVIDER-TOKEN',str(result))
+                                if attempt == 0:
+                                    self.assertGreater(len(self.model_requests),calls_before)
+                                    calls_after=len(self.model_requests)
+                                else:
+                                    self.assertEqual(len(self.model_requests),calls_after)
                             async with http.get(urls['alice']+'/api/runtime/runs/failure-'+code) as response:
                                 record=await response.json()
                                 self.assertEqual(response.status,200,record)
