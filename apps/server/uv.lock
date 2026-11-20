@@ -2694,7 +2694,7 @@ dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.148/openagent_gateway-1.1.0b148-py3-none-any.whl?download=1", hash = "sha256:78d5691543b6b622a65846c7ce083db02a7f65a623362af42e2cd0416fd56155" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.148/openagent_gateway-1.1.0b148-py3-none-any.whl?download=1", hash = "sha256:2e843f03d0001204f2cc6f1345bc1d34326eb25fa1246450367ea81f1268a31f" },
 ]
 
 [package.metadata]
