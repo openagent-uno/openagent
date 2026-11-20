@@ -39,6 +39,8 @@ jobs:
         with:
           node-version: '24'
       - name: Install normal public dependencies for isolated source tests
+        env:
+          OPENAGENT_INSTALL_GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           curl --fail --silent --show-error https://raw.githubusercontent.com/openagent-uno/openagent/166062ea1e6d7b4e64d0300272f14e13570cddc0/docs/site/public/install.sh -o "$RUNNER_TEMP/install.sh"
