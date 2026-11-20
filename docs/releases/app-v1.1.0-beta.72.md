@@ -10,7 +10,7 @@ preserved.
 This is a client presentation fix for the existing collaboration state. It does
 not add error prose to the model's stored conversation history. Server beta99
 separately adopts shared Core model recovery; compatible earlier App versions
-can use that server behavior.
+can use that server behavior. See the [App collaboration contract](../../apps/app/docs/collaboration.md).
 
 The shared transcript regression, complete common suite (271 tests), and desktop
 and mobile TypeScript checks passed on source. Native signed packaging, updater

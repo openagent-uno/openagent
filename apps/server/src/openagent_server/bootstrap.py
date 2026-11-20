@@ -178,7 +178,8 @@ def _server_host_selection(config: dict[str, Any]) -> frozenset[str]:
 
 async def ensure_media_generation_row(db: Any) -> None:
     """Compose Core's default media tool without replacing operator decisions."""
-    if any(row["name"] == "media-gen" for row in await db.list_mcps()):
+    if any(row["name"] == "media-gen" or row.get("builtin_name") == "media-gen"
+           for row in await db.list_mcps()):
         return
     await db.upsert_mcp("media-gen", kind="default", builtin_name="media-gen",
                         enabled=True, source="standalone-media-generation")
