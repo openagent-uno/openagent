@@ -35,6 +35,12 @@ identity and channels. Do not run this example against an existing directory
 as an implicit migration. Preserve state, vault, keys, grants and single-writer
 ownership when upgrading; see the dated release/restore gates.
 
+Startup composes Core's `media-gen` capability when its catalog row is missing.
+Existing disabled, custom and operator-configured rows retain their settings.
+Image generation requires an enabled image-capable connection and an authorized
+turn. Automatic model selection and recovery belong to
+[Core's catalog contracts](https://github.com/openagent-uno/openagent-core/blob/main/docs/provider-accounts-and-backups.md).
+
 ## Skills
 
 Use **Skills** in the app to search by name, category, description or

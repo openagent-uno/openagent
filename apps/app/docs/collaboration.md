@@ -38,6 +38,11 @@ Reopening observes the existing run; it never resends the user's input. Canonica
 run IDs reconcile replay, and command history survives the live replay window.
 Integrations may resolve actual avatar images from their own user directory.
 
+History reconciliation retains a turn's reported error when canonical history
+has arrived with only its user input. Repeated snapshots keep one error scoped
+to that turn and provider run. This is client presentation state; it does not
+insert error prose into the model's stored conversation history.
+
 New conversations keep their placeholder through technical commands such as
 `/model`. The first meaningful request supplies a compact word-boundary title;
 the same rule repairs older session-id or slash-command titles and persists the
