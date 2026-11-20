@@ -41,8 +41,8 @@ jobs:
       - name: Install normal public dependencies for isolated source tests
         run: |
           set -euo pipefail
-          curl --fail --silent --show-error https://openagent.uno/install.sh -o "$RUNNER_TEMP/install.sh"
-          echo "ccc9e983d9df31e393fdfeaccbb37ea61977cc9fb7a7bb61953e96115527fac9  $RUNNER_TEMP/install.sh" | sha256sum --check
+          curl --fail --silent --show-error https://raw.githubusercontent.com/openagent-uno/openagent/166062ea1e6d7b4e64d0300272f14e13570cddc0/docs/site/public/install.sh -o "$RUNNER_TEMP/install.sh"
+          echo "45d677e7ecb7c7fa988e6e689d1e02202d19c246246846f62034638a7ed6bdc8  $RUNNER_TEMP/install.sh" | sha256sum --check
           OPENAGENT_INSTALL_ROOT="$RUNNER_TEMP/server" nice -n 10 sh "$RUNNER_TEMP/install.sh" --server --prefix "$RUNNER_TEMP/bin"
           "$RUNNER_TEMP/server/venv/bin/python" -I -m pip check
           "$RUNNER_TEMP/server/venv/bin/python" -I -m pip install pytest pytest-asyncio
