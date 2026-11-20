@@ -35,6 +35,7 @@ async def prepare_agent(agent: Any, config: dict[str, Any]) -> None:
     if config.get("_local_e2e") is True:
         return
     await ensure_server_computer_rows(db, config)
+    await ensure_media_generation_row(db)
     # Optional OpenAgent modules own their native capabilities. The engine pool
     # contains only the uniform discovery gateway; the MCP module builds and
     # owns protocol connections from the persisted external-server catalog.
@@ -173,6 +174,14 @@ def _server_host_selection(config: dict[str, Any]) -> frozenset[str]:
     if unknown:
         raise ValueError(f"unsupported server host tools: {', '.join(sorted(unknown))}")
     return names
+
+
+async def ensure_media_generation_row(db: Any) -> None:
+    """Compose Core's default media tool without replacing operator decisions."""
+    if any(row["name"] == "media-gen" for row in await db.list_mcps()):
+        return
+    await db.upsert_mcp("media-gen", kind="default", builtin_name="media-gen",
+                        enabled=True, source="standalone-media-generation")
 
 
 async def ensure_server_computer_rows(db: Any, config: dict[str, Any]) -> None:

@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-client-transport"
-version = "1.1.9b98"
+version = "1.1.9b99"
 description = "Standalone OpenAgent client identity adapters and stream framing"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openagent-core==1.1.0b146", "openagent-identity==1.1.9b98"]
+dependencies = ["openagent-core==1.1.0b147", "openagent-identity==1.1.9b99"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -10,6 +10,17 @@ const { OpenAgentWS } = await load('../../universal/services/ws.ts');
 const { mergeSharedTranscript, placeSharedTools } = await load('../shared-transcript.ts');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
+test('a failed turn keeps its visible error after canonical user history arrives', () => {
+  const snapshot = { session_id: 'chat', revision: 2, turns: [{ id: 'request', runId: 'request',
+    providerRunId: 'run', active: false, startedAt: 1, finishedAt: 2,
+    error: 'The provider temporarily limited this request.',
+    messages: [{ id: 'input', role: 'user', text: 'Hello', timestamp: 1 }] }] };
+  const durable = [{ id: 'user', providerRunId: 'run', role: 'user', text: 'Hello', timestamp: 1000 }];
+  const merged = mergeSharedTranscript(durable, snapshot);
+  assert.deepEqual(merged.map(row => row.text), ['Hello', snapshot.turns[0].error]);
+  assert.deepEqual(mergeSharedTranscript(merged, snapshot), merged, 'repeated reconciliation must not duplicate the error');
+});
+
 test('native chat sends text, commands and exact Stop through collaboration', async t => {
   const requests = [];
   t.mock.method(globalThis, 'fetch', async (url, options = {}) => {

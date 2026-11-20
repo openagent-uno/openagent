@@ -1,4 +1,7 @@
 # OpenAgent documentation
+
+- [Product beta99: automatic model recovery](releases/v1.1.9-beta.99.md).
+- [App beta72: visible errors after history reconciliation](releases/app-v1.1.0-beta.72.md).
 - [Server beta89: bounded fresh history authorization](releases/v1.1.9-beta.89.md).
 - [App beta69: settings refresh and large graph simulation](releases/app-beta.69.md).
 - [Server beta88: nullable runtime history recovery](releases/v1.1.9-beta.88.md).

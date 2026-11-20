@@ -46,6 +46,11 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
           }
         }
       }
+      if (turn.error && !durableReplies.some(message => message.text === turn.error)) {
+        base.push({ id: `shared:${turn.id}:error`, sharedTurnId: turn.id,
+          providerRunId: turn.providerRunId, role: 'assistant', text: turn.error,
+          timestamp: (turn.finishedAt || turn.startedAt) * 1000 });
+      }
       continue;
     }
     for (const message of turn.messages) base.push({
