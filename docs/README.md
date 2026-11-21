@@ -22,6 +22,7 @@
 
 ## Architecture and use
 
+- [Server beta101 and Core beta152](releases/v1.1.9-beta.101.md)
 - [Product beta100: inherited streaming responder identity](releases/v1.1.9-beta.100.md).
 
 - [Agnostic architecture: mandatory in every OpenAgent repository](AGNOSTICISM.md)
