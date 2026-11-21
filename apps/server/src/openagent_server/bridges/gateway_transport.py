@@ -141,7 +141,18 @@ class GatewayBridgeTransport:
                                session_ref=session_id)
         if response.get("text"):
             parts.append(BridgePart(text=response["text"]))
-        attachments = response.get("attachments") or ()
+        # The full transcript can include a tool preview and a final reference
+        # to the same session link. Materialize that upload once per delivery.
+        attachments = []
+        linked = {}
+        for raw in response.get("attachments") or ():
+            if isinstance(raw, dict):
+                link = raw.get("artifact_link_id")
+                if isinstance(link, str) and link and isinstance(raw.get("artifact_id"), str):
+                    if linked.get(link) == raw:
+                        continue
+                    linked[link] = raw
+            attachments.append(raw)
         # Current wire attachments are canonical CAS references without local
         # paths. Live and legacy final-only modes must resolve them through the
         # same authenticated reader as quiet mode, preserving attachment order.

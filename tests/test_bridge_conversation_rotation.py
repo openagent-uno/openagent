@@ -259,3 +259,26 @@ def test_rotated_owner_route_keeps_exact_account_actor_and_private_audience():
     assert owner_bridge_vault_turn(context(), config)
     assert not owner_bridge_vault_turn(context("43"), config)
     assert not owner_bridge_vault_turn(context(account="124"), config)
+
+
+@pytest.mark.asyncio
+async def test_live_channel_uploads_one_copy_of_a_repeated_session_link(tmp_path):
+    from unittest.mock import AsyncMock
+    from openagent_channel_bridges.contracts import BridgeAttachment, BridgePart
+
+    first = {"artifact_id": "art_a", "artifact_link_id": "link_a", "filename": "first.png"}
+    second = {**first, "artifact_link_id": "link_b", "filename": "second.png"}
+    old = {"type": "file", "path": str(tmp_path / "old.txt")}
+    transport = GatewayBridgeTransport()
+    transport._bridge = SimpleNamespace(_delivery_mode="live")
+    transport.authorize_context = AsyncMock(return_value=True)
+    transport.resolve_session = AsyncMock(return_value="session")
+    transport._legacy_send_message = AsyncMock(return_value={
+        "type": "response", "text": "Finished", "attachments": [first, old, second, dict(first)]})
+    async def materialize(context, answer):
+        assert answer["attachments"] == [first, second]
+        return [BridgePart(attachment=BridgeAttachment("image", a["filename"])) for a in answer["attachments"]]
+    transport._materialize_final_reply = materialize
+    reply = await transport.send(SimpleNamespace(context=SimpleNamespace(provider="telegram", actor_id="42"),
+        parts=(BridgePart(text="Capture a page"),), history=(), source="text"))
+    assert [p.attachment.filename for p in reply.parts if p.attachment] == ["first.png", "old.txt", "second.png"]
