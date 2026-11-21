@@ -63,7 +63,7 @@ from urllib.request import Request, urlopen
 
 destination = Path(sys.argv[1])
 releases = (
-    ('openagent-uno/openagent', 'v1.1.9-beta.101', 'manifest.json', '422e0868483842f6c9b1fc2b7f6a94f78bde96d1077caf35c03e43a71049f747', 'all'),
+    ('openagent-uno/openagent', 'v1.1.9-beta.102', 'manifest.json', 'b5946da5b5918045e15a27706a2b682bd5eb79efc81f7f7233a81aab9dd65d83', 'all'),
     ('openagent-uno/openagent', 'channel-bridges-v0.1.0-beta.27', 'manifest.json', 'c5461d91a4763e3b1c4602621ad81a464bfb4cce8b19715d077f2b44977719c7', 'only:openagent_channel_bridges'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.37', 'manifest.json', 'bbdc069507368b9b7c04ae5af780fcede035f01ed429ccfb8fd49f2ecdf15ead', 'only:openagent_module_attachments,openagent_module_budget,openagent_module_delegation,openagent_module_logs,openagent_module_models,openagent_module_ptc,openagent_module_skills'),
     ('openagent-uno/openagent-core', 'v1.1.0-beta.100', 'manifest.json', '710f9457677480645e9fdd9af06fb1996b3123e5aa84ce421872ce68893d9066', 'only:openagent_module_events,openagent_module_mcp,openagent_module_scheduler,openagent_module_search,openagent_module_sessions,openagent_module_vault,openagent_module_workflows'),
