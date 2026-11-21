@@ -22,6 +22,8 @@
 
 ## Architecture and use
 
+- [Product beta100: inherited streaming responder identity](releases/v1.1.9-beta.100.md).
+
 - [Agnostic architecture: mandatory in every OpenAgent repository](AGNOSTICISM.md)
 - [Component responsibilities, organization and communication](COMPONENTS.md)
 - [Using the kernel, clients, tools and runners](USAGE.md)
