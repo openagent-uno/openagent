@@ -48,7 +48,7 @@ def main() -> None:
         folder = Path(directory)
         for name, data in files.items():
             (folder / name).write_bytes(data)
-        notes = "Provider-free qualification of the normally installed component wheel passed on Core/SQLite beta45. Additional Slack and Discord history has an aggregate preparation deadline. This release does not claim live provider or deployment acceptance. Source: " + revision
+        notes = "The normally installed channel bridge wheel passed the component test suite with Core and SQLite beta45. See qualification.json for the test counts and manifest.json for artifact checksums. Source revision " + revision + "."
         gh("release", "create", tag, "--repo", repository, "--verify-tag", "--draft", "--prerelease", "--title", "Channel bridges " + version, "--notes", notes)
         gh("release", "upload", tag, *(str(folder / name) for name in sorted(files)), "--repo", repository)
         downloaded = folder / "downloaded"
