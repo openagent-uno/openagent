@@ -223,6 +223,7 @@ class NativeRuntimeService:
         from openagent_server.official_connectors import OfficialConnectors
         self.official_connectors = OfficialConnectors(self)
         self.store = SqliteRuntimeStore(agent.memory_db.db_path)
+        self.document_vault = None
         from openagent_server.automation_device_consent import AutomationDeviceConsents
 
         self.device_consents = AutomationDeviceConsents(agent.memory_db.db_path)
@@ -496,10 +497,13 @@ class NativeRuntimeService:
             memory_config.get("vault_path")
             or Path(self.agent.memory_db.db_path).resolve().parent / "memories"
         )
+        from openagent_server.document_vault import create_document_vault, uses_documents
+        document_backend = uses_documents(self.agent.config)
         profile = standalone_profile(
             generation=max(1, int(self.agent.config.get("_runtime_profile_generation", 1))),
             db_path=self.agent.memory_db.db_path,
             vault_path=vault_path,
+            document_vault=document_backend,
             environment=environment,
             mcp_pool_factory=mcp_pool_factory,
             agent_name=self.agent.name,
@@ -520,6 +524,10 @@ class NativeRuntimeService:
             MemoryAccess: self.memory_access,
             "memory_access": self.memory_access,
         })
+        if document_backend and "vault" in profile.module_ids:
+            from openagent_core.memory.vault.documents import SqlDocumentVault
+            self.document_vault = await create_document_vault(self)
+            registry.bind(SqlDocumentVault, self.document_vault)
         from openagent_server.attachment_publisher import build_attachment_publisher
         attachment_publisher = build_attachment_publisher(self)
         if attachment_publisher is not None:
@@ -620,6 +628,9 @@ class NativeRuntimeService:
             if self.runtime is not None:
                 await self.runtime.close()
         finally:
+            if getattr(self, "document_vault", None) is not None:
+                await self.document_vault.engine.dispose()
+                self.document_vault = None
             if self.code_executor is not None:
                 await self.code_executor.close()
 

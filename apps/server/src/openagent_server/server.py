@@ -81,6 +81,7 @@ def _compose_task_hook(hook, nxt):
 DREAM_MODE_DEFAULT_TIME = "3:31"
 
 
+from openagent_server.document_vault import uses_documents
 from openagent_core.memory.vault.prompts import DREAM_MODE_PROMPT
 
 
@@ -1359,7 +1360,7 @@ class AgentServer:
         # explicitly supplies a path.
         server._gateway_vault_path = (
             agent._resolve_vault_path()
-            if memory_cfg.get("vault_path") or config.get("_local_e2e") is not True
+            if not uses_documents(config) and (memory_cfg.get("vault_path") or config.get("_local_e2e") is not True)
             else None
         )
         server._gateway_config_path = config.get("_config_path")
@@ -1644,7 +1645,7 @@ class AgentServer:
         # or ``memory.vault.git.enabled`` is false.
         try:
             from openagent_core.memory.vault.autocommit import start as _vault_autocommit_start
-            self._vault_autocommit_task = _vault_autocommit_start()
+            self._vault_autocommit_task = None if uses_documents(self.config) else _vault_autocommit_start()
         except Exception as e:  # noqa: BLE001
             logger.warning("Vault autocommit failed to start: %s", e)
             self._vault_autocommit_task = None
@@ -1659,7 +1660,7 @@ class AgentServer:
             _db = getattr(self.agent, "_db", None)
             _db_path = str(getattr(_db, "db_path", "") or "")
             try:
-                _vault = self.agent._resolve_vault_path()
+                _vault = None if uses_documents(self.config) else self.agent._resolve_vault_path()
             except Exception:  # noqa: BLE001
                 _vault = None
             # Le skill sono la TERZA sorgente dell'indice, alla pari di note e
@@ -1863,7 +1864,8 @@ class AgentServer:
         # doesn't strand uncommitted vault edits.
         try:
             from openagent_core.memory.vault.service import get_service
-            await get_service().autocommit(origin={"kind": "shutdown"})
+            if not uses_documents(self.config):
+                await get_service().autocommit(origin={"kind": "shutdown"})
         except Exception:  # noqa: BLE001
             pass
         try:
@@ -2177,12 +2179,16 @@ class AgentServer:
         # every existing deployment has today, so nothing moves on upgrade.
         dream_tz = dream_cfg.get("timezone") or default_timezone_name()
 
+        dream_prompt = DREAM_MODE_PROMPT
+        if uses_documents(self.config):
+            from openagent_core.memory.vault.document_dream import DOCUMENT_DREAM_PROMPT
+            dream_prompt = DOCUMENT_DREAM_PROMPT
         await self._sync_scheduled_task(
             scheduler,
             name=DREAM_MODE_TASK_NAME,
             enabled=enabled,
             cron_expr=cron_expr,
-            prompt=DREAM_MODE_PROMPT,
+            prompt=dream_prompt,
             timezone=dream_tz,
         )
 

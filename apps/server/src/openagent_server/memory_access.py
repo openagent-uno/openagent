@@ -89,7 +89,14 @@ class NativeMemoryAccess:
             action == "memory.publish" and set(recipients) != set(context.audience)
         ):
             return False
-        if action in {"memory.read", "memory.publish"} and resource.kind == "vault-note":
+        is_space = resource.kind == "vault-space"
+        if is_space:
+            from openagent_server.document_vault import SPACE
+            if (resource.resource_id != SPACE or context.agent_id != self.service.agent.name
+                    or getattr(self.service, "document_vault", None) is None):
+                return False
+        if (action in {"memory.read", "memory.publish"} and resource.kind == "vault-note"
+                or is_space and action in {"memory.read", "memory.write", "memory.publish", "memory.dream"}):
             from openagent_server.bridge_vault_access import (
                 owner_bridge_automation_vault,
                 owner_bridge_vault_turn,
@@ -107,12 +114,23 @@ class NativeMemoryAccess:
             return False
         if action == "memory.search":
             return resource.kind == "memory-catalog"
+        if is_space and action in {"memory.write", "memory.dream"}:
+            # Installation visibility grants readers. Only the authenticated
+            # owner or the privately bound owner bridge can mutate this corpus.
+            owner = await self.service.directory.owner_handle()
+            principal = context.initiator
+            return bool(owner and principal == context.authority and principal.kind == "user"
+                        and principal.subject_id == owner and (action != "memory.dream"
+                        or (context.deferred and context.delegation_id)))
+        if is_space and action == "memory.import":
+            # Standalone imports run through the offline migration composition.
+            return False
         if action not in {"memory.read", "memory.publish"}:
             return False
-        if resource.kind in {"vault-note", "skill"}:
+        if is_space or resource.kind in {"vault-note", "skill"}:
             # The standalone vault/skills have an explicit per-agent owner.
             # Hosts can opt these shared stores into installation publication.
-            domain = "vault" if resource.kind == "vault-note" else "skills"
+            domain = "skills" if resource.kind == "skill" else "vault"
             shared = (
                 self.service.agent.config.get("runtime_tool_audiences") or {}
             ).get(domain) == "installation"

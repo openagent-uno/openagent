@@ -19,7 +19,7 @@ class NativeVaultAuthorizer(NativeAdminAuthorizer):
 async def for_request(request):
     gateway = request.app["gateway"]
     service = getattr(gateway, "runtime_service", None)
-    if service is None or service.runtime is None or not gateway.vault_path:
+    if service is None or service.runtime is None or (not gateway.vault_path and getattr(service, "document_vault", None) is None):
         raise web.HTTPServiceUnavailable(text="Vault administration is not ready")
     try:
         identity = await service.authorizer.bind_request(request)
@@ -27,10 +27,16 @@ async def for_request(request):
         raise web.HTTPForbidden(text="Verified certificate required") from None
     principal = PrincipalRef("openagent", identity.tenant_id, identity.handle, identity.principal_type)
     context = ManagementContext(principal, service.agent.name)
+    authorizer = NativeVaultAuthorizer(service, request, principal)
+    if getattr(service, "document_vault", None) is not None:
+        from openagent_core.memory.vault.document_admin import DocumentVaultAdministration
+        import uuid
+        execution = await service.authorizer.context_for_identity(identity, "vault-management-" + uuid.uuid4().hex)
+        return DocumentVaultAdministration(service.document_vault, authorizer, execution), context
     environment = dict(service.runtime.settings.environment)
     validate = environment.get("OPENAGENT_VAULT_VALIDATE_ON_WRITE", "true").strip().lower() in {"1", "true", "yes", "on"}
     admin = VaultAdministration(Path(gateway.vault_path).expanduser(),
-        NativeVaultAuthorizer(service, request, principal), runtime=service.runtime,
+        authorizer, runtime=service.runtime,
         validate_on_write=validate)
     return admin, context
 
@@ -62,7 +68,13 @@ async def _handle(request, operation):
             path=request.match_info.get("path"), query=dict(request.query), body=body)
     except PermissionError:
         return web.json_response({"error": "Vault access is not authorized"}, status=403)
-    except (ValueError, TypeError):
+    except NotImplementedError:
+        return web.json_response({"error": "Unsupported vault operation for this backend"}, status=501)
+    except (ValueError, TypeError) as exc:
+        if getattr(getattr(request.app["gateway"], "runtime_service", None), "document_vault", None) is not None:
+            from openagent_core.memory.vault.documents import RevisionConflict
+            if isinstance(exc, RevisionConflict):
+                return web.json_response({"error": "Vault revision changed"}, status=409)
         return web.json_response({"error": "Invalid vault request"}, status=400)
     except LookupError:
         return web.json_response({"error": "Not found"}, status=404)
@@ -73,7 +85,7 @@ async def _handle(request, operation):
             return web.json_response({"ok": False, "path": result["path"], "blocked": True,
                 "errors": result.get("errors", []), "warnings": result.get("warnings", [])}, status=422)
         await broadcast_change(request.app["gateway"], "updated" if result.get("existed") else "created", result["path"])
-        result = {key: result.get(key) for key in ("ok", "path", "warnings", "applied", "commit")}
+        result = {key: result.get(key) for key in ("ok", "path", "warnings", "applied", "commit", "revision")}
     elif operation == "delete":
         await broadcast_change(request.app["gateway"], "deleted", request.match_info.get("path"))
     elif operation in {"restore", "reset", "move", "derived", "init", "doctor"}:

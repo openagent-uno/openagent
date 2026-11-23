@@ -54,3 +54,17 @@ class NativeMemoryTests(unittest.IsolatedAsyncioTestCase):
         await self.db._conn.commit()
         self.assertFalse(await self.service.authorize(self.context,'memory.read',ResourceRef('session','network','private')))
         with self.assertRaises(PermissionError):await self.service.access(PrincipalRef('external','network','alice'))
+
+    async def test_document_space_shared_read_does_not_grant_writes_and_dreams(self):
+        self.service.service.document_vault = object()
+        self.agent.config["runtime_tool_audiences"] = {"vault":"installation"}
+        space=ResourceRef("vault-space","network","agent-vault")
+        owner=replace(self.context,agent_id=self.agent.name)
+        member=replace(owner,author=self.bob,authority=self.bob,initiator=self.bob,audience=(self.bob,))
+        self.assertTrue(await self.service.authorize(member,"memory.read",space))
+        self.assertTrue(await self.service.authorize(member,"memory.publish",space,audience=member.audience))
+        self.assertFalse(await self.service.authorize(member,"memory.write",space))
+        self.assertFalse(await self.service.authorize(member,"memory.dream",space))
+        self.assertTrue(await self.service.authorize(owner,"memory.write",space))
+        self.assertFalse(await self.service.authorize(owner,"memory.import",space))
+        self.assertFalse(await self.service.authorize(owner,"memory.write",ResourceRef("vault-space","other","agent-vault")))

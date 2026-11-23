@@ -97,3 +97,11 @@ of the public site and canonical downloads on 21 September 2026, the historical
 source repositories were archived without deleting their tags, release assets
 or updater endpoints. The full installed-client transition chain remains an
 explicit release-qualification gate for the current beta.
+
+### Standalone SQL document vault
+
+A standalone agent can select `memory.vault.backend: documents`. The host constructs the SQL engine over its own canonical SQLite database and binds the document service to its runtime. The default `files` setting continues to select the original Markdown/Git service. The document mode serves the same authenticated vault endpoints, stops file-vault autocommit and selects the document maintenance prompt for the existing configured dream scheduler.
+
+The standalone installation has an agent-owned vault. The host's active certificate, coordinator ownership, private-channel policy and result audience determine access. Opting the corpus into installation reads grants active members read access. Management edits remain owner-authorized. The hosted per-user contract uses separate host-resolved document spaces.
+
+For an existing installation, first qualify a fenced private candidate with the matching Core/SQLite adapter and SQL vault. An optional `memory.vault.expected_import` object takes the attested `tenant`, `source_manifest_sha256` and `corpus_sha256`. When supplied, startup requires the completed receipt for that agent, space and original corpus. Every release still needs matching versioned packages. Validate the authenticated history, note/editor and normal dream route on the candidate before enabling the existing installation.

@@ -410,6 +410,11 @@ memory:
   # one connected graph. Exposed to the agent as the ``vault-gate`` MCP and
   # over REST (/api/vault/gate, /doctor, /stats, /derived, /index/sync).
   vault:
+    # backend: files                     # use documents for the scoped SQL vault on the agent database
+    # expected_import:                   # optional, bind activation to an approved completed import
+    #   tenant: <attested-tenant>
+    #   source_manifest_sha256: <sha256>
+    #   corpus_sha256: <sha256>
     enabled: true                       # the gate subsystem (index + tools + validate-on-write)
     max_lines: 300                      # a note longer than this is flagged (atomicity)
     min_outlinks: 3                     # a content note should link out to >= this many real notes

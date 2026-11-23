@@ -53,6 +53,7 @@ def standalone_profile(
     ptc_enabled: bool = False,
     local_e2e: bool = False,
     agent_name: str = "Agent",
+    document_vault: bool = False,
 ) -> RuntimeProfile:
     shared = {
         "db_path": str(Path(db_path).expanduser().resolve()),
@@ -103,6 +104,8 @@ def standalone_profile(
         "attachments": ModuleConfig(agent_service_host, shared),
         "logs": ModuleConfig(agent_service_host, shared),
     }
+    if document_vault:
+        modules["vault"] = ModuleConfig(agent_service_host, {"backend": "documents"})
     if ptc_enabled:
         modules["ptc"] = ModuleConfig(agent_service_host, shared)
     return RuntimeProfile(generation, modules)

@@ -89,6 +89,37 @@ class VaultAdapterTests(unittest.IsolatedAsyncioTestCase):
         revoked = await vault.handle_stats(Request(self.gateway))
         self.assertEqual(revoked.status, 403)
 
+    async def test_document_bootstrap_authenticated_history_and_restore(self):
+        from openagent_core.contracts import PrincipalRef, ExecutionContext
+        from openagent_server.document_vault import create_document_vault, uses_documents
+        service = self.gateway.runtime_service
+        service.agent.config["memory"] = {"vault":{"backend":"documents"}}
+        service.agent.memory_db = SimpleNamespace(db_path=str(self.root/"state.db"))
+        self.gateway.vault_path = None
+        self.assertTrue(uses_documents(service.agent.config))
+        async def context(identity,session):
+            owner=PrincipalRef("openagent",identity.tenant_id,identity.handle,identity.principal_type)
+            return ExecutionContext(owner,owner,owner,session,service.agent.name,(owner,))
+        async def access(context, action, resource, **kwargs):
+            return self.active and resource.resource_id=="agent-vault" and context.authority.subject_id=="alice"
+        service.authorizer.context_for_identity=context
+        service.authorizer.authorize=access
+        service.document_vault=await create_document_vault(service)
+        self.addAsyncCleanup(service.document_vault.engine.dispose)
+        def req(**kwargs):return Request(self.gateway,**kwargs)
+        self.assertEqual((await vault.handle_write(req(path="a.md",body={"content":"first"}))).status,200)
+        history=json.loads((await vault.handle_history(req())).text)
+        digest=history["commits"][0]["hash"]
+        self.assertEqual(json.loads((await vault.handle_commit(req(query={"hash":digest}))).text)["files"][0]["path"],"a.md")
+        self.assertEqual((await vault.handle_write(req(path="a.md",body={"content":"second","expected_revision":0}))).status,409)
+        self.assertEqual((await vault.handle_write(req(path="a.md",body={"content":"second","expected_revision":1}))).status,200)
+        self.assertEqual((await vault.handle_restore(req(body={"hash":digest}))).status,200)
+        self.assertEqual(json.loads((await vault.handle_read(req(path="a.md"))).text)["content"],"first")
+        self.assertEqual((await vault.handle_history(req(subject="bob"))).status,403)
+        self.active=False
+        self.assertEqual((await vault.handle_commit(req(query={"hash":digest}))).status,403)
+        self.assertFalse((self.root/"vault").exists())
+
     def test_gateway_uses_the_agent_default_vault_without_a_yaml_override(self):
         from openagent_server import server as server_module
 
