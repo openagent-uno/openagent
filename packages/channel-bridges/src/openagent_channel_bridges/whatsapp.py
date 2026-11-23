@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import ipaddress
 import logging
+import re
 import shutil
 import socket
 import tempfile
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 WHATSAPP_MSG_LIMIT = 4096
 _WA_MEDIA_DOWNLOAD_TIMEOUT = 120.0
 _WA_MAX_REDIRECTS = 5
+_PERSONAL_CHAT = re.compile(r"[1-9][0-9]{1,14}@c\.us")
 
 
 class _WhatsAppDownloadError(Exception):
@@ -190,8 +192,21 @@ class WhatsAppBridge(BaseBridge):
 
         if self.allowed_users and user_id not in self.allowed_users:
             return
+        instance = body.get("instanceData")
+        # GREEN API's authenticated incoming notification names both the receiving
+        # instance and the sender. A group has a different chat and participant.
+        private_message = (
+            body.get("typeWebhook") == "incomingMessageReceived"
+            and isinstance(instance, dict)
+            and instance.get("typeInstance") == "whatsapp"
+            and str(instance.get("idInstance")) == str(self.instance_id)
+            and isinstance(chat_id, str)
+            and _PERSONAL_CHAT.fullmatch(chat_id) is not None
+            and sender.get("sender") == chat_id
+        )
         bridge_context = BridgeContext(self.binding_id, self.name, str(self.instance_id),
-            user_id, str(chat_id), str(body.get("idMessage") or ""))
+            user_id, str(chat_id), str(body.get("idMessage") or ""),
+            conversation_kind="direct" if private_message else "unknown")
         await self.authorize_context(bridge_context)
 
         processing = None

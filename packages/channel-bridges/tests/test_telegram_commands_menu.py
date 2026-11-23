@@ -8,6 +8,7 @@ import pytest
 pytest.importorskip("telegram")
 from telegram.error import NetworkError, RetryAfter
 
+from openagent_core.chat_commands import commands_for_scopes
 from openagent_channel_bridges.contracts import BridgeCapabilities
 from openagent_channel_bridges.telegram import TelegramBridge
 
@@ -26,7 +27,8 @@ async def test_registration_uses_negotiated_commands_and_refreshes_changed_capab
     await value._maybe_set_bot_commands_menu()
     first = bot.set_my_commands.call_args.args[0]
     names = {command.command for command in first}
-    assert {"new", "clear", "stop", "status", "context", "help", "compact", "model"} == names
+    assert names == {spec.name for spec in commands_for_scopes(("session",)) if spec.menu_visible}
+    assert "restart" not in names
     await value._maybe_set_bot_commands_menu()
     bot.set_my_commands.assert_awaited_once()
     value._capabilities = BridgeCapabilities(core_commands=("instance", "session"))

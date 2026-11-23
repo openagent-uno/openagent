@@ -296,6 +296,42 @@ async def test_whatsapp_presence_does_not_reclassify_inbound_or_admit_group_typi
     assert bridge.native_typing("alice@c.us", replace(contexts[0], conversation_kind="group")) is None
 
 
+@pytest.mark.asyncio
+async def test_whatsapp_delivery_uses_the_receiving_instance_and_private_participant():
+    host = Host()
+    bridge = WhatsAppBridge("1001", "fixture", transport=host, binding_id="binding",
+                            allowed_users=["15555550110"])
+    bridge._greenapi = SimpleNamespace(serviceMethods=SimpleNamespace())
+    seen = []
+
+    async def dispatch(target, session, text, *, context, **kwargs):
+        seen.append(context.conversation_kind)
+        if context.conversation_kind == "direct":
+            assert (await bridge._prepare_delivery_context(context)).actor_id == "15555550110"
+        else:
+            with pytest.raises(PermissionError):
+                await bridge._prepare_delivery_context(context)
+
+    bridge.dispatch_turn = dispatch
+    sender = "15555550110@c.us"
+    for instance, chat, participant in (
+        (1001, sender, sender),
+        (1001, "120555500100@g.us", sender),
+        (2002, sender, sender),
+        (1001, sender, None),
+    ):
+        sender_data = {"chatId": chat}
+        if participant:
+            sender_data["sender"] = participant
+        await bridge._handle({
+            "typeWebhook": "incomingMessageReceived",
+            "instanceData": {"idInstance": instance, "typeInstance": "whatsapp"},
+            "senderData": sender_data, "idMessage": "fixture",
+            "messageData": {"typeMessage": "textMessage", "textMessageData": {"textMessage": "hello"}},
+        })
+    assert seen == ["direct", "unknown", "unknown", "unknown"]
+
+
 WA_ADMISSION_CASES = [
     ("personal-fallback", "alice@c.us", None, ["alice"], True, True, True, None),
     ("personal-explicit", "alice@c.us", "alice@c.us", ["alice"], True, True, True, None),

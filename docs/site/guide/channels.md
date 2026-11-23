@@ -77,6 +77,8 @@ and an inline stop button.
 
 ## WhatsApp (Green API)
 
+Direct replies require an incoming message from the configured Green API instance. The sender must match the personal chat address in the notification. A group chat and a notification with incomplete participant information retain the existing audience checks. [Green API incoming message fields](https://green-api.com/en/docs/api/receiving/notifications-format/incoming-message/TextMessage/)
+
 ```yaml
 channels:
   whatsapp:
