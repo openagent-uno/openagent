@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import shutil
 
 
 def inspect_state(root, *, destination, private_manifest=None):
@@ -85,14 +86,14 @@ def inspect_state(root, *, destination, private_manifest=None):
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         with os.fdopen(fd, "wb") as stream:
             stream.write(encoded)
-    space = os.statvfs(destination)
+    free = shutil.disk_usage(destination).free
     return {
         "scope": "preparation_inventory",
         "counts": dict(counts),
         "regular_bytes": files_bytes,
         "sqlite_bytes": database_bytes,
         "private_map_sha256": hashlib.sha256(encoded).hexdigest(),
-        "destination_free_bytes": space.f_bavail * space.f_frsize,
+        "destination_free_bytes": free,
         "two_full_copies_logical_bytes": files_bytes * 2,
     }
 
