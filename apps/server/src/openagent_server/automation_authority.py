@@ -333,12 +333,24 @@ class NativeAutomationAuthority:
             PrincipalRef(**p) for p in json.loads(grant["audience_json"])
         ):
             return False
-        if not set(context.scopes).issubset(json.loads(grant["scopes_json"])):
-            return False
         try:
             current = await self.definition(grant["kind"], grant["definition_id"])
         except LookupError:
             return False
+        granted = set(json.loads(grant["scopes_json"]))
+        requested = set(context.scopes)
+        if not requested.issubset(granted):
+            from openagent_core.core.builtin_tasks import DREAM_MODE_TASK_NAME
+            from openagent_core.memory.vault.document_dream import DreamClaim
+            from openagent_server.document_vault import SPACE
+            run_id = context.session_id.removeprefix("dream-session-")
+            claim = DreamClaim(context.tenant_id, context.agent_id, SPACE, 0, run_id, "")
+            if (grant["kind"] != "task" or current.get("name") != DREAM_MODE_TASK_NAME
+                    or context.session_id != claim.session_id or context.agent_id != self.service.agent.name
+                    or "capability:vault" not in granted or requested != {"capability:vault",claim.context_scope}
+                    or not isinstance(run_id,str) or len(run_id) != 32
+                    or any(c not in "0123456789abcdef" for c in run_id)):
+                return False
         enabled_for_occurrence = bool(current.get("enabled", True))
         if not enabled_for_occurrence:
             enabled_for_occurrence = await self._claimed_one_shot_is_active(

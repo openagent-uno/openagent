@@ -47,6 +47,27 @@ class AutomationAuthorityTests(unittest.IsolatedAsyncioTestCase):
         await self.db.close()
         self.directory.cleanup()
 
+    async def test_document_dream_only_attenuates_the_existing_builtin_grant(self):
+        from dataclasses import replace
+        from openagent_core.core.builtin_tasks import DREAM_MODE_TASK_NAME
+        from openagent_core.memory.vault.document_dream import DreamClaim
+        from openagent_server.document_vault import SPACE
+        source = Source()
+        self.service.runtime.capabilities.register('vault',source,source,target_label='Vault')
+        ident = await self.db.add_task(DREAM_MODE_TASK_NAME,'0 4 * * *','Maintain vault')
+        task = await self.db.get_task(ident)
+        await self.authority.capture('task',task,self.context)
+        parent = await self.authority.resolve('task',task,'occurrence','scheduled')
+        claim = DreamClaim(parent.tenant_id,parent.agent_id,SPACE,1,'a'*32,'local')
+        child = replace(parent, session_id=claim.session_id, scopes=('capability:vault',claim.context_scope))
+        self.assertTrue(await self.authority.validate(child))
+        self.assertFalse(await self.authority.validate(replace(child,scopes=(*child.scopes,'capability:device'))))
+        await self.authority.capture('task',self.task,self.context)
+        other = await self.authority.resolve('task',self.task,'occurrence','scheduled')
+        self.assertFalse(await self.authority.validate(replace(child,delegation_id=other.delegation_id)))
+        await self.authority.revoke('task',ident,self.context)
+        self.assertFalse(await self.authority.validate(child))
+
     async def test_unknown_definition_is_not_assigned_an_owner(self):
         with self.assertRaises(PermissionError):
             await self.authority.resolve('task',self.task,'occurrence','child')

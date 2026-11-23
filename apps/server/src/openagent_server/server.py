@@ -2179,16 +2179,12 @@ class AgentServer:
         # every existing deployment has today, so nothing moves on upgrade.
         dream_tz = dream_cfg.get("timezone") or default_timezone_name()
 
-        dream_prompt = DREAM_MODE_PROMPT
-        if uses_documents(self.config):
-            from openagent_core.memory.vault.document_dream import DOCUMENT_DREAM_PROMPT
-            dream_prompt = DOCUMENT_DREAM_PROMPT
         await self._sync_scheduled_task(
             scheduler,
             name=DREAM_MODE_TASK_NAME,
             enabled=enabled,
             cron_expr=cron_expr,
-            prompt=dream_prompt,
+            prompt=DREAM_MODE_PROMPT,
             timezone=dream_tz,
         )
 
@@ -2197,7 +2193,11 @@ class AgentServer:
             async def _dream_run(task, _orig):
                 if task["name"] == DREAM_MODE_TASK_NAME:
                     elog("dream.start")
-                    await _orig(task)
+                    if uses_documents(self.config):
+                        from openagent_server.document_vault import run_scheduled_dream
+                        await run_scheduled_dream(self._gateway.runtime_service, task["_runtime_run_id"])
+                    else:
+                        await _orig(task)
                     elog("dream.done")
                     clear_event_log(older_than_days=6)
                     elog("dream.log_cleared")

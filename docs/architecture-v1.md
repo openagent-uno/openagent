@@ -107,3 +107,9 @@ The standalone installation has an agent-owned vault. The host's active certific
 For an existing installation, first qualify a fenced private candidate with the matching Core/SQLite adapter and SQL vault. An optional `memory.vault.expected_import` object takes the attested `tenant`, `source_manifest_sha256` and `corpus_sha256`. When supplied, startup requires the completed receipt for that agent, space and original corpus. Every release still needs matching versioned packages. Validate the authenticated history, note/editor and normal dream route on the candidate before enabling the existing installation.
 
 Before allocating a standalone restore target, count every SQLite header, WAL companion and symlink on the source. Browser profiles and retained snapshots can contain independent databases without a database file extension. An aggregate report and an optional owner-only path map are available via `python -m openagent_server.state_inventory STATE --destination MOUNT --private-manifest PRIVATE_MAP`. A live inventory is a sizing estimate. Select the backup policy for each persistent domain, map absolute/external and dangling symlinks explicitly and keep separate source, backup, candidate and rollback storage. Compare allocated and logical size on both filesystems. A canonical database and Markdown archive cover only those declared domains. A full host rollback includes identities, keys, runtime configuration, browser state, auxiliary databases and any external volumes under their original custody controls.
+
+The standalone scheduler keeps the installed dream definition, cron, owner
+grant and task history when switching to document storage. A scheduled or
+manual occurrence joins a single revision-fenced SQL maintenance pass. Its
+child turn receives the vault capability and the checked space marker from
+the current builtin grant. Revocation also applies to the child.
