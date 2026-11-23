@@ -12,6 +12,23 @@ from openagent_storage_sqlite import SqliteRuntimeStore
 from openagent_server.gateway.api import vault
 
 
+class NewAgentVault(unittest.TestCase):
+    def test_only_clean_installations_choose_sql_automatically(self):
+        import tempfile
+        import yaml
+        from openagent_product_config.paths import ensure_agent_dir
+        from openagent_server.document_vault import uses_documents
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            clean = ensure_agent_dir(root / "new")
+            self.assertTrue(uses_documents(yaml.safe_load((clean / "openagent.yaml").read_text())))
+            old = root / "existing"
+            (old / "memories").mkdir(parents=True)
+            (old / "memories/note.md").write_text("existing")
+            ensure_agent_dir(old)
+            self.assertFalse(uses_documents(yaml.safe_load((old / "openagent.yaml").read_text())))
+
+
 class Request(dict):
     def __init__(self, gateway, subject='alice', path=None, body=None, query=None):
         super().__init__(device_cert=object(), auth_kind='device_cert')

@@ -47,6 +47,42 @@ class AutomationAuthorityTests(unittest.IsolatedAsyncioTestCase):
         await self.db.close()
         self.directory.cleanup()
 
+    async def test_document_dream_source_selection_is_stable_and_revocable(self):
+        from dataclasses import replace
+        from uuid import uuid4
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from openagent_core.contracts import SessionRef
+        from openagent_core.core.builtin_tasks import DREAM_MODE_TASK_NAME
+        from openagent_core.memory.vault.document_dream import DreamClaim
+        from openagent_server.document_vault import SPACE, create_dream_evidence
+        from unittest.mock import AsyncMock
+        agent = self.service.agent.name
+        for name in ("vault", "sessions"):
+            source = Source()
+            self.service.runtime.capabilities.register(name, source, source, target_label=name)
+        self.service.automations = self.authority
+        self.service.runtime.authorize = AsyncMock()
+        owner = self.context.initiator
+        ref = SessionRef(owner.authority,owner.tenant_id,agent,"first-chat")
+        store = self.service.store = SimpleNamespace(personal_session_page=AsyncMock(return_value={
+            "sessions":[{"session_ref":ref.token}]}))
+        ident = await self.db.add_task(DREAM_MODE_TASK_NAME,'0 4 * * *','Maintain vault')
+        task = await self.db.get_task(ident)
+        await self.authority.capture("task",task,self.context)
+        parent = await self.authority.resolve("task",task,"occurrence","scheduled")
+        claim = DreamClaim(parent.tenant_id,agent,SPACE,1,uuid4().hex,"local")
+        child = replace(parent,session_id=claim.session_id,scopes=("capability:vault",claim.context_scope))
+        engine = create_async_engine("sqlite+aiosqlite:///" + str(Path(self.directory.name)/"sources.db"))
+        self.addAsyncCleanup(engine.dispose)
+        evidence = await create_dream_evidence(self.service, SimpleNamespace(engine=engine))
+        self.assertEqual(await evidence.resolve_sessions(child, claim.scope), (ref,))
+        store.personal_session_page.return_value = {"sessions":[]}
+        second = await create_dream_evidence(self.service,SimpleNamespace(engine=engine))
+        self.assertEqual(await second.resolve_sessions(child, claim.scope), (ref,))
+        await self.authority.revoke("task", ident, self.context)
+        self.assertIsNone(await second.resolve_sessions(child, claim.scope))
+        store.personal_session_page.assert_awaited_once()
+
     async def test_document_dream_only_attenuates_the_existing_builtin_grant(self):
         from dataclasses import replace
         from openagent_core.core.builtin_tasks import DREAM_MODE_TASK_NAME

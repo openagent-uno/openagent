@@ -96,7 +96,7 @@ class NativeMemoryAccess:
                     or getattr(self.service, "document_vault", None) is None):
                 return False
         if (action in {"memory.read", "memory.publish"} and resource.kind == "vault-note"
-                or is_space and action in {"memory.read", "memory.write", "memory.publish", "memory.dream"}):
+                or is_space and action in {"memory.read", "memory.write", "memory.publish", "memory.dream", "memory.dream.review"}):
             from openagent_server.bridge_vault_access import (
                 owner_bridge_automation_vault,
                 owner_bridge_vault_turn,
@@ -114,13 +114,13 @@ class NativeMemoryAccess:
             return False
         if action == "memory.search":
             return resource.kind == "memory-catalog"
-        if is_space and action in {"memory.write", "memory.dream"}:
+        if is_space and action in {"memory.write", "memory.dream", "memory.dream.review"}:
             # Installation visibility grants readers. Only the authenticated
             # owner or the privately bound owner bridge can mutate this corpus.
             owner = await self.service.directory.owner_handle()
             principal = context.initiator
             return bool(owner and principal == context.authority and principal.kind == "user"
-                        and principal.subject_id == owner and (action != "memory.dream"
+                        and principal.subject_id == owner and (action not in {"memory.dream", "memory.dream.review"}
                         or (context.deferred and context.delegation_id)))
         if is_space and action == "memory.import":
             # Standalone imports run through the offline migration composition.

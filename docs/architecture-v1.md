@@ -100,7 +100,7 @@ explicit release-qualification gate for the current beta.
 
 ### Standalone SQL document vault
 
-A standalone agent can select `memory.vault.backend: documents`. The host constructs the SQL engine over its own canonical SQLite database and binds the document service to its runtime. The default `files` setting continues to select the original Markdown/Git service. The document mode serves the same authenticated vault endpoints, stops file-vault autocommit and selects the document maintenance prompt for the existing configured dream scheduler.
+A standalone agent can select `memory.vault.backend: documents`. The host constructs the SQL engine over its own canonical SQLite database and binds the document service to its runtime. Initialization of an empty agent directory selects document storage. Existing configurations without an explicit backend continue to select the Markdown/Git service. The document mode serves the same authenticated vault endpoints, stops file-vault autocommit and selects the document maintenance prompt for the existing configured dream scheduler.
 
 The standalone installation has an agent-owned vault. The host's active certificate, coordinator ownership, private-channel policy and result audience determine access. Opting the corpus into installation reads grants active members read access. Management edits remain owner-authorized. The hosted per-user contract uses separate host-resolved document spaces.
 
@@ -113,3 +113,8 @@ grant and task history when switching to document storage. A scheduled or
 manual occurrence joins a single revision-fenced SQL maintenance pass. Its
 child turn receives the vault capability and the checked space marker from
 the current builtin grant. Revocation also applies to the child.
+
+The transcript-review mission also requires the existing task grant to cover
+sessions. The host persists its selection of up to four readable conversations
+per occurrence. Reopening the dream uses that selection and rechecks the grant,
+the viewer and the source evidence. Workflow proposals remain in the result.

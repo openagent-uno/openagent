@@ -1,10 +1,12 @@
 """Standalone agent-directory bootstrap and shipped default configuration."""
 from pathlib import Path
+import os
+import tempfile
 import textwrap
 
 _DEFAULT_YAML = textwrap.dedent("""\
     # OpenAgent agent configuration
-    # See https://github.com/openagent-uno/openagent-server for full reference.
+    # See https://github.com/openagent-uno/openagent for the full reference.
     #
     # Providers, models, MCPs, and scheduled tasks are managed exclusively
     # through the SQLite database (configure them via the desktop app or
@@ -49,7 +51,23 @@ def ensure_agent_dir(path: Path) -> Path:
 
     config_file = path / "openagent.yaml"
     if not config_file.exists():
-        config_file.write_text(_DEFAULT_YAML)
+        empty = not any(not p.name.startswith(".openagent-init-") for p in path.iterdir())
+        config = _DEFAULT_YAML
+        if empty:
+            config += "\nmemory:\n  vault:\n    backend: documents\n"
+        # A concurrent first start or an operator writing their own configuration wins.
+        fd, name = tempfile.mkstemp(prefix=".openagent-init-", dir=path)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                stream.write(config)
+                stream.flush()
+                os.fsync(stream.fileno())
+            try:
+                os.link(name, config_file)
+            except FileExistsError:
+                pass
+        finally:
+            os.unlink(name)
 
     (path / "memories").mkdir(exist_ok=True)
     (path / "logs").mkdir(exist_ok=True)

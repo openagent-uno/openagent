@@ -528,6 +528,9 @@ class NativeRuntimeService:
             from openagent_core.memory.vault.documents import SqlDocumentVault
             self.document_vault = await create_document_vault(self)
             registry.bind(SqlDocumentVault, self.document_vault)
+            from openagent_core.dream_evidence import DocumentDreamEvidence
+            from openagent_server.document_vault import create_dream_evidence
+            registry.bind(DocumentDreamEvidence, await create_dream_evidence(self,self.document_vault))
         from openagent_server.attachment_publisher import build_attachment_publisher
         attachment_publisher = build_attachment_publisher(self)
         if attachment_publisher is not None:
