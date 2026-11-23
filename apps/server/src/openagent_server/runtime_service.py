@@ -1081,6 +1081,18 @@ async def bind_runtime_identity(request, handler):
             await service.authorizer.bind_request(request)
         except PermissionError:
             raise web.HTTPForbidden(text="Device authorization changed") from None
+    from openagent_core.memory.legacy_document_history import SessionProjectionGuard
+    from openagent_core.workspace_administration import SessionInspection
+
+    async def authorize_history(session_id):
+        if service is None or service.runtime is None:
+            raise PermissionError("The authorized session runtime is unavailable")
+        context = await service.context(request, session_id)
+        inspector = SessionInspection(service.agent.memory_db, service.authorizer, runtime=service.runtime)
+        await inspector.authorize(context, session_id)
+
+    projection = SessionProjectionGuard(authorize_history)
+    request["openagent_session_projection"] = projection
     protected = (
         "/api/automations/",
         "/api/scheduled-tasks",
@@ -1117,7 +1129,12 @@ async def bind_runtime_identity(request, handler):
                 service.provider_admin_lock = asyncio.Lock()
             async with service.provider_admin_lock:
                 return await handler(request)
-    return await handler(request)
+    response = await handler(request)
+    try:
+        await projection.recheck()
+    except (PermissionError, LookupError):
+        raise web.HTTPNotFound(text="Session unavailable") from None
+    return response
 
 
 def _service(request) -> NativeRuntimeService:

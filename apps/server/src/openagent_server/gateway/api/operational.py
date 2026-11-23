@@ -3084,6 +3084,8 @@ async def handle_search(request: web.Request) -> web.Response:
                     "caused_by": None,
                 }
             )
+        if visible_page_matches and not all(await _search_rows_visible(conn, visible_page_matches, access)):
+            raise ApiProblem(409, "cursor_stale", "Search visibility changed; refresh to continue", reason="acl_changed")
         has_more = next_offset < len(snapshot.rows)
         next_cursor = state.encode({"k": "search", "s": snapshot.snapshot_id, "o": next_offset}) if has_more else None
         corpus_map = {

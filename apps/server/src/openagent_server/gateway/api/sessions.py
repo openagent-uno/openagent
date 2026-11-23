@@ -436,7 +436,7 @@ async def handle_get_runs(request):
 
     try:
         context = await service.context(request, session_id)
-        inspection = SessionInspection(db, service.authorizer, agent=service.agent)
+        inspection = SessionInspection(db, service.authorizer, agent=service.agent, runtime=service.runtime)
         transcript = await inspection.transcript(context, session_id, limit=limit)
     except (PermissionError, LookupError):
         # Missing and revoked sessions remain indistinguishable.
@@ -468,7 +468,7 @@ async def handle_fork(request):
         return web.json_response({"error": "A valid message ID is required"}, status=400)
     try:
         context = await service.context(request, session_id)
-        result = await operation(SessionInspection(db, service.authorizer), context, session_id, message)
+        result = await operation(SessionInspection(db, service.authorizer, runtime=service.runtime), context, session_id, message)
     except (LookupError, PermissionError):
         return web.json_response({"error": "Conversation or message unavailable to fork"}, status=404)
     except ValueError:

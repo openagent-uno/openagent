@@ -1876,11 +1876,11 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
                 )
 
             # One grants read plus one batched session read for snapshot
-            # creation and one for page-time reauthorization.  Leave small
+            # creation, one for lookahead, and one after snippets are read. Leave small
             # headroom for harmless metadata reads, but never candidate-scale
             # growth (the old N+1 path is >380 statements for this fixture).
             assert canonical_select_count() <= 8, statements
-            assert compound_count() == 2, statements
+            assert compound_count() == 3, statements
 
             decoded = gateway._operational_cursor_state.decode(first["next_cursor"])
             snapshot = gateway._operational_cursor_state.search[decoded["s"]]
@@ -1921,7 +1921,7 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
                 "search_session_id"
             ]
             assert canonical_select_count() <= 8, statements
-            assert compound_count() == 1, statements
+            assert compound_count() == 2, statements
 
             # A tiny page may materialize the bounded snapshot once, but its
             # pre-snippet recheck must not rehydrate every remaining match.
@@ -1943,7 +1943,8 @@ async def t_batched_search_authorization_query_budget(_ctx: TestContext) -> None
             finally:
                 operational._search_rows_visible = original_batch
             assert len(one_item["items"]) == 1
-            assert len(batch_sizes) == 2, batch_sizes
+            assert len(batch_sizes) == 3, batch_sizes
+            assert batch_sizes[-1] == 1  # Only the published match is rechecked after highlighting.
             assert batch_sizes[0] > 128
             assert 0 < batch_sizes[1] <= 128 < batch_sizes[0]
         finally:

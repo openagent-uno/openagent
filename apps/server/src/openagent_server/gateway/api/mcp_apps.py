@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from openagent_core.core.execution_origin import execution_origin_scope
 from openagent_core.core.on_behalf_context import OnBehalfIdentity, install_on_behalf_identity, reset_on_behalf_identity
 from aiohttp import web
-from openagent_core.mcp_apps import McpAppService, saved_invocation_display
+from openagent_core.mcp_apps import McpAppService, SavedInvocationReader
 from openagent_core.runtime import execution_scope
 
 
@@ -60,9 +60,8 @@ async def handle(request):
                     # never provide executable HTML, metadata or runtime authority.
                     display_reader = None
                     if body.get("tool_call_id") is not None:
-                        selector, tool_ref = body["tool_call_id"], body["tool_ref"]
-                        async def display_reader(current):
-                            return await saved_invocation_display(service.runtime.services.store, service.authorizer, current, selector, tool_ref)
+                        display_reader = SavedInvocationReader(service.runtime.services.store,
+                            service.authorizer, body["tool_call_id"], body["tool_ref"], service.runtime)
                     result = await apps.open(body["tool_ref"], context, display_reader=display_reader)
                 elif len(operation) == 2 and operation[1] == "request" and set(body) <= {"method", "params", "request_id"}:
                     result = await apps.request(operation[0], body["method"], body.get("params", {}), context, request_id=body.get("request_id"))

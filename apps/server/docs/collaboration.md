@@ -11,6 +11,21 @@ OpenAgent App 0.18 and CLI 0.17 discover it with `GET /api/collaboration`
 Only 404/405 selects the older native transport; authorization and temporary
 server errors must not silently select a different writer.
 
+## Historical document access
+
+A session that reads a SQL vault note records the exact revision in the runtime.
+The gateway checks those sources for the authenticated viewer when returning
+historical messages, runs, journal events, task displays and session summaries.
+A legacy projection covering several turns withholds the session if one source
+is unavailable. The runtime can still admit and expose an independent turn.
+The search index omits document-dependent sessions.
+
+The chat and collaboration WebSockets recheck queued frames and reconnect
+snapshots before sending them. A host collaboration policy controls membership
+and the gateway also checks document revisions for every allowed session.
+Saved MCP App displays repeat the source check on polling and on subsequent
+interactions with an open handle.
+
 ## Observe
 
 Open `GET /ws/collaboration` through the same certificate-authenticated transport

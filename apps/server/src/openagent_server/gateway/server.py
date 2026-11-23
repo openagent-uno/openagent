@@ -240,6 +240,7 @@ class Gateway:
         # streaming would race aiohttp's single writer. Keyed weakly so a
         # dropped socket's lock is collected with it.
         self._ws_send_locks: "WeakKeyDictionary[Any, asyncio.Lock]" = WeakKeyDictionary()
+        self._ws_history_guards = WeakKeyDictionary()
         # Detached child-run live frames (scheduled firings / workflow nodes)
         # are decoupled from the agent loop through this queue + a single drain
         # pump: the run forwards each delta with a non-blocking ``put_nowait`` so
@@ -459,6 +460,15 @@ class Gateway:
             self._ws_send_locks[ws] = lock
         try:
             async with lock:
+                sid = payload.get("session_id")
+                if payload.get("type") == P.RESOURCE_EVENT and payload.get("resource") == "session":
+                    sid = payload.get("id")
+                projection = self._ws_history_guards.get(ws) if sid else None
+                if projection is not None:
+                    # A queued delta or replay can outlive the source note.
+                    conn = await self.agent.memory_db._ensure_connected()
+                    if sid not in await projection.visible(conn, (sid,), remember=False):
+                        return False
                 await ws.send_json(payload)
             return True
         except Exception as e:
@@ -2303,6 +2313,8 @@ class Gateway:
             return web.Response(status=401, text="Unauthorized")
 
         ws = web.WebSocketResponse()
+        from openagent_core.memory.legacy_document_history import SessionProjectionGuard
+        self._ws_history_guards[ws] = request.get("openagent_session_projection") or SessionProjectionGuard()
         await ws.prepare(request)
 
         # A device may be revoked while the HTTP upgrade is suspended. Do not

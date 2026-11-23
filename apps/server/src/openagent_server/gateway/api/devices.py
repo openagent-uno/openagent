@@ -92,7 +92,7 @@ async def handle_participants(request):
         async with _session(request) as (gateway, identity, context):
             from openagent_core.workspace_administration import SessionInspection
             result = await SessionInspection(gateway.agent.memory_db,
-                gateway.runtime_service.authorizer).participants(context, context.session_id)
+                gateway.runtime_service.authorizer, runtime=gateway.runtime_service.runtime).participants(context, context.session_id)
             return web.json_response(result, headers=HEADERS)
     except (PermissionError, LookupError):
         raise web.HTTPNotFound(text='Session unavailable') from None

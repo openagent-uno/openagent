@@ -8,7 +8,10 @@ The native policy checks the same canonical ACL rows as operational REST.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from openagent_identity.runtime_access import AccessContext
+from openagent_core.memory.legacy_document_history import SessionProjectionGuard
 
 from openagent_core.memory.operational.access import resource_is_visible
 from openagent_core.core.on_behalf_context import OnBehalfIdentity
@@ -33,7 +36,9 @@ async def authorize(request, targets, permission="view"):
     if policy is not None:
         result = await policy(request, targets, permission)
     else:
-        access = AccessContext.from_request(request)
+        # Apply source receipts once to the complete allowed set below,
+        # including targets selected by a domain policy.
+        access = replace(AccessContext.from_request(request), projection=None)
         conn = await gateway.agent.memory_db._ensure_connected()
         allowed = []
         resource_types = {
@@ -110,4 +115,13 @@ async def authorize(request, targets, permission="view"):
     # A policy/DB read may yield across a device revocation.
     if not await gateway._request_device_still_authorized(request, cert):
         raise PermissionError("Device authorization changed")
+    sessions = {t["id"] for t in result["allowed"] if t["kind"] == "session"}
+    if sessions:
+        guard = request.get("openagent_session_projection") or SessionProjectionGuard()
+        conn = await gateway.agent.memory_db._ensure_connected()
+        # HTTP responses recheck once more at middleware exit. Each WS frame
+        # reauthorizes its own targets without growing a socket-lifetime list.
+        allowed = await guard.visible(conn, sessions, remember=request.path != "/ws/collaboration")
+        result = {**result, "allowed": [t for t in result["allowed"]
+            if t["kind"] != "session" or t["id"] in allowed]}
     return result
