@@ -1,9 +1,7 @@
 """Hermetic collaboration contracts: real aiohttp, SQLite and StreamSession.
 
-Historical pre-Runtime stream fixtures; they are not current installed-product
-qualification. Canonical HTTP sharing/directory tests live in
-``tests/test_session_sharing.py``; public runtime and multi-device authority
-contracts are qualified by the root test suite.
+The scripted model runs through native admission, durable execution and
+observation. The root product suite also verifies signed transport identities.
 """
 
 import asyncio
@@ -32,6 +30,11 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         self.db = MemoryDB(str(Path(self.directory.name) / "test.db"))
         await self.db.connect()
         self.addAsyncCleanup(self.db.close)
+        from openagent_identity.coordinator.store import CoordinatorStore
+        network = CoordinatorStore(self.db)
+        await network.set_network_role(role="coordinator", network_id="fixture", name="Fixture")
+        for handle in ("alice", "bob", "charlie"):
+            await network.create_user(handle=handle, pake_record=b"fixture", pake_algo="fixture")
         await self.db.upsert_session("chat", client_id="alice")
         conn = await self.db._ensure_connected()
         row = await (
@@ -52,14 +55,26 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         parent = self
 
         class Agent:
+            name = "agent"
+            config = {"_local_e2e": True}
+            product_environment = {}
             memory_db = parent.db
+            capability_pool = None
 
-            async def run_stream(self, **kwargs):
+            async def initialize(self):
+                pass
+
+            def set_capability_pool(self, pool):
+                self.capability_pool = pool
+
+            async def run_stream(self, message, **kwargs):
                 self.cancel_current = asyncio.Event()
-                parent.seen.append((kwargs["author"], current_on_behalf_identity()))
+                from openagent_core.runtime import current_execution_context
+                context = current_execution_context()
+                parent.seen.append((context.author.subject_id, context.initiator.subject_id))
                 parent.attachments.append(kwargs.get("attachments"))
-                yield {"kind": "delta", "text": kwargs["message"] + " partial"}
-                parent.started.put_nowait(kwargs["message"])
+                yield {"kind": "delta", "text": message + " partial"}
+                parent.started.put_nowait(message)
                 waits = [
                     asyncio.create_task(parent.finish.wait()),
                     asyncio.create_task(self.cancel_current.wait()),
@@ -70,7 +85,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
                     for task in waits:
                         task.cancel()
                     await asyncio.gather(*waits, return_exceptions=True)
-                yield {"kind": "done"}
+                yield {"kind": "done", "text": message + " partial"}
 
             async def request_cancel(self, sid):
                 self.cancel_current.set()
@@ -93,6 +108,11 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
             _make_stream_post_turn_hook=lambda: None,
             _handle_command=command,
         )
+        from openagent_server.runtime_service import NativeRuntimeService, bind_runtime_identity
+        self.native = self.gateway.runtime_service = NativeRuntimeService(self.gateway, self.gateway.agent)
+        await self.native.start()
+        self.addAsyncCleanup(self.native.close)
+        self.gateway.agent = self.native.facade
         self.service = self.gateway._collaboration = Collaboration(self.gateway)
         self.gateway.broadcast_resource = AsyncMock(
             side_effect=lambda *args: self.service.hub.resource(*args)
@@ -106,10 +126,11 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         )
         parts.start()
         self.addCleanup(parts.stop)
-        for name in ("resolve_stt", "resolve_tts"):
-            patched = patch("openagent_core.stream.session." + name, AsyncMock(return_value=None))
-            patched.start()
-            self.addCleanup(patched.stop)
+        async def start_text_session(session, gateway):
+            await session.start(stt_factory=AsyncMock(return_value=None),
+                                tts_factory=AsyncMock(return_value=None))
+
+        self.enterContext(patch("openagent_server.gateway.collaboration.start_stream", start_text_session))
 
         @web.middleware
         async def identity(request, handler):
@@ -126,7 +147,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
             )
             return await handler(request)
 
-        app = web.Application(middlewares=[identity])
+        app = web.Application(middlewares=[identity, bind_runtime_identity])
         app["gateway"] = self.gateway
         app.router.add_get("/ws/collaboration", self.service.hub.handle)
         app.router.add_post("/api/collaboration/turns", self.service.handle_chat)
@@ -161,6 +182,11 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         )
         request.json = AsyncMock(return_value={"session_id": "chat", **body})
         return request
+
+    async def handle_chat(self, request):
+        if request["device_cert"].handle not in self.revoked:
+            await self.native.authorizer.bind_request(request)
+        return await self.service.handle_chat(request)
 
     async def connect(self, user="alice", sid="chat"):
         ws = await self.http.ws_connect(
@@ -421,7 +447,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
             {"attachments": [{"path": "/etc/passwd"}]},
             {"client_instance_id": "../device"},
         ):
-            response = await self.service.handle_chat(
+            response = await self.handle_chat(
                 self.request(message="x", request_id="invalid", **extra)
             )
             self.assertEqual(response.status, 400)
@@ -454,7 +480,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await compact)[1]["response"], "Compacted conversation.")
         self.assertEqual(self.commands, [("compact", "alice")])
         self.assertEqual(
-            [(author["handle"], identity.handle) for author, identity in self.seen],
+            self.seen,
             [("alice", "alice"), ("bob", "bob")],
         )
         self.assertEqual(
@@ -547,20 +573,20 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_http_disconnect_deduplication_and_reauthorization(self):
         request = self.request(message="Hello", request_id="dedup")
-        call = asyncio.create_task(self.service.handle_chat(request))
+        call = asyncio.create_task(self.handle_chat(request))
         await asyncio.wait_for(self.started.get(), 3)
         call.cancel()
         with self.assertRaises(asyncio.CancelledError):
             await call
         self.assertFalse(self.service.requests[("chat", "dedup")][1].cancelled())
         self.finish.set()
-        response = await self.service.handle_chat(request)
+        response = await self.handle_chat(request)
         self.assertEqual(response.status, 200)
         self.assertEqual(len(self.seen), 1)
         conflict = self.request("bob", message="Hello", request_id="dedup")
-        self.assertEqual((await self.service.handle_chat(conflict)).status, 409)
+        self.assertEqual((await self.handle_chat(conflict)).status, 409)
         self.revoked.add("alice")
-        self.assertEqual((await self.service.handle_chat(request)).status, 403)
+        self.assertEqual((await self.handle_chat(request)).status, 403)
 
     async def test_stop_exact_queued_request_does_not_stop_other_user(self):
         first = asyncio.create_task(self.send("alice", "running"))
@@ -609,7 +635,7 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
             {"message": "x", "request_id": "bad/id"},
         ]:
             self.assertEqual(
-                (await self.service.handle_chat(self.request(**body))).status, 400
+                (await self.handle_chat(self.request(**body))).status, 400
             )
 
     async def test_revocation_while_queued_prevents_dispatch(self):
@@ -647,19 +673,23 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
         await self.service.revoke_device("alice-device")
         self.assertTrue((await asyncio.wait_for(first, 3))[1]["interrupted"])
 
-    async def test_nonterminal_cancellation_releases_collector_and_fences_zombie(self):
+    async def test_detached_observer_releases_collector_and_only_fences_direct_commands(self):
         from openagent_core.stream.channel import BatchedChannel
 
         started = asyncio.Event()
 
-        async def stalled(*args, **kwargs):
+        observe = BatchedChannel.run_one_shot
+
+        async def stalled(channel, *args, **kwargs):
+            if started.is_set():
+                return await observe(channel, *args, **kwargs)
             self.service.hub.publish(
                 {"type": "delta", "session_id": "chat", "text": "Saved partial"}
             )
             started.set()
             await asyncio.Event().wait()
 
-        with patch.object(BatchedChannel, "run_one_shot", side_effect=stalled):
+        with patch.object(BatchedChannel, "run_one_shot", new=stalled):
             first = asyncio.create_task(self.send("alice", "first"))
             await asyncio.wait_for(started.wait(), 3)
             runtime = self.service.runtimes["chat"]
@@ -674,7 +704,13 @@ class CollaborationTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(
                     (await asyncio.wait_for(first, 3))[1]["response"], "Saved partial"
                 )
-                self.assertEqual((await asyncio.wait_for(second, 3))[0], 409)
+                # Runtime serializes admitted messages independently of the
+                # old presentation observer. Direct commands still share it.
+                self.finish.set()
+                status, reply = await asyncio.wait_for(second, 3)
+                self.assertEqual(status, 200, reply)
+                self.assertIn("Steer", reply["response"])
+                self.assertEqual((await self.send("alice", "command", "/help"))[0], 409)
                 self.assertFalse(
                     self.service.hub.sessions["chat"]["turns"][-1]["active"]
                 )
