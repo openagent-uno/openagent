@@ -18,7 +18,9 @@ The gateway checks those sources for the authenticated viewer when returning
 historical messages, runs, journal events, task displays and session summaries.
 A legacy projection covering several turns withholds the session if one source
 is unavailable. The runtime can still admit and expose an independent turn.
-The search index omits document-dependent sessions.
+The search index omits document-dependent sessions. Attachment metadata,
+filenames and bytes also require every protected source session. Generated
+attachments retain their origin receipts even when they have no chat link.
 
 The chat and collaboration WebSockets recheck queued frames and reconnect
 snapshots before sending them. A host collaboration policy controls membership

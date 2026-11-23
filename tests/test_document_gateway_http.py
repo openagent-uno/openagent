@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from aiohttp import web
+from aiohttp import FormData, web
 from aiohttp.test_utils import TestClient, TestServer
 
 from openagent_core.memory.db import MemoryDB
@@ -83,6 +83,12 @@ class DocumentGatewayHttpTests(unittest.IsolatedAsyncioTestCase):
                     test.tool_ref = await catalog.resolve_tool_ref("fixture-app", "show", context)
                     value = await catalog.call_tool(test.tool_ref, {}, context, call_id="show-note")
                     text = value["content"][0]["text"]
+                    from openagent_server.attachment_publisher import ServerAttachmentPublisher
+                    publisher = ServerAttachmentPublisher(service, None)
+                    test.linked = await publisher.publish_content(context, text.encode(),
+                        filename="linked.txt", mime_type="text/plain")
+                    test.unlinked = await publisher.artifacts.upload(context, (text + " alone").encode(),
+                        filename="unlinked.txt", mime_type="text/plain")
                     await db.append_session_event(context.session_id, "run.completed", {"text": text})
                 elif message == "forget the note":
                     await service.document_vault.forget(context, "fixture.md", expected_revision=1)
@@ -151,6 +157,20 @@ class DocumentGatewayHttpTests(unittest.IsolatedAsyncioTestCase):
         await self.request("PUT", "/api/vault/notes/fixture.md", json={"content": marker})
         await self.gateway.agent.memory_db.upsert_session(session, client_id="alice", title="Fixture conversation", origin="chat")
         await self.turn("derived", session, "read the note")
+        upload = FormData()
+        upload.add_field("file", b"independent file", filename="public-fixture.txt", content_type="text/plain")
+        control_file = json.loads(await self.request("POST", "/api/artifacts", 201, data=upload))["attachment"]["artifact_id"]
+        # Previously published CAS rows may have only a legacy session link.
+        legacy = FormData()
+        legacy.add_field("file", marker.encode() + b" historical", filename="history.txt", content_type="text/plain")
+        legacy.add_field("session_id", session)
+        old_ref = json.loads(await self.request("POST", "/api/artifacts", 201, data=legacy))["attachment"]
+        protected_files = []
+        for artifact in (self.linked, self.unlinked, old_ref):
+            path = "/api/artifacts/" + artifact["artifact_id"]
+            protected_files.extend([path, path + "/content"])
+            self.assertIn(artifact["artifact_id"], await self.request("GET", path))
+            self.assertIn(marker, await self.request("GET", path + "/content"))
         run_paths = ["/api/runtime/runs/derived", "/api/runtime/runs/derived/events"]
         history_paths = [f"/api/sessions/{session}/{key}" for key in ("runs", "events", "messages", "turns")]
         for path in run_paths + history_paths:
@@ -198,6 +218,9 @@ class DocumentGatewayHttpTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn(marker, str(await self.frame(chat, "delta")))
         self.assertIn(marker, str(await self.frame(collaboration, "shared_state", marker=marker)))
         await self.turn("forget", "management", "forget the note")
+        for path in protected_files:
+            self.assertNotIn(marker, await self.request("GET", path, 404))
+        self.assertEqual("independent file", await self.request("GET", "/api/artifacts/" + control_file + "/content"))
         for path in run_paths:
             self.assertNotIn(marker, await self.request("GET", path, 403))
         for path in history_paths:

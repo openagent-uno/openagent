@@ -183,7 +183,7 @@ class NativeChannelTransport:
                 or accepted.request.idempotency_key != input_digest):
             from openagent_core.contracts import IdempotencyConflict
             raise IdempotencyConflict("Channel event belongs to a different payload or actor")
-        artifacts = ArtifactRepository(self.service.agent.memory_db, _Artifacts(self, request.context),
+        artifacts = ArtifactRepository(self.service.agent.memory_db, _Artifacts(self, request.context), runtime=self.service.runtime,
                                        max_input_bytes=32 << 20, max_output_bytes=32 << 20)
         attachments = []
         input_parts = request.parts + tuple(part for record in request.history for part in record.parts

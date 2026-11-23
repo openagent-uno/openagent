@@ -1131,7 +1131,8 @@ async def bind_runtime_identity(request, handler):
                 return await handler(request)
     response = await handler(request)
     try:
-        await projection.recheck()
+        db = getattr(getattr(request.app.get("gateway"), "agent", None), "memory_db", None)
+        await projection.recheck(resolve_connection=getattr(db, "_ensure_connected", None))
     except (PermissionError, LookupError):
         raise web.HTTPNotFound(text="Session unavailable") from None
     return response

@@ -23,6 +23,7 @@ from openagent_core.memory.artifacts import (
     ArtifactIntegrityError,
     ArtifactNotFound,
     AttachmentTooLarge,
+    artifact_authorized_metadata,
     artifact_authorized_row,
     attachment_limit_bytes,
     normalize_inbound_attachments,
@@ -213,6 +214,10 @@ async def _read_artifact(
     except ArtifactNotFound:
         return _problem(404, "artifact_not_found", "Artifact is not available")
     if not include_content:
+        try:
+            row = await artifact_authorized_metadata(db, artifact_id, access)
+        except ArtifactNotFound:
+            return _problem(404, "artifact_not_found", "Artifact is not available")
         return web.json_response(
             {
                 "artifact": {
@@ -238,6 +243,13 @@ async def _read_artifact(
         return _problem(503, "artifact_unavailable", "Artifact bytes are unavailable")
     if len(data) != size or hashlib.sha256(data).hexdigest() != str(row["sha256"]):
         return _problem(503, "artifact_unavailable", "Artifact bytes failed integrity checks")
+    try:
+        current = await artifact_authorized_metadata(db, artifact_id, access)
+    except ArtifactNotFound:
+        return _problem(404, "artifact_not_found", "Artifact is not available")
+    if current["sha256"] != row["sha256"]:
+        return _problem(503, "artifact_unavailable", "Artifact bytes changed during delivery")
+    row = current
     filename = safe_attachment_filename(row["authorized_filename"] or artifact_id)
     headers = {
         # Revalidate authorization on every fetch. Content hashes are stable,
