@@ -21,12 +21,12 @@ constraints = [
     { name = "openagent-capability-host", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.87/openagent_capability_host-1.0.0b4-py3-none-any.whl?download=1" },
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.27/openagent_channel_bridges-0.1.0b27-py3-none-any.whl?download=1" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_core-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-core", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_core-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-editor", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_editor-1.0.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_execution-1.0.0b4-py3-none-any.whl?download=1" },
     { name = "openagent-filesystem", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_filesystem-1.0.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_gateway-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-gateway", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_gateway-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-host-tools", url = "https://github.com/openagent-uno/openagent/releases/download/v1.0.0b18/openagent_host_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-module-attachments", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_attachments-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-module-budget", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_budget-1.1.0b1-py3-none-any.whl?download=1" },
@@ -38,16 +38,16 @@ constraints = [
     { name = "openagent-module-ptc", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_ptc-1.1.0b1-py3-none-any.whl?download=1" },
     { name = "openagent-module-scheduler", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_scheduler-1.1.0b2-py3-none-any.whl?download=1" },
     { name = "openagent-module-search", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_search-1.1.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-module-sessions", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_sessions-1.1.0b4-py3-none-any.whl?download=1" },
+    { name = "openagent-module-sessions", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_sessions-1.1.0b5-py3-none-any.whl?download=1" },
     { name = "openagent-module-skills", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.37/openagent_module_skills-1.1.0b1-py3-none-any.whl?download=1" },
-    { name = "openagent-module-tool-discovery", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_module_tool_discovery-1.1.0b3-py3-none-any.whl?download=1" },
-    { name = "openagent-module-vault", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_vault-1.1.0b2-py3-none-any.whl?download=1" },
+    { name = "openagent-module-tool-discovery", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_tool_discovery-1.1.0b4-py3-none-any.whl?download=1" },
+    { name = "openagent-module-vault", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_vault-1.1.0b3-py3-none-any.whl?download=1" },
     { name = "openagent-module-workflows", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_workflows-1.1.0b2-py3-none-any.whl?download=1" },
-    { name = "openagent-modules", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules-1.1.0b6-py3-none-any.whl?download=1" },
-    { name = "openagent-modules-full", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules_full-1.1.0b6-py3-none-any.whl?download=1" },
-    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_sdk-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-modules", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules-1.1.0b8-py3-none-any.whl?download=1" },
+    { name = "openagent-modules-full", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules_full-1.1.0b8-py3-none-any.whl?download=1" },
+    { name = "openagent-sdk", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_sdk-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-shell", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_shell-1.0.0b4-py3-none-any.whl?download=1" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_storage_sqlite-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_storage_sqlite-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-tool-protocol", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_tool_protocol-1.0.0b2-py3-none-any.whl?download=1" },
 ]
 
@@ -2367,7 +2367,7 @@ provides-extras = ["discord", "slack", "telegram", "test", "whatsapp"]
 
 [[package]]
 name = "openagent-client-transport"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { directory = "../../packages/client-transport" }
 dependencies = [
     { name = "openagent-core" },
@@ -2376,8 +2376,8 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "openagent-core", specifier = "==1.1.0b152" },
-    { name = "openagent-identity", specifier = "==1.1.9b102" },
+    { name = "openagent-core", specifier = "==1.1.0b153" },
+    { name = "openagent-identity", specifier = "==1.1.9b103" },
 ]
 
 [[package]]
@@ -2396,10 +2396,10 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-core"
-version = "1.1.0b152"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_core-1.1.0b152-py3-none-any.whl?download=1" }
+version = "1.1.0b153"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_core-1.1.0b153-py3-none-any.whl?download=1" }
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_core-1.1.0b152-py3-none-any.whl?download=1", hash = "sha256:fd0ba216d2524cf0b325dbca57e5db5c4bf3e3e3ce4d215fa2c3d5c579ef8fce" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_core-1.1.0b153-py3-none-any.whl?download=1", hash = "sha256:53ea3cf7a082dad3e89038a452414ed6547d0397b02e8e554191741cea827c6a" },
 ]
 
 [package.optional-dependencies]
@@ -2448,8 +2448,8 @@ requires-dist = [
     { name = "mcp", marker = "extra == 'engine'", specifier = ">=1.27,<2" },
     { name = "numpy", marker = "extra == 'retrieval'", specifier = ">=1.24" },
     { name = "openagent-capability-host", marker = "extra == 'capabilities'", specifier = "==1.0.0b5" },
-    { name = "openagent-core", extras = ["subscriptions"], marker = "extra == 'subscription-host'", specifier = "==1.1.0b152" },
-    { name = "openagent-modules", marker = "extra == 'modules'", specifier = "==1.1.0b7" },
+    { name = "openagent-core", extras = ["subscriptions"], marker = "extra == 'subscription-host'", specifier = "==1.1.0b153" },
+    { name = "openagent-modules", marker = "extra == 'modules'", specifier = "==1.1.0b8" },
     { name = "openai", marker = "extra == 'providers'", specifier = ">=1" },
     { name = "packaging", marker = "extra == 'engine'", specifier = ">=21" },
     { name = "pydantic", marker = "extra == 'engine'", specifier = ">=2" },
@@ -2465,7 +2465,7 @@ provides-extras = ["capabilities", "engine", "providers", "subscriptions", "subs
 
 [[package]]
 name = "openagent-dashboards"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { directory = "../../packages/dashboards" }
 dependencies = [
     { name = "aiohttp" },
@@ -2478,8 +2478,8 @@ dependencies = [
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.9" },
     { name = "jsonschema", specifier = ">=4.20.0" },
-    { name = "openagent-core", specifier = "==1.1.0b152" },
-    { name = "openagent-identity", specifier = "==1.1.9b102" },
+    { name = "openagent-core", specifier = "==1.1.0b153" },
+    { name = "openagent-identity", specifier = "==1.1.9b103" },
 ]
 
 [[package]]
@@ -2540,7 +2540,7 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-framework"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -2653,17 +2653,17 @@ requires-dist = [
     { name = "openagent-channel-bridges", url = "https://github.com/openagent-uno/openagent/releases/download/channel-bridges-v0.1.0-beta.27/openagent_channel_bridges-0.1.0b27-py3-none-any.whl?download=1" },
     { name = "openagent-client-transport", directory = "../../packages/client-transport" },
     { name = "openagent-connectors", url = "https://github.com/openagent-uno/openagent-tools/releases/download/connectors-v0.1.15/openagent_connectors-0.1.15-py3-none-any.whl?download=1" },
-    { name = "openagent-core", extras = ["engine", "subscriptions"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_core-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-core", extras = ["engine", "subscriptions"], url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_core-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-dashboards", directory = "../../packages/dashboards" },
     { name = "openagent-device-tools", url = "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/openagent_device_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-execution", url = "https://github.com/openagent-uno/openagent-tools/releases/download/v1.0.0-beta.7/openagent_execution-1.0.0b4-py3-none-any.whl?download=1" },
-    { name = "openagent-gateway", specifier = "==1.1.0b152" },
+    { name = "openagent-gateway", specifier = "==1.1.0b153" },
     { name = "openagent-host-tools", url = "https://github.com/openagent-uno/openagent/releases/download/v1.0.0b18/openagent_host_tools-1.0.0b18-py3-none-any.whl?download=1" },
     { name = "openagent-identity", directory = "../../packages/identity" },
     { name = "openagent-mcp", directory = "../mcp-bridge" },
-    { name = "openagent-modules", specifier = "==1.1.0b6" },
+    { name = "openagent-modules", specifier = "==1.1.0b8" },
     { name = "openagent-product-config", directory = "../../packages/product-config" },
-    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_storage_sqlite-1.1.0b152-py3-none-any.whl?download=1" },
+    { name = "openagent-storage-sqlite", url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_storage_sqlite-1.1.0b153-py3-none-any.whl?download=1" },
     { name = "openagent-support-integration", directory = "../../packages/integrations/support" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "packaging", specifier = ">=21.0" },
@@ -2687,20 +2687,20 @@ provides-extras = ["telegram", "discord", "whatsapp", "slack", "acp", "voice", "
 
 [[package]]
 name = "openagent-gateway"
-version = "1.1.0b152"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_gateway-1.1.0b152-py3-none-any.whl?download=1" }
+version = "1.1.0b153"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_gateway-1.1.0b153-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "aiohttp" },
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_gateway-1.1.0b152-py3-none-any.whl?download=1", hash = "sha256:cf1862a4805cae53e442cb31579ab4e47f7954caed25f27dfd71bc37bdaa9e13" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_gateway-1.1.0b153-py3-none-any.whl?download=1", hash = "sha256:8f031f1f50091337dca98264636da8b17731a2c2b7b8e451aaf3c513ed314da9" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.10,<4" },
-    { name = "openagent-core", specifier = "==1.1.0b152" },
+    { name = "openagent-core", specifier = "==1.1.0b153" },
 ]
 
 [[package]]
@@ -2736,7 +2736,7 @@ provides-extras = ["build", "dev"]
 
 [[package]]
 name = "openagent-identity"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { directory = "../../packages/identity" }
 dependencies = [
     { name = "aiohttp" },
@@ -2757,13 +2757,13 @@ requires-dist = [
     { name = "cryptography", marker = "platform_machine == 'x86_64' and sys_platform == 'darwin'", specifier = "==48.0.1" },
     { name = "cryptography", marker = "platform_machine == 'ARM64' and sys_platform == 'win32'", specifier = "==46.0.3" },
     { name = "iroh", specifier = "==0.35.0" },
-    { name = "openagent-core", specifier = "==1.1.0b152" },
+    { name = "openagent-core", specifier = "==1.1.0b153" },
     { name = "srptools", specifier = ">=1.0.1,<3" },
 ]
 
 [[package]]
 name = "openagent-mcp"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { directory = "../mcp-bridge" }
 dependencies = [
     { name = "aiohttp" },
@@ -2782,7 +2782,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=42" },
     { name = "iroh", specifier = "==0.35.0" },
     { name = "mcp", marker = "extra == 'stdio'", specifier = ">=1.2" },
-    { name = "openagent-identity", specifier = "==1.1.9b102" },
+    { name = "openagent-identity", specifier = "==1.1.9b103" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5" },
@@ -2931,13 +2931,13 @@ requires-dist = [{ name = "openagent-core", specifier = ">=1.1.0b1,<2" }]
 
 [[package]]
 name = "openagent-module-sessions"
-version = "1.1.0b4"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_sessions-1.1.0b4-py3-none-any.whl?download=1" }
+version = "1.1.0b5"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_sessions-1.1.0b5-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_sessions-1.1.0b4-py3-none-any.whl?download=1", hash = "sha256:792a699eef5f33b3ab326c711ed9f9ae3d00d6586f387d607a62df8a11b9bc8f" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_sessions-1.1.0b5-py3-none-any.whl?download=1", hash = "sha256:b2f92e7aaaa26633beda85431407089b4ea836a31af1a758a6cbee3e94769777" },
 ]
 
 [package.metadata]
@@ -2959,13 +2959,13 @@ requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = ">=
 
 [[package]]
 name = "openagent-module-tool-discovery"
-version = "1.1.0b3"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_module_tool_discovery-1.1.0b3-py3-none-any.whl?download=1" }
+version = "1.1.0b4"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_tool_discovery-1.1.0b4-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_module_tool_discovery-1.1.0b3-py3-none-any.whl?download=1", hash = "sha256:beefecd68c404c28fa7cb39a8e7c4d4fa536c586083b355e118ae3f260aa000e" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_tool_discovery-1.1.0b4-py3-none-any.whl?download=1", hash = "sha256:853a437cdb61bab5487f383ca18ee996446cbc3cb46670e09e73ce04c1f958fc" },
 ]
 
 [package.metadata]
@@ -2973,17 +2973,17 @@ requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = ">=
 
 [[package]]
 name = "openagent-module-vault"
-version = "1.1.0b2"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_vault-1.1.0b2-py3-none-any.whl?download=1" }
+version = "1.1.0b3"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_vault-1.1.0b3-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.100/openagent_module_vault-1.1.0b2-py3-none-any.whl?download=1", hash = "sha256:99beb3f002bd2fa9219e94d032247125abddf73c0083b998b07a87a9f6e8c697" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_module_vault-1.1.0b3-py3-none-any.whl?download=1", hash = "sha256:c60b81a32ec82f1d888848ebe0772187677ac693722deb31a7d855b0d498598a" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = ">=1.1.0b1,<2" }]
+requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = ">=1.1.0b153,<2" }]
 
 [[package]]
 name = "openagent-module-workflows"
@@ -3001,22 +3001,22 @@ requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = ">=
 
 [[package]]
 name = "openagent-modules"
-version = "1.1.0b6"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules-1.1.0b6-py3-none-any.whl?download=1" }
+version = "1.1.0b8"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules-1.1.0b8-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-modules-full" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules-1.1.0b6-py3-none-any.whl?download=1", hash = "sha256:d4ae60191e7c0129395d94e31f781ad39516e5d9d268e07177aa17f70b8a5547" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules-1.1.0b8-py3-none-any.whl?download=1", hash = "sha256:7f61fa37e8e3eae68509721e1b3745e48cb4aa995694d688d2921d340a46a32b" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-modules-full", specifier = "==1.1.0b6" }]
+requires-dist = [{ name = "openagent-modules-full", specifier = "==1.1.0b8" }]
 
 [[package]]
 name = "openagent-modules-full"
-version = "1.1.0b6"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules_full-1.1.0b6-py3-none-any.whl?download=1" }
+version = "1.1.0b8"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules_full-1.1.0b8-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-module-attachments" },
     { name = "openagent-module-budget" },
@@ -3035,7 +3035,7 @@ dependencies = [
     { name = "openagent-module-workflows" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.110/openagent_modules_full-1.1.0b6-py3-none-any.whl?download=1", hash = "sha256:fbc9f8f8830312a6277bb948513e118baaed23dea716afd23e57a4361d7e7fee" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_modules_full-1.1.0b8-py3-none-any.whl?download=1", hash = "sha256:995883c6c211b85beecf4d0e35882259de44fc9b1d5e55770fa2cfc1894d582f" },
 ]
 
 [package.metadata]
@@ -3050,16 +3050,16 @@ requires-dist = [
     { name = "openagent-module-ptc", specifier = "==1.1.0b1" },
     { name = "openagent-module-scheduler", specifier = "==1.1.0b2" },
     { name = "openagent-module-search", specifier = "==1.1.0b3" },
-    { name = "openagent-module-sessions", specifier = "==1.1.0b4" },
+    { name = "openagent-module-sessions", specifier = "==1.1.0b5" },
     { name = "openagent-module-skills", specifier = "==1.1.0b1" },
-    { name = "openagent-module-tool-discovery", specifier = "==1.1.0b3" },
-    { name = "openagent-module-vault", specifier = "==1.1.0b2" },
+    { name = "openagent-module-tool-discovery", specifier = "==1.1.0b4" },
+    { name = "openagent-module-vault", specifier = "==1.1.0b3" },
     { name = "openagent-module-workflows", specifier = "==1.1.0b2" },
 ]
 
 [[package]]
 name = "openagent-product-config"
-version = "1.1.0b28"
+version = "1.1.0b29"
 source = { directory = "../../packages/product-config" }
 dependencies = [
     { name = "openagent-core" },
@@ -3071,7 +3071,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "openagent-core", specifier = ">=1.1.0b41,<2" },
-    { name = "openagent-modules-full", specifier = "==1.1.0b6" },
+    { name = "openagent-modules-full", specifier = "==1.1.0b8" },
     { name = "pillow", specifier = ">=11,<14" },
     { name = "pyyaml", specifier = ">=6" },
 ]
@@ -3092,28 +3092,32 @@ requires-dist = [{ name = "openagent-tool-protocol", specifier = "==1.0.0b2" }]
 
 [[package]]
 name = "openagent-storage-sqlite"
-version = "1.1.0b152"
-source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_storage_sqlite-1.1.0b152-py3-none-any.whl?download=1" }
+version = "1.1.0b153"
+source = { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_storage_sqlite-1.1.0b153-py3-none-any.whl?download=1" }
 dependencies = [
     { name = "openagent-core" },
 ]
 wheels = [
-    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.152/openagent_storage_sqlite-1.1.0b152-py3-none-any.whl?download=1", hash = "sha256:bf85a3376d90551cd2606636abf2ec33d7fd52e9813bc9ed8c70c2e3d1599581" },
+    { url = "https://github.com/openagent-uno/openagent-core/releases/download/v1.1.0-beta.153/openagent_storage_sqlite-1.1.0b153-py3-none-any.whl?download=1", hash = "sha256:842f13d18a41c630fb08a4d15d6efd082bfd02e671cb3fecc69d69afb98337b7" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", specifier = "==1.1.0b152" }]
+requires-dist = [
+    { name = "openagent-core", specifier = "==1.1.0b153" },
+    { name = "psycopg", marker = "extra == 'postgres-migration'", specifier = ">=3.2,<4" },
+]
+provides-extras = ["postgres-migration"]
 
 [[package]]
 name = "openagent-support-integration"
-version = "1.1.9b102"
+version = "1.1.9b103"
 source = { directory = "../../packages/integrations/support" }
 dependencies = [
     { name = "openagent-core", extra = ["engine"] },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b152" }]
+requires-dist = [{ name = "openagent-core", extras = ["engine"], specifier = "==1.1.0b153" }]
 
 [[package]]
 name = "openagent-tool-protocol"

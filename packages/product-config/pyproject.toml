@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openagent-product-config"
-version = "1.1.0b28"
+version = "1.1.0b29"
 description = "Standalone OpenAgent product product-config"
 requires-python = ">=3.11"
 license = "MIT"
 dependencies = [
   "openagent-core>=1.1.0b41,<2",
-  "openagent-modules-full==1.1.0b6",
+  "openagent-modules-full==1.1.0b8",
   "pyyaml>=6",
   "Pillow>=11,<14",
 ]
