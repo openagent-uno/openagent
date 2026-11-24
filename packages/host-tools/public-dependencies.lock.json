@@ -12,9 +12,9 @@
       "source_commit": "bb0db00ce4a5bad2d964a426c07ce261cd02798f"
     },
     "device": {
-      "base": "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.18/",
-      "source_commit": "b1f60eaf29f90acd552deebed42cc9cd93b6171a",
-      "manifest_sha256": "34a56c6adaaf4c84ad5da82b5bedb034e7a5facdb22fc098c3b8c3db55f6b7ea"
+      "base": "https://github.com/openagent-uno/openagent-tools/releases/download/device-tools-v1.0.0-beta.20/",
+      "source_commit": "7dcc6db42bdf8777fd9960d1174b88cb2a269281",
+      "manifest_sha256": "a50ed398598e3123e975c8c5ffe4687e661de5b55f1c98d7651b1b4b759a6228"
     }
   }
 }

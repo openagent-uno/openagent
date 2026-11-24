@@ -329,7 +329,7 @@ commit and exports its public, hash-locked dependencies from the component's
 `uv.lock`. It installs that exact wheel into a fresh Linux environment,
 runs the package tests and publishes the wheel, `guest-requirements.txt`
 and `manifest.json` together. The manifest records the upstream release
-digests and the checksums of both installable assets. Version `1.0.0b19`
-consumes Tools `v1.0.0-beta.8` for its opt-in Linux shell task surfaces
-and keeps Device Tools at `1.0.0b18`. Desktop native indices are promoted
+digests and the checksums of both installable assets. Version `1.0.0b20`
+consumes Device Tools `1.0.0b20` and retains Tools `v1.0.0-beta.8`
+for its opt-in Linux shell task surfaces. Desktop native indices are promoted
 through the signed native workflow.
