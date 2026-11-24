@@ -12,7 +12,12 @@ import os
 from aiohttp import web
 
 from openagent_core import Runtime, RuntimeServices, RuntimeSettings
-from openagent_core.contracts import AdmissionCapacityExceeded, IdempotencyConflict, RunRequest
+from openagent_core.contracts import (
+    AdmissionCapacityExceeded,
+    IdempotencyConflict,
+    ResourceRef,
+    RunRequest,
+)
 from openagent_core.engine import AgentExecutor, AgentModelCatalog
 from openagent_core.core.on_behalf_context import current_on_behalf_identity
 from openagent_storage_sqlite import SqliteRuntimeStore
@@ -990,6 +995,19 @@ class NativeRuntimeService:
             ResourceRef("session", context.tenant_id, context.session_id), audience=context.audience)
 
     async def _authorize_source(self, context, action, resource, *, audience=()):
+        if action == "tool.discover_source_status":
+            if resource.kind != "capability" or not audience or tuple(audience) != context.audience:
+                return False
+            # A configured source's name can itself be private. Recheck the
+            # canonical conversation audience before applying the exact same
+            # policy as discovery of an available source.
+            if not await self.authorizer.authorize(
+                context, "run.publish",
+                ResourceRef("session", context.tenant_id, context.session_id),
+                audience=audience,
+            ):
+                return False
+            action = "tool.discover"
         if resource.kind in {"computer-project-version", "computer-task"}:
             return bool(self.project_tasks and await self.project_tasks.computer_access(context, action, resource))
         # This policy is host-owned. No MCP row or client-provided ownership
@@ -1029,8 +1047,6 @@ class NativeRuntimeService:
 
             return owner_bridge_vault_turn(context, self.agent.config)
         if action in {"model.list", "model.use"}:
-            from openagent_core.contracts import ResourceRef
-
             return await self.authorizer.authorize(
                 context,
                 "run.read" if action == "model.list" else "run.execute",

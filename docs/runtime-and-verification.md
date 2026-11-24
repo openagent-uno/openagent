@@ -75,6 +75,11 @@ require the exact capability instance and consent. The persistent dashboard
 service does not advertise a global tool. CLI/channel turns and deferred
 work do not inherit an unrelated App registration.
 
+The standalone applies the same source discovery policy to availability
+metadata and rechecks the current canonical audience before revealing it.
+A configured local MCP recovering from its initial handshake timeout can
+appear as temporarily unavailable with zero tools for an authorized turn.
+
 ## Shared vault and audio services
 
 Vault REST routes use the core's public `VaultAdministration`, including its

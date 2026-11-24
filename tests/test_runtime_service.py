@@ -1,10 +1,11 @@
 import asyncio
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 import tempfile
 import unittest
 
-from openagent_core.contracts import IdempotencyConflict, ResourceRef
+from openagent_core.contracts import IdempotencyConflict, PrincipalRef, ResourceRef
 from openagent_core.core.on_behalf_context import (
     install_on_behalf_identity,
     reset_on_behalf_identity,
@@ -209,6 +210,26 @@ class RuntimeServiceTests(unittest.IsolatedAsyncioTestCase):
                 audience=context.audience,
             )
         )
+
+    async def test_source_status_requires_exact_resource_and_audience(self):
+        session = "source-readiness"
+        await self.service.facade.run("hello", session_id=session)
+        authorizer = self.service.authorizer
+        context = await authorizer.context_for_identity(self.identity, session)
+        action = "tool.discover_source_status"
+        source = ResourceRef("capability", context.tenant_id, "sessions")
+
+        self.assertTrue(await authorizer.authorize(context, action, source, audience=context.audience))
+        self.assertFalse(await authorizer.authorize(context, action, source))
+        peer = PrincipalRef("openagent", context.tenant_id, "bob", "user")
+        stale = replace(context, audience=(*context.audience, peer))
+        self.assertFalse(await authorizer.authorize(stale, action, source, audience=stale.audience))
+        for resource in (
+            ResourceRef("tool", context.tenant_id, "sessions/fake_tool"),
+            ResourceRef("capability", context.tenant_id, "undiscoverable-source"),
+            ResourceRef("capability", "other-tenant", "sessions"),
+        ):
+            self.assertFalse(await authorizer.authorize(context, action, resource, audience=context.audience))
 
     async def test_admission_persists_before_observation_and_retry_keeps_target(self):
         first = await self.service.admit_message(
