@@ -1,10 +1,10 @@
-import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, realpath, rm } from 'node:fs/promises';
 import { hostname, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron, expect, test } from '@playwright/test';
 import { startServerHarness, stopServerHarness } from './helpers/iroh-harness.mjs';
+import { listOwnedBrokerPids, readTextOrEmpty, stopNewOwnedBrokerPids } from './helpers/broker-lifecycle.mjs';
 import { resolveHostToolsBinary, StaticRendererServer } from './fixtures.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -217,15 +217,6 @@ test('real Electron enrolls and executes filesystem through the uniform catalog 
   }
 });
 
-async function readTextOrEmpty(path) {
-  try {
-    return await readFile(path, 'utf8');
-  } catch (error) {
-    if (error?.code === 'ENOENT') return '';
-    throw error;
-  }
-}
-
 async function waitForModelEvidence(path, minimumCalls) {
   const deadline = Date.now() + 10_000;
   let last = [];
@@ -239,70 +230,4 @@ async function waitForModelEvidence(path, minimumCalls) {
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
   }
   throw new Error(`expected at least ${minimumCalls} deterministic model calls, got ${last.length}`);
-}
-
-async function listOwnedBrokerPids(hostBinary, hostHome) {
-  const marker = (await readTextOrEmpty(join(hostHome, 'host-tools', 'broker.pid'))).trim();
-  const ownerPid = Number(marker);
-  if (!Number.isSafeInteger(ownerPid) || ownerPid <= 0) return new Set();
-
-  if (process.platform === 'win32') {
-    const escapedBinary = hostBinary.replaceAll("'", "''");
-    const script = [
-      `$item = Get-CimInstance Win32_Process -Filter "ProcessId = ${ownerPid}"`,
-      `$bin = [Regex]::Escape('${escapedBinary}')`,
-      '$pids = @($item | Where-Object { $_.CommandLine -match $bin -and $_.CommandLine -match "--broker" } | ForEach-Object { $_.ProcessId })',
-      '$pids | ConvertTo-Json -Compress',
-    ].join('; ');
-    const output = await runProcess('powershell', ['-NoProfile', '-Command', script]);
-    const parsed = output.trim() ? JSON.parse(output) : [];
-    return new Set((Array.isArray(parsed) ? parsed : [parsed]).map(Number));
-  }
-  let command;
-  try {
-    command = await runProcess('ps', ['-p', String(ownerPid), '-o', 'command=']);
-  } catch {
-    return new Set();
-  }
-  const isBroker = command.includes(hostBinary) || command.includes('openagent_host_tools');
-  return isBroker && /(?:^|\s)--broker(?:\s|$)/.test(command)
-    ? new Set([ownerPid])
-    : new Set();
-}
-
-async function stopNewOwnedBrokerPids(hostBinary, hostHome, before) {
-  let owned = [...await listOwnedBrokerPids(hostBinary, hostHome)]
-    .filter((pid) => !before.has(pid));
-  for (const pid of owned) {
-    try { process.kill(pid, 'SIGTERM'); } catch { /* already exited */ }
-  }
-  const deadline = Date.now() + 5_000;
-  while (owned.length && Date.now() < deadline) {
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 50));
-    const live = await listOwnedBrokerPids(hostBinary, hostHome);
-    owned = owned.filter((pid) => live.has(pid));
-  }
-  for (const pid of owned) {
-    try { process.kill(pid, 'SIGKILL'); } catch { /* already exited */ }
-  }
-  const leaked = [...await listOwnedBrokerPids(hostBinary, hostHome)]
-    .filter((pid) => !before.has(pid));
-  expect(leaked, 'real-Iroh E2E must reap its isolated capability broker').toEqual([]);
-}
-
-function runProcess(command, args) {
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.once('error', reject);
-    child.once('exit', (code) => {
-      if (code === 0) resolvePromise(stdout);
-      else reject(new Error(`${command} exited ${code}: ${stderr}`));
-    });
-  });
 }

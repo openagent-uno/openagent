@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { _electron as electron, expect, test } from '@playwright/test';
 import { resolveHostToolsBinary, StaticRendererServer } from './fixtures.mjs';
 import { startServerHarness, stopServerHarness } from './helpers/iroh-harness.mjs';
+import { listOwnedBrokerPids, stopNewOwnedBrokerPids } from './helpers/broker-lifecycle.mjs';
 
 const DESKTOP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const PACKAGED_APP = process.env.OPENAGENT_E2E_PACKAGED_APP;
@@ -14,6 +15,13 @@ const button = (page, content) => text(page, content.toUpperCase());
 async function enroll(member, root, renderer, apps) {
   const profile = join(root, member.handle);
   await mkdir(profile, { mode: 0o700 });
+  const hostHome = join(profile, 'tools');
+  const hostBinary = PACKAGED_APP
+    ? join(PACKAGED_APP, 'Contents/Resources/host-tools/darwin-arm64/openagent-host-tools')
+    : resolveHostToolsBinary(DESKTOP);
+  const before = await listOwnedBrokerPids(hostBinary, hostHome);
+  const client = { hostBinary, hostHome, before };
+  apps.push(client);
   const app = await electron.launch({
     executablePath: PACKAGED_APP ? join(PACKAGED_APP, 'Contents/MacOS/OpenAgent') : undefined,
     args: PACKAGED_APP
@@ -23,12 +31,10 @@ async function enroll(member, root, renderer, apps) {
     env: {
       ...process.env, NODE_ENV: 'test', OPENAGENT_DESKTOP_E2E: '1', OPENAGENT_DESKTOP_E2E_RENDERER_URL: renderer?.baseUrl || '',
       HOME: profile, USERPROFILE: profile, XDG_CONFIG_HOME: join(profile, '.config'),
-      OPENAGENT_HOST_TOOLS_HOME: join(profile, 'tools'), OPENAGENT_HOST_TOOLS_BIN: PACKAGED_APP
-        ? join(PACKAGED_APP, 'Contents/Resources/host-tools/darwin-arm64/openagent-host-tools')
-        : resolveHostToolsBinary(DESKTOP),
+      OPENAGENT_HOST_TOOLS_HOME: hostHome, OPENAGENT_HOST_TOOLS_BIN: hostBinary,
     },
   });
-  apps.push(app);
+  client.app = app;
   const page = await app.firstWindow();
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.getByPlaceholder('oa1abcdef… (from `openagent invite`)').fill(member.ticket);
@@ -36,12 +42,13 @@ async function enroll(member, root, renderer, apps) {
   await page.locator('input[type="password"]').fill(member.password);
   await page.locator('input[type="password"]').press('Enter');
   await expect(page.getByRole('button', { name: 'New session', exact: true })).toBeVisible({ timeout: 50_000 });
+  await expect(page.getByText('Ready', { exact: true })).toBeVisible({ timeout: 50_000 });
   return page;
 }
 
 async function finishTask(page, marker, name, commit) {
   const url = new URL(page.url()).origin;
-  await page.goto(url + '/projects');
+  await page.getByText('Projects', { exact: true }).click();
   await expect(button(page, 'Operations manual')).toBeVisible();
   await page.getByLabel('Task instruction', { exact: true }).fill(marker + ' review');
   await button(page, 'Start task').click();
@@ -125,7 +132,10 @@ test('two enrolled owners reopen tasks, constrained VM surfaces and revoked hist
     await bravo.goto(new URL(bravo.url()).origin + '/projects/' + other);
     await expect(text(bravo, 'Completed review for bravo')).toBeVisible();
   } finally {
-    for (const app of apps.reverse()) await app.close();
+    for (const { app, hostBinary, hostHome, before } of apps.reverse()) {
+      try { await app?.close(); }
+      finally { await stopNewOwnedBrokerPids(hostBinary, hostHome, before); }
+    }
     await stopServerHarness(harness);
     await renderer?.close();
     await rm(root, { recursive: true, force: true });
