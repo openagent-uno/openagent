@@ -192,7 +192,8 @@ class NativeAutomationExecution:
 
     async def run_task(self, scheduler, task, *, trigger, request_id, payload, execute):
         occurrence = (
-            task.get("_preclaimed_run_id")
+            task.get("_manual_request_id")
+            or task.get("_preclaimed_run_id")
             or request_id
             or current_run_id()
             or str(uuid4())

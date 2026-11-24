@@ -247,7 +247,8 @@ async def handle_run(request):
     except (ValueError,TypeError) as error:
         raise web.HTTPBadRequest(text=str(error)) from None
     projection_id=str(uuid5(NAMESPACE_URL,f'task:{existing["id"]}:{request_key}'))
-    task=scheduler._spawn_workflow(scheduler.run_task(existing,trigger="manual",request_id=request_key))
+    automation = request.app["gateway"].runtime_service.automation_runtime
+    task = automation.launch("scheduled_task", existing, request_id=request_key)
     done,_=await asyncio.wait({task},timeout=timeout)
     if done:
         try:
@@ -256,7 +257,7 @@ async def handle_run(request):
             return web.json_response({'error':'idempotency_conflict','run_id':projection_id},status=409)
         except PermissionError:
             return web.json_response({'error':'automation_authorization_changed','run_id':projection_id},status=403)
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             row=await scheduler.db.get_task_run(projection_id)
             if row is None:
                 return web.json_response({'error':'runtime_execution_failed','run_id':projection_id},status=500)
@@ -266,7 +267,7 @@ async def handle_run(request):
         task.add_done_callback(lambda completed: completed.exception() if not completed.cancelled() else None)
     row=await scheduler.db.get_task_run(projection_id)
     await request.app['gateway'].broadcast_resource('scheduled_task','updated',existing['id'])
-    if row is None or not done:
+    if row is None or not done or row["status"] in {"queued", "starting", "running", "cancelling"}:
         return web.json_response({'run_id':projection_id,'request_id':request_key,'status':'running'},status=202)
     return web.json_response(_serialize_run(row))
 

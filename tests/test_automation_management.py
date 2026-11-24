@@ -307,6 +307,92 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
         count=await (await self.db._conn.execute('SELECT COUNT(*) FROM task_run_requests')).fetchone()
         self.assertEqual(count[0],0)
 
+    async def test_http_manual_runs_claim_once_and_preserve_projection(self):
+        from contextlib import AsyncExitStack
+        from uuid import NAMESPACE_URL, uuid5
+
+        from aiohttp import web
+        from aiohttp.test_utils import TestClient, TestServer
+        from openagent_core.automation_runtime import AutomationRuntime
+        from openagent_server.gateway.api import scheduled_tasks, workflow_tasks
+
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        calls = []
+
+        async def scheduled_handler(**arguments):
+            calls.append(arguments["task"]["id"])
+            entered.set()
+            await release.wait()
+            return {"fixture": "done"}
+
+        async def noop(*_args):
+            pass
+
+        agent = self.service.agent
+        agent.extensions = SimpleNamespace(scheduled_handler=scheduled_handler)
+        agent.refresh_registries = noop
+        agent.forget_session = noop
+        automation = self.service.automation_runtime = AutomationRuntime(
+            self.db, agent, self.execution, enabled_domains=("scheduler", "workflows"),
+        )
+        task = await self.management.call(
+            "scheduled_task", "create_scheduled_task",
+            {"name": "Manual task", "cron_expression": "0 9 * * *", "prompt": "Fixture"},
+            self.context,
+        )
+        workflow = await self.management.call(
+            "workflow", "create_workflow",
+            {"name": "Manual workflow", "nodes": [
+                {"id": "wait", "type": "wait", "config": {"mode": "duration", "seconds": 0.01}},
+            ]}, self.context,
+        )
+        unapproved = await self.db.add_task("Unapproved", "0 9 * * *", "Fixture")
+        app = web.Application()
+        gateway = SimpleNamespace(
+            _scheduler=automation.scheduler, runtime_service=self.service, broadcast_resource=noop,
+        )
+        app["gateway"] = gateway
+        app.router.add_post("/api/scheduled-tasks/{id}/run", scheduled_tasks.handle_run)
+        app.router.add_post("/api/workflows/{id}/run", workflow_tasks.handle_run)
+
+        async with AsyncExitStack() as stack:
+            await automation.start(self.runtime)
+            stack.push_async_callback(automation.close)
+            client = await stack.enter_async_context(TestClient(TestServer(app)))
+            async def run(path, **payload):
+                async with client.post(path, json=payload) as response:
+                    return response.status, await response.json()
+
+            task_path = f"/api/scheduled-tasks/{task['id']}/run"
+            task_id = str(uuid5(NAMESPACE_URL, f"task:{task['id']}:task-key"))
+            first = asyncio.create_task(run(task_path, request_id="task-key"))
+            try:
+                await asyncio.wait_for(entered.wait(), 10)
+                pending, duplicate = await run(task_path, request_id="task-key")
+                self.assertEqual((pending, duplicate["run_id"]), (202, task_id))
+            finally:
+                release.set()
+                status, result = await first
+            self.assertEqual((status, result["id"], result["status"]), (200, task_id, "success"))
+            self.assertEqual(calls, [task["id"]])
+            status, result = await run(task_path, request_id="task-key")
+            self.assertEqual((status, result["id"]), (200, task_id))
+            self.assertEqual(calls, [task["id"]])
+            denied, _ = await run(f"/api/scheduled-tasks/{unapproved}/run", request_id="denied")
+            self.assertEqual(denied, 403)
+            self.assertEqual(await self.db.list_task_runs(unapproved), [])
+
+            workflow_path = f"/api/workflows/{workflow['id']}/run"
+            workflow_id = str(uuid5(NAMESPACE_URL, f"workflow:{workflow['id']}:workflow-key"))
+            for _ in range(2):
+                status, result = await run(workflow_path, request_id="workflow-key", inputs={"value": 1})
+                self.assertEqual((status, result["id"], result["status"], result["trigger"]),
+                                 (200, workflow_id, "success", "api"))
+            status, conflict = await run(workflow_path, request_id="workflow-key", inputs={"value": 2})
+            self.assertEqual((status, conflict["error"]), (409, "idempotency_conflict"))
+            self.assertEqual(len(await self.db.list_workflow_runs(workflow['id'])), 1)
+
     async def test_delegated_task_can_run_separately_authorized_workflow(self):
         workflow=await self.management.call('workflow','create_workflow',
             {'name':'Approved gate'},self.context)
