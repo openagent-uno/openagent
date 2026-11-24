@@ -137,5 +137,5 @@ loopback port and path such as `18285:/`. The catalog then includes
 from its control transport. Each guest should be dedicated to its assigned
 task, with the shell running as the unprivileged workspace owner.
 
-The Python tag is `host-tools-python-v1.0.0b19`. Native archives and Desktop
+The Python tag is `host-tools-python-v1.0.0b20`. This composition pins Device Tools `1.0.0b20` and Shell `1.0.0b5`. Native archives and Desktop
 and CLI bundle indices use their existing release channels.
