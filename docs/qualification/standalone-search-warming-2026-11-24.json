@@ -1,13 +1,16 @@
 {
   "scenario": "isolated standalone server, two registered Iroh devices, local fixture provider and an older SQLite history",
   "sourceQualification": true,
-  "serverStartMilliseconds": 1800.09,
+  "serverStartMilliseconds": 1706.54,
   "authenticatedHealthHTTP": 200,
   "authenticatedRunDuringRepair": "success",
   "canonicalHistoryReadyDuringRepair": true,
   "searchDuringRepair": { "http": 503, "state": "warming" },
   "searchAfterRepairHTTP": 200,
   "authenticatedReplayAfterDisconnect": "success",
+  "inFlightSchedulerRunsDuringInteractiveTurn": 3,
+  "excessSchedulerWorkRemainedUnclaimed": true,
+  "schedulerRunsCompletedOnce": 4,
   "tests": 6,
   "subtests": 4
 }
