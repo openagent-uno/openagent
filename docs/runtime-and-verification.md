@@ -20,6 +20,14 @@ admission, the first client delta and final recovery with a controlled provider.
 Hypervisor CPU steal requires a separate measurement on the host.
 [Standalone turn recovery qualification](qualification/standalone-turn-recovery-2026-11-24.json)
 
+The server delegates operational history and search maintenance to Core. The
+listener and chat admission can become available before the derived search
+index is complete. `GET /api/capabilities` reports canonical history and search
+readiness separately. While search is warming, `POST /api/search` returns a
+retryable HTTP 503. A device can continue reading its canonical chats and
+tracking accepted turns during that interval.
+[Standalone search warming qualification](qualification/standalone-search-warming-2026-11-24.json)
+
 Native principals derive from verified certificates. The identity adapter
 retains both canonical PrincipalRef keys and the existing typed ACL aliases.
 Unresolvable historical authors remain unresolved. Current network membership,
