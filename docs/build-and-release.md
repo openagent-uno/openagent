@@ -320,3 +320,16 @@ imports against the universal consumer's own node_modules using exact runtime
 package aliases. It never aliases runtime imports to type-only declarations. Icons used directly by App components are explicit locked dependencies.
 This keeps a clean CI install equivalent to development without a parent
 node_modules symlink or undeclared transitive dependency.
+
+### Python Host Tools for a Linux task guest
+
+Publish the guest wheel under `host-tools-python-v<PEP-440-version>`.
+The guest workflow builds the selected Host Tools component from the tagged
+commit and exports its public, hash-locked dependencies from the component's
+`uv.lock`. It installs that exact wheel into a fresh Linux environment,
+runs the package tests and publishes the wheel, `guest-requirements.txt`
+and `manifest.json` together. The manifest records the upstream release
+digests and the checksums of both installable assets. Version `1.0.0b19`
+consumes Tools `v1.0.0-beta.8` for its opt-in Linux shell task surfaces
+and keeps Device Tools at `1.0.0b18`. Desktop native indices are promoted
+through the signed native workflow.

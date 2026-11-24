@@ -54,3 +54,30 @@ def test_explicit_environment_is_not_rewritten(tmp_path: Path):
         host = CapabilityHost(paths=HostPaths(tmp_path/'profile'), cwd=tmp_path, builtin_names=('shell',),
                               process_environment={'PATH': '/only/this', 'HOME': str(tmp_path)})
     assert host._servers['shell'].environment['PATH'] == '/only/this'
+
+
+@pytest.mark.skipif(sys.platform != "linux", reason="Task surfaces require a Linux guest")
+@pytest.mark.asyncio
+@pytest.mark.parametrize("workspace,preview", [(False, False), (True, False), (True, True)])
+async def test_guest_shell_catalog_follows_host_configuration(tmp_path, workspace, preview):
+    environment = {}
+    expected = set()
+    if workspace:
+        environment["OPENAGENT_TASK_SURFACE_WORKSPACE"] = str(tmp_path)
+        expected.update({"open", "attach", "read", "input"})
+    if preview:
+        environment["OPENAGENT_TASK_PREVIEW"] = "18285:/"
+        expected.add("preview")
+    host = CapabilityHost(paths=HostPaths(tmp_path / "profile"), cwd=tmp_path,
+                          process_environment=environment, builtin_names=("shell",))
+    try:
+        await host.start()
+        assert await host.catalog() == []
+        await host.set_consent(True)
+        shell, = await host.catalog()
+        assert shell["name"] == "shell"
+        names = {tool["name"].removeprefix("task_surface_") for tool in shell["tools"]
+                 if tool["name"].startswith("task_surface_")}
+        assert names == expected
+    finally:
+        await host.close()

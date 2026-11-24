@@ -115,3 +115,27 @@ a standard `notifications/message` logging notification from logger
 by the embedded capability host. MCP consumers should register a logging
 callback and route that logger's data into the agent event/autoloop path rather
 than treating it as diagnostic text.
+
+### Python task guest
+
+The Python guest release ships the Host Tools wheel and a single hash-locked
+requirements file for the host and its dependencies. Download the requirements
+from the selected immutable release, then install in the guest's virtual
+environment.
+
+```console
+python -m pip install --require-hashes -r guest-requirements.txt
+```
+
+In a dedicated Linux task guest, set `OPENAGENT_TASK_SURFACE_WORKSPACE` to
+the absolute path of the existing workspace before starting the host.
+After local consent the shell advertises `task_surface_open`,
+`task_surface_attach`, `task_surface_read` and `task_surface_input`.
+To enable a preview, also set `OPENAGENT_TASK_PREVIEW` to a configured
+loopback port and path such as `18285:/`. The catalog then includes
+`task_surface_preview`. The host receives the enrolled user's task scope
+from its control transport. Each guest should be dedicated to its assigned
+task, with the shell running as the unprivileged workspace owner.
+
+The Python tag is `host-tools-python-v1.0.0b19`. Native archives and Desktop
+and CLI bundle indices use their existing release channels.
