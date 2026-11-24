@@ -12,7 +12,7 @@ export type SharedTurn = {
   tools?: { id: string; toolInfo: ToolInfo; timestamp: number; afterText?: number }[];
 };
 export type SharedSnapshot = { session_id: string; revision: number; turns: SharedTurn[] };
-export type SharedTurnResult = { session_id: string; request_id: string; response: string; model?: string; errored?: boolean; interrupted?: boolean };
+export type SharedTurnResult = { session_id: string; request_id: string; response: string; model?: string; errored?: boolean; interrupted?: boolean; pending?: boolean };
 
 export function validSharedTarget(value: unknown): value is SharedTarget {
   const target = value as SharedTarget | null;

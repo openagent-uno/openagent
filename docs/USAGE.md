@@ -80,6 +80,14 @@ boundary.
 
 ## CLI and App
 
+For a connected standalone server, `openagent-cli ask --request-id <uuid>`
+correlates the WebSocket turn with its durable run. The JSON result includes
+that ID. After a connection loss, `openagent-cli ask-status <uuid> --json`
+reads the authorized run without submitting the message again. A missing
+receipt means the client has yet to confirm delivery. The `ask` timeout
+attempts cancellation only of a matching admitted run and reports its
+observed status.
+
 Install `openagent-cli` from the same qualified product release. Connect it using
 the verified invite/identity flow in getting started; use
 `openagent-cli --help` and `openagent-cli connect --help` for the current options.

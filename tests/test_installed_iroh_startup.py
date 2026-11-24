@@ -2,6 +2,8 @@
 import asyncio
 import ast
 import json
+from time import perf_counter
+from uuid import uuid4
 from aiohttp import web
 from aiohttp.test_utils import TestServer
 from pathlib import Path
@@ -21,6 +23,7 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.model_requests=[]
         self.provider_failure=None
+        self.transport_turn = None
         app=web.Application();app.router.add_post('/v1/chat/completions',self.model_reply)
         self.provider=TestServer(app);await self.provider.start_server()
 
@@ -39,6 +42,21 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
             status, message = self.provider_failure
             return web.json_response({'error': {'message': message, 'type': 'provider_error'}}, status=status)
         messages=body.get('messages',[])
+        if (self.transport_turn is not None and body.get('stream')
+                and any(m.get('role') == 'user' and 'Fixture reconnect turn' in str(m.get('content')) for m in messages)):
+            first, final = self.transport_turn
+            response = web.StreamResponse(headers={'Content-Type': 'text/event-stream'})
+            await response.prepare(request)
+            for gate, delta, reason in (
+                (first, {'role': 'assistant', 'content': 'Durable '}, None),
+                (final, {'content': 'fixture reply.'}, 'stop'),
+            ):
+                await gate.wait()
+                chunk = {'id': 'transport-fixture', 'object': 'chat.completion.chunk', 'created': 1,
+                         'model': 'fixture', 'choices': [{'index': 0, 'delta': delta, 'finish_reason': reason}]}
+                await response.write(('data: ' + json.dumps(chunk) + '\n\n').encode())
+            await response.write(b'data: [DONE]\n\n')
+            return response
         start=max((i for i,m in enumerate(messages) if m.get('role')=='user' and 'Fixture' in str(m.get('content',''))),default=0)
         results=[m for m in messages[start:] if m.get('role')=='tool']
         app_turn='dashboard' in str(messages[start].get('content','')).lower()
@@ -73,6 +91,82 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
             await response.write(b'data: [DONE]\n\n');await response.write_eof();return response
         for item in delta.get('tool_calls',[]):item.pop('index',None)
         return web.json_response({'id':'fixture','object':'chat.completion','created':1,'model':'fixture','choices':[{'index':0,'message':delta,'finish_reason':reason}],'usage':{'prompt_tokens':1,'completion_tokens':1,'total_tokens':2}})
+
+    async def assert_iroh_turn_recovery(self, http, urls, server):
+        from openagent_cli.client import GatewayClient
+
+        self.transport_turn = first, final = asyncio.Event(), asyncio.Event()
+        run_id, session_id = str(uuid4()), 'fixture-reconnect'
+        path = '/api/runtime/runs/' + run_id
+        websocket_url = urls['alice'].replace('http://', 'ws://', 1) + '/ws'
+        sender = GatewayClient(url=websocket_url)
+        receiver = GatewayClient(url=websocket_url)
+        pending = None
+        before = len(self.model_requests)
+        try:
+            await sender.connect()
+            start = perf_counter()
+            pending = asyncio.create_task(sender.send_message('Fixture reconnect turn', session_id, request_id=run_id))
+            async with asyncio.timeout(10):
+                while True:
+                    async with http.get(urls['alice'] + path) as response:
+                        if response.status == 200:
+                            self.assertEqual((await response.json())['session_id'], session_id)
+                            break
+                        self.assertEqual(response.status, 404)
+                    await asyncio.sleep(.02)
+                admission = perf_counter()
+                first.set()
+                while True:
+                    async with http.get(urls['alice'] + path + '/events') as response:
+                        self.assertEqual(response.status, 200)
+                        events = (await response.json())['events']
+                    if any(event['kind'] == 'run.stream' and event['payload'].get('kind') == 'delta' for event in events):
+                        break
+                    await asyncio.sleep(.02)
+                first_event = perf_counter()
+                await sender._ws.close()
+                self.assertTrue((await pending)['connection_lost'])
+                await receiver.connect()
+                self.assertEqual((await receiver.runtime_run(run_id))['status'], 'running')
+                async with http.get(urls['bob'] + path) as response:
+                    self.assertIn(response.status, (403, 404))
+                final.set()
+                while True:
+                    record = await receiver.runtime_run(run_id)
+                    if record['status'] == 'success':
+                        break
+                    self.assertEqual(record['status'], 'running')
+                    await asyncio.sleep(.02)
+            done = perf_counter()
+            self.assertEqual(record['output'], 'Durable fixture reply.')
+            cursor = await server.agent.memory_db._conn.execute(
+                "SELECT role, COUNT(*) FROM session_messages WHERE run_id=? GROUP BY role", (run_id,),
+            )
+            self.assertEqual({row[0]: row[1] for row in await cursor.fetchall()}, {'assistant': 1, 'user': 1})
+            calls = sum(
+                body.get('stream') is True and any(
+                    row.get('role') == 'user' and 'Fixture reconnect turn' in str(row.get('content'))
+                    for row in body.get('messages', [])
+                )
+                for body in self.model_requests[before:]
+            )
+            self.assertEqual(calls, 1)
+            print('OPENAGENT_AUTHORIZED_TURN_TIMINGS ' + json.dumps({
+                'client_to_admission_ms': round((admission - start) * 1000, 2),
+                'admission_to_first_delta_ms': round((first_event - admission) * 1000, 2),
+                'client_to_reconciled_final_ms': round((done - start) * 1000, 2),
+                'distinct_provider_requests': calls,
+            }))
+        finally:
+            first.set()
+            final.set()
+            if pending is not None and not pending.done():
+                pending.cancel()
+                await asyncio.gather(pending, return_exceptions=True)
+            await sender.disconnect()
+            await receiver.disconnect()
+            self.transport_turn = None
 
     async def test_two_registered_accounts_reach_single_runtime_and_isolate_replay(self):
         with tempfile.TemporaryDirectory(prefix='openagent-v1-iroh-') as directory:
@@ -142,6 +236,7 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(response.status,404)
                     async with http.get(urls['alice']+'/api/runtime/runs/bob-run') as response:
                         self.assertIn(response.status,(403,404))
+                    await self.assert_iroh_turn_recovery(http, urls, server)
                     async with http.ws_connect(urls['alice']+'/ws') as socket:
                         await socket.send_json({'type':'app_capability_register','product':'openagent-app','dashboard_tools':1})
                         for _ in range(15):

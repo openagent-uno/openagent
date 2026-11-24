@@ -16,6 +16,7 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable
+from urllib.parse import quote
 
 import aiohttp
 
@@ -87,6 +88,7 @@ class _StreamCollector:
     error_text: str = ""
     delta_text: str = ""
     audio_chunks: list[bytes] = field(default_factory=list)
+    connection_lost: bool = False
 
     def to_legacy_reply(self) -> dict:
         base = {
@@ -96,7 +98,10 @@ class _StreamCollector:
             "target": None,
         }
         if self.errored:
-            return {**base, "type": "error", "text": self.error_text or self.text or "Error"}
+            reply = {**base, "type": "error", "text": self.error_text or self.text or "Error"}
+            if self.connection_lost:
+                reply["connection_lost"] = True
+            return reply
         return {**base, "type": "response", "text": self.text}
 
 
@@ -151,6 +156,8 @@ def _text_final_frame(
     text: str,
     source: str,
     attachments: list[dict] | None = None,
+    *,
+    request_id: str | None = None,
 ) -> dict:
     frame = {
         "type": "text_final",
@@ -161,6 +168,8 @@ def _text_final_frame(
     }
     if attachments:
         frame["attachments"] = [dict(item) for item in attachments]
+    if request_id is not None:
+        frame["request_id"] = request_id
     return frame
 
 
@@ -878,6 +887,7 @@ class GatewayClient:
             for collector in tuple(self._stream_pending.values()):
                 if not collector.done.is_set():
                     collector.errored = True
+                    collector.connection_lost = True
                     collector.error_text = "Gateway connection closed"
                     collector.done.set()
             command_future = self._command_future
@@ -895,6 +905,7 @@ class GatewayClient:
         on_reasoning: Callable | None = None,
         on_compaction: Callable | None = None,
         attachments: list[dict] | None = None,
+        request_id: str | None = None,
     ) -> dict:
         """Push a typed message into the user's stream session and await the reply.
 
@@ -926,7 +937,7 @@ class GatewayClient:
 
         try:
             await self._ws.send_json(
-                _text_final_frame(session_id, text, source, attachments)
+                _text_final_frame(session_id, text, source, attachments, request_id=request_id)
             )
         except Exception:
             self._stream_pending.pop(session_id, None)
@@ -1103,6 +1114,18 @@ class GatewayClient:
         async with self._session.get(f"{self.base_url}{path}") as r:
             r.raise_for_status()
             return await r.json()
+
+    async def runtime_run(self, run_id: str, *, cancel: bool = False) -> dict:
+        """Read or explicitly cancel an exact run through the authenticated gateway."""
+        from .remote_api import RUN_STATUSES
+
+        path = "/api/runtime/runs/" + quote(run_id, safe="")
+        record = await self.rest_post(path + "/cancel") if cancel else await self.rest_get(path)
+        if (not isinstance(record, dict) or record.get("run_id") != run_id
+                or not isinstance(record.get("session_id"), str)
+                or not isinstance(record.get("status"), str) or record["status"] not in RUN_STATUSES):
+            raise ValueError("Gateway returned an invalid run receipt")
+        return record
 
     async def rest_patch(self, path: str, data) -> dict:
         async with self._session.patch(f"{self.base_url}{path}", json=data) as r:

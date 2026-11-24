@@ -6,7 +6,7 @@
 import type { Attachment, ClientMessage, ServerMessage } from '../../common/types';
 import { attachmentsForSend } from '../../common/attachments';
 import { isConnectionReplacedClose } from '../../common/websocket-close';
-import { CollaborationClient } from './collaboration';
+import { CollaborationClient, CollaborationDeliveryUnknown } from './collaboration';
 const sharedRequestId = () => globalThis.crypto?.randomUUID?.() || `request-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export type MessageHandler = (msg: ServerMessage) => void;
@@ -495,12 +495,12 @@ export class OpenAgentWS {
       requestId?: string;
       onLegacy?: () => boolean | void;
       onSessionReady?: () => void;
-      onRejected?: () => void;
+      onRejected?: (unconfirmed?: boolean) => void;
       onSettled?: () => void;
     },
   ): void {
     const rejected = (error: unknown) => {
-      options?.onRejected?.();
+      options?.onRejected?.(error instanceof CollaborationDeliveryUnknown);
       if (!options?.onRejected) this.sharedError(sessionId, error);
     };
     if (!this.sharedDiscovered && (!options?.source || options.source === 'user_typed')) {

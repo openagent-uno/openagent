@@ -121,6 +121,51 @@ test('steering, queued commands and exact stop use the additive API', async t =>
   assert.deepEqual(requests[2].body, { session_id: 'chat', request_id: 'one' });
 });
 
+test('lost turn response reads the exact durable receipt once and keeps queued work active', async t => {
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    requests.push({ url, method: init.method });
+    if (init.method === 'POST') throw new TypeError('transport closed');
+    return { ok: true, json: async () => ({ run_id: 'request', session_id: 'chat', status: 'running' }) };
+  });
+  const { value, sockets } = client(); t.after(() => value.dispose());
+  value.observe(['chat']);
+  sockets[0].receive({ type: 'auth_ok', shared: true });
+  sockets[0].receive(snapshot(1));
+  const result = await value.sendTurn('chat', 'request', 'Save notes');
+  assert.equal(result.pending, true);
+  assert.equal(value.snapshot('chat').turns[0].active, true);
+  assert.deepEqual(requests, [
+    { url: 'http://localhost:8765/api/collaboration/turns', method: 'POST' },
+    { url: 'http://localhost:8765/api/runtime/runs/request', method: undefined },
+  ]);
+});
+
+test('a lost terminal response uses only a matching authorized durable result', async t => {
+  let session = 'other';
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    if (init.method === 'POST') return { ok: false, status: 504 };
+    return { ok: true, json: async () => ({ run_id: 'request', session_id: session, status: 'success', output: 'Saved' }) };
+  });
+  const { value } = client(); t.after(() => value.dispose());
+  await assert.rejects(value.sendTurn('chat', 'request', 'Save notes'), /could not be confirmed/);
+  session = 'chat';
+  const result = await value.sendTurn('chat', 'request', 'Save notes');
+  assert.equal(result.pending, false);
+  assert.equal(result.response, 'Saved');
+});
+
+test('an explicit request rejection is not treated as uncertain delivery', async t => {
+  let requests = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    requests++;
+    return { ok: false, status: 409, json: async () => ({ error: 'Conflict' }) };
+  });
+  const { value } = client(); t.after(() => value.dispose());
+  await assert.rejects(value.sendTurn('chat', 'request', 'Save notes'), /Collaboration 409: Conflict/);
+  assert.equal(requests, 1);
+});
+
 test('invalid snapshots close the observer and discard cached content', t => {
   const { value, sockets } = client(); t.after(() => value.dispose());
   value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });

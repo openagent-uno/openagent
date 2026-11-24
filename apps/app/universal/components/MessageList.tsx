@@ -457,6 +457,7 @@ const UserMessage = memo(function UserMessage({
         </TouchableOpacity>
       )}
       {delivery === 'failed' ? <Text style={styles.failedMessage}>Not sent</Text> : null}
+      {delivery === 'unconfirmed' ? <Text style={styles.failedMessage}>Delivery unconfirmed</Text> : null}
       <TurnTime timestamp={timestamp} />
     </View>
   ) : null;

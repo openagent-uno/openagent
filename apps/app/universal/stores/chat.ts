@@ -2055,8 +2055,8 @@ export function sendTypedChat(
       if (legacyEditMessageId) return useChat.getState().editUserMessage(sessionId, legacyEditMessageId, text);
       useChat.getState().addUserMessage(sessionId, text, attachments);
     },
-    onRejected: () => update(outbound => outbound.map(item => item.id === requestId
-      ? { ...item, delivery: 'failed' } : item)),
+    onRejected: (unconfirmed) => update(outbound => outbound.map(item => item.id === requestId
+      ? { ...item, delivery: unconfirmed ? 'unconfirmed' : 'failed' } : item)),
     onSettled: () => {
       // HTTP success still confirms admission if the live observer is
       // temporarily offline. Keep the bubble until history can replace it.

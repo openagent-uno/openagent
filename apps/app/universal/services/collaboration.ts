@@ -6,6 +6,9 @@ import { validSharedSnapshot, validSharedTarget } from '../../common/collaborati
 import type { SharedPerson, SharedSnapshot, SharedTarget, SharedTurnResult } from '../../common/collaboration';
 import type { Attachment } from '../../common/types';
 
+class CollaborationRejected extends Error {}
+export class CollaborationDeliveryUnknown extends Error {}
+
 export class CollaborationClient {
   private ws: WebSocket | null = null;
   private stopped = true;
@@ -216,11 +219,21 @@ export class CollaborationClient {
     const generation = this.accessGeneration;
     const appConnectionId = await this.appConnection?.();
     if (this.disposed) throw new Error('Shared client disposed');
-    const result = await this.post<SharedTurnResult>('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
-      ...(attachments?.length ? { attachments } : {}), ...(clientInstanceId ? { client_instance_id: clientInstanceId } : {}),
-      ...(appConnectionId ? { app_connection_id: appConnectionId } : {}),
-    }, signal);
-    if (!this.disposed && generation === this.accessGeneration
+    let result: SharedTurnResult;
+    try {
+      result = await this.post<SharedTurnResult>('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
+        ...(attachments?.length ? { attachments } : {}), ...(clientInstanceId ? { client_instance_id: clientInstanceId } : {}),
+        ...(appConnectionId ? { app_connection_id: appConnectionId } : {}),
+      }, signal);
+    } catch (error) {
+      if (error instanceof CollaborationRejected || this.disposed || signal?.aborted
+          || generation !== this.accessGeneration) throw error;
+      const receipt = await this.recoverTurn(sessionId, requestId, signal);
+      if (!receipt || this.disposed || signal?.aborted || generation !== this.accessGeneration)
+        throw new CollaborationDeliveryUnknown('The turn could not be confirmed.');
+      result = receipt;
+    }
+    if (!result.pending && !this.disposed && generation === this.accessGeneration
         && result.session_id === sessionId && result.request_id === requestId && this.sessions.includes(sessionId)) {
       // This response is terminal, not an admission ACK. Give the coalesced
       // final snapshot time to arrive, then replace a stale live attachment.
@@ -252,6 +265,33 @@ export class CollaborationClient {
     return result;
   }
 
+  private async recoverTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<SharedTurnResult | undefined> {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    signal?.addEventListener('abort', abort, { once: true });
+    const timeout = setTimeout(abort, 3000);
+    try {
+      // Server ownership and current audience are checked by the durable
+      // endpoint. This GET never reuses a stale App lease or sends the text.
+      const source = this.origin.replace(/\/$/, '') + '/api/runtime/runs/' + encodeURIComponent(requestId);
+      const response = await fetch(source, { signal: controller.signal });
+      if (!response.ok) return undefined;
+      const record = await response.json();
+      if (record.run_id !== requestId || record.session_id !== sessionId) return undefined;
+      const pending = record.status === 'queued' || record.status === 'running';
+      const success = record.status === 'success';
+      const terminalFailure = ['failed', 'cancelled', 'rejected', 'interrupted', 'skipped', 'timed_out'].includes(record.status);
+      if (!pending && !success && !terminalFailure) return undefined;
+      return { session_id: sessionId, request_id: requestId, pending, errored: terminalFailure,
+        response: success && typeof record.output === 'string' ? record.output : '' };
+    } catch {
+      return undefined;
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener('abort', abort);
+    }
+  }
+
   async stopTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<{ stopped: boolean; request_id: string }> {
     return this.post('/api/collaboration/stop', { session_id: sessionId, request_id: requestId }, signal);
   }
@@ -260,8 +300,12 @@ export class CollaborationClient {
     const response = await fetch(this.origin.replace(/\/$/, '') + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal,
     });
+    if (response.status === 502 || response.status === 504) throw new CollaborationDeliveryUnknown('The gateway did not return the turn response.');
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}));
+      throw new CollaborationRejected(`Collaboration ${response.status}: ${result.error || 'Request failed'}`);
+    }
     const result = await response.json();
-    if (!response.ok) throw new Error(`Collaboration ${response.status}: ${result.error || 'Request failed'}`);
     return result;
   }
 

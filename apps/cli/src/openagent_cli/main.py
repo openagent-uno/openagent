@@ -1217,8 +1217,10 @@ async def _run_server_info_cli(
               default=None, help="Read the message from a UTF-8 file ('-' for stdin).")
 @click.option("--session", "session_id", default=None,
               help="Session id to continue (default: a new unique session).")
+@click.option("--request-id", type=click.UUID, default=None,
+              help="Known turn ID for later inspection with ask-status (default: a new UUID).")
 @click.option("--timeout", "timeout_seconds", type=click.FloatRange(min=1), default=3600,
-              show_default=True, help="Seconds to wait for the turn before interrupting it.")
+              show_default=True, help="Seconds to wait before attempting to cancel this exact turn.")
 @click.option("--network", "network_name", default=None,
               help="Which joined network to use (default: active).")
 @click.option("--agent", "agent_handle", default=None,
@@ -1229,7 +1231,7 @@ async def _run_server_info_cli(
               help="Only needed when the cached device certificate is stale.")
 @click.option("--json", "as_json", is_flag=True,
               help="Emit stable machine-readable JSON.")
-def ask_cmd(message: str | None, message_file, session_id: str | None,
+def ask_cmd(message: str | None, message_file, session_id: str | None, request_id: uuid.UUID | None,
             timeout_seconds: float, network_name: str | None, agent_handle: str | None,
             principal_handle: str | None, password: str | None, as_json: bool):
     """Send one message, wait for the complete agent turn and exit.
@@ -1245,6 +1247,7 @@ def ask_cmd(message: str | None, message_file, session_id: str | None,
     _finish_remote_command(asyncio.run(_run_ask_cli(
         text, session_id or f"cli-ask-{uuid.uuid4().hex}", timeout_seconds,
         network_name, agent_handle, principal_handle, password, as_json,
+        request_id=str(request_id or uuid.uuid4()),
     )))
 
 
@@ -1257,8 +1260,11 @@ async def _run_ask_cli(
     principal_handle: str | None,
     password: str | None,
     as_json: bool,
+    *,
+    request_id: str | None = None,
 ) -> int:
     client = None
+    request_id = request_id or str(uuid.uuid4())
     try:
         client, _net = await _open_gateway_for_rest(
             network_name, password, agent_handle,
@@ -1268,22 +1274,18 @@ async def _run_ask_cli(
             raise ConnectionError("no active OpenAgent network")
         try:
             reply = await asyncio.wait_for(
-                client.send_message(text, session_id), timeout=timeout_seconds,
+                client.send_message(text, session_id, request_id=request_id), timeout=timeout_seconds,
             )
         except asyncio.TimeoutError:
-            try:
-                await client.send_interrupt(session_id, reason="timeout")
-            except Exception:
-                pass
-            payload = {"session_id": session_id, "status": "timed_out"}
-            if as_json:
-                _json_output(payload)
-            else:
-                console.print(Text("The agent turn exceeded --timeout and was interrupted.", style="red"))
-            return EXIT_UNAVAILABLE
+            return await _reconcile_ask(client, request_id, session_id, as_json, timed_out=True)
+        except (aiohttp.ClientError, ConnectionError, OSError):
+            return await _reconcile_ask(client, request_id, session_id, as_json)
+        if reply.get("connection_lost"):
+            return await _reconcile_ask(client, request_id, session_id, as_json)
         failed = reply.get("type") == "error"
         payload = {
             "session_id": session_id,
+            "request_id": request_id,
             "status": "error" if failed else "completed",
             "text": reply.get("text") or "",
             "model": reply.get("model"),
@@ -1297,6 +1299,89 @@ async def _run_ask_cli(
         else:
             click.echo(payload["text"])
         return EXIT_SERVER if failed else 0
+    except Exception as exc:
+        return _emit_remote_error(exc, as_json=as_json)
+    finally:
+        if client is not None:
+            await _disconnect_remote(client)
+
+
+def _show_ask_status(client, record, request_id, session_id, as_json):
+    status = record["status"] if record is not None else "not_observed"
+    output = record.get("output") if record is not None and status == "success" else None
+    payload = {
+        "request_id": request_id,
+        "session_id": record["session_id"] if record is not None else session_id,
+        "status": status,
+        "text": output if isinstance(output, str) else "",
+        "agent_handle": client.target_handle,
+    }
+    if as_json:
+        _json_output(payload)
+    elif status == "success":
+        click.echo(payload["text"])
+    else:
+        click.echo(f"Turn {request_id}: {status.replace('_', ' ')}.")
+    return status
+
+
+async def _reconcile_ask(client, request_id, session_id, as_json, *, timed_out=False):
+    record = None
+    try:
+        async with asyncio.timeout(3):
+            current = await client.runtime_run(request_id)
+            if current["session_id"] == session_id:
+                record = current
+                if timed_out and current["status"] in {"queued", "running"}:
+                    record = await client.runtime_run(request_id, cancel=True)
+    except (asyncio.TimeoutError, aiohttp.ClientError, ConnectionError, OSError, KeyError, ValueError):
+        # Transport loss or a missing receipt gives no proof that the turn
+        # stopped. Never resend text or interrupt the whole session here.
+        pass
+    status = _show_ask_status(client, record, request_id, session_id, as_json)
+    if status == "success":
+        return 0
+    return EXIT_UNAVAILABLE if timed_out or status in {"queued", "running", "not_observed"} else EXIT_SERVER
+
+
+@cli.command("ask-status")
+@click.argument("request_id", type=click.UUID)
+@click.option("--network", "network_name", default=None,
+              help="Which joined network to use (default: active).")
+@click.option("--agent", "agent_handle", default=None,
+              help="Specific agent handle on the network.")
+@click.option("--handle", "principal_handle", default=None,
+              help="Account handle on that network (required when ambiguous).")
+@click.option("--password", default=None, envvar="OPENAGENT_CLI_PASSWORD",
+              help="Only needed when the cached device certificate is stale.")
+@click.option("--json", "as_json", is_flag=True, help="Emit stable machine-readable JSON.")
+def ask_status_cmd(request_id, network_name, agent_handle, principal_handle, password, as_json):
+    """Read a turn's durable status and final text without sending a message."""
+    _finish_remote_command(asyncio.run(_run_ask_status_cli(
+        str(request_id), network_name, agent_handle, principal_handle, password, as_json,
+    )))
+
+
+async def _run_ask_status_cli(request_id, network_name, agent_handle, principal_handle, password, as_json):
+    client = None
+    try:
+        client, _net = await _open_gateway_for_rest(
+            network_name, password, agent_handle, principal_handle=principal_handle, quiet=True,
+        )
+        if client is None:
+            raise ConnectionError("no active OpenAgent network")
+        try:
+            async with asyncio.timeout(10):
+                record = await client.runtime_run(request_id)
+        except aiohttp.ClientResponseError as exc:
+            if exc.status in {401, 403}:
+                raise PermissionError("Run is not authorized") from None
+            if exc.status != 404:
+                raise
+            _show_ask_status(client, None, request_id, None, as_json)
+            return EXIT_UNAVAILABLE
+        _show_ask_status(client, record, request_id, None, as_json)
+        return 0
     except Exception as exc:
         return _emit_remote_error(exc, as_json=as_json)
     finally:
