@@ -52,6 +52,14 @@ on the server's PATH. Frozen server builds verify and bundle the consumer-pinned
 runner. If it is missing, the authenticated catalog remains visible but marks
 operations unavailable.
 
+For an already authorized connection, a local runner outage during discovery
+is temporary. The private owner may see the source status while its tools are
+unavailable. A later discovery retries metadata and scopes, and a connection
+whose initial metadata could not be loaded waits for the next background
+registration pass. The server admits no tool from that source until the
+runner returns the metadata required by the host policy. A lost invocation
+response is never automatically replayed.
+
 `official_providers` uses provider IDs: `gmail`, `google_drive`,
 `google_analytics`, `google_calendar`, `outlook_mail`, `outlook_calendar`,
 `onedrive`, `sharepoint`, `clickup`, `github`, `notion`, `atlassian`,

@@ -17,7 +17,8 @@ from urllib.parse import urlsplit
 import aiosqlite
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from openagent_core.capabilities import ToolDefinition
+from openagent_connectors.runner import ConnectorError
+from openagent_core.capabilities import CapabilityUnavailable, ToolDefinition
 from openagent_core.contracts import ResourceRef, require_authorized
 
 
@@ -26,6 +27,11 @@ class OfficialConnectorSource:
         self.service, self.connection_id = service, connection_id
         self.registered = registered
         self.privacy = None
+        self.pending_registration = False
+        self.metadata_unavailable = False
+
+    def temporarily_unavailable(self, context):
+        return self.pending_registration or self.metadata_unavailable
 
     def require_current_registration(self):
         if self.registered and self.service.sources.get(self.connection_id) is not self:
@@ -33,17 +39,27 @@ class OfficialConnectorSource:
 
     async def discover(self, context):
         row = await self.service.record(self.connection_id)
-        if not self.service.can_use(context, row):
+        if self.pending_registration or not self.service.can_use(context, row):
             return ()
-        token = (await self.service.current_token(row, context=context)
-                 if self.service.keyless_binding(row) else self.service.decrypt(row))
-        tools = await self.service.runner.call("tools", self.service.binding(row, token))
+        try:
+            token = (await self.service.current_token(row, context=context)
+                     if self.service.keyless_binding(row) else self.service.decrypt(row))
+            tools = await self.service.source_metadata("tools", self.service.binding(row, token))
+        except CapabilityUnavailable:
+            self.metadata_unavailable = True
+            return ()
+        except PermissionError:
+            self.metadata_unavailable = False
+            raise
+        self.metadata_unavailable = False
         return tuple(ToolDefinition(tool["name"], tool["description"], tool["inputSchema"],
                                     frozenset() if tool["risk"] == "read" else frozenset({"mutating"}))
                      for tool in tools)
 
     async def call_tool(self, name, arguments, context):
         self.require_current_registration()
+        if self.pending_registration:
+            raise CapabilityUnavailable("Connector tool metadata is unavailable")
         row = await self.service.record(self.connection_id)
         self.require_current_registration()
         if not self.service.can_use(context, row):
@@ -462,10 +478,21 @@ class OfficialConnectors:
     def keyless_binding(cls, row):
         return (row.get("catalog_id", row.get("id")), row.get("provider"), row.get("capability")) in cls._keyless_bindings
 
+    async def source_metadata(self, method, params=None):
+        try:
+            async with asyncio.timeout(5):
+                return await self.runner.call(method, params)
+        except ConnectorError as exc:
+            if exc.code != "runner_unavailable":
+                raise
+        except TimeoutError:
+            pass
+        raise CapabilityUnavailable("Connector tool metadata is unavailable") from None
+
     async def require_keyless_catalog(self, row):
         # Only the installed, pinned official runner supplies this catalog.
         # Neither a request payload nor mutable custom MCP metadata can opt in.
-        items = [item for item in await self.runner.call("catalog")
+        items = [item for item in await self.source_metadata("catalog")
                  if item.get("id") == row["catalog_id"]]
         if (len(items) != 1 or items[0].get("auth") != "none"
                 or not items[0].get("available") or items[0].get("nativeKind")
@@ -548,20 +575,25 @@ class OfficialConnectors:
 
     async def register_source(self, connection_id):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
-        if catalog and self.runner:
-            row = await self.record(connection_id)
+        if not catalog or not self.runner:
+            return
+        previous = self.sources.get(connection_id)
+        row = await self.record(connection_id)
+        if not row or not row["enabled"] or row["status"] != "connected":
+            if previous is not None and self.sources.get(connection_id) is previous:
+                catalog.revoke(self.source_id(connection_id))
+                self.sources.pop(connection_id)
+            return
+        source = OfficialConnectorSource(self, connection_id, registered=True)
+        options = {}
+        publisher = getattr(self.privacy_processor, "publisher", None)
+        try:
             if self.keyless_binding(row):
                 await self.require_keyless_catalog(row)
                 self.decrypt(row)
-            catalog.revoke(self.source_id(connection_id))
-            self.sources.pop(connection_id, None)
-            source = OfficialConnectorSource(self, connection_id, registered=True)
-            options = {}
-            publisher = getattr(self.privacy_processor,'publisher',None)
             if publisher is not None:
                 from .connector_provenance import OfficialConnectorProvenance, independent_result
-                row=await self.record(connection_id)
-                definitions=await self.runner.call('tools',self.binding(row,self.decrypt(row)))
+                definitions = await self.source_metadata("tools", self.binding(row, self.decrypt(row)))
                 # These declarations come from the verified local official
                 # runner, never custom MCP metadata or model annotations.
                 options['privacy_fenced']={tool['name']:tool['risk']=='read' for tool in definitions}
@@ -570,8 +602,29 @@ class OfficialConnectors:
                     source.privacy=OfficialConnectorProvenance(self,connection_id,publisher)
                     options.update(invocation_provenance=source.privacy.invocation,result_provenance=source.privacy.result)
                     options['privacy_fenced']['commerce.shopify.customers.update']=True
-            self.sources[connection_id] = source
-            catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector", **options)
+        except CapabilityUnavailable:
+            if previous is not None and previous.pending_registration:
+                return
+            source.pending_registration = True
+            options = {}
+        current = await self.record(connection_id)
+        if (self.sources.get(connection_id) is not previous or not current
+                or not current["enabled"] or current["status"] != "connected"
+                or self.source_snapshot(row) != self.source_snapshot(current)):
+            return
+        catalog.revoke(self.source_id(connection_id))
+        self.sources[connection_id] = source
+        catalog.register(self.source_id(connection_id), source, source, target_label="OpenAgent official connector", **options)
+
+    async def recover_pending_sources(self):
+        for connection_id, source in list(self.sources.items()):
+            if source.pending_registration:
+                try:
+                    await self.register_source(connection_id)
+                except PermissionError:
+                    if self.sources.get(connection_id) is source:
+                        self.runtime.runtime.capabilities.revoke(self.source_id(connection_id))
+                        self.sources.pop(connection_id)
 
     async def attach_sources(self):
         async with aiosqlite.connect(self.db_path) as db:
@@ -1013,6 +1066,12 @@ class OfficialConnectors:
             try:
                 # Local privacy work must progress during broker outages too.
                 await self.process_privacy_events()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                pass
+            try:
+                await self.recover_pending_sources()
             except asyncio.CancelledError:
                 raise
             except Exception:

@@ -1,14 +1,17 @@
 import asyncio
+from dataclasses import replace
 import json
 from pathlib import Path
+import sys
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import aiosqlite
 import pytest
 
-from openagent_core.capabilities import CapabilityCatalog
-from openagent_core.contracts import PrincipalRef
+from openagent_connectors.runner import ConnectorError, ConnectorRunner
+from openagent_core.capabilities import CapabilityCatalog, CapabilityUnavailable
+from openagent_core.contracts import ExecutionContext, PrincipalRef
 from openagent_server.official_connectors import OfficialConnectors, OfficialConnectorSource
 
 
@@ -99,6 +102,88 @@ async def fixture(tmp_path):
     context = SimpleNamespace(tenant_id="tenant", initiator=principal, audience=(principal,))
     yield service, context, runner, authorizer
     await service.close()
+
+
+@pytest.mark.asyncio
+async def test_runner_restart_recovers_private_metadata_without_replaying_an_invocation(fixture, tmp_path):
+    service, base, _, authorizer = fixture
+    runner_script = tmp_path / "runner.py"
+    runner_script.write_text("""
+import json
+from pathlib import Path
+import sys
+
+directory = Path(sys.argv[1])
+for line in sys.stdin:
+    request = json.loads(line)
+    method = request["method"]
+    if method == "catalog":
+        result = [{"id": "fixture", "name": "Fixture", "auth": "token", "available": True,
+                   "provider": "fixture", "capability": "files"}]
+    elif method == "tools":
+        if (directory / "metadata-offline").exists():
+            sys.exit(0)
+        result = [{"name": "fixture.read", "description": "Read a fixture",
+                   "risk": "read", "inputSchema": {"type": "object"}}]
+    elif method == "invoke":
+        with (directory / "effects").open("a") as out:
+            out.write("effect\\n")
+        sys.exit(0)
+    print(json.dumps({"id": request["id"], "result": result}), flush=True)
+""")
+    runner = ConnectorRunner(sys.executable, identity_file=tmp_path / "identity",
+                             product="test", name="Fixture")
+    runner.command = (sys.executable, str(runner_script), str(tmp_path))
+    service.runner = runner
+    service.privacy_processor = SimpleNamespace(publisher=object())
+    # Use the same owner and complete audience checks as the host source policy.
+    async def authorize(context, action, resource, **kwargs):
+        if action in {"tool.discover", "tool.discover_source_status", "tool.call", "tool.publish"}:
+            return await service.authorize_source(context, resource) is True
+        return True
+
+    authorizer.authorize = authorize
+    owner = base.initiator
+    context = ExecutionContext(owner, owner, owner, "session", "agent", (owner,))
+    other = PrincipalRef("openagent", "tenant", "other")
+    shared = replace(context, audience=(owner, other))
+    unavailable = tmp_path / "metadata-offline"
+    unavailable.touch()
+
+    record = (await service.create(context, {"catalog_id": "fixture", "token": "fixture"}))["connection"]
+    connection_id = record["id"]
+    source_id = service.source_id(connection_id)
+    catalog = service.runtime.runtime.capabilities
+    pending = service.sources[connection_id]
+    assert await catalog.discover(context) == ()
+    assert await catalog.temporarily_unavailable_sources(context) == ((source_id, "OpenAgent official connector"),)
+    assert await catalog.temporarily_unavailable_sources(shared) == ()
+    with pytest.raises(CapabilityUnavailable):
+        await pending.call_tool("fixture.read", {}, context)
+    await service.recover_pending_sources()
+    assert service.sources[connection_id] is pending
+
+    unavailable.unlink()
+    await service.recover_pending_sources()
+    source = service.sources[connection_id]
+    assert source is not pending
+    ready, = await catalog.discover(context)
+    assert await catalog.temporarily_unavailable_sources(context) == ()
+    unavailable.touch()
+    assert await catalog.discover(context) == ()
+    assert await catalog.temporarily_unavailable_sources(context)
+    unavailable.unlink()
+    recovered, = await catalog.discover(context)
+    assert recovered.tool_ref == ready.tool_ref
+
+    with pytest.raises(ConnectorError, match="runner_unavailable"):
+        await source.call_tool("fixture.read", {}, context)
+    assert (tmp_path / "effects").read_text().splitlines() == ["effect"]
+    assert await catalog.discover(context)
+    assert (tmp_path / "effects").read_text().splitlines() == ["effect"]
+    await service.update(context, connection_id, {"enabled": False})
+    assert await catalog.discover(context) == ()
+    assert await catalog.temporarily_unavailable_sources(context) == ()
 
 
 @pytest.mark.asyncio
