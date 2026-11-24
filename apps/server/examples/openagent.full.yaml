@@ -393,7 +393,8 @@ memory:
   # Automatic recall: before each turn, silently retrieve the top matches and
   # inject a bounded, VERIFY-FRAMED reminder (never asserted as fact — the agent
   # is told to confirm with vault_read_note). Prepended to the USER message, so
-  # it never busts the cached system prefix. Needs ``embedding_model`` set.
+  # it never busts the cached system prefix. The document vault can use its SQL
+  # text index without an embedding provider.
   auto_recall:
     enabled: false                      # inject matches into the turn automatically
     min_score: 0.75                     # similarity floor; a weak match injects nothing (model-specific — tune it)

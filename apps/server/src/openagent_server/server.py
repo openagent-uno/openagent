@@ -711,7 +711,15 @@ def _build_agent(config: dict, *, engine_extensions=None) -> Agent:
             "1" if bool(_si_cfg["sessions"]) else "0")
     _ar_cfg = (memory_cfg.get("auto_recall") or {})
     if "enabled" in _ar_cfg:
-        environment["OPENAGENT_AUTO_RECALL_ENABLED"] = "1" if bool(_ar_cfg["enabled"]) else "0"
+        value = _ar_cfg["enabled"]
+        if isinstance(value, str):
+            normalized = value.strip().casefold()
+            if normalized not in {"true", "yes", "on", "1", "false", "no", "off", "0"}:
+                raise ValueError("memory.auto_recall.enabled must be a boolean")
+            value = normalized in {"true", "yes", "on", "1"}
+        elif value not in (True, False, None):
+            raise ValueError("memory.auto_recall.enabled must be a boolean")
+        environment["OPENAGENT_AUTO_RECALL_ENABLED"] = "1" if value else "0"
     # Hybrid FTS∪semantic recall (default ON in code). Only export when the
     # operator sets it explicitly, so the default lives in one place.
     if "hybrid" in _ar_cfg:

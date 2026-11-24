@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from openagent_core.extensions import EngineExtensions
 from openagent_server.server import AgentServer, _build_agent
@@ -30,3 +31,14 @@ class ServerHostExtensions(unittest.TestCase):
             server = AgentServer.from_config(self.config(root), engine_extensions=extensions)
             self.assertIs(server.agent.extensions, extensions)
             self.assertIs(server.agent.extensions.event_handler, event_handler)
+
+    def test_document_recall_flag_honors_an_explicit_opt_out(self):
+        with tempfile.TemporaryDirectory() as root, patch.dict("os.environ", {"OPENAGENT_AUTO_RECALL_ENABLED":"1"}):
+            for configured, expected in ((None, "1"), (False, "0"), ("false", "0"), ("OFF", "0"), (True, "1"), ("true", "1")):
+                with self.subTest(configured=configured):
+                    config = self.config(root)
+                    config["memory"]["vault"] = {"backend":"documents"}
+                    if configured is not None:
+                        config["memory"]["auto_recall"] = {"enabled":configured}
+                    agent = _build_agent(config)
+                    self.assertEqual(agent.product_environment["OPENAGENT_AUTO_RECALL_ENABLED"], expected)

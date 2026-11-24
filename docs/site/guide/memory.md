@@ -53,6 +53,12 @@ The FTS index above matches **words**. Semantic recall adds a second, complement
 - The **auto-recall hook** runs one query embed per turn (time-boxed, default 4 s) and injects the top matches before the model answers. A miss or timeout silently degrades to FTS — it never blocks or fails the turn.
 - **Alignment on update:** a note whose `(mtime, byte_size)` changed is re-embedded; a deleted note's vector is dropped (a purged note stops being findable); an added note is embedded on the next sync — so the cache tracks the vault, never a second copy of it.
 
+With the SQL document vault, automatic recall can use the authorized local
+text index without an embedding service. Set `memory.auto_recall.enabled` to
+`true` to allow bounded note references before a turn. An explicit `false`
+keeps it off. The standalone server leaves an absent setting to the runtime's
+environment and default.
+
 ### Backend: local ollama or a hosted API
 
 The embedder is any OpenAI-compatible `POST {base_url}/embeddings`, selected purely by config (`resolve_embedder`), so the **same three keys switch between a self-hosted model and a cloud API** with zero code change:
