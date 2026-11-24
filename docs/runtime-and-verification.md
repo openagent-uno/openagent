@@ -16,8 +16,9 @@ session permissions.
 The gateway replays live run events in bounded pages. Idle observers back off
 to 250 ms and poll sooner when new events arrive. Runtime admission pressure
 returns HTTP 429 with a retry hint. The authenticated Iroh fixture measures
-admission, the first delta and final recovery with a controlled provider.
+admission, the first client delta and final recovery with a controlled provider.
 Hypervisor CPU steal requires a separate measurement on the host.
+[Standalone turn recovery qualification](qualification/standalone-turn-recovery-2026-11-24.json)
 
 Native principals derive from verified certificates. The identity adapter
 retains both canonical PrincipalRef keys and the existing typed ACL aliases.

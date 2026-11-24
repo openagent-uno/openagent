@@ -1,6 +1,7 @@
 """Installed Iroh/PAKE and real model/tool loop using a local HTTP fixture."""
 import asyncio
 import ast
+from dataclasses import replace
 import json
 from time import perf_counter
 from uuid import uuid4
@@ -103,6 +104,8 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
         receiver = GatewayClient(url=websocket_url)
         pending = None
         before = len(self.model_requests)
+        runtime = server._gateway.runtime_service.runtime
+        settings = runtime.settings
         try:
             await sender.connect()
             start = perf_counter()
@@ -116,6 +119,18 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                         self.assertEqual(response.status, 404)
                     await asyncio.sleep(.02)
                 admission = perf_counter()
+                runtime.settings = replace(settings, max_active_runs=1)
+                competing_id = str(uuid4())
+                async with http.post(urls['alice'] + '/api/runtime/runs', json={
+                    'run_id': competing_id, 'session_id': 'fixture-capacity',
+                    'idempotency_key': competing_id, 'input': 'Fixture excess work',
+                }) as response:
+                    self.assertEqual(response.status, 429)
+                    self.assertEqual(response.headers['Retry-After'], '1')
+                async with http.get(urls['alice'] + '/api/runtime/runs/' + competing_id) as response:
+                    self.assertEqual(response.status, 404)
+                async with http.get(urls['alice'] + '/api/health') as response:
+                    self.assertEqual(response.status, 200)
                 first.set()
                 while True:
                     async with http.get(urls['alice'] + path + '/events') as response:
@@ -125,6 +140,9 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
                         break
                     await asyncio.sleep(.02)
                 first_event = perf_counter()
+                while not sender._stream_pending[session_id].delta_text:
+                    await asyncio.sleep(.01)
+                first_client_delta = perf_counter()
                 await sender._ws.close()
                 self.assertTrue((await pending)['connection_lost'])
                 await receiver.connect()
@@ -154,11 +172,14 @@ class InstalledIrohStartupTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(calls, 1)
             print('OPENAGENT_AUTHORIZED_TURN_TIMINGS ' + json.dumps({
                 'client_to_admission_ms': round((admission - start) * 1000, 2),
-                'admission_to_first_delta_ms': round((first_event - admission) * 1000, 2),
+                'admission_to_first_durable_delta_ms': round((first_event - admission) * 1000, 2),
+                'admission_to_first_client_delta_ms': round((first_client_delta - admission) * 1000, 2),
                 'client_to_reconciled_final_ms': round((done - start) * 1000, 2),
                 'distinct_provider_requests': calls,
+                'admission_while_full_http_status': 429,
             }))
         finally:
+            runtime.settings = settings
             first.set()
             final.set()
             if pending is not None and not pending.done():

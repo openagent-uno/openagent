@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-24",
+  "verification": "Standalone product source on an isolated macOS Arm64 host with installed beta 106 dependencies and Core beta 166",
+  "product_base": "140f49fcb6a56fd5e7dec9b897a78e7005fcc03c",
+  "transport_recovery": "1c6092b23ce5d74f78a837f2b1757af0be389ebf",
+  "pressure_and_replay": "c2a4d37a77d1d3c87b43545ec137c93a6eeac8ac",
+  "authenticated_iroh": {
+    "fixture": "tests/test_installed_iroh_startup.py",
+    "backend": "SQLite and a controlled loopback model provider",
+    "client_to_admission_ms": 2053.33,
+    "admission_to_first_durable_delta_ms": 145.76,
+    "admission_to_first_client_delta_ms": 200.07,
+    "client_to_reconciled_final_ms": 2611.52,
+    "provider_requests": 1,
+    "persisted_user_messages": 1,
+    "persisted_assistant_messages": 1,
+    "foreign_run_access_denied": true,
+    "capacity_rejection_status": 429,
+    "capacity_retry_after_seconds": 1,
+    "capacity_rejection_left_no_accepted_run": true
+  },
+  "extended_transport_loss": {
+    "additional_hold_seconds": 210,
+    "authenticated_running_checks": 6,
+    "client_to_reconciled_final_ms": 213131.47,
+    "provider_requests": 1,
+    "persisted_user_messages": 1,
+    "persisted_assistant_messages": 1,
+    "fixture": "same Iroh setup with six 35-second observations and a local provider heartbeat"
+  },
+  "tests": {
+    "focused_python_passed": 29,
+    "authenticated_iroh_passed": 1,
+    "authenticated_iroh_subtests_passed": 4,
+    "app_collaboration_passed": 48,
+    "app_typecheck_passed": true
+  }
+}
