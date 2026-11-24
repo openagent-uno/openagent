@@ -1435,6 +1435,8 @@ class Gateway:
         from openagent_server.automation_management import handle_authorize, handle_authorization
         app.router.add_get("/api/automations/{kind}/{id}/authorization", handle_authorization)
         app.router.add_post("/api/automations/{kind}/{id}/authorization", handle_authorize)
+        from openagent_server.project_tasks import install_routes as install_project_tasks
+        install_project_tasks(app, getattr(self, "runtime_service", None))
         app.router.add_post("/api/runtime/runs", runtime_api.handle_submit)
         app.router.add_get("/api/runtime/runs/{run_id}", runtime_api.handle_get)
         app.router.add_get("/api/runtime/runs/{run_id}/events", runtime_api.handle_events)

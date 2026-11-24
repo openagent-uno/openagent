@@ -117,7 +117,7 @@ async def _seed_deterministic_model(db: Any, model_base_url: str) -> None:
     )
 
 
-async def run(root: Path) -> None:
+async def run(root: Path, *, project_tasks: bool = False) -> None:
     from aiohttp import web
     import ast
     from openagent_core.core.paths import set_agent_dir
@@ -127,6 +127,11 @@ async def run(root: Path) -> None:
     from openagent_identity.ticket import InviteTicket
 
     root=root.resolve();root.mkdir(parents=True,exist_ok=True);set_agent_dir(root)
+    network_id='desktop-real-iroh-'+uuid.uuid4().hex[:12];network_name='desktop-real-iroh-e2e'
+    fixture = None
+    if project_tasks:
+        from project_task_fixture import ProjectTaskFixture
+        fixture = ProjectTaskFixture(network_id)
     target=root/'desktop-machine'/'sentinel.txt';target.parent.mkdir(parents=True,exist_ok=True)
     evidence_path=root/'model-calls.json';calls=[];_atomic_json(evidence_path,calls)
     def data(text):
@@ -139,7 +144,9 @@ async def run(root: Path) -> None:
         cli_turn = 'cli: fixture' in str(messages[start].get('content',''))
         results=[data(m['content']) for m in messages[start:] if m.get('role')=='tool']
         call=None;final='desktop file read failed'
-        if payload.get('tools'):
+        if fixture is not None:
+            call, final = fixture.answer(payload, data)
+        elif payload.get('tools'):
             if not results:call=('tool_search_list_servers',{})
             elif cli_turn:
                 if any(source['source_ref'].startswith(('app/','app-dashboard/')) for source in results[0]):
@@ -177,9 +184,8 @@ async def run(root: Path) -> None:
     model_runner=web.AppRunner(model_app);await model_runner.setup()
     model_site=web.TCPSite(model_runner,'127.0.0.1',0);await model_site.start()
     model_base_url='http://127.0.0.1:'+str(model_site._server.sockets[0].getsockname()[1])+'/v1'
-    server=AgentServer.from_config({'name':'coordinator','_local_e2e':True,'memory':{'db_path':str(root/'gateway.db')},'channels':{},'voice':{'prefetch':False}})
+    server=AgentServer.from_config({'name':'coordinator','_local_e2e':True,**({'project_tasks':fixture.config} if fixture else {}),'memory':{'db_path':str(root/'gateway.db')},'channels':{},'voice':{'prefetch':False}})
     db=server.agent.memory_db;await db.connect();store=CoordinatorStore(db)
-    network_id='desktop-real-iroh-'+uuid.uuid4().hex[:12];network_name='desktop-real-iroh-e2e'
     await store.set_network_role(role='coordinator',network_id=network_id,name=network_name)
     await _seed_deterministic_model(db,model_base_url)
     server.agent.set_capability_pool(module_pool((),db_path=db.db_path))
@@ -187,13 +193,24 @@ async def run(root: Path) -> None:
     try:
         await server.start();state=server._network_state
         coordinator_node_id=await state.node_id()
-        handle='desktop-e2e';password='desktop-real-iroh-password'
+        handle=fixture.members[0] if fixture else 'desktop-e2e';password='desktop-real-iroh-password'
         await store.register_agent(handle='coordinator',node_id=coordinator_node_id,owner_handle=handle,label='Desktop Real Iroh E2E')
         relay_url,addresses=await state.iroh_node.local_node_addr()
-        invitation=await store.create_invitation(role='user',created_by='desktop-real-iroh-playwright',ttl_seconds=900,uses=1,bind_to_handle=handle)
-        ticket=InviteTicket(code=invitation.code,coordinator_node_id=coordinator_node_id,network_name=network_name,network_id=network_id,role='user',bind_to='',relay_url=relay_url,addresses=tuple(addresses) or None).encode()
-        print(READY_PREFIX+json.dumps({'ticket':ticket,'password':password,'handle':handle,'network_id':network_id,'coordinator_node_id':coordinator_node_id,'target_path':str(target),'evidence_path':str(evidence_path)},sort_keys=True),flush=True)
-        await _wait_for_stop()
+        members = []
+        for handle in fixture.members if fixture else (handle,):
+            invitation=await store.create_invitation(role='user',created_by='desktop-real-iroh-playwright',ttl_seconds=900,uses=1,bind_to_handle=handle)
+            ticket=InviteTicket(code=invitation.code,coordinator_node_id=coordinator_node_id,network_name=network_name,network_id=network_id,role='user',bind_to='',relay_url=relay_url,addresses=tuple(addresses) or None).encode()
+            members.append({'handle': handle, 'password': password, 'ticket': ticket})
+        ready = {**members[0], 'network_id': network_id, 'coordinator_node_id': coordinator_node_id,
+                 'target_path': str(target), 'evidence_path': str(evidence_path)}
+        if fixture:
+            ready.update(members=members, commit=fixture.project['revisions'][0]['commit'])
+        print(READY_PREFIX+json.dumps(ready, sort_keys=True), flush=True)
+        if fixture:
+            async with fixture.operator(server._gateway.runtime_service.project_tasks, root):
+                await _wait_for_stop()
+        else:
+            await _wait_for_stop()
     finally:
         await server.stop();await model_runner.cleanup();set_agent_dir(None)
 
@@ -206,8 +223,9 @@ def main() -> None:
         required=True,
         help="Playwright-owned isolated state/evidence directory",
     )
+    parser.add_argument("--project-tasks", action="store_true", help="Use two enrolled members and the prepared Lima base")
     args = parser.parse_args()
-    asyncio.run(run(args.root))
+    asyncio.run(run(args.root, project_tasks=args.project_tasks))
 
 
 if __name__ == "__main__":

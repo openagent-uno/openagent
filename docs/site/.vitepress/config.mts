@@ -22,6 +22,7 @@ const guideSidebar = [
       { text: "Provider API Profiles", link: "/guide/connector-api-profiles" },
       { text: "Connector Release Status", link: "/guide/connector-status" },
       { text: "Client Computer Tools", link: "/guide/client-capabilities" },
+      { text: "Project Tasks", link: "/guide/project-tasks" },
       { text: "Phone & SMS MCP", link: "/guide/phone-mcp" },
       { text: "Gateway", link: "/guide/gateway" },
       { text: "Channels", link: "/guide/channels" },

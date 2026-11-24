@@ -16,7 +16,7 @@ type QueuedInput = {
 };
 
 /** One exact computer per mounted view. Closing aborts reads and stops polling. */
-export default function ComputerView({ sessionId, target, onClose }: { sessionId?: string; target: ComputerTarget; onClose: () => void }) {
+export default function ComputerView({ sessionId, target, onClose, interact = interactWithComputer }: { interact?: typeof interactWithComputer; sessionId?: string; target: ComputerTarget; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
   const canControl = target.can_control !== false;
   const nativeHost = target.can_control !== undefined && sessionId === undefined;
@@ -57,7 +57,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
         const screenSize: [number, number] | undefined = nativeHost && task.input.coordinate && geometry
           ? [geometry.input_width || geometry.width, geometry.input_height || geometry.height]
           : undefined;
-        const result = await interactWithComputer(sessionId, target.tool_ref, action,
+        const result = await interact(sessionId, target.tool_ref, action,
           { ...task.input, ...(screenSize && { screen_size: screenSize }) }, controller.current.signal);
         if (!alive.current) return false;
         const next = computerFrame(result);
@@ -65,7 +65,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
         setError(null);
         failed.current = false;
         if (!live && action !== 'get_screenshot' && action !== 'mouse_move' && pending.current === 1) {
-          const refresh = await interactWithComputer(sessionId, target.tool_ref, 'get_screenshot', {}, controller.current.signal);
+          const refresh = await interact(sessionId, target.tool_ref, 'get_screenshot', {}, controller.current.signal);
           if (alive.current) { const screenshot = computerFrame(refresh); if (screenshot) { frameRef.current = screenshot; setFrame(screenshot); } }
         }
         return true;
@@ -84,7 +84,7 @@ export default function ComputerView({ sessionId, target, onClose }: { sessionId
     lastQueuedInput.current = task;
     queue.current = result.then(() => {}, () => {});
     return result;
-  }, [sessionId, target.tool_ref, live, canControl, nativeHost]);
+  }, [sessionId, target.tool_ref, live, canControl, nativeHost, interact]);
 
   useEffect(() => {
     alive.current = true;

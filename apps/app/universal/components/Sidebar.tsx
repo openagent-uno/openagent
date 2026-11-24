@@ -82,6 +82,7 @@ const NAV: NavItem[] = [
   { href: '/memory', match: 'memory', label: 'Memory', icon: 'book-open' },
   { href: '/mcps', match: 'mcps', label: 'Connectors', icon: 'grid' },
   { href: '/skills', match: 'skills', label: 'Skills', icon: 'book' },
+  { href: '/projects', match: 'projects', label: 'Projects', icon: 'folder' },
   { href: '/tasks', match: 'tasks', label: 'Scheduled', icon: 'clock' },
   { href: '/workflows', match: 'workflows', label: 'Workflows', icon: 'git-branch' },
   { href: '/events', match: 'events', label: 'Events', icon: 'zap' },
@@ -139,7 +140,7 @@ export default function Sidebar({
   const isMac = typeof window !== 'undefined' && (window as any).desktop?.platform === 'darwin';
 
   const activeSeg = useMemo(() => {
-    const known = ['devices', 'memory', 'mcps', 'skills', 'tasks', 'workflows', 'events', 'views', 'settings', 'system', 'logs', 'chat'];
+    const known = ['devices', 'memory', 'mcps', 'skills', 'projects', 'tasks', 'workflows', 'events', 'views', 'settings', 'system', 'logs', 'chat'];
     for (let i = segments.length - 1; i >= 0; i--) {
       if (known.includes(segments[i])) return segments[i];
     }

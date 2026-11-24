@@ -330,6 +330,7 @@ export default function AppDrawerLayout() {
         <Drawer.Screen name="mcps" options={{ headerShown: false }} />
         <Drawer.Screen name="skills" options={{ headerShown: false }} />
         <Drawer.Screen name="workflows" options={{ headerShown: false }} />
+        <Drawer.Screen name="projects" options={{ headerShown: false }} />
         <Drawer.Screen name="tasks" options={{ headerShown: false }} />
         <Drawer.Screen name="events" options={{ headerShown: false }} />
         <Drawer.Screen name="views" options={{ headerShown: false }} />

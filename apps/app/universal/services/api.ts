@@ -2257,3 +2257,53 @@ export async function getSessionParticipants(sessionId:string):Promise<SessionPa
   const result=await get<{participants:SessionParticipant[]}>(`/api/sessions/${encodeURIComponent(sessionId)}/participants`);
   return result.participants;
 }
+
+export interface ProjectRevision { commit: string; label: string }
+export interface TaskProject { id: string; title: string; revisions: ProjectRevision[] }
+export interface ProjectTaskSummary { id: string; project: string; revision: string; instruction: string }
+export interface ProjectTaskDetail extends ProjectTaskSummary {
+  status: string;
+  result: string | null;
+  review: boolean;
+  computer: boolean;
+  lease?: {epoch: number; generation: number};
+  suspend?: {epoch: number; generation: number};
+  can_retry: boolean;
+  can_checkpoint: boolean;
+}
+export interface ProjectCheckpoint { receipt: { base_commit: string; tree: string; sha256: string; bytes: number }; diff: string; truncated: boolean }
+export interface ProjectDesktop { target_id: string; label: string; live_media: string | null }
+export interface ProjectDesktopTargets { epoch: number; generation: number; targets: ProjectDesktop[] }
+export const listTaskProjects = (signal?: AbortSignal, cursor?: string, project?: string) => {
+  const query = new URLSearchParams();
+  if (cursor) query.set('cursor', cursor);
+  if (project) query.set('project', project);
+  const suffix = query.toString();
+  return get<{projects: TaskProject[]; tasks: ProjectTaskSummary[]; next_cursor: string | null}>(
+    '/api/project-tasks' + (suffix ? '?' + suffix : ''), signal);
+};
+export const submitProjectTask = (body: { request_id: string; project: string; revision: string; instruction: string }, signal?: AbortSignal) =>
+  post<{ id: string }>('/api/project-tasks', body, signal);
+const taskPath = (id: string) => '/api/project-tasks/' + encodeURIComponent(id);
+export const getProjectTask = (id: string, signal?: AbortSignal) => get<ProjectTaskDetail>(taskPath(id), signal);
+export const recoverProjectTask = (id: string, op: 'retry' | 'checkpoint', signal?: AbortSignal) =>
+  post<unknown>(taskPath(id) + '/' + op, {}, signal);
+export const suspendProjectComputer = (id: string, lease: {epoch: number; generation: number}, signal?: AbortSignal) =>
+  post<unknown>(taskPath(id) + '/suspend', lease, signal);
+export const getProjectDiff = (id: string, signal?: AbortSignal) => get<ProjectCheckpoint>(taskPath(id) + '/diff', signal);
+const taskViewerPath = (id: string) => '/api/project-tasks/viewer/' + encodeURIComponent('project-task-' + id) + '/computers/' + encodeURIComponent(id);
+export const listProjectDesktops = (id: string, signal?: AbortSignal) =>
+  get<ProjectDesktopTargets>(taskViewerPath(id) + '/targets', signal);
+export const projectViewerInteraction = (id: string, epoch: number, generation: number): typeof interactWithComputer =>
+  (_session, target, action, input = {}, signal) =>
+    post<unknown>(taskViewerPath(id) + '/interact', { epoch, generation, target_id: target, action, ...input }, signal);
+export const attachProjectComputer = (id: string, signal?: AbortSignal) => post<unknown>(taskPath(id) + '/attach', {}, signal);
+export interface ProjectSurfaceStatus { epoch: number; generation: number; terminal: {read: boolean; input: boolean}; preview: boolean }
+export interface ProjectTerminalFrame {
+  epoch: number; generation: number; terminal_id: string; status: string; offset: number; next_cursor: number;
+  output: string; output_base64?: string; truncated?: boolean;
+}
+export interface ProjectPreviewFrame { mime: 'text/html' | 'image/png'; data: string }
+export function projectSurface<T>(id: string, op: string, body: object, signal?: AbortSignal) {
+  return post<T>(taskPath(id) + '/surface', { op, ...body }, signal);
+}

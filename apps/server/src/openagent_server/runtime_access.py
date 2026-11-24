@@ -308,6 +308,12 @@ class NativeRuntimeAuthorizer:
         *,
         audience: tuple[PrincipalRef, ...] = (),
     ) -> bool:
+        from openagent_server.project_tasks import is_project_session
+
+        if resource.kind == "session" and is_project_session(resource.resource_id):
+            access = getattr(self, "project_task_access", None)
+            if access is None or not await access(context, action, resource.resource_id):
+                return False
         if (context.ingress_id or "").startswith("channel:"):
             binding = await self._channel(context)
             if binding is None or resource.tenant_id != context.tenant_id:

@@ -191,6 +191,7 @@ class NativeRuntimeService:
     def __init__(self, gateway: Any, agent: Any):
         self.gateway = gateway
         self.agent = agent
+        self.project_tasks = None
         from openagent_server.runtime_directory import NativeRuntimeDirectory
 
         self.directory = NativeRuntimeDirectory(gateway, agent)
@@ -460,7 +461,12 @@ class NativeRuntimeService:
         await self.management_access.start()
         await self.official_connectors.start()
         await self.automations.start()
-        executor = AgentExecutor(self.agent, owns_agent=False)
+        from openagent_server.project_tasks import StandaloneProjectTasks
+        self.project_tasks = await StandaloneProjectTasks.from_service(self)
+        if self.project_tasks:
+            self.authorizer.project_task_access = self.project_tasks.session_access
+        executor = AgentExecutor(self.agent, owns_agent=False, **(
+            {"request_scope": self.project_tasks.request_scope} if self.project_tasks else {}))
         environment = dict(getattr(self.agent, "product_environment", os.environ))
         from openagent_server.code_execution import build_code_executor
 
@@ -621,6 +627,8 @@ class NativeRuntimeService:
         )
 
     async def close(self):
+        if self.project_tasks is not None:
+            await self.project_tasks.close()
         if getattr(self, "mcp_apps", None) is not None:
             await self.mcp_apps.shutdown()
             if self.runtime is not None:
@@ -964,6 +972,8 @@ class NativeRuntimeService:
             ResourceRef("session", context.tenant_id, context.session_id), audience=context.audience)
 
     async def _authorize_source(self, context, action, resource, *, audience=()):
+        if resource.kind in {"computer-project-version", "computer-task"}:
+            return bool(self.project_tasks and await self.project_tasks.computer_access(context, action, resource))
         # This policy is host-owned. No MCP row or client-provided ownership
         # field can promote a personal capability into a shared-data source.
         if self.dashboards is not None:
