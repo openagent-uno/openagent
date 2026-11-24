@@ -76,6 +76,40 @@ class RuntimeServiceTests(unittest.IsolatedAsyncioTestCase):
         await self.service.close()
         self.directory.cleanup()
 
+    async def test_redelivered_whatsapp_text_reuses_the_durable_turn(self):
+        from dataclasses import replace
+        from openagent_channel_bridges.contracts import BridgeContext
+        from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
+
+        incoming = BridgeContext("inbox", "whatsapp", "business", "customer",
+                                 "conversation", "notification", conversation_kind="direct")
+
+        async def deliver(context, text):
+            # Each delivery reconnects and creates a new bridge collector.
+            transport = GatewayBridgeTransport()
+            transport.name = "whatsapp"
+            session = await transport.resolve_session(context)
+            request_ids = []
+
+            async def wire(frame):
+                if frame["type"] == "text_final":
+                    request_ids.append(frame["request_id"])
+                    await self.service.facade.run(frame["text"], session_id=frame["session_id"],
+                                                  run_id=frame["request_id"])
+                    transport._stream_pending[session].done.set()
+
+            transport._send_gateway_json = wire
+            await transport._legacy_send_message(text, session, routing_context=context)
+            return request_ids[0]
+
+        first = await deliver(incoming, "same words")
+        self.assertEqual(await deliver(incoming, "same words"), first)
+        with self.assertRaises(IdempotencyConflict):
+            await deliver(incoming, "changed")
+        second = await deliver(replace(incoming, event_id="second"), "same words")
+        self.assertNotEqual(second, first)
+        self.assertEqual([text for text, _ in self.agent.calls], ["same words", "same words"])
+
     async def test_lost_response_replays_same_run_without_reexecuting(self):
         status = []
 

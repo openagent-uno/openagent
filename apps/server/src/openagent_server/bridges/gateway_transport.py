@@ -767,14 +767,23 @@ class GatewayBridgeTransport:
                 collector.latest_target = target
 
             try:
-                await self._send_gateway_json(event_to_wire(TextFinal(
+                frame = event_to_wire(TextFinal(
                     session_id=session_id,
                     ts_ms=now_ms(),
                     text=text,
                     source=source,  # type: ignore[arg-type]
                     attachments=tuple(attachments or ()),
                     author=author,
-                )))
+                ))
+                # GREEN API delivers one notification at a time and can redeliver
+                # it after the model finishes if posting the reply failed. Plain
+                # text has the same durable input across gateway/bridge restarts.
+                if (routing_context is not None and self.name == "whatsapp"
+                        and routing_context.provider == self.name
+                        and not attachments and source == "user_typed"):
+                    identity = json.dumps(routing_context.deduplication_key).encode()
+                    frame["request_id"] = "channel-" + hashlib.sha256(identity).hexdigest()
+                await self._send_gateway_json(frame)
             except Exception:
                 if is_owner and self._stream_pending.get(session_id) is collector:
                     self._stream_pending.pop(session_id, None)
