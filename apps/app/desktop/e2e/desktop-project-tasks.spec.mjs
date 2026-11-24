@@ -7,18 +7,25 @@ import { resolveHostToolsBinary, StaticRendererServer } from './fixtures.mjs';
 import { startServerHarness, stopServerHarness } from './helpers/iroh-harness.mjs';
 
 const DESKTOP = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const PACKAGED_APP = process.env.OPENAGENT_E2E_PACKAGED_APP;
 const text = (page, content) => page.getByText(content, { exact: true });
 const button = (page, content) => text(page, content.toUpperCase());
 
-async function enroll(member, root, url, apps) {
+async function enroll(member, root, renderer, apps) {
   const profile = join(root, member.handle);
   await mkdir(profile, { mode: 0o700 });
   const app = await electron.launch({
-    args: ['--use-mock-keychain', DESKTOP, '--user-data-dir=' + profile], cwd: DESKTOP,
+    executablePath: PACKAGED_APP ? join(PACKAGED_APP, 'Contents/MacOS/OpenAgent') : undefined,
+    args: PACKAGED_APP
+      ? ['--use-mock-keychain', '--local-e2e', '--e2e-user-data-dir=' + profile]
+      : ['--use-mock-keychain', DESKTOP, '--user-data-dir=' + profile],
+    cwd: DESKTOP,
     env: {
-      ...process.env, NODE_ENV: 'test', OPENAGENT_DESKTOP_E2E: '1', OPENAGENT_DESKTOP_E2E_RENDERER_URL: url,
+      ...process.env, NODE_ENV: 'test', OPENAGENT_DESKTOP_E2E: '1', OPENAGENT_DESKTOP_E2E_RENDERER_URL: renderer?.baseUrl || '',
       HOME: profile, USERPROFILE: profile, XDG_CONFIG_HOME: join(profile, '.config'),
-      OPENAGENT_HOST_TOOLS_HOME: join(profile, 'tools'), OPENAGENT_HOST_TOOLS_BIN: resolveHostToolsBinary(DESKTOP),
+      OPENAGENT_HOST_TOOLS_HOME: join(profile, 'tools'), OPENAGENT_HOST_TOOLS_BIN: PACKAGED_APP
+        ? join(PACKAGED_APP, 'Contents/Resources/host-tools/darwin-arm64/openagent-host-tools')
+        : resolveHostToolsBinary(DESKTOP),
     },
   });
   apps.push(app);
@@ -32,7 +39,8 @@ async function enroll(member, root, url, apps) {
   return page;
 }
 
-async function finishTask(page, url, marker, name, commit) {
+async function finishTask(page, marker, name, commit) {
+  const url = new URL(page.url()).origin;
   await page.goto(url + '/projects');
   await expect(button(page, 'Operations manual')).toBeVisible();
   await page.getByLabel('Task instruction', { exact: true }).fill(marker + ' review');
@@ -89,36 +97,35 @@ test('two enrolled owners reopen tasks, constrained VM surfaces and revoked hist
   test.skip(process.env.OPENAGENT_DESKTOP_PROJECT_TASKS_E2E !== '1', 'requires an operator-prepared private Lima base');
   test.setTimeout(360_000);
   const root = await mkdtemp(join(tmpdir(), 'openagent-project-tasks-'));
-  const renderer = await new StaticRendererServer({ webRoot: process.env.OPENAGENT_TEST_RENDERER || resolve(DESKTOP, '../universal/dist') }).start();
+  const renderer = PACKAGED_APP ? undefined : await new StaticRendererServer({ webRoot: process.env.OPENAGENT_TEST_RENDERER || resolve(DESKTOP, '../universal/dist') }).start();
   const apps = [];
   let harness;
   try {
     const state = join(root, 'server');
     harness = await startServerHarness(state, ['--project-tasks']);
     const [first, second] = harness.ready.members;
-    const url = renderer.baseUrl;
-    const alice = await enroll(first, root, url, apps);
-    const task = await finishTask(alice, url, 'alpha', 'alice', harness.ready.commit);
+    const alice = await enroll(first, root, renderer, apps);
+    const task = await finishTask(alice, 'alpha', 'alice', harness.ready.commit);
     const own = await projections(alice, task);
     for (const k of ['task', 'run', 'messages', 'turns']) expect(own[k]).toEqual({ status: 200, present: true });
     await button(alice, 'Suspend computer').click();
     await expect(button(alice, 'Reconnect computer')).toBeVisible();
-    const bravo = await enroll(second, root, url, apps);
-    const other = await finishTask(bravo, url, 'bravo', 'bravo', harness.ready.commit);
+    const bravo = await enroll(second, root, renderer, apps);
+    const other = await finishTask(bravo, 'bravo', 'bravo', harness.ready.commit);
     expect(other).not.toBe(task);
-    await bravo.goto(url + '/projects/' + task);
+    await bravo.goto(new URL(bravo.url()).origin + '/projects/' + task);
     await expect(bravo.getByRole('alert')).toContainText('404');
     hidden(await projections(bravo, task));
     await writeFile(join(state, 'revoke-first'), '');
-    await alice.goto(url + '/projects/' + task);
+    await alice.goto(new URL(alice.url()).origin + '/projects/' + task);
     await expect(alice.getByRole('alert')).toContainText('404');
     hidden(await projections(alice, task));
-    await bravo.goto(url + '/projects/' + other);
+    await bravo.goto(new URL(bravo.url()).origin + '/projects/' + other);
     await expect(text(bravo, 'Completed review for bravo')).toBeVisible();
   } finally {
     for (const app of apps.reverse()) await app.close();
     await stopServerHarness(harness);
-    await renderer.close();
+    await renderer?.close();
     await rm(root, { recursive: true, force: true });
   }
 });

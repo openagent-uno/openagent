@@ -2274,13 +2274,18 @@ export interface ProjectTaskDetail extends ProjectTaskSummary {
 export interface ProjectCheckpoint { receipt: { base_commit: string; tree: string; sha256: string; bytes: number }; diff: string; truncated: boolean }
 export interface ProjectDesktop { target_id: string; label: string; live_media: string | null }
 export interface ProjectDesktopTargets { epoch: number; generation: number; targets: ProjectDesktop[] }
-export const listTaskProjects = (signal?: AbortSignal, cursor?: string, project?: string) => {
+export const listTaskProjects = async (signal?: AbortSignal, cursor?: string, project?: string) => {
   const query = new URLSearchParams();
   if (cursor) query.set('cursor', cursor);
   if (project) query.set('project', project);
   const suffix = query.toString();
-  return get<{projects: TaskProject[]; tasks: ProjectTaskSummary[]; next_cursor: string | null}>(
-    '/api/project-tasks' + (suffix ? '?' + suffix : ''), signal);
+  try {
+    return await get<{projects: TaskProject[]; tasks: ProjectTaskSummary[]; next_cursor: string | null}>(
+      '/api/project-tasks' + (suffix ? '?' + suffix : ''), signal);
+  } catch (error) {
+    if (!cursor && !project && isUnsupportedByAgent(error)) return { projects: [], tasks: [], next_cursor: null };
+    throw error;
+  }
 };
 export const submitProjectTask = (body: { request_id: string; project: string; revision: string; instruction: string }, signal?: AbortSignal) =>
   post<{ id: string }>('/api/project-tasks', body, signal);

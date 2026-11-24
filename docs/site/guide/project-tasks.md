@@ -64,4 +64,6 @@ npm run build:e2e
 npx playwright test --config=playwright.config.mjs e2e/desktop-project-tasks.spec.mjs
 ```
 
+For the published macOS arm64 app, set `OPENAGENT_E2E_PACKAGED_APP` to the extracted application bundle and `OPENAGENT_REAL_DESKTOP_PYTHON` to the installed standalone interpreter. The test opens both clients from the bundle and starts each renderer on its own local origin. The guest base must have the supported tool entry point installed and the declared Git revision checked out.
+
 Keep the canonical database, host-policy markers, provider reservations, persistent guest disk and saved checkpoint together when backing up or restoring a project host. Install readers that enforce live host scope before attaching this database. A previous reader that predates the marker can expose a withdrawn task through its session APIs.
