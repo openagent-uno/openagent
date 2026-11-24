@@ -4,9 +4,8 @@
  * `experiments.baseUrl` is parameterized so the same source tree can be
  * exported for different deploy targets without changing any code:
  *
- *   - Electron desktop build: no env → no baseUrl (root-relative paths,
- *     post-processed by build.sh sed step and served by the local
- *     HTTP server at 127.0.0.1:PORT/).
+ *   - Electron desktop build: no env → no baseUrl. The local HTTP server serves
+ *     renderer assets from its root on both initial and nested routes.
  *   - GitHub Pages under openagent.uno/app/: EXPO_BASE_URL=/app
  *   - Custom subdomain (e.g. app.openagent.uno): EXPO_BASE_URL unset.
  *

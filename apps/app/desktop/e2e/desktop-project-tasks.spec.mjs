@@ -62,6 +62,8 @@ async function finishTask(page, marker, name, commit) {
   await page.goto(url + '/projects');
   await button(page, 'Open task · ' + commit.slice(0, 8)).click();
   await expect(text(page, 'Completed review for ' + name)).toBeVisible();
+  await page.reload();
+  await expect(text(page, 'Completed review for ' + name)).toBeVisible();
   return task;
 }
 

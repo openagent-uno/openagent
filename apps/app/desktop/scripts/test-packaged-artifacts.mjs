@@ -9,6 +9,7 @@
  */
 
 import assert from 'node:assert/strict';
+import { verifyRendererAssets } from './renderer-assets.mjs';
 import { spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -93,10 +94,7 @@ function validateAsar(archive) {
   assert.equal(updateConfig.url, 'https://github.com/openagent-uno/openagent/releases/download/app-update-feed/');
   const main = asar.extractFile(archive, 'dist/main.js').toString('utf8');
   assert(main.includes('openagent-uno/openagent/releases/download/app-update-feed/'), 'Compiled updater has no canonical feed');
-  assert(
-    fs.existsSync(path.join(path.dirname(archive), 'web-build', 'index.html')),
-    `${archive} is missing the packaged web application`,
-  );
+  verifyRendererAssets(path.join(path.dirname(archive), 'web-build'));
 }
 
 function validatePayload(root) {

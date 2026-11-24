@@ -73,8 +73,6 @@ jobs:
           node - <<'NODE'
           const fs=require('node:fs');
           fs.cpSync('universal/dist','desktop/web-build',{recursive:true,errorOnExist:true});
-          const index='desktop/web-build/index.html';
-          fs.writeFileSync(index,fs.readFileSync(index,'utf8').replace(/(href|src)="\//g,'$1="./'));
           NODE
       - name: Package the native target without publication
         working-directory: apps/app/desktop
