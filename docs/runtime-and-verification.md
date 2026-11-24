@@ -7,6 +7,18 @@ adapters call the same Runtime; the transport may detach without deleting an
 accepted run. A stable request ID reconciles a lost response. Explicit stop
 addresses that exact run.
 
+App collaboration reads the durable run receipt after a lost HTTP response.
+A queued or running receipt confirms delivery and keeps the live observer
+attached. When a receipt is unavailable, the composer reports that delivery
+is unconfirmed. The run remains subject to normal cancellation and current
+session permissions.
+
+The gateway replays live run events in bounded pages. Idle observers back off
+to 250 ms and poll sooner when new events arrive. Runtime admission pressure
+returns HTTP 429 with a retry hint. The authenticated Iroh fixture measures
+admission, the first delta and final recovery with a controlled provider.
+Hypervisor CPU steal requires a separate measurement on the host.
+
 Native principals derive from verified certificates. The identity adapter
 retains both canonical PrincipalRef keys and the existing typed ACL aliases.
 Unresolvable historical authors remain unresolved. Current network membership,

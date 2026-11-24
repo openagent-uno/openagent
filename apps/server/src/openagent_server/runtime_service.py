@@ -12,11 +12,15 @@ import os
 from aiohttp import web
 
 from openagent_core import Runtime, RuntimeServices, RuntimeSettings
-from openagent_core.contracts import IdempotencyConflict, RunRequest
+from openagent_core.contracts import AdmissionCapacityExceeded, IdempotencyConflict, RunRequest
 from openagent_core.engine import AgentExecutor, AgentModelCatalog
 from openagent_core.core.on_behalf_context import current_on_behalf_identity
 from openagent_storage_sqlite import SqliteRuntimeStore
 from openagent_server.runtime_access import NativeRuntimeAuthorizer
+
+
+_RUN_OBSERVER_MIN_POLL_SECONDS = 0.025
+_RUN_OBSERVER_MAX_POLL_SECONDS = 0.25
 
 
 @dataclass(slots=True)
@@ -337,6 +341,8 @@ class NativeRuntimeService:
         context = prepared.context
         cursor = 0
         completed_frame = False
+        terminal_seen = False
+        poll_delay = _RUN_OBSERVER_MIN_POLL_SECONDS
         tool_statuses = {}
         provider_calls = {}
         child_links = {}
@@ -363,8 +369,9 @@ class NativeRuntimeService:
 
         try:
             while True:
-                for event in await self.runtime.events(identifier, cursor, context):
-                    cursor = event.cursor
+                page = await self.runtime.events_page(identifier, cursor, context, limit=128)
+                cursor = page.cursor
+                for event in page.events:
                     if event.kind == "run.stream":
                         payload = dict(event.payload)
                         if payload.get("kind") == "done" and child_observers:
@@ -424,8 +431,16 @@ class NativeRuntimeService:
                                 event.payload.get("result", event.payload.get("error"))),
                                 "tool_call_error": event.payload.get("status") != "success"}
                         await status_update(status, provider_id=binding.get("provider_call_id"))
+                if page.has_more:
+                    continue
                 record = await self.runtime.get_run(identifier, context)
                 if record.terminal:
+                    if not terminal_seen and not completed_frame:
+                        # The final event can land between reading the page
+                        # and reading the terminal record. Drain it once more
+                        # so progress or final attachments are not discarded.
+                        terminal_seen = True
+                        continue
                     if record.status != "success":
                         from openagent_server.public_run_errors import public_run_error
                         raise public_run_error(record)
@@ -436,7 +451,10 @@ class NativeRuntimeService:
                             "run_id": identifier,
                         }
                     return
-                await asyncio.sleep(0.025)
+                if page.events:
+                    poll_delay = _RUN_OBSERVER_MIN_POLL_SECONDS
+                await asyncio.sleep(poll_delay)
+                poll_delay = min(poll_delay * 2, _RUN_OBSERVER_MAX_POLL_SECONDS)
         except asyncio.CancelledError:
             # StreamSession cancels its consumer for an explicit stop/barge-in;
             # websocket detach does not close the server-owned StreamSession.
@@ -1220,6 +1238,8 @@ async def handle_submit(request):
         return web.json_response(asdict(record), status=202)
     except IdempotencyConflict:
         return web.json_response({"error": "idempotency_conflict"}, status=409)
+    except AdmissionCapacityExceeded:
+        return web.json_response({"error": "runtime_busy"}, status=429, headers={"Retry-After": "1"})
     except (ValueError, TypeError):
         return web.json_response({"error": "invalid_run_request"}, status=400)
     except PermissionError:

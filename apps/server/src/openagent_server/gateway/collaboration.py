@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass, field
 
 from aiohttp import web
-from openagent_core.contracts import IdempotencyConflict
+from openagent_core.contracts import AdmissionCapacityExceeded, IdempotencyConflict
 
 from .collaboration_access import authorize
 from .collaboration_hub import IDENTIFIER, SharedAgentHub
@@ -732,7 +732,7 @@ class Collaboration:
                 current = self.requests.get(key)
                 if current is None or current[1] is not done:
                     return
-                if isinstance(error, BusyError):
+                if isinstance(error, (BusyError, AdmissionCapacityExceeded)):
                     self.requests.pop(
                         key, None
                     )  # rejected before admission; safe to retry
@@ -754,6 +754,8 @@ class Collaboration:
             return web.json_response({"error": "Session unavailable"}, status=403)
         except BusyError as exc:
             return web.json_response({"error": str(exc)}, status=409)
+        except AdmissionCapacityExceeded:
+            return web.json_response({"error": "Runtime is busy"}, status=429, headers={"Retry-After": "1"})
         except IdempotencyConflict:
             return web.json_response({"error": "Request identity conflict"}, status=409)
         # Attachment refusals are client errors, not gateway faults. The
