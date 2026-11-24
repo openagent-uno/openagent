@@ -21,6 +21,8 @@ from openagent_connectors.runner import ConnectorError
 from openagent_core.capabilities import CapabilityUnavailable, ToolDefinition
 from openagent_core.contracts import ResourceRef, require_authorized
 
+_READ_CATALOG = object()
+
 
 class OfficialConnectorSource:
     def __init__(self, service, connection_id, *, registered=False):
@@ -345,8 +347,6 @@ class OfficialConnectors:
 
         if item["auth"] in {"token", "credentials"} and (not isinstance(token, str) or not token or len(token) > 65536 or any(ord(c) < 33 or ord(c) > 126 for c in token)):
             raise ValueError("Invalid connector token")
-        if item["provider"] == "replio" and not re.fullmatch(r"rpl_[A-Za-z0-9_-]{32,128}", token):
-            raise ValueError("Invalid Replio token")
         if item["provider"] == "billingbear" and (not re.fullmatch(r"sk_[A-Za-z0-9_-]{16,256}", token) or token.lower().startswith("sk_admin_")):
             raise ValueError("Invalid BillingBear token")
         self.validate_config(item, config)
@@ -388,8 +388,6 @@ class OfficialConnectors:
             valid = set(config) == {"shop"} and OfficialConnectors.valid_shop(config["shop"])
         elif item["auth"] == "oauth":
             valid = not config
-        elif provider == "replio":
-            valid = set(config) == {"organization_id"} and isinstance(config["organization_id"], str) and bool(re.fullmatch(r"[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}", config["organization_id"]))
         elif provider == "billingbear":
             valid = set(config) == {"project_id"} and isinstance(config["project_id"], str) and bool(re.fullmatch(r"[A-Za-z0-9_-]{1,128}", config["project_id"]))
         elif provider == "pipeboard":
@@ -428,7 +426,11 @@ class OfficialConnectors:
 
     async def connect(self, context, connection_id):
         row = await self.owned(context, connection_id)
-        item = next(item for item in await self.runner.call("catalog") if item["id"] == row["catalog_id"])
+        item = next((item for item in await self.runner.call("catalog")
+                     if item["id"] == row["catalog_id"] and item.get("available")
+                     and not item.get("nativeKind")), None)
+        if item is None:
+            raise ValueError("Connector is unavailable in the installed catalog")
         if item["auth"] != "oauth":
             raise ValueError("Connector does not use OAuth")
         if not self.authorization_available(item["provider"]):
@@ -573,7 +575,7 @@ class OfficialConnectors:
         if not renewal:
             await self.register_source(row["id"])
 
-    async def register_source(self, connection_id):
+    async def register_source(self, connection_id, *, items=_READ_CATALOG):
         catalog = getattr(getattr(self.runtime, "runtime", None), "capabilities", None)
         if not catalog or not self.runner:
             return
@@ -588,6 +590,17 @@ class OfficialConnectors:
         options = {}
         publisher = getattr(self.privacy_processor, "publisher", None)
         try:
+            if items is _READ_CATALOG:
+                items = await self.source_metadata("catalog")
+            if items is None:
+                raise CapabilityUnavailable("Connector catalog is unavailable")
+            if not any(item.get("id") == row["catalog_id"] and item.get("provider") == row["provider"]
+                       and item.get("capability") == row["capability"] and item.get("available")
+                       and not item.get("nativeKind") for item in items):
+                if previous is not None and self.sources.get(connection_id) is previous:
+                    catalog.revoke(self.source_id(connection_id))
+                    self.sources.pop(connection_id)
+                return
             if self.keyless_binding(row):
                 await self.require_keyless_catalog(row)
                 self.decrypt(row)
@@ -627,10 +640,18 @@ class OfficialConnectors:
                         self.sources.pop(connection_id)
 
     async def attach_sources(self):
+        if not self.runner:
+            return
         async with aiosqlite.connect(self.db_path) as db:
             rows = await (await db.execute("SELECT id FROM official_connector_connections WHERE enabled=1 AND status='connected'")).fetchall()
+        if not rows:
+            return
+        try:
+            items = await self.source_metadata("catalog")
+        except CapabilityUnavailable:
+            items = None
         for row in rows:
-            await self.register_source(row[0])
+            await self.register_source(row[0], items=items)
 
     async def update(self, context, connection_id, payload):
         row = await self.owned(context, connection_id)

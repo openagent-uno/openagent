@@ -16,11 +16,11 @@ const beta = {
 };
 
 test('same verified target reuses a window even when account ids or labels differ', () => {
-  const fridayLabelledAccountWindow = { id: 41, accountId: 'legacy-friday-row' };
+  const personalAgentLabelledAccountWindow = { id: 41, accountId: 'legacy-personal-agent-row' };
   const found = findWindowForVerifiedTarget(beta, [
-    { value: fridayLabelledAccountWindow, target: { ...beta } },
+    { value: personalAgentLabelledAccountWindow, target: { ...beta } },
   ]);
-  assert.equal(found, fridayLabelledAccountWindow);
+  assert.equal(found, personalAgentLabelledAccountWindow);
 });
 
 test('nearby targets never collide', () => {

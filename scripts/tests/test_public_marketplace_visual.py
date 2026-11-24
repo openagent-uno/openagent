@@ -130,9 +130,14 @@ class WorkerContracts(unittest.TestCase):
                 self.load(dict(value, **{field: changed}))
         ids = ['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
                'github', 'gmail', 'google-analytics', 'google-drive', 'imap_smtp', 'notion',
-               'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import']
+               'parallel-search', 'pipeboard', 'postiz', 'shopify', 'slack-import']
+        ids.append('fixture-provider')
         catalog = [{'id': item} for item in ids]
-        self.assertEqual(qualifier.catalog_ids(catalog, '0.1.6'), sorted(ids))
+        digest = hashlib.sha256('\n'.join(sorted(ids)).encode()).hexdigest()
+        with patch.dict(qualifier.HISTORICAL_CATALOG_ID_DIGESTS, {'0.1.6': digest}):
+            self.assertEqual(qualifier.catalog_ids(catalog, '0.1.6'), sorted(ids))
+            with self.assertRaises(ValueError):
+                qualifier.catalog_ids([*catalog[:-1], {'id': 'other-fixture'}], '0.1.6')
         for changed in (catalog[:-1], catalog + [{'id': 'context7'}],
                         [dict(item, id='unreviewed') if item['id'] == 'context7' else item for item in catalog]):
             with self.assertRaises(ValueError):
@@ -152,12 +157,14 @@ class WorkerContracts(unittest.TestCase):
                 self.load(dict(value, **{field: changed}))
         baseline = {'atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
                     'github', 'gmail', 'google-analytics', 'google-drive', 'imap_smtp', 'notion',
-                    'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import',
+                    'parallel-search', 'pipeboard', 'postiz', 'shopify', 'slack-import',
                     'google-calendar', 'outlook-mail', 'outlook-calendar', 'onedrive', 'sharepoint'}
-        ids = baseline | qualifier.REVIEWED_BATCH_IDS
+        ids = baseline | qualifier.REVIEWED_BATCH_IDS | {'fixture-provider'}
         self.assertEqual(len(ids), 114)
         values = [{'id': ident} for ident in sorted(ids)]
-        self.assertEqual(qualifier.catalog_ids(values + [{'id': 'custom-mcp', 'nativeKind': 'custom_mcp'}], '0.1.8'), sorted(ids))
+        digest = hashlib.sha256('\n'.join(sorted(ids)).encode()).hexdigest()
+        with patch.dict(qualifier.HISTORICAL_CATALOG_ID_DIGESTS, {'0.1.8': digest}):
+            self.assertEqual(qualifier.catalog_ids(values + [{'id': 'custom-mcp', 'nativeKind': 'custom_mcp'}], '0.1.8'), sorted(ids))
         for changed in (values[:-1], values + [values[0]],
                         [dict(item, id='unreviewed') if item['id'] == 'postman' else item for item in values]):
             with self.assertRaises(ValueError):
@@ -185,9 +192,12 @@ class WorkerContracts(unittest.TestCase):
         ids = ['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl',
                'github', 'gmail', 'google-analytics', 'google-calendar', 'google-drive', 'imap_smtp',
                'notion', 'outlook-calendar', 'outlook-mail', 'parallel-search', 'pipeboard',
-               'postiz', 'replio', 'shopify', 'slack-import']
+               'postiz', 'shopify', 'slack-import']
+        ids.append('fixture-provider')
         catalog = [{'id': item} for item in ids]
-        self.assertEqual(qualifier.catalog_ids(catalog, '0.1.7'), sorted(ids))
+        digest = hashlib.sha256('\n'.join(sorted(ids)).encode()).hexdigest()
+        with patch.dict(qualifier.HISTORICAL_CATALOG_ID_DIGESTS, {'0.1.7': digest}):
+            self.assertEqual(qualifier.catalog_ids(catalog, '0.1.7'), sorted(ids))
         for changed in (catalog[:-1], catalog + [{'id': 'outlook-mail'}],
                         [dict(item, id='unreviewed') if item['id'] == 'google-calendar' else item for item in catalog]):
             with self.assertRaises(ValueError):

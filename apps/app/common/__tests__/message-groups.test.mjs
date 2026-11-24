@@ -51,8 +51,8 @@ test('human messages group by durable identity and reset after agent activity', 
 test('agent-authored mission seeds do not consume the reply header', () => {
   assert.deepEqual(messageHeaderVisibility([
     message('user', { kind: 'agent', display: 'Mission' }),
-    message('assistant', { kind: 'agent', display: 'Friday' }),
-    message('assistant', { kind: 'agent', display: 'Friday' }),
+    message('assistant', { kind: 'agent', display: 'Personal Agent' }),
+    message('assistant', { kind: 'agent', display: 'Personal Agent' }),
   ]), [false, true, false]);
 });
 

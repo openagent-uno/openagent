@@ -36,8 +36,7 @@ class Runner:
         if method == "catalog":
             if self.after_catalog:
                 self.after_catalog()
-            return [{"id": "replio", "name": "Replio", "auth": "token", "available": True, "provider": "replio", "capability": "outreach"},
-                    {"id": "billingbear", "name": "BillingBear", "auth": "token", "available": True, "provider": "billingbear", "capability": "commerce"},
+            return [{"id": "billingbear", "name": "BillingBear", "auth": "token", "available": True, "provider": "billingbear", "capability": "commerce"},
                     {"id": "clickup", "name": "ClickUp", "auth": "oauth", "available": True, "provider": "clickup", "capability": "files"},
                     {"id": "shopify", "name": "Shopify", "auth": "oauth", "available": True, "provider": "shopify", "capability": "commerce"}]
         if method == "auth.start":
@@ -49,7 +48,7 @@ class Runner:
                 self.after_redeem()
             return {"token": {"access_token": "private-oauth-token", "app_id": "openagent-clickup", "scopes": []}}
         if method == "tools":
-            return [{"name": "outreach.replio.apps.list", "description": "Read apps", "risk": "read", "inputSchema": {"type": "object"}}]
+            return [{"name": "commerce.billingbear.project.stats", "description": "Read statistics", "risk": "read", "inputSchema": {"type": "object"}}]
         if method == "invoke":
             return {"data": {"ok": True}}
         return {"ok": True}
@@ -102,6 +101,40 @@ async def fixture(tmp_path):
     context = SimpleNamespace(tenant_id="tenant", initiator=principal, audience=(principal,))
     yield service, context, runner, authorizer
     await service.close()
+
+
+@pytest.mark.asyncio
+async def test_retired_catalog_binding_survives_startup_without_publishing_tools(fixture):
+    service, context, runner, _ = fixture
+    original_call = runner.call
+    available = True
+    retired_item = {"id": "fixture-service", "name": "Fixture", "auth": "token",
+                    "provider": "fixture", "capability": "files", "available": True}
+
+    async def catalog_fixture(method, params=None):
+        if method == "catalog":
+            items = await original_call(method, params)
+            return [*items, retired_item] if available else items
+        if method == "tools" and not available:
+            assert params["catalog_id"] != retired_item["id"]
+        return await original_call(method, params)
+
+    runner.call = catalog_fixture
+    saved = await service.create(context, {"catalog_id": "fixture-service", "token": "fixture-token"})
+    current = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40,
+                                             "config": {"project_id": "fixture-project"}})
+    retired, active = saved["connection"]["id"], current["connection"]["id"]
+    previous_row = await service.record(retired)
+    assert retired in service.sources
+    available = False
+    service.privacy_processor = SimpleNamespace(publisher=object())
+    await service.attach_sources()
+    assert retired not in service.sources and active in service.sources
+    assert await service.record(retired) == previous_row
+    with pytest.raises(ValueError, match="unavailable"):
+        await service.connect(context, retired)
+    await service.disconnect(context, retired)
+    assert (await service.record(retired))["status"] == "disconnected"
 
 
 @pytest.mark.asyncio
@@ -266,7 +299,7 @@ async def test_keyless_setup_rejects_credentials_and_caller_auth_override(fixtur
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("catalog_changes", [{"provider": "replio"}, {"capability": "outreach"},
+@pytest.mark.parametrize("catalog_changes", [{"provider": "billingbear"}, {"capability": "outreach"},
                                             {"id": "custom", "provider": "custom"}, {"auth": "unknown"}])
 async def test_keyless_catalog_contract_cannot_downgrade_another_binding(fixture, catalog_changes):
     service, context, runner, _ = fixture
@@ -314,7 +347,7 @@ async def test_keyless_connections_never_accept_saved_or_refreshed_credentials(f
 async def test_missing_oauth_or_token_credentials_are_not_keyless(fixture):
     service, context, runner, _ = fixture
     with pytest.raises(ValueError, match="token"):
-        await service.create(context, {"catalog_id": "replio"})
+        await service.create(context, {"catalog_id": "billingbear"})
     setup = await service.create(context, {"catalog_id": "clickup"})
     row = await service.record(setup["connection"]["id"])
     with pytest.raises(RuntimeError, match="authorization"):
@@ -403,13 +436,15 @@ def test_calendar_mail_own_apps_do_not_enable_other_providers_or_common_oauth(tm
 
 
 @pytest.mark.asyncio
-async def test_pinned_offline_catalog_retains_115_entries_without_enabling_connections(fixture):
+async def test_pinned_offline_catalog_retains_entries_without_enabling_connections(fixture):
     service, context, runner, _ = fixture
     service.runner = None
     catalog = await service.catalog(context)
     assert catalog["available"] is False
-    assert len(catalog["connectors"]) == 115
-    assert len({item["id"] for item in catalog["connectors"]}) == 115
+    from openagent_connectors.catalog import bundled_catalog
+    expected_ids = [item["id"] for item in bundled_catalog()]
+    assert [item["id"] for item in catalog["connectors"]] == expected_ids
+    assert len(set(expected_ids)) == len(expected_ids)
     assert all(item["available"] is False for item in catalog["connectors"])
     by_id = {item["id"]: item for item in catalog["connectors"]}
     for identifier, provider, capability in (("google-calendar", "google_calendar", "files"),
@@ -444,8 +479,8 @@ async def test_fresh_and_keyless_servers_never_poll_the_broker(fixture):
     runner.calls.clear()
     await background_cycle()
     assert runner.calls == []
-    await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
-                                   "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40,
+                                   "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     runner.calls.clear()
     await background_cycle()
     assert runner.calls == []
@@ -469,8 +504,8 @@ async def test_explicit_oauth_start_and_existing_grants_keep_background_sync(fix
 @pytest.mark.asyncio
 async def test_token_is_encrypted_and_never_returned_by_management(fixture):
     service, context, runner, _ = fixture
-    token = "rpl_" + "a" * 40
-    result = await service.create(context, {"catalog_id": "replio", "token": token, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    token = "sk_" + "a" * 40
+    result = await service.create(context, {"catalog_id": "billingbear", "token": token, "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     row = await service.record(connection_id)
     assert service.decrypt(row)["access_token"] == token
@@ -480,7 +515,7 @@ async def test_token_is_encrypted_and_never_returned_by_management(fixture):
     assert "credential" not in result["connection"]
     source = OfficialConnectorSource(service, connection_id)
     assert await source.discover(context)
-    assert await source.call_tool("outreach.replio.apps.list", {}, context) == {"ok": True}
+    assert await source.call_tool("commerce.billingbear.project.stats", {}, context) == {"ok": True}
 
 
 @pytest.mark.asyncio
@@ -489,10 +524,10 @@ async def test_missing_runner_keeps_official_catalog_visible_without_enrollment(
     service.runner = None
     result = await service.catalog(context)
     assert result["available"] is False
-    assert {"gmail", "shopify", "clickup", "replio", "google-drive", "imap_smtp"} <= {item["id"] for item in result["connectors"]}
+    assert {"gmail", "shopify", "clickup", "billingbear", "google-drive", "imap_smtp"} <= {item["id"] for item in result["connectors"]}
     assert all(item["available"] is False for item in result["connectors"])
     with pytest.raises(RuntimeError, match="runner"):
-        await service.create(context, {"catalog_id": "replio"})
+        await service.create(context, {"catalog_id": "billingbear"})
     authorizer.allowed = False
     with pytest.raises(PermissionError):
         await service.catalog(context)
@@ -501,14 +536,14 @@ async def test_missing_runner_keeps_official_catalog_visible_without_enrollment(
 @pytest.mark.asyncio
 async def test_connection_cannot_be_used_by_another_principal_or_audience(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    result = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40, "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     other = PrincipalRef("openagent", "tenant", "other")
     other_context = SimpleNamespace(tenant_id="tenant", initiator=other, audience=(other,))
     source = OfficialConnectorSource(service, connection_id)
     assert await source.discover(other_context) == ()
     with pytest.raises(PermissionError):
-        await source.call_tool("outreach.replio.apps.list", {}, other_context)
+        await source.call_tool("commerce.billingbear.project.stats", {}, other_context)
     shared = SimpleNamespace(tenant_id="tenant", initiator=context.initiator, audience=(context.initiator, other))
     assert await source.discover(shared) == ()
 
@@ -577,7 +612,7 @@ async def test_shopify_reconnect_uses_verified_legacy_store_or_rejects_before_au
 @pytest.mark.asyncio
 async def test_disconnect_immediately_revokes_source_and_clears_local_token(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    result = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40, "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     connection_id = result["connection"]["id"]
     source = OfficialConnectorSource(service, connection_id)
     await service.disconnect(context, connection_id)
@@ -589,7 +624,7 @@ async def test_disconnect_immediately_revokes_source_and_clears_local_token(fixt
 @pytest.mark.asyncio
 async def test_credential_encryption_binds_connection_and_owner(fixture):
     service, context, _, _ = fixture
-    result = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40, "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    result = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40, "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     row = await service.record(result["connection"]["id"])
     row["owner_key"] = "another-owner"
     with pytest.raises(Exception):
@@ -601,8 +636,8 @@ async def test_credential_encryption_binds_connection_and_owner(fixture):
 async def test_missing_key_never_reinitializes_existing_encrypted_state(fixture, encrypted_kind):
     service, context, runner, _ = fixture
     if encrypted_kind == "credential":
-        setup = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
-                                               "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+        setup = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40,
+                                               "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
         original = await service.record(setup["connection"]["id"])
     else:
         async with aiosqlite.connect(service.db_path) as db:
@@ -623,7 +658,7 @@ async def test_missing_key_never_reinitializes_existing_encrypted_state(fixture,
         restored = OfficialConnectors(service.runtime, runner=runner)
         await restored.start()
         try:
-            assert restored.decrypt(await restored.record(original["id"]))["access_token"] == "rpl_" + "a" * 40
+            assert restored.decrypt(await restored.record(original["id"]))["access_token"] == "sk_" + "a" * 40
         finally:
             await restored.close()
     else:
@@ -684,8 +719,8 @@ async def test_superseded_consent_cannot_save_credentials(fixture):
 @pytest.mark.parametrize('payload', [
     {'catalog_id': 'billingbear', 'token': 'sk_admin_' + 'a' * 32, 'config': {'project_id': 'project'}},
     {'catalog_id': 'billingbear', 'token': 'sk_' + 'a' * 32, 'config': {'project_id': 'project', 'metadata': {'private_key': 'must-not-store'}}},
-    {'catalog_id': 'replio', 'token': 'rpl_' + 'a' * 40, 'config': {'organization_id': 'invalid-org'}},
-    {'catalog_id': 'replio', 'token': 'invalid-token', 'config': {'organization_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}},
+    {'catalog_id': 'billingbear', 'token': 'sk_' + 'a' * 40, 'config': {'project_id': 'invalid/project'}},
+    {'catalog_id': 'billingbear', 'token': 'invalid-token', 'config': {'project_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}},
 ])
 async def test_invalid_credential_setup_never_creates_a_connection(fixture, payload):
     service, context, _, _ = fixture
@@ -699,8 +734,8 @@ async def test_role_revocation_during_token_setup_prevents_persistence(fixture):
     service, context, runner, authorizer = fixture
     runner.after_catalog = lambda: setattr(authorizer, 'allowed', False)
     with pytest.raises(PermissionError):
-        await service.create(context, {'catalog_id': 'replio', 'token': 'rpl_' + 'a' * 40,
-                                       'config': {'organization_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}})
+        await service.create(context, {'catalog_id': 'billingbear', 'token': 'sk_' + 'a' * 40,
+                                       'config': {'project_id': '019f8966-755f-7cf2-8511-ef3ed3a57c28'}})
     async with aiosqlite.connect(service.db_path) as db:
         count = await (await db.execute('SELECT COUNT(*) FROM official_connector_connections')).fetchone()
     assert count[0] == 0
@@ -815,8 +850,8 @@ async def test_explicit_refresh_without_refresh_credential_fails_before_runner(f
 @pytest.mark.asyncio
 async def test_explicit_refresh_rejects_personal_token_before_runner(fixture):
     service, context, runner, _ = fixture
-    setup = await service.create(context, {"catalog_id": "replio", "token": "rpl_" + "a" * 40,
-        "config": {"organization_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
+    setup = await service.create(context, {"catalog_id": "billingbear", "token": "sk_" + "a" * 40,
+        "config": {"project_id": "019f8966-755f-7cf2-8511-ef3ed3a57c28"}})
     runner.calls.clear()
     with pytest.raises(PermissionError, match="Only an OAuth"):
         await service.refresh(context, setup["connection"]["id"])

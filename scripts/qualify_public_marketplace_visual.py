@@ -27,6 +27,14 @@ INSTALLER_SHA = 'ccc9e983d9df31e393fdfeaccbb37ea61977cc9fb7a7bb61953e96115527fac
 # Finite reviewed SDK18 identities; this is not a runtime registry.
 REVIEWED_BATCH_IDS = frozenset(('agentmail', 'ahrefs', 'airtable', 'apollo', 'asana', 'ashby', 'attio', 'beehiiv', 'better-stack', 'box', 'brevo', 'brex', 'cal-com', 'calendly', 'canva', 'capsule', 'close', 'cloudflare', 'coda', 'coinmarketcap', 'contentful', 'courtlistener', 'customer-io', 'digitalocean', 'dovetail', 'dropbox', 'elevenlabs', 'fathom', 'figma', 'financial-datasets', 'fireflies', 'front', 'gitbook', 'gitlab', 'grain', 'gusto', 'heygen', 'honeycomb', 'hubspot', 'hugging-face', 'hunter', 'incident-io', 'instantly', 'klaviyo', 'launchdarkly', 'lemlist', 'linear', 'lucid', 'mailerlite', 'massive', 'miro', 'monday', 'neon', 'netlify', 'nifty', 'omnisend', 'onesignal', 'pandadoc', 'pendo', 'posthog', 'postman', 'quo', 'railway', 'ramp', 'read-ai', 'readwise', 'render', 'resend', 'revenuecat', 'rootly', 'signnow', 'smartsheet', 'spotify', 'statsig', 'stripe', 'supabase', 'surveymonkey', 'tally', 'tavily', 'ticktick', 'todoist', 'typeform', 'vercel', 'webex', 'webflow', 'wistia', 'workos', 'wrike', 'ynab', 'zoom'))
 
+# Identity-set digests of the reviewed historical catalog releases.
+HISTORICAL_CATALOG_ID_DIGESTS = {
+    '0.1.6': '188f65310b8047f3d194687c2c81dd91920836378ffff47a24247c768ccf5860',
+    '0.1.7': 'fe849e1b9110e0147e2f5d9438d8e5c7c3f4460526dffd48d2a92199f2317160',
+    '0.1.8': '0eb0b7f5ef65df41ce6fcc793629e1e95dff08a8877f51ed7a094932601edc88',
+}
+
+
 def require(value):
     if not value:
         raise ValueError('visual-contract-rejected')
@@ -79,16 +87,9 @@ def catalog_ids(catalog, sdk_version='0.1.4'):
     require(len(ids) == len(set(ids)) == {'0.1.4': 14, '0.1.5': 16, '0.1.6': 19, '0.1.7': 22, '0.1.8': 114}[sdk_version])
     if sdk_version in {'0.1.5', '0.1.6', '0.1.7', '0.1.8'}:
         require({'exa', 'firecrawl'} <= set(ids))
-    if sdk_version in {'0.1.6', '0.1.7', '0.1.8'}:
-        expected = {'atlassian', 'billingbear', 'clickup', 'coingecko', 'context7',
-                            'exa', 'firecrawl', 'github', 'gmail', 'google-analytics',
-                            'google-drive', 'imap_smtp', 'notion', 'parallel-search',
-                            'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import'}
-        if sdk_version in {'0.1.7', '0.1.8'}:
-            expected |= {'google-calendar', 'outlook-mail', 'outlook-calendar'}
-        if sdk_version == '0.1.8':
-            expected |= {'onedrive', 'sharepoint'} | REVIEWED_BATCH_IDS
-        require(set(ids) == expected)
+    if sdk_version in HISTORICAL_CATALOG_ID_DIGESTS:
+        identities = hashlib.sha256('\n'.join(sorted(ids)).encode()).hexdigest()
+        require(identities == HISTORICAL_CATALOG_ID_DIGESTS[sdk_version])
     return sorted(ids)
 
 

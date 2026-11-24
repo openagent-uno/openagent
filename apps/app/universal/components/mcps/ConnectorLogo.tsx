@@ -12,7 +12,6 @@ const images: Readonly<Record<string, ImageSourcePropType>> = {
   'parallel-search': require('../../assets/connectors/parallel-search.png'),
   exa: require('../../assets/connectors/exa.png'),
   firecrawl: require('../../assets/connectors/firecrawl.png'),
-  replio: require('../../assets/connectors/replio.png'),
   billingbear: require('../../assets/connectors/billingbear.png'),
   pipeboard: require('../../assets/connectors/pipeboard.png'),
   github: require('../../assets/connectors/github.png'),

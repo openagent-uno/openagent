@@ -152,7 +152,7 @@ async def t_guard_backed_promise(ctx: TestContext) -> None:
 
     _guard_on(True)
     model = _FakeModel()
-    with _Trace(enabled=True, rows=[("mark_as_human", "queued"), ("replio_thread_brief", "…")]):
+    with _Trace(enabled=True, rows=[("mark_as_human", "queued"), ("sample_support_thread_brief", "…")]):
         reply = "Thanks — a team member will follow up with you shortly."
         out = await reply_guard.guard_reply(_FakeAgent(model), "sid", "billing", reply)
     assert out == reply, "a promise backed by a real handoff this turn is fine"
@@ -413,7 +413,7 @@ async def t_failed_handoff_is_not_backing(ctx: TestContext) -> None:
 
     model = _FakeModel(revised="Please send the account email and order ID.")
     with lean_local_event_scope(True), _Trace(enabled=True, rows=[
-        ("replio_threads_mark_for_human", "Error from MCP tool: HTTP 500 failed"),
+        ("sample_support_threads_mark_for_human", "Error from MCP tool: HTTP 500 failed"),
     ]):
         out = await reply_guard.guard_reply(
             _FakeAgent(model), "sid", "Help", "A teammate will follow up.",

@@ -39,14 +39,14 @@
     },
     {
       "category": "local_support_controller",
-      "name": "controller is opt-in and scoped to Replio event",
+      "name": "controller is opt-in and scoped to support connector event",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
     {
       "category": "local_support_controller",
-      "name": "explicit Replio controller is not bypassed by a cloud-family composer",
+      "name": "explicit support connector controller is not bypassed by a cloud-family composer",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -130,14 +130,14 @@
     },
     {
       "category": "local_support_controller",
-      "name": "an operational reply carries Replio freshness and pins a Reddit comment",
+      "name": "an operational reply carries support connector freshness and pins a Reddit comment",
       "status": "fail",
       "known_baseline_failure": true,
       "message_sha256": "31457c8d2067e7ec016dbc144b84b6b4ff853c0eec3d46711d844db01265bb54"
     },
     {
       "category": "local_support_controller",
-      "name": "a Replio reconciliation event recovers the latest inbound from the brief",
+      "name": "a support connector reconciliation event recovers the latest inbound from the brief",
       "status": "fail",
       "known_baseline_failure": true,
       "message_sha256": "e9f7398e2d1b4d62ea4a15422caac2e9692b512218fe42799848a3ac734b6ef5"
@@ -263,7 +263,7 @@
     },
     {
       "category": "local_support_controller",
-      "name": "an unverifiable Replio link never becomes a tracked claim",
+      "name": "an unverifiable support connector link never becomes a tracked claim",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -494,7 +494,7 @@
     },
     {
       "category": "local_support_controller",
-      "name": "legal sender in Replio's webhook shape and a keyword-free follow-up stay silent",
+      "name": "legal sender in the support provider's webhook shape and a keyword-free follow-up stay silent",
       "status": "ok",
       "known_baseline_failure": false,
       "message_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"

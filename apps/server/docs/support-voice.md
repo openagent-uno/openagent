@@ -54,7 +54,7 @@ pair of model calls before writing it. Its product references remain available
 when an attempted documented bug resolution was not sufficient.
 
 A reclaimed human handoff requires a linked task. On that explicit rejection the
-controller calls Replio's idempotent `thread_ensure_support_task`, verifies the
+controller calls the support provider's idempotent `thread_ensure_support_task`, verifies the
 persisted thread link, and retries the handoff once. Existing review holds remain
 in place; they can gain ownership without sending another bot message. Unknown
 creation outcomes are not retried blindly. A task is not proof a person has read
@@ -66,4 +66,4 @@ history budget. Technical event success remains distinct from sent/blocked/held.
 
 Run `scripts/support_live_regression.py` with model and docs command files for the
 sanitized September 7 multi-turn corpus. Business operations are simulated;
-qualify the produced replies separately through the real Replio guards.
+qualify the produced replies separately through the real support-provider guards.

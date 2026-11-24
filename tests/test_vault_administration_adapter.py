@@ -144,7 +144,7 @@ class VaultAdapterTests(unittest.IsolatedAsyncioTestCase):
         resolver = Mock(return_value=expected)
         agent = SimpleNamespace(_resolve_vault_path=resolver)
         with patch.object(server_module, '_build_agent', return_value=agent):
-            product = server_module.AgentServer.from_config({'name': 'Friday', 'memory': {}})
+            product = server_module.AgentServer.from_config({'name': 'Personal Agent', 'memory': {}})
 
         self.assertEqual(product._gateway_vault_path, expected)
         resolver.assert_called_once_with()

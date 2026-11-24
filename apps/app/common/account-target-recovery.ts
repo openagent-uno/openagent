@@ -28,7 +28,7 @@ function legacyAgentLabel(account: { name: string; handle: string }): string {
 
 /** Keep a friendly saved label, but never use it as the routing identity.
  *
- * Legacy account rows predate ``agentHandle`` and may say “Friday” while a
+ * Legacy account rows predate ``agentHandle`` and may say “Personal Agent” while a
  * coordinator-authenticated repair has pinned the row to another agent.  The
  * verified handle is therefore always primary; a differing saved name is
  * shown only as an explicit alias.

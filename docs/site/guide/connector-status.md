@@ -628,11 +628,11 @@ Standalone storage/authorization and acquisition tests, CLI management tests,
 TypeScript and full renderer exports passed. The released native App beta 16
 used real Iroh device/network membership against a disposable beta 38 server. It displayed
 12 catalog entries alongside 30 actual public-registry results. Gmail search
-mixed the branded integration and registry MCPs in the same grid. Dummy Replio
+mixed the branded integration and registry MCPs in the same grid. Dummy support connector
 save, Manage, disable, persisted disabled state after renderer reload and
 disconnect passed; the disconnected tombstone was retained with tools disabled,
 and fixture credential and nonce were cleared. These used a
-synthetic key and do not establish real Replio API access.
+synthetic key and do not establish real support connector API access.
 
 A renderer reload directly on the marketplace can briefly display an HTML/JSON
 parse error while the loopback API origin is restored. The observed native

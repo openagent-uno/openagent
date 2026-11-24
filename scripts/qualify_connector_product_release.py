@@ -129,7 +129,7 @@ SDK18_MANUAL = {
     'zoom': ('zoom', 'files', ('files.zoom.meetings.list', 'files.zoom.meetings.get')),
 }
 # Manually supplied tokens have no verified OAuth scope claims; vendor permissions remain Setup documentation.
-SDK17_IDS = frozenset(['atlassian', 'billingbear', 'clickup', 'coingecko', 'context7', 'exa', 'firecrawl', 'github', 'gmail', 'google-analytics', 'google-calendar', 'google-drive', 'imap_smtp', 'notion', 'outlook-calendar', 'outlook-mail', 'parallel-search', 'pipeboard', 'postiz', 'replio', 'shopify', 'slack-import'])
+SDK18_OFFICIAL_DIGEST = "0eb0b7f5ef65df41ce6fcc793629e1e95dff08a8877f51ed7a094932601edc88"
 GRAPH_READS = {"onedrive": ("Files.Read", {"drives.list", "drives.get", "items.list", "items.get", "items.content"}), "sharepoint": ("Sites.Read.All", {"sites.search", "sites.get", "drives.list", "drives.get", "items.list", "items.get", "items.content"})}
 BRANDMARK_PROVIDERS = frozenset(['airtable', 'asana', 'better_stack', 'box', 'brevo', 'brex', 'cal_com', 'calendly', 'cloudflare', 'coda', 'coinmarketcap', 'contentful', 'digitalocean', 'dovetail', 'dropbox', 'elevenlabs', 'figma', 'gitbook', 'gitlab', 'gusto', 'hubspot', 'hugging_face', 'linear', 'lucid', 'miro', 'neon', 'netlify', 'posthog', 'postman', 'railway', 'render', 'resend', 'revenuecat', 'spotify', 'stripe', 'supabase', 'surveymonkey', 'ticktick', 'todoist', 'typeform', 'vercel', 'webex', 'webflow', 'wistia', 'zoom'])
 CANONICAL_BRANDMARK = re.compile(r'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#[0-9A-F]{6}" d="[Mm][MmZzLlHhVvCcSsQqTtAa0-9eE.,+ -]*"/></svg>')
@@ -206,7 +206,8 @@ def verify_catalog_metadata(items, expected):
         raise ValueError("SDK18 catalog inventory differs")
     official = {row["id"]: row for row in items if not row.get("nativeKind")}
     custom = [row for row in items if row.get("nativeKind")]
-    if (set(official) != SDK17_IDS | set(SDK18_MANUAL) | set(GRAPH_READS)
+    identities = hashlib.sha256("\n".join(sorted(official)).encode()).hexdigest()
+    if (identities != SDK18_OFFICIAL_DIGEST
             or [(row["id"], row["nativeKind"]) for row in custom] != [("custom-mcp", "custom_mcp")]):
         raise ValueError("SDK18 exact official/custom identities differ")
     for identifier, (provider, capability, reads) in SDK18_MANUAL.items():
@@ -421,8 +422,8 @@ asyncio.run(module.t_workflow_detail_warming_response(None))
 print(json.dumps({'status':'passed','warming_503_then_authorized_200':True,'other_verified_user_denied':True,'runtime_from_installed_wheels':True,'copied_test_helpers_only':True}))
 ''')
         contract = fixtures / "catalog_contract.py"
-        contract.write_text("import re,urllib.parse\nSDK18_MANUAL=" + repr(SDK18_MANUAL)
-            + "\nSDK17_IDS=" + repr(SDK17_IDS)
+        contract.write_text("import hashlib,re,urllib.parse\nSDK18_MANUAL=" + repr(SDK18_MANUAL)
+            + "\nSDK18_OFFICIAL_DIGEST=" + repr(SDK18_OFFICIAL_DIGEST)
             + "\nGRAPH_READS=" + repr(GRAPH_READS) + "\nBRANDMARK_PROVIDERS=" + repr(BRANDMARK_PROVIDERS)
             + "\nCANONICAL_BRANDMARK=re.compile(" + repr(CANONICAL_BRANDMARK.pattern) + ")\n"
             + inspect.getsource(verify_catalog_metadata) + "\n" + inspect.getsource(verify_read_tools))

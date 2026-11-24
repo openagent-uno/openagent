@@ -15,12 +15,12 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.bridge = PrincipalRef("openagent", "network", "__bridge_telegram", "user")
         self.context = ExecutionContext(
-            self.bridge, self.bridge, self.bridge, "tg:155490357", "Friday", (self.bridge,)
+            self.bridge, self.bridge, self.bridge, "tg:123456789", "Personal Agent", (self.bridge,)
         )
         self.config = {
-            "channels": {"telegram": {"allowed_users": ["155490357"]}},
+            "channels": {"telegram": {"allowed_users": ["123456789"]}},
             "runtime_tool_audiences": {
-                "vault_owner_channels": {"telegram": ["155490357"]}
+                "vault_owner_channels": {"telegram": ["123456789"]}
             },
         }
 
@@ -58,7 +58,7 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(owner_bridge_vault_turn(self.context, self.config))
         for changed in (
             replace(self.context, session_id="tg:999"),
-            replace(self.context, session_id="wa:155490357"),
+            replace(self.context, session_id="wa:123456789"),
             replace(self.context, audience=(self.bridge, PrincipalRef("openagent", "network", "other", "user"))),
             replace(self.context, initiator=PrincipalRef("openagent", "network", "__bridge_whatsapp", "user")),
             replace(self.context, deferred=True, delegation_id="background-test"),
@@ -70,7 +70,7 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
         }
         self.assertFalse(owner_bridge_vault_turn(self.context, without_channel_allowlist))
 
-    def typed_context(self, *, actor="155490357", account="123456", conversation=None,
+    def typed_context(self, *, actor="123456789", account="123456", conversation=None,
                       binding="telegram", thread=None, hint=None):
         from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
         from openagent_channel_bridges.base import _legacy_session_hint
@@ -86,7 +86,7 @@ class BridgeVaultAccessTests(unittest.IsolatedAsyncioTestCase):
     async def test_current_typed_private_session_retains_explicit_owner_vault_access(self):
         self.config['channels']['telegram']['token'] = '123456:testing-token'
         current = self.typed_context()
-        self.assertEqual(current.session_id, 'telegram:ee34281961563f423cfca54efcdf90d5eeed0d75dcf5798d3fb22695c961be88')
+        self.assertEqual(current.session_id, 'telegram:46056de4cd101b84b95f7cd74c9fe8a2a316e2a83f0b0ca89b7e025a19a0527c')
         self.assertTrue(owner_bridge_vault_turn(current, self.config))
         old = self.context
         self.context = current
@@ -126,20 +126,20 @@ class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         self.bridge = PrincipalRef("openagent", "network", "__bridge_telegram", "user")
-        self.agent = PrincipalRef("openagent", "network", "Friday", "agent")
+        self.agent = PrincipalRef("openagent", "network", "Personal Agent", "agent")
         self.context = ExecutionContext(
-            self.agent, self.bridge, self.bridge, "scheduler:task:occurrence", "Friday",
+            self.agent, self.bridge, self.bridge, "scheduler:task:occurrence", "Personal Agent",
             (self.bridge,), scopes=("capability:vault", "capability:vault-gate"),
             delegation_id="grant-1", deferred=True,
         )
         self.config = {
-            "channels": {"telegram": {"allowed_users": ["155490357"]}},
+            "channels": {"telegram": {"allowed_users": ["123456789"]}},
             "runtime_tool_audiences": {
-                "vault_owner_channels": {"telegram": ["155490357"]}
+                "vault_owner_channels": {"telegram": ["123456789"]}
             },
         }
 
-    def _services(self, config, name="Friday"):
+    def _services(self, config, name="Personal Agent"):
         async def owner_handle():
             return "alice"
 
@@ -166,7 +166,7 @@ class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
         ))
         return runtime, memory
 
-    async def _vault_access(self, context, config, name="Friday"):
+    async def _vault_access(self, context, config, name="Personal Agent"):
         runtime, memory = self._services(config, name)
         note = ResourceRef("vault-note", "network", "notes/example.md")
         results = [
@@ -184,14 +184,14 @@ class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_owner_approved_bridge_automation_keeps_the_vault(self):
         self.assertFalse(owner_bridge_vault_turn(self.context, self.config))
-        self.assertTrue(owner_bridge_automation_vault(self.context, self.config, "Friday"))
+        self.assertTrue(owner_bridge_automation_vault(self.context, self.config, "Personal Agent"))
         self.assertEqual(await self._vault_access(self.context, self.config), [True] * 4)
 
     async def test_trust_ends_with_the_owner_bridge_policy(self):
         revoked = {**self.config, "runtime_tool_audiences": {"vault_owner_channels": {"telegram": []}}}
-        disabled = {**self.config, "channels": {"telegram": {"enabled": False, "allowed_users": ["155490357"]}}}
+        disabled = {**self.config, "channels": {"telegram": {"enabled": False, "allowed_users": ["123456789"]}}}
         for config in (revoked, disabled, {}):
-            self.assertFalse(owner_bridge_automation_vault(self.context, config, "Friday"))
+            self.assertFalse(owner_bridge_automation_vault(self.context, config, "Personal Agent"))
             self.assertEqual(await self._vault_access(self.context, config), [False] * 4)
 
     async def test_only_this_agents_deferred_delegated_run_qualifies(self):
@@ -207,7 +207,7 @@ class BridgeAutomationVaultTests(unittest.IsolatedAsyncioTestCase):
             replace(self.context, authority=other),
             replace(self.context, initiator=PrincipalRef("openagent", "network", "__bridge_unknown", "user")),
         ):
-            self.assertFalse(owner_bridge_automation_vault(changed, self.config, "Friday"), changed)
+            self.assertFalse(owner_bridge_automation_vault(changed, self.config, "Personal Agent"), changed)
         self.assertFalse(owner_bridge_automation_vault(self.context, self.config, None))
 
     async def test_missing_scope_or_agent_name_fails_closed(self):

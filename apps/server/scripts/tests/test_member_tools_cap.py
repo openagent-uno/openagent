@@ -83,9 +83,9 @@ async def t_caps_large_member(_ctx: TestContext) -> None:
 
 @test("member_tools_cap", "a small member is listed in full (unchanged behaviour)")
 async def t_small_member_unchanged(_ctx: TestContext) -> None:
-    tools = ["replio_respond", "replio_brief", "vault_write"]
+    tools = ["sample_support_respond", "sample_support_brief", "vault_write"]
     out = _render(M, _FakeMember("support", tools), cap="40")
-    assert "Tools: replio_respond, replio_brief, vault_write" in out
+    assert "Tools: sample_support_respond, sample_support_brief, vault_write" in out
     assert "more)" not in out
 
 

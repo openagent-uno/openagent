@@ -37,8 +37,8 @@ metadata change. Native B7 remains unchanged for its current App consumers.
 
 The imported [`packaging/legacy-image`](../packaging/legacy-image/README.md)
 assets are historical, not a maintained build context. The vendored Claude
-proxy and old machine/supervisor recipes have been retired from the current
-tree; Git history and retained binary artifacts preserve their provenance.
+proxy, server binary and old machine/supervisor recipes remain available
+through the recorded source import and Git history.
 Current subscription connections and the optional compatibility HTTP host use
 the versioned public Core implementation. An old service name or credential
 directory may remain for compatibility without depending on a proxy repository.

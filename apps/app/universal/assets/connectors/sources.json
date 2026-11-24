@@ -1,12 +1,5 @@
 [
   {
-    "id": "replio",
-    "file": "replio.png",
-    "source": "https://replio.to/replio-icon-192.png",
-    "retrieved": "2026-09-08",
-    "sha256": "d83b4f02c9a28b98fcd92f4cf23200d9a0241dad46a16b0e7679b2fedd30c657"
-  },
-  {
     "id": "billingbear",
     "file": "billingbear.png",
     "source": "https://billingbear.io/apple-icon.png?apple-icon.0_w7u3t8fs1es.png",

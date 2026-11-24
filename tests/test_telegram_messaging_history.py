@@ -32,7 +32,7 @@ async def test_accepted_telegram_tool_message_is_filed_once_in_the_same_reply_se
             send.assert_awaited_once()
         assert result['ok'] is True and result['openagent_session']['recorded'] is True
         assert result['openagent_session']['session_id'] == f.context.session_id
-        reference = SessionRef('openagent', 'network', 'Friday', f.context.session_id)
+        reference = SessionRef('openagent', 'network', 'Personal Agent', f.context.session_id)
         page = await f.store.read_session(reference, f.context, limit=100)
         delivered = [message for message in page['messages'] if message['text'] == 'Delivery violet-27']
         assert len(delivered) == 1 and delivered[0]['role'] == 'assistant'

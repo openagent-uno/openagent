@@ -88,11 +88,11 @@ class _API:
 
 
 class _Client:
-    agent_name = "Friday"
+    agent_name = "Personal Agent"
     agent_version = "0.20.0-beta.1"
-    agent_handle = "friday"
+    agent_handle = "personal-agent"
     network_id = "bluehost-network"
-    target_handle = "friday"
+    target_handle = "personal-agent"
     principal_handle = "codex-beta"
 
     def __init__(self, api):
@@ -307,7 +307,7 @@ class CLIHistorySearchTests(unittest.TestCase):
         payload = json.loads(result.output)
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertEqual(payload["capabilities"]["api_revision"], 2)
-        self.assertEqual(payload["server"]["target_agent"], "friday")
+        self.assertEqual(payload["server"]["target_agent"], "personal-agent")
         self.assertEqual(payload["server"]["principal_handle"], "codex-beta")
 
     def test_cli_has_no_local_self_updater_or_implicit_beta_channel(self):

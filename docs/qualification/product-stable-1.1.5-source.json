@@ -70,10 +70,6 @@
     "beta23_public": false,
     "new_app_gui_acceptance": false
   },
-  "other_product_e2e_claimed": {
-    "GlassPalace": false,
-    "ICS": false
-  },
   "release_source": "ca27f3a70b5fb5e914e09fd7021cdddb7378208d",
   "release_url": "https://github.com/openagent-uno/openagent/releases/tag/v1.1.5",
   "public_evidence": {

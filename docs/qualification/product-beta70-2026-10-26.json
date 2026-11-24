@@ -9,7 +9,7 @@
   "productSubtestsPassed": 4,
   "coreInstalledTestsPassed": 132,
   "coreSubtestsPassed": 26,
-  "coreQualificationReceipt": "/Users/alessandrogerelli/.codex/worktrees/ics-release-automation/ICS/.ics/release/prepared-core35-attachment-completion-20261026/core35/qualification.json",
+  "coreQualificationReceipt": null,
   "nativeAppOrLiveProviderQualification": false,
   "pipCheckPassed": true,
   "testSourcePinsSHA256": "ebbe898100bd685329e4b5ebd5f1a9afa749b67035032fff3fea2e58be7bba63",

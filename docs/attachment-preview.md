@@ -40,7 +40,7 @@ Publication checks the current Core execution, exact agent/session/run and fresh
 
 ### Focused source checks (19 October 2026)
 
-The source-debug batch passed 8 standalone checks (public transcript/ACL plus the selected publisher), 1 ICS publisher integration check and 10 App common ordered-parts/attachment contract checks, with zero skips. The publisher cases exercise CSV, PNG, MP4 and WAV references, a disabled filesystem, bounded-reader escape denial, view-only denial, stale/different-session execution and revocation after the read. The existing REST ACL regression also passes through the public Core projection.
+The source-debug batch passed 8 standalone checks (public transcript/ACL plus the selected publisher), 1 external-host publisher integration check and 10 App common ordered-parts/attachment contract checks, with zero skips. The publisher cases exercise CSV, PNG, MP4 and WAV references, a disabled filesystem, bounded-reader escape denial, view-only denial, stale/different-session execution and revocation after the read. The existing REST ACL regression also passes through the public Core projection.
 
 These checks used the independent Core beta24 source candidate with an existing dependency environment. They do not qualify a published beta24 wheel, a native installer, real-provider media delivery or visual playback. No App frontend implementation was rewritten: the existing shared attachment block renders user and assistant parts. The source-debug log SHA-256 is `ea8c029546b251bc15f2a840a638ac158c093e6bd89ad9e8e127e2b8161f5f4e`; the private debug receipt SHA-256 is `d52e4dc870b7f8a7bc981bad6f3a0cbcaaa84d83da8a8a39dd7864d3b1daed7d`.
 

@@ -6,7 +6,7 @@ The full standalone server used the acquired, checksum-verified 0.1.1 runner. A 
 
 Direct reload at `/mcps` now waits for the connection store to restore the authenticated server target. Target changes clear credential forms and pending authorization; old asynchronous responses cannot update another target. OAuth cancellation invalidates pending polling, and token setup requires an actual connected response before showing success.
 
-A deliberately invalid Replio fixture was rejected. A well-formed dummy token was then saved on the disposable server, its enable switch persisted across a native renderer reload, and local disconnect removed its credential and nonce. The dummy token was absent in plaintext from the SQLite database. No external Replio API call was made, so this is local management acceptance, not provider authentication or tool-operation acceptance.
+A deliberately invalid support connector fixture was rejected. A well-formed dummy token was then saved on the disposable server, its enable switch persisted across a native renderer reload, and local disconnect removed its credential and nonce. The dummy token was absent in plaintext from the SQLite database. No external support connector API call was made, so this is local management acceptance, not provider authentication or tool-operation acceptance.
 
 Validation: TypeScript check and full Expo web export passed. The native Electron app loaded the exported build and repeated the reload, connect, disable and disconnect flow. This is a development app; it does not qualify a signed installed release, Windows or Linux.
 
@@ -25,7 +25,7 @@ The earlier default-Official-tab screenshot is superseded by this presentation.
 
 The unified native app loaded 12 catalog entries and 30 real registry results
 in the same grid. A Gmail search mixed the branded Gmail connector with real
-registry Gmail MCPs and retained no official label or divider. The Replio card
+registry Gmail MCPs and retained no official label or divider. The support connector card
 opened its credential form, saved a dummy credential, changed to Manage and
 exposed enable/disconnect controls. Local disable and disconnect passed and
 the database confirmed every fixture credential was removed. TypeScript and

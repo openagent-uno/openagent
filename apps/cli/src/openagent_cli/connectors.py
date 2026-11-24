@@ -79,7 +79,7 @@ async def connect(client, catalog_id, allow_write, console):
     config = payload["config"]
     if catalog_id == "shopify":
         config["shop"] = Prompt.ask("Shopify store (your-store.myshopify.com)").strip().lower()
-    fields = {"replio": ("organization_id", "Organization ID"), "billingbear": ("project_id", "Project ID"),
+    fields = {"billingbear": ("project_id", "Project ID"),
               "pipeboard": ("ads_provider", "Ads provider (meta_ads or google_ads)")}
     if catalog_id in fields:
         key, label = fields[catalog_id]

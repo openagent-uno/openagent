@@ -56,7 +56,7 @@
     "network_attempts": 0,
     "sqlite_workers_alive": 0,
     "owned_children_remaining": 0,
-    "boundary": "Full NativeRuntimeService and module graph from the actual anonymous public server-install prefix; controlled certificate/worker dependencies. No authenticated production Gateway/Iroh/HTTP, model/provider or App/GP/ICS end-to-end acceptance.",
+    "boundary": "Full NativeRuntimeService and module graph from the actual anonymous public server-install prefix; controlled certificate/worker dependencies. No authenticated production Gateway/Iroh/HTTP, model/provider or app or embedding-host end-to-end acceptance.",
     "sqlite_connections_tracked": 8,
     "qualified_from_public_installer_prefix": true,
     "tracked_connections_closed": 8
@@ -150,10 +150,6 @@
     "current_public_version": "1.1.0-beta.22",
     "next_beta23_public": false,
     "new_app_gui_acceptance": false
-  },
-  "other_product_e2e_claimed": {
-    "GlassPalace": false,
-    "ICS": false
   },
   "docs_site_deployed": false
 }

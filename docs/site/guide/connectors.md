@@ -129,7 +129,6 @@ for their exact limits. These do not establish full ChatGPT feature parity.
 | ClickUp | OAuth | Tasks, workspaces, Docs, Goals and time tracking |
 | Postiz | OAuth | Social integrations, analytics, drafts and publishing; credential rotated and broker configured on 19 October; not a default; first beta47 poll failed HTTP503; broker correction and fresh OAuth connection passed; one read workflow failed; API acceptance unqualified |
 | Pipeboard Ads | API token | Meta/Google Ads reports and permitted campaign pause |
-| Replio | Organization API token | Apps, conversations and support statistics |
 | BillingBear | Project API token | Revenue and customer billing information |
 | IMAP Email | Local account/app passwords | Read messages and send through SMTP over TLS |
 | GitHub | GitHub App OAuth | Selected repositories, code and pull-request reads, issues/comments; 17 operations |
@@ -141,6 +140,11 @@ for their exact limits. These do not establish full ChatGPT feature parity.
 | Parallel Search | Keyless, no account or API key | Public search/excerpt fetch; 2 read tools; fetch workflow/restart/disconnect on beta 43 |
 | Context7 | Keyless, no account or API key | Resolve library IDs and query public docs; 2 read tools; query workflow/restart/disconnect on beta 43 |
 | CoinGecko | Keyless, no account or API key | Bounded public prices/global aggregates; 2 read tools; global workflow/restart/disconnect on beta 43 |
+
+Provider-specific integrations supplied by a host can use the Custom MCP
+connection. When an official catalog changes, the server registers only
+bindings present in the installed runner. Existing connection records remain
+available to their owner for inspection and disconnection.
 
 Custom MCP servers remain available alongside official connectors. Embedding products retain their own controls over who may install connectors, which agents may use them, and whether they may make changes.
 
@@ -286,7 +290,7 @@ openagent-cli marketplace official
 openagent-cli marketplace official gmail --json
 openagent-cli marketplace search filesystem
 openagent-cli connectors list
-openagent-cli connectors connect replio
+openagent-cli connectors connect billingbear
 # Keyless commands use the published beta 43 CLI/server:
 openagent-cli connectors connect exa
 openagent-cli connectors connect firecrawl
@@ -352,7 +356,6 @@ The library is [`openagent-tools/packages/connectors`](https://github.com/openag
 | ClickUp | Consent for the existing configured app and the user's permitted workspace access |
 | Shopify | Verified store consent and explicit receiving-server authorization; beta49 requires actual qualified privacy coverage and the scoped broker QA gate; bounded two-host lifecycle and synthetic privacy QA passed; genuine callbacks/cutover and broader privacy coverage remain unqualified |
 | Postiz | Existing shared app; cloud-account plan prerequisite; fresh OAuth connected but the single read workflow failed; no subscription activated and API acceptance unqualified; not a default |
-| Replio | Dedicated organization-wide `rpl_…` key and organization UUID |
 | BillingBear | Project API token and project identifier |
 | Pipeboard Ads | API token and provider identifier `meta_ads` or `google_ads` |
 | IMAP Email | IMAP/SMTP hosts, username, account/app password, mailbox and sender; implicit TLS or STARTTLS |

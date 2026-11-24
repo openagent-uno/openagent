@@ -32,7 +32,7 @@ ModuleConfig(
 ```
 
 A host with a managed capability catalog uses `managed`; its control plane owns connector and MCP
-policy. Replio can use `fixed`. The standalone full profile uses `dynamic`.
+policy. A configured integration can use `fixed`. The standalone full profile uses `dynamic`.
 
 ## Discovery and invocation
 

@@ -204,7 +204,7 @@ class WebhookSite:
         # row, and do NOT assume the in-process dispatch is the only run: replay
         # resumes the SAME child session (bound thread session, or the
         # deterministic ``event:{event_id}:{delivery_id}`` id), so the customer
-        # reply stays idempotent through Replio's reply_guard.
+        # reply stays idempotent through the receiver's per-thread idempotency guard.
         delivery_id = await db.add_event_delivery(
             event_id=event_id, source="webhook",
             external_id=external_id, payload=payload, claimed=True,

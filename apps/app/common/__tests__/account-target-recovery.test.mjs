@@ -60,22 +60,22 @@ test('remembered invalid result repairs a crash placeholder for explicit passwor
 
 test('verified agent target is primary while a stale custom label remains an explicit alias', () => {
   assert.deepEqual(accountAgentPresentation({
-    name: 'alice@personal — Friday',
+    name: 'alice@personal — Personal Agent',
     handle: 'alice',
     agentHandle: 'my-agent',
   }), {
     primary: 'my-agent',
-    alias: 'Friday',
+    alias: 'Personal Agent',
     verified: true,
   });
 });
 
 test('legacy rows remain visibly unverified until the coordinator pins a target', () => {
   assert.deepEqual(accountAgentPresentation({
-    name: 'alice@personal — Friday',
+    name: 'alice@personal — Personal Agent',
     handle: 'alice',
   }), {
-    primary: 'Friday',
+    primary: 'Personal Agent',
     alias: null,
     verified: false,
   });
@@ -99,6 +99,6 @@ test('account loopback routing retains a verified target without an override', (
     id: 'saved-row',
     handle: 'alice',
     network: 'personal',
-    agentHandle: 'friday',
-  }).agent, 'friday');
+    agentHandle: 'personal-agent',
+  }).agent, 'personal-agent');
 });

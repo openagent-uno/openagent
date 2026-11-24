@@ -253,7 +253,7 @@ async def t_judge_grounded(ctx: TestContext) -> None:
     agent = _agent(model)
     agent.system_prompt = (
         "OPERATING RULES: never invent an order id; issue a refund ONLY after "
-        "verifying the receipt; a reported bug MUST become a Replio task."
+        "verifying the receipt; a reported bug MUST become a Support Desk task."
     )
     with _env(OPENAGENT_QUALITY_MONITOR_ENABLED="1"), _capture() as evs:
         await qm._judge(agent, "s", "I want a refund", "Sure — let me verify your receipt first.")
@@ -334,9 +334,9 @@ async def t_judge_grounded_by_tool_trace(ctx: TestContext) -> None:
     import openagent_core.core.quality_monitor as qm
 
     fm = _GroundingJudge("86cat39x8")
-    # The id and user were returned by a tool — a Replio thread brief — so the
+    # The id and user were returned by a tool — a Support Desk thread brief — so the
     # reply that quotes them is grounded, not invented.
-    rows = [("replio_thread_brief",
+    rows = [("sample_support_thread_brief",
              "thread for user stav; linked ClickUp task 86cat39x8, priority high")]
     with _env(OPENAGENT_QUALITY_MONITOR_ENABLED="1",
               OPENAGENT_QUALITY_MONITOR_MODEL=None,
@@ -361,7 +361,7 @@ async def t_judge_absent_id_still_flagged(ctx: TestContext) -> None:
     fm = _GroundingJudge("ZZ999NOTREAL")
     # The tool trace is present but does NOT contain the cited id — so it really
     # was invented, and the judge must still catch it.
-    rows = [("replio_thread_brief", "thread for user stav; task 86cat39x8")]
+    rows = [("sample_support_thread_brief", "thread for user stav; task 86cat39x8")]
     with _env(OPENAGENT_QUALITY_MONITOR_ENABLED="1",
               OPENAGENT_QUALITY_MONITOR_MODEL=None,
               OPENAGENT_COMPACTION_MODEL=None), _capture() as ev:
@@ -409,7 +409,7 @@ async def t_spawn_scoring_drains_trace(ctx: TestContext) -> None:
               OPENAGENT_COMPACTION_MODEL=None):
         # Simulate the dispatcher publishing this run's trace for the session.
         sink, tok = tool_trace.maybe_open()
-        tool_trace.record("replio_thread_brief", "user stav; task 86cat39x8")
+        tool_trace.record("sample_support_thread_brief", "user stav; task 86cat39x8")
         tool_trace.publish("sessX", sink)
         tool_trace.close(tok)
         qm.spawn_scoring(_agent(fm), "sessX", "status?",

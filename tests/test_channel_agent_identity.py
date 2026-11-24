@@ -34,7 +34,7 @@ async def owner_channel(tmp_path, request):
     for handle in ('alice', 'bob'):
         await directory_store.create_user(handle=handle, pake_record=b'fixture', pake_algo='fixture')
     await directory_store.register_agent(handle='agent', node_id='node', owner_handle='alice')
-    config = {'name': 'Friday', 'system_prompt': 'Original persona',
+    config = {'name': 'Personal Agent', 'system_prompt': 'Original persona',
         'channels': {provider: {'allowed_users': [SENDER]}},
         'runtime_tool_audiences': {'vault_owner_channels': {provider: [SENDER]}}}
     channel = config['channels'][provider]
@@ -44,7 +44,7 @@ async def owner_channel(tmp_path, request):
         channel['identity'] = dict(tenant_id='network', account_id='account', user_bindings={SENDER: 'alice'})
     path = tmp_path / 'openagent.yaml'
     path.write_text(yaml.safe_dump(config))
-    agent = SimpleNamespace(name='Friday', system_prompt='Original persona', config=config, memory_db=db)
+    agent = SimpleNamespace(name='Personal Agent', system_prompt='Original persona', config=config, memory_db=db)
     revoked = set()
     async def authorized(req, cert): return cert.handle not in revoked
     gateway = SimpleNamespace(agent=agent, _request_device_still_authorized=authorized,
@@ -56,7 +56,7 @@ async def owner_channel(tmp_path, request):
     service.directory = NativeRuntimeDirectory(gateway, agent)
     store = SqliteRuntimeStore(db.db_path)
     await store.start()
-    service.runtime = Runtime(RuntimeSettings('Friday', tmp_path), RuntimeServices(store, None, service.authorizer))
+    service.runtime = Runtime(RuntimeSettings('Personal Agent', tmp_path), RuntimeServices(store, None, service.authorizer))
     gateway.runtime_service = service
     host, bridge, actor = None, None, None
     if provider in ('slack', 'discord'):
@@ -111,7 +111,7 @@ async def test_owner_can_read_update_and_hot_apply_persona_from_each_channel(own
         from openagent_core.contracts import ResourceRef
         for action in ('catalog.manage', 'automation.manage'):
             assert await f.service._authorize_source(f.context, action,
-                ResourceRef('agent', 'network', 'Friday'), audience=f.context.audience)
+                ResourceRef('agent', 'network', 'Personal Agent'), audience=f.context.audience)
         result = await f.toolkit.async_functions['agent_update_identity'].entrypoint(
             system_prompt='Updated owner persona', expected_revision=before['revision'])
     saved = yaml.safe_load(f.path.read_text())
@@ -173,7 +173,7 @@ async def test_owner_device_rest_stays_available_without_promoting_bridge_creden
                   auth_kind='device_cert', device_auth_epoch=1)
     req.app = {'gateway': f.gateway}
     owner = await f.service.authorizer.bind_request(req)
-    assert (await f.identity.get(owner))['name'] == 'Friday'
+    assert (await f.identity.get(owner))['name'] == 'Personal Agent'
     with pytest.raises(AgentIdentityPermissionError):
         await f.identity.get(replace(owner, device_id='unverified-device'))
     f.revoked.add('alice')

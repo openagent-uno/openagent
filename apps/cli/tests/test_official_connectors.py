@@ -24,13 +24,13 @@ def test_catalog_uses_authenticated_server_and_preserves_unavailable_entries():
     client = AsyncMock()
     client.rest_get.return_value = {"available": True, "connectors": [
         {"id": "gmail", "name": "Gmail", "available": False, "unavailableReason": "Authorization not enabled"},
-        {"id": "replio", "name": "Replio", "available": True},
+        {"id": "billingbear", "name": "BillingBear", "available": True},
     ]}
     cli, opened, closed = commands(client)
-    result = CliRunner().invoke(cli, ["marketplace", "official", "--network", "work", "--agent", "friday", "--handle", "owner", "--json"])
+    result = CliRunner().invoke(cli, ["marketplace", "official", "--network", "work", "--agent", "personal-agent", "--handle", "owner", "--json"])
     assert result.exit_code == 0, result.output
     assert len(json.loads(result.output)["connectors"]) == 2
-    opened.assert_awaited_once_with("work", None, "friday", principal_handle="owner", quiet=True)
+    opened.assert_awaited_once_with("work", None, "personal-agent", principal_handle="owner", quiet=True)
     client.rest_get.assert_awaited_once_with("/api/marketplace/official")
     closed.assert_awaited_once_with(client)
 
@@ -157,21 +157,21 @@ async def test_unavailable_connector_never_prompts_or_creates():
 @pytest.mark.asyncio
 async def test_token_sent_only_to_authenticated_server_and_cleared():
     client = AsyncMock()
-    client.rest_get.return_value = {"connectors": [{"id": "replio", "auth": "token", "available": True}]}
+    client.rest_get.return_value = {"connectors": [{"id": "billingbear", "auth": "token", "available": True}]}
     client.rest_post.return_value = {"connection": {"id": "conn"}}
     seen = []
     async def post(path, payload):
         assert path == "/api/connectors"
-        assert payload["token"] == "private-replio-token"
+        assert payload["token"] == "private-fixture-token"
         assert payload["allow_write"] is False
         seen.append(payload)
         return {"connection": {"id": "conn", "status": "connected"}}
     client.rest_post.side_effect = post
     output = io.StringIO()
-    with patch("openagent_cli.connectors.Prompt.ask", side_effect=["private-replio-token", "org"]):
-        await connect(client, "replio", False, Console(file=output))
+    with patch("openagent_cli.connectors.Prompt.ask", side_effect=["private-fixture-token", "project"]):
+        await connect(client, "billingbear", False, Console(file=output))
     assert "token" not in seen[0]
-    assert "private-replio-token" not in output.getvalue()
+    assert "private-fixture-token" not in output.getvalue()
 
 
 @pytest.mark.asyncio
@@ -192,7 +192,7 @@ async def test_keyless_connection_never_prompts_for_credentials_or_opens_oauth(c
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("item", [
-    {"id": "replio", "provider": "replio", "capability": "outreach", "auth": "none"},
+    {"id": "billingbear", "provider": "billingbear", "capability": "outreach", "auth": "none"},
     {"id": "exa", "provider": "other", "capability": "files", "auth": "none"},
     {"id": "parallel-search", "provider": "parallel-search", "capability": "files", "auth": "none"},
     {"id": "context7", "provider": "parallel_search", "capability": "files", "auth": "none"},

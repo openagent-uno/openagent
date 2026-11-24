@@ -15,7 +15,7 @@ from ._framework import TestContext, TestSkip, have_openai_key, test
 
 @test("runtime", "tool-search schema accepts target tool arguments")
 async def t_tool_search_freeform_args_schema(_ctx: TestContext) -> None:
-    """Regression for Friday's GLM/Kimi all-arguments outage.
+    """Regression for Personal Agent's GLM/Kimi all-arguments outage.
 
     A bare ``dict`` used to become ``additionalProperties: false`` in the
     provider schema.  Models therefore emitted the valid-but-useless
@@ -335,7 +335,7 @@ async def t_agno_generate_run_status_error(_ctx: TestContext) -> None:
     of re-raising. Without an explicit status check the provider treats
     that error string as the model's output and the Telegram bridge
     shows the user a raw Python exception (e.g. ``[Errno 2] No such file
-    or directory``) — caught in production on mixout with the
+    or directory``) — caught in production on sample_host with the
     misconfigured ``deepseek:deepseek-v4-pro`` model. ``generate()``
     must inspect ``response.status`` and raise ``NativeProviderError`` so
     the bridge formats a clean ``⚠️`` message instead.
