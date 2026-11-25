@@ -259,10 +259,10 @@ class RuntimeServiceTests(unittest.IsolatedAsyncioTestCase):
             (await self.service.runtime.get_run("old", first.context)).status,
             "cancelled",
         )
-        self.assertEqual(
-            [e async for e in self.service.observe_run(second)][-1]["text"],
-            "answer: hello",
-        )
+        observed = [event async for event in self.service.observe_run(second)]
+        self.assertIn("Unfinished request\nwait", observed[-1]["text"])
+        self.assertTrue(observed[-1]["text"].endswith("Latest instruction\nhello"))
+        self.assertEqual(second.request.input, "hello")
         self.assertEqual(len(self.agent.calls), 2)
 
     async def test_detaching_observer_does_not_cancel_preadmitted_execution(self):
