@@ -1,3 +1,3 @@
 """OpenAgent CLI package."""
 
-__version__ = "1.1.9b112"
+__version__ = "1.1.9b113"

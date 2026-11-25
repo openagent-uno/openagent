@@ -1,4 +1,5 @@
 """Standalone real public Runtime/SQLite/CAS; provider/model are fixtures."""
+import asyncio
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
@@ -91,6 +92,45 @@ async def assemble(tmp_path, *, settings=None, sessions=False):
         audience_verified_at=time.time())
     current = [context]
     return service, host, bridge, context, current, calls, users, store, db
+
+
+@pytest.mark.asyncio
+async def test_native_channel_update_steers_only_its_active_author_and_preserves_input(tmp_path):
+    service, host, _bridge, context, _current, _calls, _users, store, db = await assemble(tmp_path)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    resumed = []
+    execute = service.runtime.services.executor.execute
+
+    async def blocked(request, execution, runtime):
+        if request.input == "Start the work":
+            entered.set()
+            await release.wait()
+        else:
+            resumed.append((request.steer_run_id, await runtime.steering_inputs(request, execution)))
+        return await execute(request, execution, runtime)
+
+    service.runtime.services.executor.execute = blocked
+    first = asyncio.create_task(host.send(BridgeMessage(context, (BridgePart(text="Start the work"),))))
+    try:
+        await asyncio.wait_for(entered.wait(), 2)
+        bob = replace(context, actor_id="Ubob", event_id="bob", audience_ids=("Ubob", "Ualice"))
+        other = asyncio.create_task(host.send(BridgeMessage(bob, (BridgePart(text="Bob's own task"),))))
+        update = replace(context, event_id="update")
+        successor = await asyncio.wait_for(host.send(BridgeMessage(update, (BridgePart(text="Also verify it"),))), 4)
+        original = await asyncio.wait_for(first, 2)
+        unrelated = await asyncio.wait_for(other, 2)
+        assert original.status == "coalesced"
+        assert successor.status == unrelated.status == "completed"
+        assert set(resumed) == {(None, ()), (original.run_ref, ("Start the work",))}
+        assert (await store.accepted_request(successor.run_ref)).request.steer_run_id == original.run_ref
+        assert (await store.accepted_request(unrelated.run_ref)).request.steer_run_id is None
+    finally:
+        release.set()
+        await asyncio.gather(first, return_exceptions=True)
+        await host.stop()
+        await service.runtime.close()
+        await db.close()
 
 
 @pytest.mark.asyncio

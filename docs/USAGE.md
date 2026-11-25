@@ -4,6 +4,14 @@ Read [components](COMPONENTS.md) and [agnostic architecture](AGNOSTICISM.md).
 Commands below describe supported entry points; this documentation update does
 not install, start, publish or migrate a live agent.
 
+## Steering messages
+
+The shared stream carries the unfinished request into a successor when a
+follow-up arrives from the same authenticated conversation. Standalone
+bridges using native runtime identity submit the exact active run for the
+same author and audience. Embedded hosts can use the public
+`RunRequest.steer_run_id` contract for the same continuation behavior.
+
 ## Inspect the checkout
 
 Use a Python **3.11+** interpreter on PATH (verify with `python3 --version`):

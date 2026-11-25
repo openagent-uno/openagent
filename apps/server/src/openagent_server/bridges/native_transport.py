@@ -48,6 +48,9 @@ class NativeChannelTransport:
         self.bridge = None
         self.enabled = True
         self._delivery_files = {}
+        self._submission_lock = asyncio.Lock()
+        self._active_runs = {}
+        self._superseded_runs = set()
 
     def bind_bridge(self, bridge):
         self.bridge = bridge
@@ -147,6 +150,8 @@ class NativeChannelTransport:
 
     async def stop(self):
         self.enabled = False
+        self._active_runs.clear()
+        self._superseded_runs.clear()
         # Only files created by this transport are removed; the agent/runtime
         # and canonical artifacts belong to the installation, not the channel.
         for path, identity in tuple(self._delivery_files.items()):
@@ -157,6 +162,19 @@ class NativeChannelTransport:
             except FileNotFoundError:
                 pass
         self._delivery_files.clear()
+
+    async def _accepted_message(self, run_id, context, input_digest):
+        try:
+            accepted = await self.service.runtime.accepted_request(run_id, context)
+        except LookupError:
+            return None
+        if (accepted.author != context.author or accepted.initiator != context.initiator
+                or accepted.authority != context.authority or accepted.audience != context.audience
+                or accepted.request.session_id != context.session_id
+                or accepted.request.idempotency_key != input_digest):
+            from openagent_core.contracts import IdempotencyConflict
+            raise IdempotencyConflict("Channel event belongs to a different payload or actor")
+        return accepted
 
     async def send(self, request, *, on_event=None):
         context = await self._execution(request.context)
@@ -174,15 +192,7 @@ class NativeChannelTransport:
             "provider_attachment_id": part.attachment.provider_attachment_id,
             "sha256": part.attachment.sha256} for part in request.parts]
         input_digest = hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()).hexdigest()
-        try:
-            accepted = await self.service.runtime.accepted_request(run_id, context)
-        except LookupError:
-            accepted = None
-        if accepted is not None and (accepted.author != context.author
-                or accepted.request.session_id != context.session_id
-                or accepted.request.idempotency_key != input_digest):
-            from openagent_core.contracts import IdempotencyConflict
-            raise IdempotencyConflict("Channel event belongs to a different payload or actor")
+        accepted = await self._accepted_message(run_id, context, input_digest)
         artifacts = ArtifactRepository(self.service.agent.memory_db, _Artifacts(self, request.context), runtime=self.service.runtime,
                                        max_input_bytes=32 << 20, max_output_bytes=32 << 20)
         attachments = []
@@ -217,9 +227,34 @@ class NativeChannelTransport:
         history = render_history(request.history)
         if history:
             text = history + "\n\nCurrent message:\n" + text
-        submitted = accepted.request if accepted is not None else RunRequest(
-            run_id, context.session_id, input_digest, text, attachments=tuple(attachments))
-        await self.service.runtime.submit(submitted, context)
+        scope = (context.tenant_id, context.session_id, context.author)
+        runtime = self.service.runtime
+        # The selector belongs to this authenticated route. A duplicate event
+        # observes only its original acceptance and never retargets steering.
+        async with self._submission_lock:
+            accepted = await self._accepted_message(run_id, context, input_digest)
+            if accepted is None:
+                target = self._active_runs.get(scope)
+                if target is not None and (await runtime.get_run(target, context)).terminal:
+                    target = None
+                submitted = RunRequest(run_id, context.session_id, input_digest, text,
+                                       attachments=tuple(attachments), steer_run_id=target)
+                await runtime.submit(submitted, context)
+                if target is not None:
+                    self._superseded_runs.add(target)
+                self._active_runs[scope] = run_id
+            else:
+                await runtime.submit(accepted.request, context)
+        try:
+            return await self._observe_reply(request, context, canonical, run_id, artifacts, on_event)
+        finally:
+            if accepted is None:
+                async with self._submission_lock:
+                    if self._active_runs.get(scope) == run_id:
+                        self._active_runs.pop(scope)
+                    self._superseded_runs.discard(run_id)
+
+    async def _observe_reply(self, request, context, canonical, run_id, artifacts, on_event):
         cursor, final = 0, None
         children = {}
         while True:
@@ -258,6 +293,10 @@ class NativeChannelTransport:
         if not await self._fresh(request.context, canonical):
             raise PermissionError("Channel result audience changed")
         if record.status != "success":
+            async with self._submission_lock:
+                superseded = run_id in self._superseded_runs
+            if superseded and record.status in {"cancelled", "interrupted"}:
+                return BridgeReply(status="coalesced", session_ref=context.session_id, run_ref=run_id)
             from openagent_server.public_run_errors import public_run_error
             return BridgeReply(parts=(BridgePart(text=str(public_run_error(record))),),
                                status="cancelled" if record.status in {'cancelled', 'interrupted'} else "failed",
