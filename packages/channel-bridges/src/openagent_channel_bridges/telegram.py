@@ -13,6 +13,7 @@ from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from weakref import WeakValueDictionary
 
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeContext, BridgeHistoryMessage, BridgePart
@@ -278,6 +279,10 @@ class TelegramBridge(BaseBridge):
             )
         self._app = None
         self._context_bot = None
+        # The lock only needs to live while an update owns or waits for it.
+        self._conversation_turns: WeakValueDictionary[tuple[str, str, str | None], asyncio.Lock] = (
+            WeakValueDictionary()
+        )
         # Highest update_id we've seen from Telegram. Used during shutdown
         # to directly ACK the offset so a queued ``/restart`` cannot
         # replay on next boot. The original failure mode: shutdown hung
@@ -695,6 +700,8 @@ class TelegramBridge(BaseBridge):
         await self._shutdown_app(flush_offset=False)
 
     async def stop(self) -> None:
+        if not self._should_stop:
+            self._generation += 1
         self._should_stop = True
         await self._cancel_media_group_timers()
         await self._shutdown_app(flush_offset=True)
@@ -1156,6 +1163,21 @@ class TelegramBridge(BaseBridge):
                 )
 
         return out
+
+    async def dispatch_turn(self, target, session_id, text, *, context=None, **kwargs):
+        current = self._resolve_context(context)
+        generation = self._generation
+        route = (current.account_id, current.conversation_id, current.thread_id)
+        lock = self._conversation_turns.get(route)
+        if lock is None:
+            lock = self._conversation_turns[route] = asyncio.Lock()
+        # Telegram updates arrive concurrently so commands such as /stop
+        # remain responsive. Ordinary messages wait for the preceding reply
+        # in this chat/topic before entering the transport.
+        async with lock:
+            if generation != self._generation:
+                raise PermissionError("bridge generation changed")
+            await super().dispatch_turn(target, session_id, text, context=current, **kwargs)
 
     async def _on_message(self, update, context):
         if not self._is_fresh_update(update):
