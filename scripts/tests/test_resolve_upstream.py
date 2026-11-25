@@ -51,6 +51,29 @@ class UpstreamReleaseTests(unittest.TestCase):
         lock = self.resolver(fixtures).resolve({"openagent-connectors"})
         self.assertEqual(lock["wheels"][0]["version"], "0.1.16")
 
+    def test_installable_product_selection(self):
+        payload = b"#!/bin/sh\n"
+        checksum = hashlib.sha256(payload).hexdigest()
+        provenance = json.dumps({
+            "productRelease": "v1.1.9-beta.108", "installerFile": "install.sh", "installerSha256": checksum,
+        }).encode()
+        source = {
+            "tag_name": "v1.1.9-beta.108", "prerelease": True, "draft": False,
+            "assets": [
+                {"name": name, "size": len(data), "digest": "sha256:" + hashlib.sha256(data).hexdigest()}
+                for name, data in (("install.sh", payload), ("installer-provenance.json", provenance))
+            ],
+        }
+        incomplete = {**source, "tag_name": "v1.1.9-beta.109", "assets": []}
+        def fetch(url, *, limit):
+            if "/releases?" in url:
+                return json.dumps([incomplete, source]).encode()
+            return provenance if "/installer-provenance.json?" in url else payload
+        content, lock = Releases(fetch).installer()
+        self.assertEqual(content, payload)
+        self.assertEqual(lock["tag"], "v1.1.9-beta.108")
+        self.assertEqual(lock["sha256"], checksum)
+
     def test_conflicting_asset_hash_blocks_build(self):
         row, content = fixture("v1.1.0-beta.10", "openagent-core", "1.1.0b10")
         row["assets"][0]["digest"] = "sha256:" + "b" * 64

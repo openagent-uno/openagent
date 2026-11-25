@@ -108,6 +108,37 @@ class Releases:
             self.releases[repo] = rows
         return self.releases[repo]
 
+    def installer(self, tag: str | None = None, sha256: str | None = None) -> tuple[bytes, dict]:
+        source = Family("openagent", "", True)
+        if bool(tag) != bool(sha256):
+            raise ValueError("Provide both the historical installer tag and SHA-256")
+        if tag:
+            if not re.fullmatch(TAG, tag) or not DIGEST.fullmatch(sha256):
+                raise ValueError("Invalid historical installer identity")
+        else:
+            candidates = []
+            for release in self.list(source.repository):
+                key = release_key(release, source)
+                assets = {row["name"]: row for row in release["assets"]}
+                if key is not None and {"install.sh", "installer-provenance.json"} <= assets.keys():
+                    candidates.append((key, release["tag_name"], assets))
+            if not candidates:
+                raise ValueError("No published, qualified standalone installer")
+            _, tag, assets = max(candidates, key=lambda row: row[0])
+            metadata = self.fetch(asset_url(source.repository, tag, "installer-provenance.json"), limit=1 << 20)
+            verify_asset(assets, "installer-provenance.json", hashlib.sha256(metadata).hexdigest(), len(metadata))
+            receipt = json.loads(metadata)
+            if receipt.get("productRelease") != tag or receipt.get("installerFile") != "install.sh":
+                raise ValueError("Published installer provenance identity differs")
+            sha256 = receipt["installerSha256"]
+            verify_asset(assets, "install.sh", sha256, assets["install.sh"]["size"])
+
+        url = asset_url(source.repository, tag, "install.sh")
+        content = self.fetch(url, limit=1 << 20)
+        if hashlib.sha256(content).hexdigest() != sha256:
+            raise ValueError("Standalone release installer checksum mismatch")
+        return content, {"repository": f"{OWNER}/{source.repository}", "tag": tag, "sha256": sha256, "url": url}
+
     def resolve(self, packages: set[str]) -> dict:
         sources = {name: family(name) for name in packages}
         releases, wheels = [], []
@@ -182,11 +213,24 @@ def requirements(text: str, wheels: dict[str, dict]) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--installer", type=Path, help="Write the latest qualified standalone installer")
+    parser.add_argument("--installer-tag", help="Optional exact product tag for historical installer builds")
+    parser.add_argument("--installer-sha256", help="Required checksum if supplying a historical installer tag")
     parser.add_argument("--requirements", type=Path, help="Read existing first-party requirements and retain third-party requirements")
     parser.add_argument("--output", type=Path, help="Write resolved requirements")
     parser.add_argument("--receipt", type=Path, required=True, help="Write exact selected release and wheel checksums")
     parser.add_argument("packages", nargs="*", help="Additional OpenAgent distributions required by this build")
     args = parser.parse_args()
+    if args.installer:
+        if args.requirements or args.output or args.packages:
+            parser.error("--installer is separate from requirements resolution")
+        content, receipt = Releases().installer(args.installer_tag, args.installer_sha256)
+        args.installer.write_bytes(content)
+        args.receipt.write_text(json.dumps(receipt, indent=2) + "\n")
+        print(f"{receipt['repository']} {receipt['tag']}")
+        return
+    if args.installer_tag or args.installer_sha256:
+        parser.error("Historical installer options require --installer")
     if bool(args.requirements) != bool(args.output):
         parser.error("--requirements and --output must be used together")
     original = args.requirements.read_text() if args.requirements else ""
