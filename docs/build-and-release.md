@@ -24,9 +24,40 @@ manifest with source hashes, package versions, SHA-256 digests, and whether
 the source snapshot contains uncommitted changes. Use a new empty output
 directory for each build. This prevents an old CLI wheel from overwriting
 the separately owned client transport package.
-Runtime dependencies are resolved by the consuming product's locked build;
-they are not silently fetched as unpinned source checkouts. Packaging a wheel
-does not claim a runnable, signed desktop release.
+When building the standalone server, the builder resolves the newest published
+release in each OpenAgent dependency family, then compiles against exact
+versioned artifacts. A server build also compiles the Python product components
+that share its Core constraints. The active Core and Tools families include published beta
+releases. Connectors use their stable family. The server snapshot embeds the
+matching connector SDK and native bundle lock. The build manifest records the
+selected tags, manifest digests, wheels and generated input hashes. Qualification
+installs that same wheel set and runs the product tests before publication.
+The separately published Host Tools dependency and its exact capability-host
+dependency retain their checked-in compatible pair.
+
+Set `OPENAGENT_RELEASE_TOKEN` to an optional read-only API token for builds that
+share GitHub's anonymous rate limit. For an offline or historical build with the
+exact checked-in pins, pass `--locked-upstream`. A wheel build by itself does
+not qualify an installer or a signed desktop release.
+
+### Embedding builds
+
+The upstream resolver can resolve a build's existing Python requirements into
+versioned URLs and a JSON receipt:
+
+```sh
+python3 scripts/resolve_upstream.py --requirements requirements.txt \
+  --output /tmp/resolved-requirements.txt --receipt /tmp/openagent-upstream.json
+python3 -m pip install -r /tmp/resolved-requirements.txt
+python3 -m pip check
+```
+
+Retain the resolved requirements and receipt with the build. To reproduce its
+OpenAgent inputs, install those exact requirements again. First-party package
+hashes are checked against the release manifest and published asset metadata.
+The resolver can also accept a list of package names and produce a receipt for
+native packaging or a verified wheelhouse. Only build preparation consults the
+release API.
 
 `packaging/workspace.json` preserves public distribution and command names,
 artifact prefixes, canonical release repositories, app ID, URL scheme and user

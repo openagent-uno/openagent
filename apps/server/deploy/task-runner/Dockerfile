@@ -4,7 +4,6 @@
 # and the qualified Linux x64 computer-control sidecar. One container = one task.
 #
 #   docker buildx build --platform linux/amd64 \
-#     --build-arg OPENAGENT_RELEASE=<tag> --build-arg OPENAGENT_INSTALLER_SHA256=<sha256> \
 #     -t <registry>/openagent-task-runner:<tag> apps/server/deploy/task-runner
 #
 # Computer-control 0.1.3 needs glibc >= 2.39, hence Debian trixie.
@@ -24,13 +23,21 @@ ARG OPENAGENT_INSTALLER_SHA256
 ARG COMPUTER_CONTROL_VERSION=0.1.3
 ARG COMPUTER_CONTROL_SHA256=1dfb5dfe17156568edc492dfba2f69b1cb6cb7611138caba3ed10685baea942d
 
-# The release installer verifies every first-party wheel against its pinned
-# manifests; the installer itself is pinned by digest here.
-ADD --checksum=sha256:${OPENAGENT_INSTALLER_SHA256} \
-    https://github.com/openagent-uno/openagent/releases/download/${OPENAGENT_RELEASE}/install.sh \
-    /opt/openagent/install.sh
+# Revalidate the release feed to invalidate the dependency layer on publication.
+# The resolver verifies provenance and downloads one immutable installer.
+ADD --checksum=sha256:14c696d227f60faac255daa891138d24808d3ea3a0f823cb4a8173908f755733 https://raw.githubusercontent.com/openagent-uno/openagent/22d94ca5b4887388061fafe71f177a5eb2e5aa2c/scripts/resolve_upstream.py /tmp/resolve-openagent.py
+ADD https://api.github.com/repos/openagent-uno/openagent/releases?per_page=1 /tmp/openagent-release.json
 ENV OPENAGENT_INSTALL_ROOT=/opt/openagent/install
-RUN sh /opt/openagent/install.sh --server --prefix /usr/local/bin \
+RUN --mount=type=secret,id=openagent_release_token \
+    if [ -f /run/secrets/openagent_release_token ]; then \
+      export OPENAGENT_RELEASE_TOKEN="$(cat /run/secrets/openagent_release_token)"; \
+      export OPENAGENT_INSTALL_GITHUB_TOKEN="$OPENAGENT_RELEASE_TOKEN"; \
+    fi \
+ && mkdir -p /opt/openagent \
+ && python /tmp/resolve-openagent.py --installer /opt/openagent/install.sh \
+      --installer-tag "${OPENAGENT_RELEASE}" --installer-sha256 "${OPENAGENT_INSTALLER_SHA256}" \
+      --receipt /opt/openagent/install-lock.json \
+ && sh /opt/openagent/install.sh --server --prefix /usr/local/bin \
  && sh /opt/openagent/install.sh --cli --prefix /usr/local/bin \
  && rm -rf /root/.cache
 

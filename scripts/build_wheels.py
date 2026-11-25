@@ -12,6 +12,10 @@ import tempfile
 import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
+SERVER_COHORT = {
+    'server', 'cli', 'mcp-bridge', 'identity', 'dashboards', 'integrations-support',
+    'client-transport', 'product-config',
+}
 
 
 def verify_ownership(wheels):
@@ -27,7 +31,7 @@ def verify_ownership(wheels):
     return owners
 
 
-def build(output,components=()):
+def build(output,components=(), *, locked_upstream=False):
     output=Path(output).resolve();output.mkdir(parents=True,exist_ok=True)
     if any(output.glob('*.whl')):
         raise ValueError('Use an empty output directory for each source snapshot')
@@ -35,12 +39,15 @@ def build(output,components=()):
     selected={name:value for name,value in configuration.items() if value['kind']=='python' and (not components or name in components)}
     if components and set(components)-selected.keys():
         raise ValueError('Unknown or non-Python component')
+    if 'server' in selected and not locked_upstream:
+        selected = {name: value for name, value in configuration.items() if name in selected or name in SERVER_COHORT}
     uv=shutil.which('uv')
     if not uv:
         raise RuntimeError('The uv build frontend must be installed')
     paths=tuple(value['path']+'/' for value in selected.values())
     names=subprocess.check_output(['git','ls-files','-z','--cached','--others','--exclude-standard'],cwd=ROOT).decode().split('\0')
     hashes={}
+    upstream = None
     with tempfile.TemporaryDirectory(prefix='openagent-product-build-') as temporary:
         snapshot=Path(temporary)
         for name in sorted(set(names)-{''}):
@@ -50,6 +57,10 @@ def build(output,components=()):
             if source.is_symlink():raise ValueError('A source snapshot cannot follow symlinks: '+name)
             data=source.read_bytes();hashes[name]=hashlib.sha256(data).hexdigest()
             target=snapshot/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(data);shutil.copymode(source,target)
+        if 'server' in selected and not locked_upstream:
+            from standalone_upstream import refresh_server
+            projects = [snapshot / configuration[name]['path'] / 'pyproject.toml' for name in sorted(SERVER_COHORT)]
+            upstream = refresh_server(snapshot, snapshot / selected['server']['path'], projects)
         for name,value in selected.items():
             result=subprocess.run([uv,'build','--wheel','--out-dir',str(output),str(snapshot/value['path'])],
                 stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
@@ -69,6 +80,8 @@ def build(output,components=()):
         'qualification':'development-unqualified','sources':hashes,
         'source_sha256':hashlib.sha256(json.dumps(hashes,sort_keys=True,separators=(',',':')).encode()).hexdigest(),
         'wheels':entries}
+    if upstream is not None:
+        manifest['upstream'] = upstream
     (output/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     return manifest
 
@@ -77,5 +90,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out',type=Path,required=True)
     parser.add_argument('--components',nargs='*',default=[])
+    parser.add_argument('--locked-upstream', action='store_true',
+                        help='Build the original checkout dependency set for an offline or historical rebuild')
     options=parser.parse_args()
-    build(options.out,options.components)
+    build(options.out,options.components,locked_upstream=options.locked_upstream)

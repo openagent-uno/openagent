@@ -60,7 +60,14 @@ def qualify(wheels: Path) -> None:
     with tempfile.TemporaryDirectory(prefix='core-cohort-') as temporary:
         core = Path(temporary)
         paths = []
-        for name, location, digest in pinned_external_wheels(config):
+        source_pins = pinned_external_wheels(config)
+        upstream = manifest.get('upstream')
+        if upstream is not None:
+            resolved = {row['name']: (row['name'], row['url'], row['sha256']) for row in upstream['wheels']}
+            if set(resolved) | set(upstream['compatible_pins']) != {name for name, _, _ in source_pins}:
+                raise ValueError('Build resolution does not cover the external wheel closure')
+            source_pins = [resolved.get(name, (name, location, digest)) for name, location, digest in source_pins]
+        for name, location, digest in source_pins:
             with urlopen(location,timeout=120) as response:
                 payload = response.read((64 << 20) + 1)
             assert len(payload) <= 64 << 20 and hashlib.sha256(payload).hexdigest() == digest, name

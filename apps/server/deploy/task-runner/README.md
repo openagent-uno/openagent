@@ -98,11 +98,14 @@ every credential a run uses as reachable by an agent that has the `shell`,
 
 ## Container image
 
-`Dockerfile` installs a published release through its pinned `install.sh`,
-Debian Chromium with Xvfb (Agent in Chrome renders headful into a virtual
-display when no `DISPLAY` is set) and the qualified Linux x64 computer-control
-bundle. Build for `linux/amd64` with `OPENAGENT_RELEASE` and the installer's
-SHA-256. Run as UID 10001 with a writable `TMPDIR` (for example an `emptyDir`).
+`Dockerfile` resolves the newest published standalone release that supplies a
+verified installer. It saves the exact release and installer hash in
+`/opt/openagent/install-lock.json`. It also installs Debian Chromium with Xvfb
+and the qualified Linux x64 computer-control bundle. Build for `linux/amd64`.
+For a historical rebuild, pass both `OPENAGENT_RELEASE` and
+`OPENAGENT_INSTALLER_SHA256`. To use authenticated GitHub API requests, pass a
+BuildKit secret named `openagent_release_token`. Run as UID 10001 with a writable
+`TMPDIR` such as an `emptyDir`.
 Chromium carries a managed `URLBlocklist` policy for `file://*`, so no page,
 tool or extension in the image's browser loads a local file.
 

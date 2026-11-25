@@ -51,7 +51,9 @@ jobs:
           uv lock --check --project apps/server
           uv lock --check --project apps/cli
           uv lock --check --project packages/host-tools
-      - name: Build the product and independently versioned configuration packages from one clean source
+      - name: Resolve current public dependencies and build the product from one clean source
+        env:
+          OPENAGENT_RELEASE_TOKEN: ${{ github.token }}
         run: python scripts/build_wheels.py --out "$RUNNER_TEMP/product-wheels" --components server cli mcp-bridge identity dashboards integrations-support client-transport product-config
       - name: Install the pinned public dependency closure and candidate wheels
         env:

@@ -118,6 +118,8 @@ def main(argv: list[str] | None = None) -> int:
     wheel = actions.add_parser("wheel")
     wheel.add_argument("component")
     wheel.add_argument("--output", type=Path, required=True)
+    wheel.add_argument("--locked-upstream", action="store_true",
+                       help="Use the checked-in upstream pins for a historical rebuild")
     manifest = actions.add_parser("release-manifest")
     manifest.add_argument("--artifacts", type=Path, required=True)
     manifest.add_argument("--output", type=Path, required=True)
@@ -138,7 +140,10 @@ def main(argv: list[str] | None = None) -> int:
             if selected["kind"] != "python":
                 raise ValueError("wheel requires a Python component")
             output = args.output.resolve()
-            return subprocess.run([sys.executable, str(ROOT/"scripts/build_wheels.py"), "--out", str(output), "--components", args.component],cwd=ROOT).returncode
+            command = [sys.executable, str(ROOT/"scripts/build_wheels.py"), "--out", str(output), "--components", args.component]
+            if args.locked_upstream:
+                command.append("--locked-upstream")
+            return subprocess.run(command, cwd=ROOT).returncode
         elif args.action == "release-manifest":
             value = release_manifest(args.artifacts.absolute())
             args.output.parent.mkdir(parents=True, exist_ok=True)
