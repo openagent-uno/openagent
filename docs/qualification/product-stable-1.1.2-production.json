@@ -6,7 +6,7 @@
   "isPrerelease": false,
   "coreVersion": "1.1.0b37",
   "channelBridgesVersion": "0.1.0b15",
-  "proxyRelease": "https://github.com/Spicy-Sparks/claude-sub-proxy/releases/tag/v0.1.5",
+  "proxyVersion": "0.1.5",
   "tests": {
     "coreSourceAndInstalled": {
       "passed": 506,
