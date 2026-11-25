@@ -3,6 +3,7 @@ from dataclasses import replace
 import aiosqlite
 import pytest
 
+from openagent_connectors.catalog import bundled_catalog
 from openagent_core import RunRequest
 from openagent_core.content_privacy import PrivacyFence
 from openagent_core.runtime import execution_scope
@@ -17,6 +18,8 @@ class ProviderFixture:
         pass
 
     async def call(self, method, params=None):
+        if method == 'catalog':
+            return [entry for entry in bundled_catalog() if entry.get('id') == 'shopify']
         if method == 'tools':
             return [{'name':'commerce.shopify.customers.'+name, 'description':name,
                      'inputSchema':{'type':'object'}, 'risk':'read' if name == 'get' else 'write'}
