@@ -417,5 +417,6 @@ show provider names.
 Final answers retain the original content when Telegram's formatted text
 would exceed its per-message limit. The bridge uses plain text in that case
 and divides longer Unicode replies into continuation messages. The live
-preview can show the last part of a growing reply. An ambiguous network send
-is kept for reconciliation.
+preview can show the last part of a growing reply. Final-only delivery uses
+Telegram's native typing action for the authorized chat while the turn runs.
+An ambiguous network send is kept for reconciliation.

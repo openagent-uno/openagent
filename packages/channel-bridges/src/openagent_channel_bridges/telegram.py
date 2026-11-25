@@ -26,6 +26,7 @@ from openagent_channel_bridges.media import (
 )
 
 from openagent_channel_bridges.base import elog
+from openagent_channel_bridges.typing import TypingRateLimited, TypingSpec
 
 logger = logging.getLogger(__name__)
 
@@ -1459,6 +1460,40 @@ class TelegramBridge(BaseBridge):
     # we only translate between its calls and the python-telegram-bot
     # ``Message`` surface. A voice note gets a text reply like any other
     # message; no voice reply is synthesized.
+
+    def native_typing(self, msg, context: BridgeContext) -> TypingSpec | None:
+        if self._live:
+            # Legacy live turns can use an editable streaming handle.
+            return None
+        thread_id = getattr(msg, "message_thread_id", None)
+        bot = msg.get_bot()
+        if (str(msg.chat_id) != context.conversation_id
+                or (str(thread_id) if thread_id is not None else None) != context.thread_id
+                or str(bot.id) != context.account_id):
+            raise PermissionError("Telegram typing target differs from context")
+        send = getattr(bot, "send_chat_action", None)
+        if not callable(send):
+            return None
+
+        from telegram.constants import ChatAction
+        from telegram.error import RetryAfter
+
+        acknowledged = False
+
+        async def pulse():
+            nonlocal acknowledged
+            try:
+                await send(chat_id=msg.chat_id, action=ChatAction.TYPING, message_thread_id=thread_id)
+                if not acknowledged:
+                    elog("bridge.telegram.typing_started")
+                    acknowledged = True
+            except RetryAfter as error:
+                delay = error.retry_after
+                if isinstance(delay, timedelta):
+                    delay = delay.total_seconds()
+                raise TypingRateLimited(delay) from None
+
+        return TypingSpec(pulse, interval=_TypingAnimator._TYPING_REFRESH_S)
 
     async def post_status(self, msg, text: str):
         # Surface the agent's in-flight state as Telegram's native typing

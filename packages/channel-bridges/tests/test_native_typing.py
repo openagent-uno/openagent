@@ -7,6 +7,7 @@ import pytest
 from openagent_channel_bridges.contracts import BridgeContext, BridgeReply, BridgePart, BridgeCapabilities
 from openagent_channel_bridges.discord import DiscordBridge
 from openagent_channel_bridges.slack import SlackBridge, _SlackTarget
+from openagent_channel_bridges.telegram import TelegramBridge
 from openagent_channel_bridges.whatsapp import WhatsAppBridge
 
 
@@ -65,6 +66,41 @@ async def test_quiet_discord_types_during_blocked_run_without_progress_posts():
         await task
     assert channel.posts[-1] == "Final"
     assert not [t for t in asyncio.all_tasks() if t.get_name() == "channel-native-typing"]
+
+
+@pytest.mark.asyncio
+async def test_final_only_telegram_types_in_the_bound_chat_without_progress_posts():
+    host = Host()
+    pulses, posts = [], []
+
+    async def send_chat_action(**kwargs):
+        pulses.append(kwargs)
+
+    async def reply_text(text, **kwargs):
+        posts.append(text)
+
+    bot = SimpleNamespace(id="account", send_chat_action=send_chat_action)
+    message = SimpleNamespace(chat_id=42, message_thread_id=None, get_bot=lambda: bot,
+                              reply_text=reply_text)
+    bridge = TelegramBridge("fixture", transport=host, binding_id="binding", live=False)
+    async def direct(ctx):
+        return ctx
+    bridge._delivery_context = direct
+
+    task = asyncio.create_task(bridge.dispatch_turn(message, "session", "work", context=context("telegram")))
+    try:
+        await asyncio.wait_for(host.entered.wait(), 1)
+        assert pulses == [{"chat_id": 42, "action": "typing", "message_thread_id": None}]
+        assert posts == []
+    finally:
+        host.finish.set()
+        await task
+    assert posts == ["Final"]
+    assert bridge._typing_leases == {}
+
+    changed = replace(context("telegram"), conversation_id="43")
+    with pytest.raises(PermissionError, match="Telegram typing target differs"):
+        bridge.native_typing(message, changed)
 
 
 @pytest.mark.asyncio
