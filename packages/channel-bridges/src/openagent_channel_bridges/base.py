@@ -432,7 +432,7 @@ class BaseBridge:
         try:
             target = self._outbound_target(context)
             if text:
-                for chunk in split_preserving_code_blocks(text, self.message_limit):
+                for chunk in self.split_text(text):
                     if chunk.strip():
                         await self.send_text_chunk(target, chunk)
             for attachment in attachments:
@@ -1044,6 +1044,9 @@ class BaseBridge:
         return None
 
 
+    def split_text(self, text: str) -> list[str]:
+        return split_preserving_code_blocks(text, self.message_limit)
+
     async def send_text_chunk(self, target, chunk: str) -> None:
         """Send one already-split chunk of response text. Subclasses
         own platform formatting (HTML render + fallback for Telegram,
@@ -1445,7 +1448,7 @@ class BaseBridge:
         if not text:
             return
         clean_text, choice_options = _extract_choice_marker(text)
-        for chunk in split_preserving_code_blocks(clean_text, self.message_limit):
+        for chunk in self.split_text(clean_text):
             try:
                 await self.send_text_chunk(target, chunk)
             except Exception as e:  # noqa: BLE001

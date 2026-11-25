@@ -8,7 +8,7 @@ import math
 import time
 from datetime import timedelta
 
-from openagent_core.media import parse_response_markers, split_preserving_code_blocks
+from openagent_core.media import parse_response_markers
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ class EditableTurn:
         # continuation messages; tools and narration never create more bubbles.
         from .base import _extract_choice_marker
         text, choices = _extract_choice_marker(text)
-        chunks = split_preserving_code_blocks(text, self.bridge.message_limit) if text else []
+        chunks = self.bridge.split_text(text) if text else []
         if chunks:
             await self.main.finish(chunks[0])
             for chunk in chunks[1:]:

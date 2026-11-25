@@ -411,3 +411,11 @@ under `host_methods` and the supporting providers under `outbound_delivery`.
 Other providers currently refuse outbound delivery. Beta25 already carried
 the delivery methods; beta26 adds `outbound_destinations`, which hosts need to
 show provider names.
+
+### Telegram response limits
+
+Final answers retain the original content when Telegram's formatted text
+would exceed its per-message limit. The bridge uses plain text in that case
+and divides longer Unicode replies into continuation messages. The live
+preview can show the last part of a growing reply. An ambiguous network send
+is kept for reconciliation.

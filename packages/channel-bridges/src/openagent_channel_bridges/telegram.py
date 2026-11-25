@@ -17,7 +17,7 @@ from typing import Any
 from openagent_channel_bridges.base import BaseBridge
 from openagent_channel_bridges.contracts import BridgeContext, BridgeHistoryMessage, BridgePart
 from openagent_channel_bridges.formatting import markdown_to_telegram_html
-from openagent_core.media import is_blocked_attachment
+from openagent_core.media import is_blocked_attachment, split_preserving_code_blocks
 from openagent_channel_bridges.commands import BRIDGE_COMMANDS, bridge_welcome_text
 from openagent_channel_bridges.media import (
     attachment_limit_bytes,
@@ -30,6 +30,10 @@ from openagent_channel_bridges.base import elog
 logger = logging.getLogger(__name__)
 
 TELEGRAM_MSG_LIMIT = 4096
+
+def _utf16_length(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
 
 # Commands that wipe state — bridge intercepts them and shows an inline
 # Yes/No keyboard before firing the gateway command. Without the gate
@@ -1602,14 +1606,52 @@ class TelegramBridge(BaseBridge):
         except Exception:
             pass
 
+    def split_text(self, text: str) -> list[str]:
+        if _utf16_length(text) <= self.message_limit:
+            return [text] if text.strip() else []
+        # Reserve room for a synthesized closing code fence. Only chunks
+        # still over the limit need the worst-case two-unit Unicode budget.
+        budget = self.message_limit - len("\n```")
+        result = []
+        for chunk in split_preserving_code_blocks(text, budget):
+            if _utf16_length(chunk) <= self.message_limit:
+                result.append(chunk)
+            else:
+                result.extend(split_preserving_code_blocks(chunk, self.message_limit // 2 - len("\n```")))
+        return result
+
+    async def _write_message_text(self, operation, text: str):
+        from telegram.error import BadRequest
+
+        plain_options = {"parse_mode": None, "disable_web_page_preview": True}
+        rendered = markdown_to_telegram_html(text)
+        if _utf16_length(rendered) <= self.message_limit:
+            try:
+                return await operation(rendered, parse_mode="HTML", disable_web_page_preview=True)
+            except BadRequest as exc:
+                reason = str(exc).lower().replace("_", " ")
+                if not any(detail in reason for detail in ("message too long", "message is too long", "can't parse entities")):
+                    raise
+        # Formatting can expand a table or escape sequence past Telegram's
+        # limit. A provider rejection is definitive, so a plain fallback
+        # preserves the complete chunk without retrying ambiguous sends.
+        return await operation(text, **plain_options)
+
+    def _editable_text(self, text: str) -> str:
+        if _utf16_length(text) <= self.message_limit:
+            return text
+        # Only the live preview is a rolling window. The final publisher
+        # uses split_text and delivers every chunk.
+        return self.split_text(text)[-1]
+
     async def post_turn_message(self, msg, text: str):
-        return await msg.reply_text(markdown_to_telegram_html(text), parse_mode="HTML", disable_web_page_preview=True)
+        return await self._write_message_text(msg.reply_text, self._editable_text(text))
 
     async def update_turn_message(self, msg, handle, text: str):
         if str(handle.chat_id) != self._resolve_context().conversation_id:
             raise PermissionError("Telegram edit destination differs from context")
         try:
-            await handle.edit_text(markdown_to_telegram_html(text), parse_mode="HTML", disable_web_page_preview=True)
+            await self._write_message_text(handle.edit_text, self._editable_text(text))
         except Exception as exc:
             from telegram.error import BadRequest
             if isinstance(exc, BadRequest) and "message is not modified" in str(exc).lower():
@@ -1625,17 +1667,7 @@ class TelegramBridge(BaseBridge):
         await handle.edit_reply_markup(reply_markup=InlineKeyboardMarkup(rows))
 
     async def send_text_chunk(self, msg, chunk: str) -> None:
-        # Render once per chunk so a giant reply doesn't pay the cost
-        # in one go AND so a chunk-local HTML failure can fall back to
-        # plain text without losing the rest of the response.
-        rendered = markdown_to_telegram_html(chunk)
-        try:
-            await msg.reply_text(rendered, parse_mode="HTML", disable_web_page_preview=True)
-        except Exception:
-            try:
-                await msg.reply_text(chunk)
-            except Exception:
-                pass
+        await self._write_message_text(msg.reply_text, chunk)
 
     async def send_attachment(self, msg, att) -> None:
         p = Path(att.path)

@@ -5,6 +5,7 @@ import json
 import pytest
 
 from openagent_channel_bridges.contracts import BridgeCapabilities, BridgeEvent, BridgePart, BridgeReply
+from openagent_channel_bridges.formatting import markdown_to_telegram_html
 from openagent_channel_bridges.telegram import TelegramBridge
 from openagent_channel_bridges.turn_messages import EditableMessage
 
@@ -93,6 +94,58 @@ async def test_narration_tools_and_final_edit_one_telegram_message():
     assert len(message.sent) == 1
     assert message.sent[0].text == "Final answer"
     assert message.sent[0].edits
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+async def test_overlong_rendered_table_preserves_the_complete_saved_reply(monkeypatch):
+    answer = "| Left | Right |\n| --- | --- |\n| " + "wide" * 150 + " | short |\n"
+    answer += "| a | b |\n" * 20
+    assert len(answer) < 4096 < len(markdown_to_telegram_html(answer))
+
+    async def produce(emit):
+        await emit(BridgeEvent("text", "Thinking"))
+        await asyncio.sleep(0)
+
+    edit = Sent.edit_text
+    async def enforce_limit(self, text, **options):
+        assert len(text.encode("utf-16-le")) // 2 <= 4096
+        assert options["parse_mode"] is None
+        await edit(self, text, **options)
+    monkeypatch.setattr(Sent, "edit_text", enforce_limit)
+
+    bridge, message, _ = fixture(produce, answer)
+    await bridge.dispatch_turn(message, "tg:100", "question", context=bridge._bridge_context(message))
+    assert len(message.sent) == 1
+    assert message.sent[0].text.strip() == answer.strip()
+    await bridge.stop()
+
+
+@pytest.mark.asyncio
+async def test_overlong_unicode_reply_sends_every_chunk_within_the_limit(monkeypatch):
+    answer = "🟩" * 2500
+
+    async def produce(emit):
+        await emit(BridgeEvent("text", "Thinking"))
+        await asyncio.sleep(0)
+
+    reply = Message.reply_text
+    edit = Sent.edit_text
+
+    async def enforce_send(self, text, **options):
+        assert len(text.encode("utf-16-le")) // 2 <= 4096
+        return await reply(self, text, **options)
+
+    async def enforce_edit(self, text, **options):
+        assert len(text.encode("utf-16-le")) // 2 <= 4096
+        await edit(self, text, **options)
+
+    monkeypatch.setattr(Message, "reply_text", enforce_send)
+    monkeypatch.setattr(Sent, "edit_text", enforce_edit)
+    bridge, message, _ = fixture(produce, answer)
+    await bridge.dispatch_turn(message, "tg:100", "question", context=bridge._bridge_context(message))
+    assert len(message.sent) > 1
+    assert "".join(sent.text for sent in message.sent) == answer
     await bridge.stop()
 
 
