@@ -420,8 +420,3 @@ and divides longer Unicode replies into continuation messages. The live
 preview can show the last part of a growing reply. Final-only delivery uses
 Telegram's native typing action for the authorized chat while the turn runs.
 An ambiguous network send is kept for reconciliation.
-
-Telegram processes ordinary messages in submission order within each bot
-chat or forum topic. A message received during a turn waits for its reply,
-then starts its own turn. Commands such as `/stop` bypass this queue. The
-queue lives in the bridge process while waiting for submission.

@@ -4,9 +4,7 @@ import json
 
 import pytest
 
-from openagent_channel_bridges.contracts import (
-    BridgeCapabilities, BridgeCommandDefinition, BridgeCommandResult, BridgeEvent, BridgePart, BridgeReply,
-)
+from openagent_channel_bridges.contracts import BridgeCapabilities, BridgeEvent, BridgePart, BridgeReply
 from openagent_channel_bridges.formatting import markdown_to_telegram_html
 from openagent_channel_bridges.telegram import TelegramBridge
 from openagent_channel_bridges.turn_messages import EditableMessage
@@ -217,71 +215,3 @@ async def test_failed_child_remains_failed_after_successful_parent():
     children = [sent for sent in message.sent if sent.text.startswith('Delegated to sub-agent')]
     assert len(children) == 1 and children[0].text.endswith('Failed')
     await bridge.stop()
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("explicit_stop", [False, True])
-async def test_followups_during_running_telegram_turn_are_admitted_in_order(explicit_stop):
-    inputs = []
-    first_started = asyncio.Event()
-    finish_first = asyncio.Event()
-    stopped = False
-
-    class OrderedTransport(Transport):
-        async def start(self):
-            return BridgeCapabilities(commands=(BridgeCommandDefinition("stop", "Stop the turn"),))
-
-        async def send(self, request, *, on_event=None):
-            text = request.parts[0].text
-            inputs.append((request.context.event_id, text))
-            if text == "first":
-                first_started.set()
-                await finish_first.wait()
-                if stopped:
-                    return BridgeReply(status="cancelled")
-            return BridgeReply(parts=(BridgePart(text=f"reply to {text}"),))
-
-        async def command(self, request):
-            nonlocal stopped
-            assert request.name == "stop"
-            stopped = True
-            finish_first.set()
-            return BridgeCommandResult(parts=(BridgePart(text="Stopped"),))
-
-    bridge = Bridge("fixture-token", allowed_users=["100"], transport=OrderedTransport(None),
-                    binding_id="test", live=False)
-
-    def update(identity, text):
-        message = Message()
-        message.message_id = identity
-        message.text, message.caption = text, None
-        return SimpleNamespace(update_id=identity, message=message)
-
-    requests = [update(i, text) for i, text in enumerate(("first", "second", "third"), start=10)]
-    tasks = [asyncio.create_task(bridge._on_message(requests[0], None))]
-    try:
-        await asyncio.wait_for(first_started.wait(), 2)
-        for incoming in requests[1:]:
-            tasks.append(asyncio.create_task(bridge._on_message(incoming, None)))
-            await asyncio.sleep(0)
-        assert inputs == [("10", "first")]
-        assert not requests[1].message.sent
-
-        if explicit_stop:
-            command = update(20, "/stop")
-            await asyncio.wait_for(bridge._on_command(command, None, "stop"), 2)
-            assert [reply.text for reply in command.message.sent] == ["Stopped"]
-        else:
-            finish_first.set()
-
-        await asyncio.wait_for(asyncio.gather(*tasks), 2)
-        assert inputs == [("10", "first"), ("11", "second"), ("12", "third")]
-        if not explicit_stop:
-            assert [reply.text for reply in requests[0].message.sent] == ["reply to first"]
-        assert [reply.text for reply in requests[1].message.sent] == ["reply to second"]
-        assert [reply.text for reply in requests[2].message.sent] == ["reply to third"]
-        assert not bridge._conversation_turns
-    finally:
-        finish_first.set()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        await bridge.stop()
