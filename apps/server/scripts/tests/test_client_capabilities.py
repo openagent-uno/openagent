@@ -210,11 +210,13 @@ async def t_registry_exact_instance(ctx: TestContext) -> None:
 
     # Taking A offline must not choose still-online B as a fallback.
     await registry.unregister(a)
+    sent_before = (len(sent_a), len(sent_b))
     try:
         await registry.call_tool(origin, "filesystem", "read_file", {}, timeout_s=0.1)
         raise AssertionError("offline origin unexpectedly dispatched")
     except ClientCapabilityError as exc:
-        assert exc.code == "CLIENT_OFFLINE"
+        assert exc.code == "CLIENT_TIMEOUT"
+    assert (len(sent_a), len(sent_b)) == sent_before
     await registry.close_device("dev")
     assert b_ws.closed and registry.connection("dev", "cli") is None
 
@@ -1511,6 +1513,25 @@ async def t_client_call_backpressure(ctx: TestContext) -> None:
         except asyncio.CancelledError:
             pass
 
+    from unittest.mock import patch
+
+    await registry.unregister(conn)
+    sent_before = len(sent)
+    with patch.object(capability_module, "MAX_PENDING_CALLS_PER_CONNECTION", 1):
+        waiting = asyncio.create_task(registry.call_tool(origin, "filesystem", "read_file", {}, timeout_s=2))
+        try:
+            await asyncio.sleep(0)
+            try:
+                await registry.call_tool(origin, "filesystem", "read_file", {}, timeout_s=2)
+                raise AssertionError("offline waiting limit was not enforced")
+            except ClientCapabilityError as exc:
+                assert exc.code == "CLIENT_BACKPRESSURE"
+            assert len(sent) == sent_before
+        finally:
+            waiting.cancel()
+            await asyncio.gather(waiting, return_exceptions=True)
+    assert not registry._offline_waiters
+
 
 @test("client_capabilities", "argument hash is stable across JavaScript number normalisation")
 async def t_cross_language_argument_hash(ctx: TestContext) -> None:
@@ -1632,7 +1653,7 @@ async def t_capability_ws_survives_inventory_failure(ctx: TestContext) -> None:
                     await socket.send_json({"type": "capability_heartbeat", "generation": 1})
                     reply = await socket.receive_json(timeout=1)
                     assert reply["type"] == "capability_heartbeat_ack"
-                assert failures >= 3
+                assert failures == 1, "heartbeats should not reopen the inventory database"
 
 
 @test(
@@ -2134,12 +2155,15 @@ async def t_client_shell_observed_terminal_result(ctx: TestContext) -> None:
         assert not registry.observe_published_result(origin, "shell", "shell_output", args,
             terminal, context=current, source_id=current_source)
     assert hub.has_running(execution.session_id, context_key=execution.coalescing_key)
+    await registry.unregister(conn)
     assert registry.observe_published_result(origin, "shell", "shell_output", {"shell_id": "host-job"},
         terminal, context=execution, source_id=source)
     assert not hub.has_running(execution.session_id, context_key=execution.coalescing_key)
     assert hub.drain(execution.session_id, context_key=execution.coalescing_key) == []
     # A racing later transport notification is acknowledged as a duplicate,
     # without reopening an autoloop after the model read the terminal result.
+    conn = await registry.register(device_id="dev", account_id="network-1", client_instance_id="desktop",
+        generation=4, device_label="Desktop", ws=_Ws(), send_json=send, servers=_shell_catalog())
     ack = registry.receive_tool_event(conn, {"generation": 4, "event": {"type": "shell_completed",
         "server": "shell", "shell_id": "host-job", "status": "exited", "exit_code": 0}})
     assert ack["duplicate"] is True
@@ -2341,7 +2365,6 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
         servers=_shell_catalog(),
     )
     await start_shell(first, generation=1, shell_id="old-shell")
-    old_host = ("dev", "desktop", 1)
     assert hub.has_running("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 1).coalescing_key)
     await registry.unregister(first)
 
@@ -2367,13 +2390,26 @@ async def t_client_shell_reconnect_boundaries(ctx: TestContext) -> None:
     except ClientCapabilityError as exc:
         assert exc.code == "UNKNOWN_CLIENT_SHELL"
 
-    # Revocation is terminal even when the socket already disconnected and the
-    # exact-generation reconnect grace ledger is holding the correlation.
+    # An authorization epoch advance must also retire the old job even when
+    # the replacement advertises the same device, instance and generation.
+    await start_shell(second, generation=2, shell_id="prior-epoch-shell")
+    await registry.unregister(second)
+    second = await registry.register(
+        device_id="dev", account_id="network-1", client_instance_id="desktop", auth_epoch=3,
+        generation=2, device_label="Mac", ws=_Ws(), send_json=send,
+        servers=_shell_catalog(),
+    )
+    assert "prior-epoch-shell" not in second.client_shells
+    assert [event.arguments for event in hub.drain("chat:reconnect", context_key=
+        _background_execution("chat:reconnect", "desktop", 2).coalescing_key)] == [{"shell_id": "prior-epoch-shell"}]
+
+    # Revocation also advances a disconnected device's epoch past the host
+    # recorded in the catalog and shell reconnect ledgers.
     await start_shell(second, generation=2, shell_id="revoked-shell")
-    second_host = ("dev", "desktop", 2)
     await registry.unregister(second)
     assert registry._detached_shells  # noqa: SLF001 - protocol invariant test
     await registry.close_device("dev")
+    assert registry.device_block_epoch("dev") > 3
     assert not registry._detached_shells  # noqa: SLF001
     assert not hub.has_running("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 2).coalescing_key)
     revoked_events = hub.drain("chat:reconnect", context_key=_background_execution("chat:reconnect", "desktop", 2).coalescing_key)
@@ -2832,6 +2868,117 @@ async def t_same_origin_reconnect_keeps_turn_leases(ctx: TestContext) -> None:
     stale_socket = await _register_mac(registry)
     assert registry.origin_status(second) == "live"
     assert registry.connection("dev", "desktop") is stale_socket
+
+
+@test("client_capabilities", "an admitted read started during transport loss waits for the exact host")
+async def t_capability_read_started_offline(ctx: TestContext) -> None:
+    from dataclasses import replace
+
+    from openagent_core.core.execution_origin import execution_origin_scope
+    from openagent_server.gateway.capabilities import CapabilityRegistry, ClientCapabilityError
+
+    registry = CapabilityRegistry()
+    first = await _register_mac(registry)
+    origin = first.origin(registry)
+    service, leases, context = _interactive_turn(registry, first, "app/r/dev/desktop/1/0")
+    catalog = service.runtime.capabilities
+    catalog.authorizer = SimpleNamespace(authorize=lambda *_args, **_kwargs: asyncio.sleep(0, result=True))
+    sent: list[dict] = []
+
+    async def send(_ws, frame):
+        sent.append(frame)
+        registry.resolve_result(replacement, {"type": "client_tool_result", "generation": 1,
+            "call_id": frame["call_id"], "result": {"content": [{"type": "text", "text": "output"}]}})
+        return True
+
+    with execution_origin_scope(origin):
+        tools = await catalog.discover(context)
+        read = next(tool for tool in tools if tool.name == "shell_output")
+        service.detach_device_origin(first, grace_s=60)
+        await registry.unregister(first)
+        assert registry.origin_for("dev", "desktop") is None
+        assert [tool.tool_ref for tool in await catalog.discover(context)] == [tool.tool_ref for tool in tools]
+        try:
+            await registry.call_tool(origin, "shell", "shell_exec", {"command": "build"}, timeout_s=1)
+            raise AssertionError("an offline mutation was queued")
+        except ClientCapabilityError as exc:
+            assert exc.code == "CLIENT_OFFLINE"
+        deferred = replace(context, capabilities=(), delegation_id="fixture-automation", deferred=True)
+        try:
+            await registry.call_tool(origin, "shell", "shell_output", {}, timeout_s=0.1,
+                                     execution_context=deferred)
+            raise AssertionError("an offline automation outlived its device loan")
+        except ClientCapabilityError as exc:
+            assert exc.code == "CLIENT_OFFLINE"
+
+        pending = asyncio.create_task(catalog.call_tool(read.tool_ref, {}, context))
+        try:
+            await asyncio.sleep(0.02)
+            replacement = await registry.register(
+                device_id="dev", account_id="network-1", client_instance_id="desktop",
+                generation=1, device_label="Mac", ws=_Ws(), send_json=send,
+                servers=_shell_catalog(), ready=False,
+            )
+            await asyncio.sleep(0.02)
+            assert not pending.done() and not sent
+            assert registry.activate(replacement)
+            service.reattach_device_origin(replacement)
+            result = await asyncio.wait_for(pending, 1)
+            assert result["content"] == [{"type": "text", "text": "output"}]
+            assert [frame["tool"] for frame in sent] == ["shell_output"]
+            assert all(catalog.has_source(lease.source_id, context) for lease in leases)
+        finally:
+            if not pending.done():
+                pending.cancel()
+                await asyncio.gather(pending, return_exceptions=True)
+
+
+@test("client_capabilities", "new offline reads respect deadlines, catalog changes and authorization")
+async def t_capability_read_started_offline_boundaries(ctx: TestContext) -> None:
+    from openagent_server.gateway.capabilities import CapabilityRegistry, ClientCapabilityError
+
+    for scenario, expected in (
+        ("deadline", "CLIENT_TIMEOUT"),
+        ("catalog", "CLIENT_CAPABILITY_CHANGED"),
+        ("generation", "STALE_GENERATION"),
+        ("revoked", "CLIENT_REVOKED"),
+    ):
+        registry = CapabilityRegistry()
+        first = await _register_mac(registry, auth_epoch=4)
+        await registry.unregister(first)
+        origin = first.origin(registry)
+        sent: list[dict] = []
+
+        async def send(_ws, frame):
+            sent.append(frame)
+            return True
+
+        pending = asyncio.create_task(registry.call_tool(origin, "shell", "shell_output", {},
+            timeout_s=0.1 if scenario == "deadline" else 2))
+        try:
+            await asyncio.sleep(0)
+            if scenario in {"catalog", "generation"}:
+                catalog = _shell_catalog()
+                if scenario == "catalog":
+                    catalog[0]["tools"][1]["input_schema"]["required"] = ["shell_id"]
+                await registry.register(
+                    device_id="dev", account_id="network-1", client_instance_id="desktop",
+                    generation=2 if scenario == "generation" else 1, auth_epoch=4,
+                    device_label="Mac", ws=_Ws(), send_json=send, servers=catalog,
+                )
+            elif scenario == "revoked":
+                await registry.close_device("dev")
+                assert registry.device_block_epoch("dev") == 5
+            try:
+                await asyncio.wait_for(pending, 1)
+                raise AssertionError(f"{scenario}: offline read should have failed")
+            except ClientCapabilityError as exc:
+                assert exc.code == expected, scenario
+            assert not sent, scenario
+        finally:
+            if not pending.done():
+                pending.cancel()
+                await asyncio.gather(pending, return_exceptions=True)
 
 
 @test(

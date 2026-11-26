@@ -699,13 +699,13 @@ class NativeRuntimeService:
 
         A running turn's capability catalog is frozen at admission, so a
         lease revoked here could never come back to that turn. The registry
-        already refuses every discovery and call while the origin is offline,
-        and only the same device, instance, generation and authorization
-        epoch can register again; then the turn's existing leases simply work
-        again. Nothing new is granted. Without that return within
-        ``grace_s`` the leases are revoked as before.
+        retains tool definitions for that origin and admits safe calls after
+        the same device, instance, generation and authorization reconnect.
+        The registered leases stay scoped to their existing turn. Without
+        that return within ``grace_s`` the leases are revoked.
         """
         origin_key = self._origin_key(origin)
+        self._end_loans(lambda loan: loan["origin_key"] == origin_key)
         if (origin_key in self._detached_origins
                 or origin_key not in self._interactive_origins.values()):
             return

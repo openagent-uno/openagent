@@ -16,7 +16,7 @@ import math
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, NamedTuple
 
 from openagent_core.core.execution_origin import TurnExecutionOrigin
 from openagent_core.core.logging import elog
@@ -60,6 +60,7 @@ CLIENT_SHELL_RECONNECT_GRACE_S = 300.0
 # after that origin's transport drops, waiting for the same origin to return.
 CLIENT_ORIGIN_RECONNECT_GRACE_S = 300.0
 MAX_DETACHED_SHELL_HOSTS = 256
+MAX_DETACHED_CATALOGS = 32
 MAX_DETACHED_SHELLS = 4096
 
 
@@ -387,6 +388,21 @@ class _PendingCall:
         return self.dispatch_started and self.classification == "mutating"
 
 
+class _HostIdentity(NamedTuple):
+    device_id: str
+    instance_id: str
+    generation: int
+    auth_epoch: int
+    account_id: str
+    network_id: str | None
+    owner_handle: str
+    owner_kind: str
+
+    @property
+    def origin_key(self) -> tuple[str, str, int, int]:
+        return self.device_id, self.instance_id, self.generation, self.auth_epoch
+
+
 @dataclass
 class _ClientShellBinding:
     """Trusted correlation for one client-local background shell.
@@ -398,7 +414,7 @@ class _ClientShellBinding:
     client_shell_id: str
     internal_shell_id: str
     session_id: str
-    client_host: tuple[str, str, int]
+    client_host: _HostIdentity
     context_key: str
     source_id: str
     completed: bool = False
@@ -408,6 +424,13 @@ class _ClientShellBinding:
 class _DetachedClientShells:
     disconnected_at: float
     bindings: dict[str, _ClientShellBinding]
+
+
+@dataclass(frozen=True)
+class _DetachedCatalog:
+    host_identity: _HostIdentity
+    catalog: dict[str, dict[str, Any]]
+    expires_at: float
 
 
 @dataclass
@@ -456,6 +479,11 @@ class CapabilityConnection:
     pending: dict[str, _PendingCall] = field(default_factory=dict)
     client_shells: dict[str, _ClientShellBinding] = field(default_factory=dict)
 
+    @property
+    def host_identity(self) -> _HostIdentity:
+        return _HostIdentity(self.device_id, self.client_instance_id, self.generation, self.auth_epoch,
+                             self.account_id, self.network_id, self.owner_handle, self.owner_kind)
+
     def origin(self, registry: "CapabilityRegistry") -> TurnExecutionOrigin:
         return TurnExecutionOrigin(
             device_id=self.device_id,
@@ -486,8 +514,10 @@ class CapabilityRegistry:
         # correlation for a short bounded grace period so a surviving local
         # broker can replay completion events without moving work elsewhere.
         self._detached_shells: dict[
-            tuple[str, str, int], _DetachedClientShells
+            _HostIdentity, _DetachedClientShells
         ] = {}
+        self._detached_catalogs: dict[tuple[str, str], _DetachedCatalog] = {}
+        self._offline_waiters: dict[_HostIdentity, int] = {}
         self._lock = asyncio.Lock()
         # Replaced (rather than merely cleared) on every registry mutation so
         # exact-host retry waiters cannot miss a reconnect edge.
@@ -512,6 +542,7 @@ class CapabilityRegistry:
             return False
         conn.ready = True
         conn.last_seen_at = time.time()
+        self._detached_catalogs.pop(key, None)
         self._signal_connection_changed()
         return True
 
@@ -546,8 +577,7 @@ class CapabilityRegistry:
             return "ended"
         current = self._connections.get(key)
         if current is not None and current is not conn:
-            if (current.generation == conn.generation
-                    and current.auth_epoch == conn.auth_epoch):
+            if current.host_identity == conn.host_identity:
                 return "live"
             return "ended"
         return "reconnectable"
@@ -650,6 +680,17 @@ class CapabilityRegistry:
                     {"retryable": False},
                 )
             old = self._connections.get(key)
+            snapshot = self._detached_catalogs.get(key)
+            established_host = snapshot.host_identity if snapshot is not None else None
+            if old is not None:
+                established_host = old.host_identity
+            host_identity = conn.host_identity
+            if (established_host is not None and established_host.origin_key == host_identity.origin_key
+                    and established_host != host_identity):
+                raise ClientCapabilityError(
+                    "CLIENT_REVOKED", "The same client origin cannot change its authenticated scope",
+                    {"retryable": False},
+                )
             generation_floor = self._generation_floor.get(key, 0)
             if key not in self._generation_floor:
                 if len(self._generation_floor) >= MAX_KNOWN_CLIENT_INSTANCES:
@@ -688,7 +729,7 @@ class CapabilityRegistry:
                     f"{generation_floor}",
                 )
             now = time.time()
-            exact_detached_key = (device_id, client_instance_id, generation)
+            exact_detached_key = host_identity
             candidate_detached = self._detached_shells.pop(
                 exact_detached_key, None,
             )
@@ -700,12 +741,16 @@ class CapabilityRegistry:
                     detached_to_restore = candidate_detached
                 else:
                     detached_to_orphan.append(candidate_detached)
-            # A generation advance is a different execution host. It may not
-            # inherit background-resource correlation from an older broker.
+            # A different generation, authority or scope never inherits shell correlation.
             for detached_key, detached in list(self._detached_shells.items()):
-                if detached_key[:2] == key and detached_key[2] != generation:
+                if detached_key[:2] == key and detached_key != exact_detached_key:
                     self._detached_shells.pop(detached_key, None)
                     detached_to_orphan.append(detached)
+            if not ready and old is not None and old.host_identity == conn.host_identity:
+                self._remember_detached_catalog(old)
+            snapshot = self._detached_catalogs.get(key)
+            if snapshot is not None and (ready or snapshot.host_identity != exact_detached_key):
+                self._detached_catalogs.pop(key, None)
             self._connections[key] = conn
             self._generation_floor[key] = max(generation_floor, generation)
         if detached_to_restore is not None:
@@ -720,7 +765,7 @@ class CapabilityRegistry:
             # transport reconnect while the local single-instance broker (and
             # its background processes) kept running. Preserve correlation in
             # that one case. A new generation is a new execution host.
-            if old.generation == conn.generation:
+            if old.host_identity == conn.host_identity:
                 conn.client_shells.update(old.client_shells)
                 old.client_shells.clear()
             else:
@@ -775,6 +820,8 @@ class CapabilityRegistry:
         removed = False
         async with self._lock:
             if self._connections.get(key) is conn:
+                if error_code == "CLIENT_OFFLINE":
+                    self._remember_detached_catalog(conn)
                 self._connections.pop(key, None)
                 removed = True
                 self._detach_shells_locked(conn)
@@ -801,6 +848,10 @@ class CapabilityRegistry:
                     in self._connections.items()
                     if registered_device == device_id
                 ]
+                current_epochs.extend(snapshot.host_identity.auth_epoch for snapshot in self._detached_catalogs.values()
+                                      if snapshot.host_identity.device_id == device_id)
+                current_epochs.extend(host.auth_epoch for host in self._detached_shells if host.device_id == device_id)
+                current_epochs.extend(host.auth_epoch for host in self._offline_waiters if host.device_id == device_id)
                 if current_epochs:
                     block_epoch = max(block_epoch, max(current_epochs) + 1)
             else:
@@ -816,9 +867,12 @@ class CapabilityRegistry:
                 if self._connections.get(key) is conn:
                     self._connections.pop(key, None)
             for key, item in list(self._detached_shells.items()):
-                if key[0] == device_id:
+                if key.device_id == device_id and key.auth_epoch < block_epoch:
                     self._detached_shells.pop(key, None)
                     detached.append(item)
+            for key, snapshot in list(self._detached_catalogs.items()):
+                if key[0] == device_id and snapshot.host_identity.auth_epoch < block_epoch:
+                    self._detached_catalogs.pop(key, None)
         # Wake reconnect waiters even when the revoked device had already
         # dropped its socket and therefore contributed no live target above.
         self._signal_connection_changed()
@@ -865,6 +919,7 @@ class CapabilityRegistry:
         async with self._lock:
             detached = list(self._detached_shells.values())
             self._detached_shells.clear()
+            self._detached_catalogs.clear()
         for item in detached:
             self._orphan_shell_bindings(
                 item.bindings.values(), signal="GATEWAY_SHUTDOWN",
@@ -894,11 +949,13 @@ class CapabilityRegistry:
             for conn in stale:
                 key = (conn.device_id, conn.client_instance_id)
                 if self._connections.get(key) is conn:
+                    self._remember_detached_catalog(conn)
                     self._connections.pop(key, None)
                     self._detach_shells_locked(
                         conn, disconnected_at=checked_at,
                     )
             expired_detached = self._expire_detached_shells_locked(checked_at)
+            self._expire_detached_catalogs(time.monotonic())
         if stale:
             self._signal_connection_changed()
         for conn in stale:
@@ -917,6 +974,24 @@ class CapabilityRegistry:
                 detached.bindings.values(), signal="CLIENT_OFFLINE",
             )
         return stale
+
+    def _remember_detached_catalog(self, conn: CapabilityConnection) -> None:
+        if not conn.ready or conn.auth_epoch < self._device_block_epoch.get(conn.device_id, -1):
+            return
+        now = time.monotonic()
+        self._expire_detached_catalogs(now)
+        key = (conn.device_id, conn.client_instance_id)
+        self._detached_catalogs.pop(key, None)
+        self._detached_catalogs[key] = _DetachedCatalog(
+            conn.host_identity, conn.catalog, now + CLIENT_ORIGIN_RECONNECT_GRACE_S,
+        )
+        if len(self._detached_catalogs) > MAX_DETACHED_CATALOGS:
+            self._detached_catalogs.pop(next(iter(self._detached_catalogs)))
+
+    def _expire_detached_catalogs(self, now: float) -> None:
+        for key, snapshot in list(self._detached_catalogs.items()):
+            if snapshot.expires_at <= now:
+                self._detached_catalogs.pop(key, None)
 
     @staticmethod
     def _indeterminate_error(pending: _PendingCall) -> ClientCapabilityError:
@@ -973,7 +1048,8 @@ class CapabilityRegistry:
     def list_tools(
         self, origin: TurnExecutionOrigin, server_name: str,
     ) -> list[dict[str, Any]]:
-        conn, server = self._require_server(origin, server_name)
+        host = self._catalog_host(origin)
+        server = self._catalog_server(host, server_name)
         return [
             {
                 "name": tool["name"],
@@ -988,7 +1064,7 @@ class CapabilityRegistry:
                     if tool.get("classification_by_argument")
                     else {}
                 ),
-                "execution_host": conn.origin(self).execution_host,
+                "execution_host": origin.execution_host,
             }
             for tool in server["tools"]
         ]
@@ -996,15 +1072,11 @@ class CapabilityRegistry:
     def describe_tool(
         self, origin: TurnExecutionOrigin, server_name: str, tool_name: str,
     ) -> dict[str, Any]:
-        conn, server = self._require_server(origin, server_name)
-        tool = next((t for t in server["tools"] if t["name"] == tool_name), None)
-        if tool is None:
-            raise ClientCapabilityError(
-                "TOOL_NOT_FOUND", f"client MCP {server_name!r} has no tool {tool_name!r}",
-            )
+        host = self._catalog_host(origin)
+        tool = self._catalog_tool(host, server_name, tool_name)
         return {
             **tool,
-            "execution_host": conn.origin(self).execution_host,
+            "execution_host": origin.execution_host,
         }
 
     async def stream_tool(self, origin, server_name, tool_name, options, *, execution_context, source_id):
@@ -1138,9 +1210,10 @@ class CapabilityRegistry:
         execution_context: ExecutionContext | None = None,
         source_id: str | None = None,
     ) -> Any:
-        conn, _server = self._require_server(origin, server_name)
-        # Description lookup is also the exact-name/no-fuzzy dispatch gate.
-        tool_manifest = self.describe_tool(origin, server_name, tool_name)
+        started_at = time.monotonic()
+        wall_started_at = time.time()
+        admitted_host = self._catalog_host(origin)
+        tool_manifest = self._catalog_tool(admitted_host, server_name, tool_name)
         if args is None:
             args = {}
         if not isinstance(args, dict):
@@ -1186,21 +1259,21 @@ class CapabilityRegistry:
             raise ClientCapabilityError(
                 "INVALID_ARGUMENTS", "args must contain only finite JSON values",
             ) from exc
-        started_at = time.monotonic()
         deadline_at = started_at + timeout_s
         # Every retry carries the original wall-clock deadline, call id and
         # arguments hash. A reconnect never grants a fresh time budget.
-        deadline_ms = int((time.time() + timeout_s) * 1000)
+        deadline_ms = int((wall_started_at + timeout_s) * 1000)
+        host_identity = admitted_host.host_identity
 
         audit_fields = {
             "call_id": call_id,
             "target": "client",
-            "device_id": conn.device_id,
-            "account_id": conn.account_id,
-            "network_id": conn.network_id,
-            "device_label": conn.device_label,
-            "client_instance_id": conn.client_instance_id,
-            "generation": conn.generation,
+            "device_id": host_identity.device_id,
+            "account_id": host_identity.account_id,
+            "network_id": host_identity.network_id,
+            "device_label": origin.device_label,
+            "client_instance_id": host_identity.instance_id,
+            "generation": host_identity.generation,
             "module": server_name,
             "tool": tool_name,
             "classification": classification,
@@ -1219,9 +1292,40 @@ class CapabilityRegistry:
             )
 
         _audit("client_tool_call.start")
-        safe_to_retry = classification in {"read_only", "idempotent"}
+        # A disconnected device loan ends for deferred automations. Only an
+        # interactive turn can retain its existing authorization and wait.
+        safe_to_retry = (classification in {"read_only", "idempotent"}
+                         and not getattr(execution_context, "deferred", False))
         transport_error_codes = {"CLIENT_OFFLINE", "CLIENT_REPLACED"}
         attempt = 0
+
+        if isinstance(admitted_host, _DetachedCatalog):
+            if not safe_to_retry:
+                _audit("client_tool_call.error", outcome="error", error_code="CLIENT_OFFLINE", attempts=0)
+                raise ClientCapabilityError("CLIENT_OFFLINE", "The client host is offline. No operation was sent.")
+            waiting = self._offline_waiters.get(host_identity, 0)
+            if waiting >= MAX_PENDING_CALLS_PER_CONNECTION:
+                raise ClientCapabilityError("CLIENT_BACKPRESSURE", "Too many calls waiting for the exact client host")
+            self._offline_waiters[host_identity] = waiting + 1
+            _audit("client_tool_call.retry_wait", outcome="waiting_for_host", attempts=0)
+            try:
+                conn = await self._wait_for_exact_reconnect(origin, host_identity=host_identity,
+                    deadline_at=min(deadline_at, admitted_host.expires_at))
+            except asyncio.TimeoutError as exc:
+                _audit("client_tool_call.timeout", outcome="timeout", error_code="CLIENT_TIMEOUT", attempts=0)
+                raise ClientCapabilityError("CLIENT_TIMEOUT", "The exact client host did not reconnect before the deadline",
+                    {"classification": classification, "retryable": True}) from exc
+            except ClientCapabilityError as exc:
+                _audit("client_tool_call.error", outcome="error", error_code=exc.code, attempts=0)
+                raise
+            finally:
+                waiting = self._offline_waiters[host_identity] - 1
+                if waiting:
+                    self._offline_waiters[host_identity] = waiting
+                else:
+                    self._offline_waiters.pop(host_identity)
+        else:
+            conn = admitted_host
 
         while True:
             attempt += 1
@@ -1237,33 +1341,6 @@ class CapabilityRegistry:
                     "CLIENT_TIMEOUT",
                     "client tool call timed out while waiting for its exact host",
                     {"classification": classification, "retryable": safe_to_retry},
-                )
-
-            # A reconnect may revise its catalog. Safe retry is allowed only
-            # if the exact tool remains present with the same classification;
-            # otherwise the original dispatch contract no longer exists.
-            current_server = conn.catalog.get(server_name)
-            current_tool = next(
-                (
-                    item
-                    for item in (current_server or {}).get("tools", ())
-                    if item.get("name") == tool_name
-                ),
-                None,
-            )
-            if (
-                current_tool is None
-                or _classification_for_arguments(current_tool, args) != classification
-            ):
-                _audit(
-                    "client_tool_call.error",
-                    outcome="error",
-                    error_code="CLIENT_CAPABILITY_CHANGED",
-                    attempts=attempt - 1,
-                )
-                raise ClientCapabilityError(
-                    "CLIENT_CAPABILITY_CHANGED",
-                    "the exact client tool contract changed before retry",
                 )
 
             # Bound server tasks and result/artifact buffers per connection.
@@ -1296,11 +1373,19 @@ class CapabilityRegistry:
                     recorder = getattr(self, "record_device_use", None)
                     if recorder is not None and session_id:
                         try:
-                            await recorder(conn, session_id)
+                            async with asyncio.timeout(2.0):
+                                await recorder(conn, session_id)
                         except Exception as error:
                             _audit("client_tool_call.device_metadata_failed", error_code=type(error).__name__)
                     if self._require_origin(origin) is not conn:
                         raise ClientCapabilityError("CLIENT_REPLACED", "client capability host was replaced")
+                    current_server = conn.catalog.get(server_name)
+                    current_tool = next((tool for tool in (current_server or {}).get("tools", ())
+                                         if tool["name"] == tool_name), None)
+                    if current_tool != tool_manifest:
+                        raise ClientCapabilityError(
+                            "CLIENT_CAPABILITY_CHANGED", "The exact client tool contract changed before dispatch",
+                        )
                     # Once dispatch begins a mutating effect may have happened
                     # even if the socket fails before confirming the write.
                     pending.dispatch_started = True
@@ -1451,6 +1536,7 @@ class CapabilityRegistry:
             try:
                 conn = await self._wait_for_exact_reconnect(
                     origin,
+                    host_identity=host_identity,
                     previous=previous_conn,
                     deadline_at=deadline_at,
                 )
@@ -1509,15 +1595,16 @@ class CapabilityRegistry:
         self,
         origin: TurnExecutionOrigin,
         *,
-        previous: CapabilityConnection,
+        host_identity: _HostIdentity,
         deadline_at: float,
+        previous: CapabilityConnection | None = None,
     ) -> CapabilityConnection:
         """Wait only for the same device/instance/generation to reconnect."""
 
         while True:
             if (
                 self._device_block_epoch.get(origin.device_id, -1)
-                > previous.auth_epoch
+                > origin.auth_epoch
             ):
                 raise ClientCapabilityError(
                     "CLIENT_REVOKED",
@@ -1536,25 +1623,25 @@ class CapabilityRegistry:
             candidate = self._connections.get((origin.device_id, origin.client_instance_id))
             if (
                 candidate is not None
-                and candidate.auth_epoch > origin.auth_epoch
+                and (candidate.auth_epoch > origin.auth_epoch
+                     or candidate.generation == origin.generation and candidate.host_identity != host_identity)
             ):
                 raise ClientCapabilityError(
                     "CLIENT_REVOKED",
                     "a newly authorized client host cannot inherit an older turn",
                     {"retryable": False},
                 )
+            remaining = deadline_at - time.monotonic()
+            if remaining <= 0:
+                raise asyncio.TimeoutError
             if (
                 candidate is not None
                 and candidate is not previous
-                and candidate.generation == origin.generation
-                and candidate.auth_epoch == origin.auth_epoch
+                and candidate.host_identity == host_identity
                 and candidate.ready
                 and not getattr(candidate.ws, "closed", False)
             ):
                 return candidate
-            remaining = deadline_at - time.monotonic()
-            if remaining <= 0:
-                raise asyncio.TimeoutError
             changed = self._connection_changed
             async with asyncio.timeout(remaining):
                 await changed.wait()
@@ -1640,9 +1727,7 @@ class CapabilityRegistry:
                 "UNKNOWN_CLIENT_SHELL",
                 "shell event is not correlated to this capability instance",
             )
-        if binding.client_host != (
-            conn.device_id, conn.client_instance_id, conn.generation,
-        ):
+        if binding.client_host != conn.host_identity:
             raise ClientCapabilityError(
                 "STALE_GENERATION", "shell belongs to a different capability host",
             )
@@ -1752,12 +1837,20 @@ class CapabilityRegistry:
                       if isinstance(item, dict) and "still_running" in item]
         if len(candidates) != 1 or candidates[0].get("still_running") is not False:
             return False
-        conn, _ = self._require_server(origin, server_name)
+        try:
+            host = self._catalog_host(origin)
+        except ClientCapabilityError:
+            return False
+        if isinstance(host, _DetachedCatalog):
+            detached = self._detached_shells.get(host.host_identity)
+            shells = detached.bindings if detached is not None else {}
+        else:
+            shells = host.client_shells
         shell_id = arguments.get("shell_id")
-        binding = conn.client_shells.get(shell_id) if isinstance(shell_id, str) else None
+        binding = shells.get(shell_id) if isinstance(shell_id, str) else None
         if (binding is None or binding.session_id != context.session_id
                 or binding.context_key != context.coalescing_key or binding.source_id != source_id
-                or binding.client_host != (conn.device_id, conn.client_instance_id, conn.generation)
+                or binding.client_host != host.host_identity
                 or not any(lease.source_id == source_id for lease in context.capabilities)):
             return False
         observed = self.background_jobs.observe_terminal(binding.internal_shell_id,
@@ -1790,11 +1883,9 @@ class CapabilityRegistry:
                 "client capability host reused a background shell id",
             )
 
-        client_host = (
-            conn.device_id, conn.client_instance_id, conn.generation,
-        )
+        client_host = conn.host_identity
         digest = hashlib.sha256(
-            "\x00".join((*client_host[:2], str(client_host[2]), shell_id)).encode("utf-8"),
+            json.dumps((*client_host, shell_id), separators=(",", ":")).encode("utf-8"),
         ).hexdigest()
         internal_shell_id = f"client_{digest[:32]}"
         if self.background_jobs is None or not pending.context_key or not pending.source_id:
@@ -1818,7 +1909,7 @@ class CapabilityRegistry:
         """Retain exact-host shell correlation across a transport reconnect.
 
         This method is called only while ``self._lock`` is held.  It never
-        moves a shell between device, instance or generation identities.  The
+        moves a shell between device, instance, generation or authorization identities. The
         local capability broker is single-instance and durable, so an exact
         same-generation reconnect can safely replay terminal events that were
         produced while the WebSocket was down.
@@ -1826,7 +1917,7 @@ class CapabilityRegistry:
 
         if not conn.client_shells:
             return
-        key = (conn.device_id, conn.client_instance_id, conn.generation)
+        key = conn.host_identity
         detached_at = (
             time.time() if disconnected_at is None else float(disconnected_at)
         )
@@ -2200,13 +2291,16 @@ class CapabilityRegistry:
         return visit(value)
 
     def _require_origin(self, origin: TurnExecutionOrigin) -> CapabilityConnection:
+        if origin.registry is not self:
+            raise ClientCapabilityError("CLIENT_OFFLINE", "This turn belongs to another capability registry")
         conn = self.connection(origin.device_id, origin.client_instance_id)
         if (
             conn is None
             or conn.generation != origin.generation
             or conn.auth_epoch != origin.auth_epoch
         ):
-            if conn is not None and conn.auth_epoch > origin.auth_epoch:
+            if (self._device_block_epoch.get(origin.device_id, -1) > origin.auth_epoch
+                    or conn is not None and conn.auth_epoch > origin.auth_epoch):
                 raise ClientCapabilityError(
                     "CLIENT_REVOKED",
                     "this turn predates the client's current authorization",
@@ -2217,13 +2311,38 @@ class CapabilityRegistry:
             )
         return conn
 
-    def _require_server(
-        self, origin: TurnExecutionOrigin, server_name: str,
-    ) -> tuple[CapabilityConnection, dict[str, Any]]:
-        conn = self._require_origin(origin)
-        server = conn.catalog.get(server_name)
+    def _catalog_host(self, origin: TurnExecutionOrigin) -> CapabilityConnection | _DetachedCatalog:
+        try:
+            return self._require_origin(origin)
+        except ClientCapabilityError as error:
+            if error.code != "CLIENT_OFFLINE" or origin.registry is not self:
+                raise
+            key = (origin.device_id, origin.client_instance_id)
+            snapshot = self._detached_catalogs.get(key)
+            if (snapshot is not None and snapshot.expires_at > time.monotonic()
+                    and snapshot.host_identity.origin_key == (*key, origin.generation, origin.auth_epoch)):
+                return snapshot
+            raise
+
+    @staticmethod
+    def _catalog_server(host: CapabilityConnection | _DetachedCatalog, server_name: str) -> dict[str, Any]:
+        server = host.catalog.get(server_name)
         if server is None:
             raise ClientCapabilityError(
                 "MCP_NOT_FOUND", f"client MCP {server_name!r} is not advertised by this host",
             )
-        return conn, server
+        return server
+
+    def _catalog_tool(self, host: CapabilityConnection | _DetachedCatalog,
+                      server_name: str, tool_name: str) -> dict[str, Any]:
+        server = self._catalog_server(host, server_name)
+        tool = next((item for item in server["tools"] if item["name"] == tool_name), None)
+        if tool is None:
+            raise ClientCapabilityError("TOOL_NOT_FOUND", f"client MCP {server_name!r} has no tool {tool_name!r}")
+        return tool
+
+    def _require_server(
+        self, origin: TurnExecutionOrigin, server_name: str,
+    ) -> tuple[CapabilityConnection, dict[str, Any]]:
+        conn = self._require_origin(origin)
+        return conn, self._catalog_server(conn, server_name)

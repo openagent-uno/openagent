@@ -2106,6 +2106,7 @@ class Gateway:
         ws = web.WebSocketResponse(heartbeat=30.0)
         await ws.prepare(request)
         conn: CapabilityConnection | None = None
+        last_inventory_attempt = float("-inf")
 
         async def _send_error(error: ClientCapabilityError) -> None:
             await self._safe_ws_send_json(ws, {
@@ -2113,7 +2114,12 @@ class Gateway:
                 "error": error.as_dict(),
             })
 
-        async def _remember_device(connection: CapabilityConnection) -> None:
+        async def _remember_device(connection: CapabilityConnection, *, heartbeat: bool = False) -> None:
+            nonlocal last_inventory_attempt
+            now = time.monotonic()
+            if heartbeat and now - last_inventory_attempt < 60.0:
+                return
+            last_inventory_attempt = now
             from openagent_server.device_directory import directory_for
             try:
                 async with asyncio.timeout(2.0):
@@ -2268,7 +2274,7 @@ class Gateway:
                             "generation": conn.generation,
                             "ts_ms": int(time.time() * 1000),
                         })
-                        await _remember_device(conn)
+                        await _remember_device(conn, heartbeat=True)
                     elif t == P.PING:
                         await self._safe_ws_send_json(ws, {"type": P.PONG})
                     elif t == P.CLIENT_ARTIFACT_CHUNK:
@@ -2293,6 +2299,8 @@ class Gateway:
         finally:
             if conn is not None:
                 status = self.capabilities.origin_status(conn)
+                if auth_state.device_epoch(cert.device_pubkey) != conn.auth_epoch:
+                    status = "ended"
                 if getattr(self, "runtime_service", None) is not None:
                     if status == "reconnectable":
                         # Only the transport dropped. Running turns keep the
@@ -2305,7 +2313,7 @@ class Gateway:
                         self.runtime_service.revoke_device_origin(conn)
                     # "live": the same origin already re-registered on a
                     # newer socket and keeps its leases.
-                await self.capabilities.unregister(conn)
+                await self.capabilities.unregister(conn, error_code="CLIENT_REVOKED" if status == "ended" else "CLIENT_OFFLINE")
                 if conn.ready and status != "live":
                     await _remember_device(conn)
                 elog(
