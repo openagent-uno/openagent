@@ -10,6 +10,12 @@ from openagent_core.stream.collector import StreamCollector
 from openagent_server.bridges.gateway_transport import GatewayBridgeTransport
 
 
+@pytest.fixture(autouse=True)
+def local_telegram_shutdown(monkeypatch):
+    # These bots have a local gateway but no Telegram polling subscription.
+    monkeypatch.setattr("openagent_channel_bridges.telegram.TelegramBridge.flush_updates_offset", AsyncMock())
+
+
 @pytest.mark.asyncio
 async def test_child_progress_never_finishes_or_pollutes_parent_and_late_frames_are_dropped():
     transport = GatewayBridgeTransport()
