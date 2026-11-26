@@ -3175,3 +3175,88 @@ async def t_deferred_tool_message_content(_ctx: TestContext) -> None:
             if gateway is not None:
                 await operational.stop_background_maintenance(gateway)
             await db.close()
+
+
+@test("operational_api", "paged HTTP history interleaves only exact authorized tool prose")
+async def t_interleaved_tool_history(_ctx: TestContext) -> None:
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+    from unittest.mock import patch
+
+    from openagent_core import ExecutionContext, PrincipalRef, RunRequest
+    from openagent_core.engine import MemoryDB
+    from openagent_dashboards.migration import ensure_custom_views_storage
+    from openagent_server.gateway.api import operational
+    from openagent_storage_sqlite import SqliteRuntimeStore
+
+    with TemporaryDirectory(prefix="openagent-paged-transcript-") as directory:
+        path = Path(directory) / "history.db"
+        db = MemoryDB(str(path))
+        await db.connect()
+        store = SqliteRuntimeStore(path)
+        gateway = SimpleNamespace(agent=SimpleNamespace(memory_db=db), _operational_history_ready=True)
+        try:
+            await ensure_custom_views_storage(db._conn, app_version="fixture")
+            await store.start()
+            author = PrincipalRef("openagent", "tenant", "reader", "user")
+            context = ExecutionContext(author, author, author, "session", "agent", (author,))
+            await store.accept(RunRequest("run", "session", "request", "Prompt"), context)
+            await store.transition("run", "running")
+            await store.append_event("run", "run.stream", {"kind": "delta", "text": "Reading. "})
+            await store.begin_tool("run", "call", {"source_id": "source", "name": "read"}, {})
+            await store.finish_tool("run", "call", result="detail-only")
+            await store.append_event("run", "run.stream", {"kind": "delta", "text": "Done."})
+            await store.append_event("run", "run.stream", {"kind": "done", "text": "Reading. Done."})
+            await store.transition("run", "success", output="Reading. Done.")
+
+            @web.middleware
+            async def authenticated_fixture(request, handler):
+                handle = "other" if request.headers.get("Authorization") == "Fixture other" else "reader"
+                request.update(_Request(gateway, tenant="tenant", handle=handle, device=handle + "-device"))
+                return await handler(request)
+
+            app = web.Application(middlewares=[authenticated_fixture])
+            app["gateway"] = gateway
+            app.router.add_get("/api/sessions/{session_id}/messages", operational.handle_session_messages)
+            route = "/api/sessions/session/messages"
+            async with TestClient(TestServer(app)) as client:
+                async def page(**query):
+                    async with client.get(route, params={"tool_details": "deferred", **query}) as response:
+                        assert response.status == 200
+                        return await response.json()
+
+                plain = await page()
+                first = await page(timeline="interleaved", limit=1)
+                middle = await page(timeline="interleaved", limit=1, cursor=first["before_cursor"], direction="before")
+                answer, tool = first["messages"][0], middle["messages"][0]
+                assert [m["role"] for m in plain["messages"]] == ["user", "tool", "assistant"]
+                assert all("transcript_segment" not in m for m in plain["messages"])
+                assert answer["text"] == "Reading. Done." and answer["transcript_segment"]["text"] == "Done."
+                assert tool["transcript_segment"]["text"] == "Reading. " and tool["id"] == plain["messages"][1]["id"]
+                assert "detail-only" not in json.dumps(middle)
+
+                async with client.get(route, params={"timeline": "interleaved"},
+                                      headers={"Authorization": "Fixture other"}) as denied:
+                    assert denied.status == 404
+                with patch.object(operational, "transcript_segments", None):
+                    assert (await page(timeline="interleaved"))["messages"] == plain["messages"]
+
+                async def unavailable(*args, **kwargs):
+                    raise ValueError("Incomplete historical layout")
+
+                with patch.object(operational, "transcript_segments", unavailable):
+                    assert (await page(timeline="interleaved"))["messages"] == plain["messages"]
+
+                async def revoked_during_layout(conn, **kwargs):
+                    await conn.execute("UPDATE sessions_v2 SET owner_principal_id=? WHERE id=?",
+                                       ("user:other", "session"))
+                    await conn.commit()
+                    return {}
+
+                with patch.object(operational, "transcript_segments", revoked_during_layout):
+                    async with client.get(route, params={"timeline": "interleaved"}) as revoked:
+                        assert revoked.status == 404
+        finally:
+            await operational.stop_background_maintenance(gateway)
+            await store.close()
+            await db.close()

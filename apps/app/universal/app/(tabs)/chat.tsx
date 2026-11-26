@@ -469,6 +469,8 @@ export default function ChatScreen() {
     if (!anchorSession || !anchorMessage) return;
     const controller = new AbortController();
     const current = sessionReadGuard(anchorSession);
+    if (!current()) return;
+    const originalWindow = useChat.getState().sessions.find(session => session.id === anchorSession)?.messageWindow ?? null;
     setAnchorError(null);
     void (async () => {
       try {
@@ -483,13 +485,16 @@ export default function ChatScreen() {
             : Promise.resolve(undefined),
         ]);
         if (controller.signal.aborted || !current()) return;
-        if (page.anchor_found === false) {
+        if (page.session_id !== anchorSession || page.anchor_found === false) {
           setAnchorError('This result is no longer available.');
           return;
         }
-        mergeMessageWindow(page, tool);
+        mergeMessageWindow(page, tool, originalWindow);
+        if (!useChat.getState().sessions.find(session => session.id === anchorSession)?.messages.some(message => message.id === anchorMessage)) {
+          setAnchorError('This result is no longer available.');
+        }
       } catch (error) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || !current()) return;
         setAnchorError(
           error instanceof Error && /404|not found/i.test(error.message)
             ? 'This result is no longer available.'

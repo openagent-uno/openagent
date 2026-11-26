@@ -1691,6 +1691,7 @@ export async function listSessionMessages(
 ): Promise<SessionMessagePage> {
   const params = new URLSearchParams();
   params.set('tool_details', 'deferred');
+  params.set('timeline', 'interleaved');
   if ('around' in query && query.around) {
     params.set('around', query.around);
     if (query.before != null) params.set('before', String(query.before));
@@ -1858,9 +1859,9 @@ export async function forkConversation(sessionId: string, messageId: string, sig
   );
 }
 
-export async function fetchSessionRuns(sessionId: string, limit?: number): Promise<SessionRunMessage[]> {
+export async function fetchSessionRuns(sessionId: string, limit?: number, signal?: AbortSignal): Promise<SessionRunMessage[]> {
   const qs = limit ? `?limit=${limit}` : '';
-  const data = await get<SessionRunsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/runs${qs}`);
+  const data = await get<SessionRunsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/runs${qs}`, signal);
   return data.messages || [];
 }
 

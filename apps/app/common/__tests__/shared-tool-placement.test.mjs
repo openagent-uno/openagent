@@ -19,6 +19,23 @@ function fixture() {
   ];
 }
 
+test('a durable tool-only page shows preceding assistant text and keeps the tool as its paging anchor', () => {
+  const tool = { id: 'tool-midpage', role: 'tool', text: '', providerRunId: 'run',
+    ordinal: 100, timestamp: 500, toolInfo: { tool_call_id: 'call', tool_name: 'read' },
+    transcriptSegment: { text: 'Checking 😀', parts: [{ kind: 'text', text: 'Checking 😀' }] } };
+  const answer = { id: 'answer', role: 'assistant', text: 'Checking 😀Done', providerRunId: 'run',
+    ordinal: 101, timestamp: 510, transcriptSegment: { text: 'Done', parts: [{ kind: 'text', text: 'Done' }] } };
+  const project = createSharedToolPlacement();
+  const middle = project([tool]);
+  assert.deepEqual(middle.map(m => [m.role, m.text, m.ordinal]), [
+    ['assistant', 'Checking 😀', 100], ['tool', '', 100],
+  ]);
+  assert.equal(middle[0].pageAnchorId, tool.id);
+  const full = project([{ ...tool, toolPosition: { messageId: answer.id, afterText: 10, order: 0 } }, answer]);
+  assert.deepEqual(full.map(m => [m.id, m.text]), [[middle[0].id, 'Checking 😀'], [tool.id, ''], [answer.id, 'Done']]);
+  assert.equal(answer.text, 'Checking 😀Done');
+});
+
 // Frozen downstream MessageList action derivation: cached render rows must
 // preserve regeneration/fork targets as well as their visible contents.
 function actions(transcript, messages) {

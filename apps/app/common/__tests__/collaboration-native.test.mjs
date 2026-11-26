@@ -10,6 +10,26 @@ const { OpenAgentWS } = await load('../../universal/services/ws.ts');
 const { mergeOutboundTranscript, mergeSharedTranscript, placeSharedTools, reconcileSharedReplies } = await load('../shared-transcript.ts');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
+test('live observation respects canonical ordinals when device clocks disagree', () => {
+  const rows = [{ id: 'first', ordinal: 3, timestamp: 500, role: 'user' },
+    { id: 'second', ordinal: 4, timestamp: 400, role: 'assistant' }];
+  assert.deepEqual(mergeSharedTranscript(rows, {turns: []}), rows);
+});
+
+test('a bounded or late observer preserves the published rows of a long run', () => {
+  const tool = { id: 'stored-tool', role: 'tool', providerRunId: 'run', ordinal: 4,
+    text: '', timestamp: 1500, toolInfo: { tool_name: 'read', tool_call_id: 'earlier' } };
+  const turn = { id: 'turn', runId: 'request', providerRunId: 'run', active: true, truncated: true,
+    startedAt: 1, messages: [{ id: 'response', role: 'assistant', text: 'draft', timestamp: 2 }],
+    tools: [{ id: 'recent', timestamp: 3, toolInfo: { tool_name: 'read', tool_call_id: 'recent' } }] };
+  const snapshot = { session_id: 'chat', revision: 4, turns: [turn] };
+  const active = mergeSharedTranscript([tool], snapshot);
+  assert.deepEqual(active.filter(m => m.role === 'tool').map(m => m.toolInfo.tool_call_id), ['earlier', 'recent']);
+  const final = { id: 'published', role: 'assistant', providerRunId: 'run', ordinal: 6, timestamp: 3500,
+    text: 'Approved final', durableStatus: 'complete', transcriptSegment: { text: 'final', parts: [] } };
+  assert.deepEqual(mergeSharedTranscript([tool, final], snapshot), [tool, final]);
+});
+
 test('a failed turn keeps its visible error after canonical user history arrives', () => {
   const snapshot = { session_id: 'chat', revision: 2, turns: [{ id: 'request', runId: 'request',
     providerRunId: 'run', active: false, startedAt: 1, finishedAt: 2,

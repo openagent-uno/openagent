@@ -102,7 +102,7 @@ export interface MessageListProps {
   onAnchorLayout?: (y: number) => void;
   /** Infinite scroll: the owning ScrollView's controller and ref. When set,
    * the list renders a sliding window and pages canonical history on its own
-   * as the reader nears either edge — no "Load earlier" control. */
+   * as the reader nears either edge. A visible control can also retry an earlier page. */
   controller?: TranscriptController;
   scrollRef?: RefObject<ScrollView | null>;
   /** Canonical loaded-range metadata of ``messages`` (see transcript-window). */

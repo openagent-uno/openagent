@@ -141,7 +141,7 @@ export function useTranscriptWindow({
     const { rows: current, sessionId: requestedSession } = latest.current;
     const row = current[index];
     if (!row) return;
-    const id = canonicalRowId(row.id);
+    const id = row.pageAnchorId ?? canonicalRowId(row.id);
     const key = `${requestedSession}:${direction}:${id}`;
     if (inflight.current.has(key) || (!retry && Date.now() - (failures.current.get(key) ?? 0) < RETRY_MS)) return;
     inflight.current.add(key);

@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
-import { mergeSharedTranscript, reconcileSharedReplies, unconfirmedMessages } from '../../common/shared-transcript';
+import { mergeSharedTranscript, reconcileSharedReplies, replySegments, unconfirmedMessages } from '../../common/shared-transcript';
 import {
   toolPhase,
   toolDisplay,
@@ -23,7 +23,7 @@ import {
 } from '../../common/types';
 import type { SessionEntry } from '../services/api';
 import type { SessionMessage, SessionMessagePage, ToolInvocationDetail } from '../../common/unified-history';
-import { normalizeAttachmentRefs, normalizeMessageContent } from '../../common/ui-views';
+import { normalizeAttachmentRefs, normalizeMessageContent, normalizeMessageParts } from '../../common/ui-views';
 import type { OpenAgentWS } from '../services/ws';
 import { attachmentKey, attachmentsForSend } from '../../common/attachments';
 import { isAutomaticSessionTitle, sessionTitleFromPrompt } from '../../common/session-title';
@@ -53,8 +53,9 @@ const SESSION_MESSAGE_PAGE_SIZE = 60;
 const JUMP_CONTEXT_BEFORE = 20;
 const JUMP_CONTEXT_AFTER = 40;
 /** In-flight transcript page loads keyed by session, anchor and direction. */
-const transcriptPageLoads = new Map<string, Promise<void>>();
+const transcriptPageLoads = new Map<string, { request: Promise<void>; authorized: () => boolean }>();
 const latestReconciliation = new Map<string, symbol>();
+const tailTranscriptLoads = new Map<string, { request: Promise<LoadedTranscript>; authorized: () => boolean }>();
 
 let nextMsgId = 1;
 const genId = () => `msg-${nextMsgId++}-${Date.now()}`;
@@ -64,12 +65,15 @@ function canonicalMessageToChat(message: SessionMessage): ChatMessage {
   // additive CAS metadata is never lost while projecting history into chat.
   const attachments = normalizedAttachments(message.attachments);
   const parsedTimestamp = Date.parse(message.created_at);
+  const segment = message.transcript_segment;
   return {
     id: message.id,
     providerRunId: message.run_id || undefined,
     model: message.model || undefined,
     role: message.role,
     text: message.text,
+    transcriptSegment: segment && typeof segment.text === 'string' && Array.isArray(segment.parts)
+      ? { text: segment.text, parts: normalizeMessageParts(segment.parts, segment.text) } : undefined,
     // Never manufacture a current time for an old/malformed row. The shared
     // transcript renderer intentionally hides metadata when no real timestamp
     // exists.
@@ -97,22 +101,167 @@ function normalizedAttachments(raw: unknown): Attachment[] | undefined {
   return attachments.length ? attachments : undefined;
 }
 
+/** A newly revised or unsegmented turn must not keep prose from a previous
+ * version on tool rows that were fetched on a different page. */
+function reconcileCachedLayout(cached: readonly ChatMessage[], page: readonly ChatMessage[]): readonly ChatMessage[] {
+  const annotated = new Set(cached.filter(m => m.transcriptSegment).map(m => m.id));
+  // A newly encountered tool can legitimately have no narration. Only a
+  // canonical answer or a changed annotation on the same row invalidates it.
+  const unsegmented = new Set(page.filter(m => m.providerRunId && !m.transcriptSegment
+    && (m.role === 'assistant' || annotated.has(m.id))).map(m => m.providerRunId));
+  return unsegmented.size ? cached.map(m => m.transcriptSegment && unsegmented.has(m.providerRunId)
+    ? { ...m, transcriptSegment: undefined, toolPosition: undefined } : m) : cached;
+}
+
 type LoadedTranscript =
   | { kind: 'v2'; page: SessionMessagePage }
   | { kind: 'legacy'; messages: ChatMessage[] };
+
+type TranscriptWindow = NonNullable<ChatSession['messageWindow']>;
+
+function compareTranscriptRevision(left: string, right: string): number {
+  if (left === right) return 0;
+  // The current gateway serializes an SQLite integer. Keep full precision
+  // and accept nonnumeric opaque revisions from compatible servers.
+  if (!/^\d+$/.test(left) || !/^\d+$/.test(right)) return 0;
+  const a = BigInt(left);
+  const b = BigInt(right);
+  return a === b ? 0 : a < b ? -1 : 1;
+}
+
+function containsOrdinal(range: LoadedRange, ordinal?: number): boolean {
+  return ordinal != null && (range.start == null || ordinal >= range.start)
+    && (range.end == null || ordinal <= range.end);
+}
+
+/** A page can extend the known transcript without replacing stronger
+ * evidence about a row, a redaction, or the tail of the same conversation. */
+function mergeCanonicalPage(
+  session: ChatSession, page: SessionMessagePage, tool?: ToolInvocationDetail, windowAtRequest?: TranscriptWindow | null,
+) {
+  const current = session.messageWindow;
+  const order = current ? compareTranscriptRevision(page.revision, current.revision) : 1;
+  const preferCached = order < 0 || (order === 0 && windowAtRequest !== undefined
+    && windowAtRequest !== (current ?? null));
+  const previous = session.messages;
+  const priorById = new Map(previous.map(message => [message.id, message]));
+  const first = previous.find(message => message.ordinal != null)?.ordinal;
+  const last = previous.findLast(message => message.ordinal != null)?.ordinal;
+  const incoming = page.messages.map(canonicalMessageToChat);
+  const pageFirst = incoming[0]?.ordinal;
+  const pageLast = incoming.at(-1)?.ordinal;
+  const range = pageLoadedRange(page);
+  const covered = order < 0 ? session.loadedRanges ?? []
+    : preferCached ? clipLoadedRanges(session.loadedRanges, last ?? null) : [];
+
+  const eligible = preferCached ? incoming.filter(message =>
+    !priorById.has(message.id) && !covered.some(item => containsOrdinal(item, message.ordinal))) : incoming;
+  // Interleaved prose belongs to a particular version of the complete
+  // answer. If the page demonstrates a conflicting version at an overlap,
+  // keep the latest full canonical answer and omit fragments of that draft.
+  const revisedRuns = new Set<string>();
+  if (preferCached && eligible.length) {
+    const extendedRuns = new Set(eligible.map(message => message.providerRunId));
+    for (const message of incoming) {
+      if (!message.providerRunId || !extendedRuns.has(message.providerRunId) || revisedRuns.has(message.providerRunId)) continue;
+      const prior = priorById.get(message.id);
+      if (prior && (prior.text !== message.text
+        || JSON.stringify(prior.transcriptSegment) !== JSON.stringify(message.transcriptSegment))) {
+        revisedRuns.add(message.providerRunId);
+      }
+    }
+  }
+  const withoutRevisedLayout = (messages: readonly ChatMessage[]) => revisedRuns.size ? messages.map(message =>
+    message.transcriptSegment && message.providerRunId && revisedRuns.has(message.providerRunId)
+      ? { ...message, transcriptSegment: undefined, toolPosition: undefined } : message) : messages;
+  const accepted = preferCached
+    ? reconcileCachedLayout(withoutRevisedLayout(eligible), previous.filter(message => message.ordinal != null))
+    : eligible;
+  const cached = preferCached ? withoutRevisedLayout(previous) : reconcileCachedLayout(previous, accepted).filter(message =>
+    !range || !containsOrdinal(range, message.ordinal));
+  const byId = new Map(cached.map(message => [message.id, message]));
+  for (const message of accepted) {
+    const prior = priorById.get(message.id);
+    byId.set(message.id, { ...prior, ...message, toolInfo: message.toolInfo || prior?.toolInfo });
+  }
+  if (tool && !preferCached) {
+    const match = incoming.find(message => message.id === tool.message_id || message.toolInvocationId === tool.id);
+    const existing = match && byId.get(match.id);
+    const detail = toolInfoFromInvocationDetail(tool);
+    if (existing && detail) {
+      byId.set(existing.id, { ...existing, role: 'tool', toolInvocationId: tool.id, toolInfo: detail });
+    }
+  }
+  const ordered = [...byId.values()].sort((a, b) => {
+    if (a.ordinal != null && b.ordinal != null) return a.ordinal - b.ordinal;
+    if (a.ordinal != null) return -1;
+    if (b.ordinal != null) return 1;
+    return a.timestamp - b.timestamp;
+  });
+  const messages = reconcileSharedReplies([], ordered);
+  // An older claim about reaching the live tail applies only to the rows it
+  // actually fetched. Otherwise it could bridge a gap to a newer tail.
+  const boundedRange = order < 0 && range?.end === null && pageLast != null
+    ? { ...range, end: pageLast } : range;
+  const loadedRanges = mergeLoadedRanges(session.loadedRanges, boundedRange);
+  if (preferCached && !accepted.length && current && session.loadedRanges
+      && loadedRanges.length === session.loadedRanges.length
+      && loadedRanges.every((item, index) => item.start === session.loadedRanges?.[index].start
+        && item.end === session.loadedRanges[index].end)) return undefined;
+  const advances = preferCached ? accepted : incoming;
+  const growsBefore = first == null || (!preferCached && range?.start === null)
+    || (pageFirst != null && pageFirst <= first);
+  const newest = advances.at(-1)?.ordinal;
+  const growsAfter = last == null || (!preferCached && range?.end === null)
+    || (newest != null && (newest > last || (newest === last && !preferCached)));
+  return {
+    messages,
+    loadedRanges,
+    messageWindow: {
+      revision: preferCached && current ? current.revision : page.revision,
+      beforeCursor: growsBefore ? page.before_cursor : current?.beforeCursor ?? null,
+      afterCursor: growsAfter ? page.after_cursor : current?.afterCursor ?? null,
+      hasMoreBefore: hasHistoryBefore(messages, loadedRanges, page.has_more_before),
+      hasMoreAfter: growsAfter ? page.has_more_after : current?.hasMoreAfter ?? page.has_more_after,
+    },
+  };
+}
+
+
+function requestTranscript<T>(load: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error('The conversation is taking too long to load.'));
+      controller.abort();
+    }, TRANSCRIPT_LOAD_TIMEOUT_MS);
+  });
+  return Promise.race([load(controller.signal), timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
 
 async function loadSessionTranscript(
   sessionId: string,
   mode: Exclude<SessionHistoryMode, 'unknown'>,
 ): Promise<LoadedTranscript> {
-  if (mode === 'v2') {
-    return {
-      kind: 'v2',
-      page: await listSessionMessages(sessionId, { limit: SESSION_MESSAGE_PAGE_SIZE }),
-    };
-  }
-  const raw = await fetchSessionRuns(sessionId);
-  return { kind: 'legacy', messages: (raw || []).map(runMsgToChat) };
+  const key = `${mode}:${sessionId}`;
+  const running = tailTranscriptLoads.get(key);
+  if (running?.authorized()) return running.request;
+  const authorized = sessionReadGuard(sessionId);
+  // Force an independent transport read when an old ACL generation has an
+  // identical URL in flight. Single-flight for the current grant stays here.
+  const request = requestTranscript<LoadedTranscript>((signal) => mode === 'v2'
+    ? listSessionMessages(sessionId, { limit: SESSION_MESSAGE_PAGE_SIZE }, signal)
+      .then(page => ({ kind: 'v2', page }))
+    : fetchSessionRuns(sessionId, undefined, signal)
+      .then(rows => ({ kind: 'legacy', messages: (rows || []).map(runMsgToChat) })))
+    .finally(() => {
+      if (tailTranscriptLoads.get(key)?.request === request) tailTranscriptLoads.delete(key);
+    });
+  tailTranscriptLoads.set(key, { request, authorized });
+  return request;
 }
 
 function transcriptPatch(
@@ -149,8 +298,8 @@ function transcriptPatch(
   // the reader already scrolled through stays loaded, and the ranges keep
   // proving which part of it is contiguous with the fresh tail.
   const pageStart = projected.length ? Math.min(...projected.map((m) => m.ordinal ?? Infinity)) : Infinity;
-  const kept = previousRanges?.length
-    ? previous.filter((message) => message.ordinal != null && message.ordinal < pageStart)
+  const kept = page.has_more_before && previousRanges?.length
+    ? reconcileCachedLayout(previous, projected).filter((message) => message.ordinal != null && message.ordinal < pageStart)
     : [];
   let previousMax: number | null = null;
   for (const message of previous) {
@@ -191,7 +340,7 @@ function noteFrame(sessionId: string | undefined): void {
 // setActiveSession deep-link path and the handleServerMessage live-stub path
 // so they never drift (a scheduler/workflow firing now streams live frames, so
 // its stub must be tagged just like a sub-agent's).
-function childStubFor(id: string): Partial<ChatSession> {
+function childStubFor(id: string): Pick<ChatSession, 'title'> & Partial<ChatSession> {
   if (isSubAgentSessionId(id)) {
     return { title: 'Sub-agent', origin: 'delegation', parentSessionId: subAgentParentId(id) };
   }
@@ -303,6 +452,61 @@ function scheduleDeltaFlush(
   } else {
     setTimeout(runFlush, 16);
   }
+}
+
+/** The caller owns this array. Replay and the frame-batched live path use the same reducer. */
+function appendAssistantDelta(messages: ChatMessage[], text: string) {
+  const last = messages.at(-1);
+  if (last?.role === 'assistant' && last.streaming) {
+    messages[messages.length - 1] = { ...last, text: last.text + text };
+  } else {
+    messages.push({ id: genId(), role: 'assistant', text, timestamp: Date.now(), streaming: true });
+  }
+}
+
+function applyDelta(session: ChatSession, delta: string | undefined, activeId: string | null): ChatSession {
+  if (!delta || session.accessRevoked) return session;
+  const messages = [...session.messages];
+  appendAssistantDelta(messages, delta);
+  return { ...session, messages, statusText: undefined, isReasoning: false,
+    hasUnread: activeId === session.id ? session.hasUnread : true };
+}
+
+function takeDelta(sessionId: string) {
+  const text = pendingDeltas.get(sessionId);
+  pendingDeltas.delete(sessionId);
+  return text;
+}
+
+/** A response frame contains the whole answer, including prose before tools.
+ * Keep exact published fragments in place and replace a revised draft as a unit. */
+function finishNativeResponse(messages: ChatMessage[], frame: Extract<ServerMessage, { type: 'response' }>): ChatMessage[] {
+  const tail = messages.at(-1);
+  const hasTail = tail?.role === 'assistant' && tail.streaming;
+  const prior = hasTail ? messages.slice(0, -1) : [...messages];
+  const attachments = normalizedAttachments(frame.attachments);
+  const reply: ChatMessage = {
+    id: hasTail ? tail.id : genId(), role: 'assistant', timestamp: hasTail ? tail.timestamp : Date.now(),
+    text: frame.text, model: frame.model, attachments, streaming: false,
+    parts: normalizeMessageContent(frame.parts, frame.artifacts, frame.text, attachments ?? []),
+  };
+  const start = prior.findLastIndex(m => m.role === 'user' || (m.role === 'assistant' && !m.streaming)) + 1;
+  const open = prior.slice(start).filter(m => m.role === 'assistant' && m.streaming);
+  if (!open.length) return [...prior, reply];
+  const draft = open.map(m => m.text).join('');
+  if (reply.text.startsWith(draft)) {
+    let offset = 0;
+    const ends = open.map(m => (offset += Array.from(m.text).length));
+    const segments = replySegments(reply, ends);
+    if (segments) {
+      const byId = new Map(open.map((row, index) => [row.id, segments[index]]));
+      const settled = prior.map(row => byId.has(row.id) ? { ...row, ...byId.get(row.id), streaming: false } : row);
+      const suffix = segments[open.length];
+      return [...settled, { ...reply, transcriptSegment: { text: suffix.text,
+        parts: normalizeMessageParts(suffix.parts, suffix.text, suffix.attachments ?? []) } }];
+    }
+  }
+  return [...prior.filter((row, index) => index < start || row.role !== 'assistant' || !row.streaming), reply];
 }
 
 function sameLiveStart(a: ChatMessage | undefined, b: ChatMessage | undefined): boolean {
@@ -643,45 +847,13 @@ function liveMessagesFromFrames(
     if (frame.type === 'delta') {
       const delta = frame.text || '';
       if (!delta) continue;
-      const last = messages[messages.length - 1];
-      if (last?.role === 'assistant' && last.streaming) {
-        messages[messages.length - 1] = { ...last, text: last.text + delta };
-      } else {
-        messages.push({
-          id: genId(),
-          role: 'assistant',
-          text: delta,
-          timestamp: Date.now(),
-          streaming: true,
-        });
-      }
+      appendAssistantDelta(messages, delta);
       statusText = undefined;
       isReasoning = false;
       continue;
     }
     if (frame.type === 'response') {
-      const attachments = normalizedAttachments(frame.attachments);
-      const last = messages[messages.length - 1];
-      if (last?.role === 'assistant' && last.streaming) {
-        messages[messages.length - 1] = {
-          ...last,
-          text: frame.text,
-          attachments,
-          parts: normalizeMessageContent(frame.parts, frame.artifacts, frame.text, attachments ?? []),
-          model: frame.model,
-          streaming: false,
-        };
-      } else {
-        messages.push({
-          id: genId(),
-          role: 'assistant',
-          text: frame.text,
-          timestamp: Date.now(),
-          attachments,
-          parts: normalizeMessageContent(frame.parts, frame.artifacts, frame.text, attachments ?? []),
-          model: frame.model,
-        });
-      }
+      messages = finishNativeResponse(messages, frame);
       isProcessing = false;
       isReasoning = false;
       statusText = undefined;
@@ -767,7 +939,7 @@ interface ChatState {
   markHydrated: () => void;
   setSessionHistoryMode: (mode: SessionHistoryMode) => void;
   /** Merge a stable-ID v2 transcript window without replacing live tail rows. */
-  mergeMessageWindow: (page: SessionMessagePage, tool?: ToolInvocationDetail) => void;
+  mergeMessageWindow: (page: SessionMessagePage, tool?: ToolInvocationDetail, windowAtRequest?: TranscriptWindow | null) => void;
   /** Fetch the previous canonical message page for the focused v2 session. */
   loadEarlierMessages: (sessionId: string) => Promise<void>;
   /** Load one canonical page next to ``messageId`` — the rows before it,
@@ -851,7 +1023,7 @@ function sessionId(): string {
   return `session-${Date.now()}`;
 }
 
-/** Upper bound for the first transcript page of a session (see loadInitialTranscript). */
+/** Bound an unresponsive transport so the reader can retry a transcript page. */
 export const TRANSCRIPT_LOAD_TIMEOUT_MS = 20_000;
 const transcriptLoadAttempts = new Map<string, number>();
 
@@ -874,6 +1046,7 @@ export const useChat = create<ChatState>((set, get) => ({
     // does not mean legacy: wait for the authenticated server contract.
     if (mode === 'unknown' || get().transcriptLoading[id]) return;
     const current = sessionReadGuard(id);
+    if (!current()) return;
     const attempt = (transcriptLoadAttempts.get(id) ?? 0) + 1;
     transcriptLoadAttempts.set(id, attempt);
     set((s) => {
@@ -881,18 +1054,8 @@ export const useChat = create<ChatState>((set, get) => ({
       return { transcriptLoading: { ...s.transcriptLoading, [id]: true }, transcriptLoadError: errors };
     });
     let failure: string | null = null;
-    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      // A request that never settles (a transport replaced while the agent
-      // restarts, for example) must not leave the loading state up forever and
-      // block every retry: give up after TRANSCRIPT_LOAD_TIMEOUT_MS and report it.
-      const timeout = new Promise<never>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error('The conversation is taking too long to load.')),
-          TRANSCRIPT_LOAD_TIMEOUT_MS,
-        );
-      });
-      const loaded = await Promise.race([loadSessionTranscript(id, mode), timeout]);
+      const loaded = await loadSessionTranscript(id, mode);
       if (!current() || transcriptLoadAttempts.get(id) !== attempt) return;
       const hasMessages = loaded.kind === 'v2'
         ? loaded.page.messages.length > 0
@@ -908,7 +1071,6 @@ export const useChat = create<ChatState>((set, get) => ({
     } catch (error) {
       failure = error instanceof Error && error.message ? error.message : 'The conversation could not be loaded.';
     } finally {
-      if (timer) clearTimeout(timer);
       if (transcriptLoadAttempts.get(id) !== attempt) return;
       set((s) => {
         const { [id]: _done, ...loading } = s.transcriptLoading;
@@ -925,7 +1087,11 @@ export const useChat = create<ChatState>((set, get) => ({
     const id = state.activeSessionId;
     if (!id || state.sessionHistoryMode === 'unknown') return;
     const session = state.sessions.find((s) => s.id === id);
-    if (!session || session.localDraft || session.messages.length > 0) return;
+    if (!session || session.localDraft) return;
+    // Live observation and the first durable page arrive independently. Only
+    // the latter proves the earlier history of a v2 conversation was loaded.
+    if (session.messages.length && (!session.sharedSnapshot || state.sessionHistoryMode !== 'v2'
+      || session.loadedRanges?.length)) return;
     if (state.transcriptLoading[id] || state.transcriptLoadError[id] || state.transcriptChecked[id]) return;
     void get().loadInitialTranscript(id);
   },
@@ -1123,69 +1289,18 @@ export const useChat = create<ChatState>((set, get) => ({
     }
   },
 
-  mergeMessageWindow: (page, tool) => set((state) => {
+  mergeMessageWindow: (page, tool, windowAtRequest) => set((state) => {
     if (sessionIsRevoked(page.session_id)) return {};
-    const incoming = page.messages.map(canonicalMessageToChat);
-    if (tool) {
-      const messageId = tool.message_id;
-      for (let index = 0; index < incoming.length; index += 1) {
-        const message = incoming[index];
-        if (message.id !== messageId && message.toolInvocationId !== tool.id) continue;
-        incoming[index] = {
-          ...message,
-          role: 'tool',
-          toolInvocationId: tool.id,
-          toolInfo: toolInfoFromInvocationDetail(tool),
-        };
-      }
-    }
-    const known = state.sessions.some((session) => session.id === page.session_id);
-    const sessions = known
-      ? state.sessions
-      : [...state.sessions, {
-          id: page.session_id,
-          messages: [],
-          isProcessing: false,
-          ...childStubFor(page.session_id),
-        } as ChatSession];
-    return {
-      sessions: sessions.map((session) => {
-        if (session.id !== page.session_id) return session;
-        const byId = new Map(session.messages.map((message) => [message.id, message]));
-        for (const message of incoming) {
-          const prior = byId.get(message.id);
-          byId.set(message.id, {
-            ...prior,
-            ...message,
-            toolInfo: message.toolInfo || prior?.toolInfo,
-          });
-        }
-        const ordered = [...byId.values()].sort((a, b) => {
-          if (a.ordinal != null && b.ordinal != null) return a.ordinal - b.ordinal;
-          if (a.ordinal != null) return -1;
-          if (b.ordinal != null) return 1;
-          return a.timestamp - b.timestamp;
-        });
-        const messages = reconcileSharedReplies([], ordered);
-        const loadedRanges = mergeLoadedRanges(session.loadedRanges, pageLoadedRange(page));
-        const first = page.messages.length
-          && messages.findIndex((message) => message.ordinal != null) === messages.findIndex((message) => message.id === page.messages[0].id);
-        return {
-          ...session,
-          messages,
-          loadedRanges,
-          messageWindow: {
-            revision: page.revision,
-            // Cursors describe the earliest/latest loaded rows, not whichever
-            // page happened to arrive last (an anchor or forward page).
-            beforeCursor: first ? page.before_cursor : session.messageWindow?.beforeCursor ?? page.before_cursor,
-            afterCursor: page.after_cursor,
-            hasMoreBefore: hasHistoryBefore(messages, loadedRanges, page.has_more_before),
-            hasMoreAfter: page.has_more_after,
-          },
-        };
-      }),
+    const known = state.sessions.find(session => session.id === page.session_id);
+    const session: ChatSession = known ?? {
+      id: page.session_id, messages: [], isProcessing: false, ...childStubFor(page.session_id),
     };
+    const patch = mergeCanonicalPage(session, page, tool, windowAtRequest);
+    if (!patch) return {};
+    const updated = { ...session, ...patch };
+    return { sessions: known
+      ? state.sessions.map(value => value === known ? updated : value)
+      : [...state.sessions, updated] };
   }),
 
   loadEarlierMessages: async (sessionId) => {
@@ -1199,8 +1314,12 @@ export const useChat = create<ChatState>((set, get) => ({
     if (get().sessionHistoryMode !== 'v2') return Promise.resolve();
     const key = `${sessionId}\u0000${messageId}\u0000${direction}`;
     const running = transcriptPageLoads.get(key);
-    if (running) return running;
+    if (running?.authorized()) return running.request;
     const authorized = sessionReadGuard(sessionId);
+    if (!authorized()) return Promise.resolve();
+    // Keep store single-flight scoped to this ACL generation. The transport
+    // must not share a pending HTTP response started before a regrant.
+    const originalWindow = get().sessions.find(session => session.id === sessionId)?.messageWindow ?? null;
     // Page by message id with the around query: it needs no cursor, so any
     // loaded row can extend history in either direction (including both
     // sides of a gap left by a jump to a distant message).
@@ -1209,16 +1328,21 @@ export const useChat = create<ChatState>((set, get) => ({
       : direction === 'after'
         ? { before: 0, after: SESSION_MESSAGE_PAGE_SIZE }
         : { before: JUMP_CONTEXT_BEFORE, after: JUMP_CONTEXT_AFTER };
-    const request = listSessionMessages(sessionId, { around: messageId, ...window })
+    const request = requestTranscript(signal => listSessionMessages(sessionId, { around: messageId, ...window }, signal))
       .then((page) => {
         if (!authorized()) return;
         if (page.anchor_found === false) throw new Error('Transcript anchor is no longer available');
-        get().mergeMessageWindow(page);
+        if (page.session_id !== sessionId) throw new Error('Transcript page belongs to another session');
+        get().mergeMessageWindow(page, undefined, originalWindow);
+        if (direction === 'around'
+            && !get().sessions.find(session => session.id === sessionId)?.messages.some(message => message.id === messageId)) {
+          throw new Error('Transcript anchor is no longer available');
+        }
       })
       .finally(() => {
-        if (transcriptPageLoads.get(key) === request) transcriptPageLoads.delete(key);
+        if (transcriptPageLoads.get(key)?.request === request) transcriptPageLoads.delete(key);
       });
-    transcriptPageLoads.set(key, request);
+    transcriptPageLoads.set(key, { request, authorized });
     return request;
   },
 
@@ -1328,7 +1452,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   applyLiveState: (sessionId, frames, active = true) => {
-    if (!sessionId || !Array.isArray(frames)) return;
+    if (!sessionId || sessionIsRevoked(sessionId) || !Array.isArray(frames)) return;
     noteFrame(sessionId);
     pendingDeltas.delete(sessionId);
     const live = liveMessagesFromFrames(frames, active);
@@ -1450,6 +1574,17 @@ export const useChat = create<ChatState>((set, get) => ({
         ], s.activeSessionId),
       };
       stubAdded = true;
+    }
+
+    // A tool, prompt or terminal event can arrive before the next animation
+    // frame. Commit this session's preceding text before placing the event.
+    const boundaryId = sessionId ?? (msg.type === 'error' || msg.type === 'command_result' ? s.activeSessionId : null);
+    if (boundaryId && ['status', 'text_final', 'seed', 'session_compacted', 'error', 'command_result'].includes(msg.type)) {
+      const delta = takeDelta(boundaryId);
+      if (delta) {
+        s = { ...s, sessions: s.sessions.map(se => se.id === boundaryId ? applyDelta(se, delta, s.activeSessionId) : se) };
+        stubAdded = true;
+      }
     }
 
     if (msg.type === 'text_final') {
@@ -1627,38 +1762,7 @@ export const useChat = create<ChatState>((set, get) => ({
       pendingDeltas.set(sid, (pendingDeltas.get(sid) ?? '') + delta);
       scheduleDeltaFlush((snapshot) => {
         set((cur) => ({
-          sessions: cur.sessions.map((ses) => {
-            const buffered = snapshot.get(ses.id);
-            if (!buffered) return ses;
-            const msgs = [...ses.messages];
-            const last = msgs[msgs.length - 1];
-            if (last && last.role === 'assistant' && last.streaming) {
-              msgs[msgs.length - 1] = { ...last, text: last.text + buffered };
-            } else {
-              msgs.push({
-                id: genId(),
-                role: 'assistant' as const,
-                text: buffered,
-                timestamp: Date.now(),
-                streaming: true,
-              });
-            }
-            return {
-              ...ses,
-              messages: msgs,
-              statusText: undefined,
-              // Visible output has started — clear the reasoning shimmer
-              // (safety net per the wire contract in case the server's
-              // explicit ``reasoning active=false`` frame was missed).
-              isReasoning: false,
-              // NOTE: deliberately NOT re-stamping lastActiveAt here. It is
-              // set on user send (addUserMessage) and hydrate; restamping it
-              // every animation frame churned the sort key and forced the
-              // recent-session feed to re-sort + re-render ~60x/s while
-              // streaming, for a value that only changes at 1s granularity.
-              hasUnread: cur.activeSessionId === ses.id ? ses.hasUnread : true,
-            };
-          }),
+          sessions: cur.sessions.map(ses => applyDelta(ses, snapshot.get(ses.id), cur.activeSessionId)),
         }));
       });
       // Commit the stub (if any) so the deferred flush finds the session row.
@@ -1666,51 +1770,12 @@ export const useChat = create<ChatState>((set, get) => ({
     }
 
     if (msg.type === 'response') {
-      const attachments = normalizedAttachments(msg.attachments);
-      // Drop any buffered deltas for this session — the response
-      // frame is canonical, applying them on top would duplicate
-      // content.
+      // The receipt already includes any as-yet unpainted trailing delta.
       pendingDeltas.delete(msg.session_id);
-      return {
-        sessions: s.sessions.map((ses) => {
-          if (ses.id !== msg.session_id) return ses;
-          const msgs = [...ses.messages];
-          const last = msgs[msgs.length - 1];
-          // If a streaming bubble is in-flight, replace its content
-          // with the canonical RESPONSE text (which strips attachment
-          // markers + carries model meta). Otherwise append a new
-          // bubble — the legacy single-RESPONSE path used by older
-          // gateways and clients that ignore ``delta``.
-          if (last && last.role === 'assistant' && last.streaming) {
-            msgs[msgs.length - 1] = {
-              ...last,
-              text: msg.text,
-              attachments,
-              parts: normalizeMessageContent(msg.parts, msg.artifacts, msg.text, attachments ?? []),
-              model: msg.model,
-              streaming: false,
-            };
-          } else {
-            msgs.push({
-              id: genId(),
-              role: 'assistant' as const,
-              text: msg.text,
-              timestamp: Date.now(),
-              attachments,
-              parts: normalizeMessageContent(msg.parts, msg.artifacts, msg.text, attachments ?? []),
-              model: msg.model,
-            });
-          }
-          return {
-            ...ses,
-            isProcessing: false,
-            statusText: undefined,
-            // Turn ended — clear the reasoning shimmer (safety net).
-            isReasoning: false,
-            messages: msgs,
-          };
-        }),
-      };
+      return { sessions: s.sessions.map(ses => ses.id !== msg.session_id ? ses : {
+        ...ses, messages: finishNativeResponse(ses.messages, msg),
+        isProcessing: false, isReasoning: false, statusText: undefined,
+      }) };
     }
 
     if (msg.type === 'command_result') {
@@ -1767,8 +1832,8 @@ export const useChat = create<ChatState>((set, get) => ({
     set((s) => ({
       sessions: s.sessions.map((ses) => {
         if (ses.id !== sessionId) return ses;
-        // Flush any buffered deltas for this session so nothing is lost.
-        pendingDeltas.delete(sessionId);
+        // A turn_complete can be the only terminal frame.
+        ses = applyDelta(ses, takeDelta(sessionId), s.activeSessionId);
         // Clear the stuck streaming flag on the last assistant bubble (if any)
         // and mark the session as no longer processing. This is idempotent:
         // if ``response`` already landed and cleaned up, the messages and
@@ -1871,6 +1936,8 @@ export const useChat = create<ChatState>((set, get) => ({
     const mode = get().sessionHistoryMode;
     if (mode === 'unknown') return false;
     const current = sessionReadGuard(sessionId);
+    if (!current()) return false;
+    const originalWindow = ses.messageWindow ?? null;
     const request = Symbol();
     latestReconciliation.set(sessionId, request);
     return loadSessionTranscript(sessionId, mode)
@@ -1888,8 +1955,13 @@ export const useChat = create<ChatState>((set, get) => ({
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
             if (!canReconcile(se)) return se;
-            const patch = transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow);
-            return { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) };
+            const currentWindow = se.messageWindow;
+            const revisionOrder = loaded.kind === 'v2' && currentWindow
+              ? compareTranscriptRevision(loaded.page.revision, currentWindow.revision) : 1;
+            const incremental = revisionOrder < 0 || (revisionOrder === 0 && originalWindow !== currentWindow);
+            const patch = incremental && loaded.kind === 'v2' ? mergeCanonicalPage(se, loaded.page, undefined, originalWindow)
+              : transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, currentWindow);
+            return patch ? { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) } : se;
           }),
         }));
         return true;
@@ -1926,6 +1998,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   dropSessionLocal: (sessionId) => set((s) => {
+    pendingDeltas.delete(sessionId);
     if (!s.sessions.some((ses) => ses.id === sessionId)) return {};
     const sessions = s.sessions.filter((ses) => ses.id !== sessionId);
     let activeSessionId = s.activeSessionId;
@@ -1936,9 +2009,11 @@ export const useChat = create<ChatState>((set, get) => ({
   }),
 
   clearAll: () => {
+    pendingDeltas.clear();
     resetSessionReadAccess();
     transcriptPageLoads.clear();
     latestReconciliation.clear();
+    tailTranscriptLoads.clear();
     set({
       sessions: [],
       activeSessionId: null,

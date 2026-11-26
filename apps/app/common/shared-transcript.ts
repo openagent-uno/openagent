@@ -11,10 +11,28 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
     group.push(message);
     durableRuns.set(message.providerRunId, group);
   }
-  const replacedRuns = new Set(snapshot.turns.filter(t => t.active).map(t => t.providerRunId).filter(Boolean));
-  const base = previous.filter(m => !turns.has(m.sharedTurnId || '') && !replacedRuns.has(m.providerRunId));
+  const published = new Set<string>();
+  const liveCalls = new Map<string, Set<string>>();
+  for (const turn of snapshot.turns) {
+    if (!turn.providerRunId || !turn.runId) continue;
+    const saved = durableRuns.get(turn.providerRunId);
+    if (saved?.some(m => m.role === 'assistant' && m.durableStatus === 'complete')) {
+      published.add(turn.providerRunId);
+    } else if (turn.active) {
+      liveCalls.set(turn.providerRunId, new Set(turn.tools?.map(tool => tool.id)));
+    }
+  }
+  const base = previous.filter(message => {
+    if (turns.has(message.sharedTurnId || '')) return false;
+    const calls = message.providerRunId && liveCalls.get(message.providerRunId);
+    // Bounded live snapshots can omit older tools from this same turn.
+    return !calls || (message.role === 'tool' && message.ordinal != null
+      && !calls.has(message.toolInfo?.tool_call_id ?? ''));
+  });
   for (const turn of snapshot.turns) {
     if (!turn.runId) continue; // Native transports have their own live reducer.
+    if (turn.providerRunId && published.has(turn.providerRunId)
+      && (turn.active || durableRuns.get(turn.providerRunId)?.some(m => m.transcriptSegment))) continue;
     const response = turn.messages.find(message => message.role === 'assistant');
     const durable = !turn.active && turn.providerRunId ? durableRuns.get(turn.providerRunId) : undefined;
     const durableReplies = durable?.filter(message => message.role === 'assistant') ?? [];
@@ -70,7 +88,10 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
     if (turn.error) base.push({ id: `shared:${turn.id}:error`, sharedTurnId: turn.id,
       role: 'assistant', text: turn.error, timestamp: (turn.finishedAt || turn.startedAt) * 1000 });
   }
-  return base.sort((a, b) => a.timestamp - b.timestamp);
+  // An imported message can have an earlier timestamp than its predecessor.
+  // Keep the authoritative page order when a live snapshot arrives.
+  const saved = base.filter(m => m.ordinal != null).sort((a, b) => a.ordinal! - b.ordinal!);
+  return mergeOutboundTranscript(saved, base.filter(m => m.ordinal == null));
 }
 
 export function unconfirmedMessages(
@@ -123,13 +144,36 @@ export function reconcileSharedReplies(
 /** Split only the rendered reply. Keep durable rows and pagination anchors
  * intact in the store. Tool updates keep their card ID. */
 export function placeSharedTools(messages: readonly ChatMessage[]): readonly ChatMessage[] {
+  if (messages.some(message => message.transcriptSegment)) {
+    const durable = new Set(messages.filter(m => m.transcriptSegment).map(m => m.providerRunId));
+    // A live observer can still be attached to a published turn. Apply each
+    // placement once, and only within its run.
+    const live = placeLiveTools(messages, durable);
+    return live.flatMap((message): ChatMessage[] => {
+      const segment = message.transcriptSegment;
+      if (!segment) return [message];
+      if (message.role === 'assistant') {
+        return [{ ...message, ...segment, attachments: undefined }];
+      }
+      if (message.role !== 'tool' || (!segment.text && !segment.parts.length)) return [message];
+      return [{
+        ...segment, id: `before-tool:${message.id}`, role: 'assistant', pageAnchorId: message.id,
+        ordinal: message.ordinal, timestamp: message.timestamp, providerRunId: message.providerRunId,
+        model: message.model,
+      }, message];
+    });
+  }
+  return placeLiveTools(messages);
+}
+
+function placeLiveTools(messages: readonly ChatMessage[], durable?: ReadonlySet<string | undefined>): readonly ChatMessage[] {
   if (!messages.some(message => message.toolPosition)) return messages;
   const replies = new Map(messages.filter(m => m.role === 'assistant').map(m => [m.id, m]));
   const toolsByReply = new Map<string, ChatMessage[]>();
   const placed = new Set<ChatMessage>();
   for (const tool of messages) {
     const position = tool.toolPosition;
-    if (tool.role !== 'tool' || !position || !replies.has(position.messageId)) continue;
+    if (tool.role !== 'tool' || !position || !replies.has(position.messageId) || durable?.has(tool.providerRunId)) continue;
     const tools = toolsByReply.get(position.messageId) ?? [];
     tools.push(tool);
     toolsByReply.set(position.messageId, tools);
@@ -145,31 +189,29 @@ export function placeSharedTools(messages: readonly ChatMessage[]): readonly Cha
   });
 }
 
-function splitReply(message: ChatMessage, tools: ChatMessage[]): ChatMessage[] {
+/** Slice only an exact public answer. The same operation handles a live
+ * response receipt and the collaboration observer's Unicode offsets. */
+export function replySegments(message: ChatMessage, ends: readonly number[]) {
   const characters = Array.from(message.text);
-  const originalParts = message.parts ?? [];
-  if (originalParts.length && originalParts.map(part => part.kind === 'text' ? part.text : '').join('') !== message.text) {
-    // No reliable mapping from plain-text positions to this rich answer.
-    return [...tools, message];
-  }
-  const rows: ChatMessage[] = [];
+  const original = message.parts ?? [];
+  if (original.length && original.map(p => p.kind === 'text' ? p.text : '').join('') !== message.text) return null;
   let offset = 0;
   let partIndex = 0;
   let partOffset = 0;
-  let previousTool: string | undefined;
-  let first = true;
-  const appendSegment = (end: number, final: boolean) => {
+  return [...ends, characters.length].map((requested, index) => {
+    const end = Math.max(offset, Math.min(requested, characters.length));
     const text = characters.slice(offset, end).join('');
     offset = end;
     let remaining = text.length;
-    const parts = [] as NonNullable<ChatMessage['parts']>;
-    while (partIndex < originalParts.length && (remaining > 0 || final)) {
-      const part = originalParts[partIndex];
+    const final = index === ends.length;
+    const parts: NonNullable<ChatMessage['parts']> = [];
+    while (partIndex < original.length && (remaining > 0 || final)) {
+      const part = original[partIndex];
       if (part.kind !== 'text') {
         parts.push(part);
       } else {
         const length = Math.min(remaining, part.text.length - partOffset);
-        if (length > 0) parts.push({ ...part, text: part.text.slice(partOffset, partOffset + length) });
+        if (length) parts.push({ ...part, text: part.text.slice(partOffset, partOffset + length) });
         remaining -= length;
         partOffset += length;
         if (partOffset < part.text.length) break;
@@ -177,21 +219,25 @@ function splitReply(message: ChatMessage, tools: ChatMessage[]): ChatMessage[] {
       partIndex++;
       partOffset = 0;
     }
-    const attachments = final && !originalParts.length ? message.attachments : undefined;
-    if (!text && !parts.length && !attachments?.length) return;
-    rows.push({
-      ...message, id: first ? message.id : `${message.id}:after:${previousTool}`,
-      text, parts: parts.length ? parts : undefined, attachments,
-      streaming: final && message.streaming,
-    });
-    first = false;
-  };
-  for (const tool of tools) {
-    const end = Math.max(offset, Math.min(tool.toolPosition!.afterText, characters.length));
-    appendSegment(end, false);
-    rows.push(tool);
-    previousTool = tool.id;
+    return { text, parts, attachments: final && !original.length ? message.attachments : undefined };
+  });
+}
+
+function splitReply(message: ChatMessage, tools: ChatMessage[]): ChatMessage[] {
+  const segments = replySegments(message, tools.map(tool => tool.toolPosition!.afterText));
+  if (!segments) return [...tools, message];
+  const rows: ChatMessage[] = [];
+  let first = true;
+  for (const [index, { text, parts, attachments }] of segments.entries()) {
+    if (text || parts.length || attachments?.length) {
+      rows.push({
+        ...message, id: first ? message.id : `${message.id}:after:${tools[index - 1].id}`,
+        text, parts: parts.length ? parts : undefined, attachments,
+        streaming: index === tools.length && message.streaming,
+      });
+      first = false;
+    }
+    if (index < tools.length) rows.push(tools[index]);
   }
-  appendSegment(characters.length, true);
   return rows;
 }

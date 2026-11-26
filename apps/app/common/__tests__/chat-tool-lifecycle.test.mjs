@@ -61,6 +61,23 @@ test('a new local chat has recency before its first durable history row exists',
   assert.ok(session.lastActiveAt >= before);
 });
 
+test('turn completion drains the last delta and switching accounts drops buffered text', () => {
+  const id = 'same-session';
+  const start = () => useChat.setState({activeSessionId: id,
+    sessions: [{id, messages: [], isProcessing: true}]});
+  useChat.getState().clearAll();
+  start();
+  useChat.getState().handleServerMessage({type: 'delta', session_id: id, text: 'last words'});
+  useChat.getState().finaliseStreaming(id);
+  assert.deepEqual(useChat.getState().sessions[0].messages.map(m => [m.text, m.streaming]), [['last words', false]]);
+  useChat.getState().handleServerMessage({type: 'delta', session_id: id, text: 'old account'});
+  useChat.getState().clearAll();
+  start();
+  useChat.getState().finaliseStreaming(id);
+  assert.deepEqual(useChat.getState().sessions[0].messages, []);
+  useChat.getState().clearAll();
+});
+
 test('technical commands do not name a chat and the next real request repairs it', () => {
   const calls = [];
   globalThis.__oaUpdateSessionMetadata = async (...args) => { calls.push(args); };

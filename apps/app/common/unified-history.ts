@@ -573,6 +573,8 @@ export interface SessionMessage {
     display?: string | null;
   };
   text: string;
+  /** Authorized prose at this position in the run, before a tool or after the last one. */
+  transcript_segment?: { text: string; parts: unknown[] };
   visible_reasoning?: string | null;
   tool_invocation_id?: OpaqueId | null;
   tool_summary?: ToolInvocationSummary | null;

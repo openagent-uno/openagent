@@ -60,6 +60,34 @@ function setup(t, total) {
   t.after(() => useChat.getState().clearAll());
 }
 
+test('a replacement reply invalidates old fragments on already loaded tool pages', async t => {
+  setup(t, 4);
+  const page = {session_id: 'chat', revision: '1', has_more_before: false, has_more_after: false};
+  const tool = { id: 'tool', session_id: 'chat', run_id: 'run', role: 'tool', author: {kind: 'agent'},
+    text: '', ordinal: 1, status: 'complete', transcript_segment: {text: 'Old draft', parts: []} };
+  const answer = {...tool, id: 'answer', role: 'assistant', ordinal: 2, text: 'Old draft. Done.',
+    transcript_segment: {text: 'Done.', parts: []}};
+  useChat.getState().mergeMessageWindow({...page, messages: [tool, answer]});
+  const replacement = {...answer, text: 'Published revision'};
+  delete replacement.transcript_segment;
+  useChat.getState().mergeMessageWindow({...page, has_more_before: true, messages: [replacement]});
+  assert.deepEqual(session().messages.map(m => m.transcriptSegment), [undefined, undefined]);
+  assert.equal(session().messages.at(-1).text, replacement.text);
+});
+
+test('a page of tools without narration leaves an earlier narrated checkpoint intact', async t => {
+  setup(t, 4);
+  const page = {session_id: 'chat', revision: '1', has_more_before: true, has_more_after: true};
+  const tool = {id: 'first', session_id: 'chat', run_id: 'run', role: 'tool', author: {kind: 'agent'},
+    text: '', ordinal: 1, status: 'complete'};
+  const next = {...tool, id: 'next', ordinal: 2};
+  useChat.getState().mergeMessageWindow({...page, messages: [
+    {...tool, transcript_segment: {text: 'Checkpoint', parts: []}}, next,
+  ]});
+  useChat.getState().mergeMessageWindow({...page, messages: [next, {...tool, id: 'last', ordinal: 3}]});
+  assert.equal(session().messages[0].transcriptSegment?.text, 'Checkpoint');
+});
+
 test('earlier pages and tail reloads keep one contiguous loaded history', async (t) => {
   setup(t, 300);
   await useChat.getState().reconcileSession('chat');

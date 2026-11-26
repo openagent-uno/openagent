@@ -108,6 +108,8 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
     if (!messageId) return;
     const controller = new AbortController();
     const current = sessionReadGuard(sessionId);
+    if (!current()) return;
+    const originalWindow = useChat.getState().sessions.find(session => session.id === sessionId)?.messageWindow ?? null;
     void (async () => {
       try {
         const [page, tool] = await Promise.all([
@@ -116,8 +118,8 @@ export function SessionTranscript({ sessionId, live, messageId, toolInvocationId
             ? getToolInvocationDetail(toolInvocationId, controller.signal)
             : Promise.resolve(undefined),
         ]);
-        if (current() && !controller.signal.aborted && page.anchor_found !== false) {
-          mergeMessageWindow(page, tool);
+        if (current() && !controller.signal.aborted && page.session_id === sessionId && page.anchor_found !== false) {
+          mergeMessageWindow(page, tool, originalWindow);
         }
       } catch {
         // The enclosing run remains useful even when a stale anchor vanished.

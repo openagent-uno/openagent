@@ -29,6 +29,12 @@ from openagent_core.memory.operational.maintenance import (
     OperationalMaintenanceStatus,
     maintain_operational_storage,
 )
+try:
+    from openagent_core.memory.transcript_layout import transcript_segments
+except ModuleNotFoundError as exc:
+    if exc.name != "openagent_core.memory.transcript_layout":
+        raise
+    transcript_segments = None  # Older Core versions still serve canonical pages.
 
 from ._common import gateway_db
 
@@ -2343,20 +2349,37 @@ async def handle_session_messages(request: web.Request) -> web.Response:
                 access=access,
             ),
         )
+        messages = [
+            _message_json(
+                row,
+                attachments=attachment_map.get(str(row["id"]), []),
+                ui_parts=ui_part_map.get(str(row["id"]), []),
+                canonical_parts=canonical_part_map.get(str(row["id"])),
+                compact_tools=request.query.get('tool_details') == 'deferred',
+                run_target=run_target_map.get(str(row["resolved_tool_id"])),
+            )
+            for row in rows
+        ]
+        if messages and request.query.get("timeline") == "interleaved" and transcript_segments is not None:
+            try:
+                segments = await transcript_segments(conn, access=access, session_id=session_id, messages=messages)
+            except (ApiProblem, PermissionError):
+                raise
+            except Exception:
+                # Layout is optional. A damaged or incompatible event journal
+                # must leave the public transcript readable under its current ACL.
+                logger.warning("Optional transcript layout unavailable")
+                segments = {}
+            session = await _session_acl_row(conn, session_id)
+            if session is None or not await resource_is_visible(conn, session, access):
+                raise ApiProblem(404, "target_not_found", "This result is no longer available")
+            for message in messages:
+                if message["id"] in segments:
+                    message["transcript_segment"] = segments[message["id"]]
         return _json(
             {
                 "session_id": session_id,
-                "messages": [
-                    _message_json(
-                        row,
-                        attachments=attachment_map.get(str(row["id"]), []),
-                        ui_parts=ui_part_map.get(str(row["id"]), []),
-                        canonical_parts=canonical_part_map.get(str(row["id"])),
-                        compact_tools=request.query.get('tool_details') == 'deferred',
-                        run_target=run_target_map.get(str(row["resolved_tool_id"])),
-                    )
-                    for row in rows
-                ],
+                "messages": messages,
                 "anchor_found": anchor_found,
                 "anchor_message_id": anchor_id,
                 "before_cursor": before_cursor,

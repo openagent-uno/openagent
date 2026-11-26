@@ -990,6 +990,10 @@ export interface ChatMessage {
    * case renderers preserve the historical text-then-attachments order. */
   parts?: MessagePart[];
   toolInfo?: ToolInfo;
+  /** Render-only fragment of the published reply at this canonical row. */
+  transcriptSegment?: { text: string; parts: MessagePart[] };
+  /** A rendered fragment pages from the canonical tool row that carries it. */
+  pageAnchorId?: string;
   /** Place a tool after a Unicode code-point offset in the exact reply. */
   toolPosition?: { messageId: string; afterText: number; order: number };
   /** Set on ``role: 'compaction'`` messages — the compaction card payload. */

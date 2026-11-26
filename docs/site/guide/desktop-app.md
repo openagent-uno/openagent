@@ -23,6 +23,11 @@ cd apps/app
   participants); hovering previews the prompt and clicking jumps to it, loading the
   surrounding page when needed. Auto-scroll detaches only on a real upward gesture
   (wheel, drag, keyboard, scrollbar), never on programmatic layout corrections.
+  The chat requests `timeline=interleaved` on message pages. When the saved stream
+  matches the published answer, the gateway includes the assistant's prose before
+  each tool and the closing text on the answer row. A page opened in the middle of
+  a turn can therefore be read on its own. Copying the answer uses the full text.
+  Gateways without this projection return the original conversation rows.
 - **Recent sidebar** — sessions, workflow, scheduled and event runs that are actively
   working show the same shine sweep as a running tool card.
 - **Vault** *(coming soon)* — Obsidian-style graph view + markdown editor
