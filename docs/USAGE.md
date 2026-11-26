@@ -172,6 +172,18 @@ workflows are historical until ported to the root `.github/`. Source tests,
 closed-wheel tests, signed GUI, external provider acceptance and rollout remain
 different evidence levels.
 
+## Large responses over Iroh
+
+The standalone HTTP transport sends Iroh responses in order, allowing a
+native write to accept partial data as QUIC send credit becomes available.
+The 120-second send limit measures time without write progress. A steady
+response can take longer. Clean EOF follows the final successful write. If
+a send stalls, the transport abandons that stream with a reset so the peer
+can detect the failure.
+
+The limit covers send progress in the server transport. Client request
+deadlines and the speed of the underlying QUIC path are independent.
+
 ## Switch agents in the App
 
 After adding an agent, use the avatar rail to the left of navigation to switch
