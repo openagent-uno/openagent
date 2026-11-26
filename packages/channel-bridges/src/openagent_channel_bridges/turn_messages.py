@@ -9,6 +9,7 @@ import time
 from datetime import timedelta
 
 from openagent_core.media import parse_response_markers
+from openagent_core.stream.content_parts import ContentMarkerStreamFilter
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +22,22 @@ class _MessageGate:
     async def wait(self):
         async with self.lock:
             delay = self.next_at - time.monotonic()
-            if delay > 0:
+            while delay > 0:
                 await asyncio.sleep(delay)
+                delay = self.next_at - time.monotonic()
             self.next_at = time.monotonic() + self.interval
+
+    def defer(self, delay):
+        self.next_at = max(self.next_at, time.monotonic() + delay)
+
+
+def _explicit_retry_delay(error):
+    delay = getattr(error, "retry_after", None)
+    if isinstance(delay, timedelta):
+        delay = delay.total_seconds()
+    if type(delay) in (int, float) and math.isfinite(delay) and 0 <= delay <= 30:
+        return delay
+    return None
 
 
 class EditableMessage:
@@ -79,23 +93,28 @@ class EditableMessage:
             raise
         except Exception as exc:
             self.error = exc
+            if self.handle is None and _explicit_retry_delay(exc) is not None:
+                # Each attempt was explicitly rejected. A later update can
+                # retry the initial send without duplicating an accepted post.
+                self.send_attempted = False
             logger.warning("Channel message update failed (%s)", type(exc).__name__)
 
-    @staticmethod
-    async def _provider_call(operation, *args):
+    async def _provider_call(self, operation, *args):
         # Only an explicit provider rate-limit rejection is safe to retry.
         # Network timeouts can hide an accepted send and are never retried.
         for attempt in range(3):
             try:
                 return await operation(*args)
             except Exception as exc:
-                delay = getattr(exc, "retry_after", None)
-                if isinstance(delay, timedelta):
-                    delay = delay.total_seconds()
-                if (attempt == 2 or type(delay) not in (int, float)
-                        or not math.isfinite(delay) or not 0 <= delay <= 30):
+                delay = _explicit_retry_delay(exc)
+                if delay is None:
                     raise
-                await asyncio.sleep(delay)
+                # Parent and child receipts share one destination and respect
+                # its cooldown even when only one provider call receives it.
+                self.gate.defer(delay)
+                if attempt == 2:
+                    raise
+                await self.gate.wait()
 
     async def finish(self, text):
         await self.update(text)
@@ -121,6 +140,8 @@ class EditableTurn:
         self.children = {}
         self.child_labels = {}
         self.child_states = {}
+        self.child_text = {}
+        self.child_filters = {}
         self.text = ""
         self.operation = ""
 
@@ -161,15 +182,46 @@ class EditableTurn:
         if terminal:
             self.child_states[session_id] = operation
         message = self.children.setdefault(session_id, EditableMessage(self.bridge, self.target, self.gate))
+        await message.update(self._child_body(session_id, operation))
+
+    def _child_body(self, session_id, operation):
         title = "Delegated to sub-agent"
         if self.child_labels.get(session_id):
             title += " · " + self.child_labels[session_id]
-        await message.update((title + "\n\n" + operation)[:self.bridge.message_limit])
+        # Keep the heading and current operation visible when a long child
+        # answer must fit the same editable receipt.
+        operation = operation[:max(0, self.bridge.message_limit - len(title) - 2)]
+        budget = self.bridge.message_limit - len(title) - len(operation) - 4
+        narration = self.child_text.get(session_id, "").strip()
+        if budget > 0:
+            narration = narration[-budget:]
+        else:
+            narration = ""
+        return "\n\n".join(part for part in (title, narration, operation) if part)
 
     async def child_frame(self, frame):
         from .base import format_tool_status
         sid, kind = frame.get("session_id"), frame.get("type") or frame.get("kind")
-        if kind == "status":
+        if not isinstance(sid, str) or not sid or sid in self.child_states:
+            return
+        if kind in {"delta", "response"}:
+            text = frame.get("text")
+            if not isinstance(text, str):
+                return
+            if kind == "response":
+                # The canonical child reply supersedes streamed prose.
+                snapshot_filter = ContentMarkerStreamFilter()
+                self.child_text[sid] = (snapshot_filter.feed(text) + snapshot_filter.finish())[-self.bridge.message_limit:]
+                self.child_filters.pop(sid, None)
+            else:
+                marker_filter = self.child_filters.get(sid)
+                if marker_filter is None:
+                    marker_filter = self.child_filters[sid] = ContentMarkerStreamFilter()
+                visible = marker_filter.feed(text)
+                marker_filter.refs.clear()  # Child progress carries no downloadable media or inline UI.
+                self.child_text[sid] = (self.child_text.get(sid, "") + visible)[-self.bridge.message_limit:]
+            await self.child(sid, "")
+        elif kind == "status":
             await self.child(sid, format_tool_status(frame.get("text") or "Thinking…"))
         elif kind in {"turn_complete", "done"}:
             reason = frame.get("reason") or frame.get("end_reason") or "completed"
@@ -195,10 +247,7 @@ class EditableTurn:
         if choices and self.main.handle is not None:
             await self.bridge.set_turn_choices(self.target, self.main.handle, choices)
         for sid, message in self.children.items():
-            title = "Delegated to sub-agent"
-            if self.child_labels.get(sid):
-                title += " · " + self.child_labels[sid]
-            await message.finish(title + "\n\n" + self.child_states.get(sid, child_outcome))
+            await message.finish(self._child_body(sid, self.child_states.get(sid, child_outcome)))
 
     async def cancel(self):
         await asyncio.gather(self.main.cancel(), *(message.cancel() for message in self.children.values()))
