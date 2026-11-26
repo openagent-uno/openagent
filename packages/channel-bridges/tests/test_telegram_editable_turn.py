@@ -215,3 +215,31 @@ async def test_failed_child_remains_failed_after_successful_parent():
     children = [sent for sent in message.sent if sent.text.startswith('Delegated to sub-agent')]
     assert len(children) == 1 and children[0].text.endswith('Failed')
     await bridge.stop()
+
+
+@pytest.mark.asyncio
+async def test_retry_after_cools_the_parent_and_children_on_the_same_destination():
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges.turn_messages import EditableTurn
+
+    limited = asyncio.Event()
+    posted = []
+    loop = asyncio.get_running_loop()
+    retry = 0.05
+
+    async def post(target, text):
+        at = loop.time()
+        posted.append((text, at))
+        if len(posted) == 1:
+            limited.set()
+            raise RetryAfter(retry)
+        return object()
+
+    stub = SimpleNamespace(turn_edit_interval=0, message_limit=4096, post_turn_message=post)
+    turn = EditableTurn(stub, object())
+    await turn.delta("parent")
+    await limited.wait()
+    await turn.child("child", "thinking")
+    await asyncio.gather(turn.main.task, turn.children["child"].task)
+    assert len(posted) == 3
+    assert all(at - posted[0][1] >= retry * .9 for _, at in posted[1:])

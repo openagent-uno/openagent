@@ -353,18 +353,21 @@ SDK/stdio tests do not qualify a live provider, deployment or published wheel.
 
 Live text turns use one editable main provider message for narration, tool
 progress, compaction and the final answer. Each actual child session has one
-separate editable message headed `Delegated to sub-agent`, with only its own
-current operation and terminal outcome. Updates are coalesced into a bounded
+separate editable message headed `Delegated to sub-agent`. It shows the
+child’s streamed text and current operation, then retains the child’s reply
+alongside its terminal outcome. Updates are coalesced into a bounded
 latest-value mailbox and throttled across the turn; every send/edit retains
 fresh audience and host authorization. An explicit provider rate-limit
-rejection has at most two bounded retries. An uncertain initial send is never
+rejection has at most two bounded retries and delays both the parent and
+child receipts in the same turn. An uncertain initial send is never
 blindly repeated. Final answers exceeding a provider's size limit use
 continuation messages; files retain the normal attachment path. Quiet and
 voice delivery keep their existing semantics.
 
 Hosts may advertise `child` in `progress_kinds` and emit `BridgeEvent("child",
-json_frame)` with exact `session_id`, `type` (`status`, `turn_complete`, `error`)
-and optional `text`/terminal `reason`. Only the host's admitted child events may
+json_frame)` with exact `session_id`, `type` (`delta`, `response`, `status`,
+`turn_complete`, `error`) and optional `text`/terminal `reason`. A `delta`
+appends text and a `response` replaces it with the complete child reply. Only the host's admitted child events may
 be forwarded; stale events must not attach to a later turn. Hosts that do not
 provide child events retain the main edited reply.
 
