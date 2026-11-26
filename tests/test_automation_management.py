@@ -361,8 +361,23 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             stack.push_async_callback(automation.close)
             client = await stack.enter_async_context(TestClient(TestServer(app)))
             async def run(path, **payload):
-                async with client.post(path, json=payload) as response:
+                async with asyncio.timeout(10), client.post(path, json=payload) as response:
                     return response.status, await response.json()
+
+            async def assert_first_run(response, request_id, run_id, trigger, get_run):
+                status, row = response
+                if status == 202:
+                    # The scheduler can claim the same occurrence before the HTTP caller.
+                    self.assertEqual(row, {"run_id": run_id, "request_id": request_id, "status": "running"})
+                    async with asyncio.timeout(10):
+                        while True:
+                            row = await get_run(run_id)
+                            if row and row["finished_at"] is not None:
+                                break
+                            await asyncio.sleep(0.01)
+                else:
+                    self.assertEqual(status, 200, row)
+                self.assertEqual((row["id"], row["status"], row["trigger"]), (run_id, "success", trigger))
 
             task_path = f"/api/scheduled-tasks/{task['id']}/run"
             task_id = str(uuid5(NAMESPACE_URL, f"task:{task['id']}:task-key"))
@@ -370,28 +385,32 @@ class AutomationManagementTests(unittest.IsolatedAsyncioTestCase):
             try:
                 await asyncio.wait_for(entered.wait(), 10)
                 pending, duplicate = await run(task_path, request_id="task-key")
-                self.assertEqual((pending, duplicate["run_id"]), (202, task_id))
+                self.assertEqual(pending, 202)
+                self.assertEqual(duplicate, {"run_id": task_id, "request_id": "task-key", "status": "running"})
             finally:
                 release.set()
-                status, result = await first
-            self.assertEqual((status, result["id"], result["status"]), (200, task_id, "success"))
+                first_response = await first
+            await assert_first_run(first_response, "task-key", task_id, "manual", self.db.get_task_run)
             self.assertEqual(calls, [task["id"]])
             status, result = await run(task_path, request_id="task-key")
-            self.assertEqual((status, result["id"]), (200, task_id))
+            self.assertEqual(status, 200, result)
+            self.assertEqual((result["id"], result["status"], result["trigger"]), (task_id, "success", "manual"))
             self.assertEqual(calls, [task["id"]])
+            self.assertEqual([row["id"] for row in await self.db.list_task_runs(task["id"])], [task_id])
             denied, _ = await run(f"/api/scheduled-tasks/{unapproved}/run", request_id="denied")
             self.assertEqual(denied, 403)
             self.assertEqual(await self.db.list_task_runs(unapproved), [])
 
             workflow_path = f"/api/workflows/{workflow['id']}/run"
             workflow_id = str(uuid5(NAMESPACE_URL, f"workflow:{workflow['id']}:workflow-key"))
-            for _ in range(2):
-                status, result = await run(workflow_path, request_id="workflow-key", inputs={"value": 1})
-                self.assertEqual((status, result["id"], result["status"], result["trigger"]),
-                                 (200, workflow_id, "success", "api"))
+            first_response = await run(workflow_path, request_id="workflow-key", inputs={"value": 1})
+            await assert_first_run(first_response, "workflow-key", workflow_id, "api", self.db.get_workflow_run)
+            status, result = await run(workflow_path, request_id="workflow-key", inputs={"value": 1})
+            self.assertEqual(status, 200, result)
+            self.assertEqual((result["id"], result["status"], result["trigger"]), (workflow_id, "success", "api"))
             status, conflict = await run(workflow_path, request_id="workflow-key", inputs={"value": 2})
             self.assertEqual((status, conflict["error"]), (409, "idempotency_conflict"))
-            self.assertEqual(len(await self.db.list_workflow_runs(workflow['id'])), 1)
+            self.assertEqual([row["id"] for row in await self.db.list_workflow_runs(workflow['id'])], [workflow_id])
 
     async def test_delegated_task_can_run_separately_authorized_workflow(self):
         workflow=await self.management.call('workflow','create_workflow',
