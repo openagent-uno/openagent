@@ -1,8 +1,10 @@
 # App beta 76
 
 Long conversations keep the history you have already opened when the app
-reconnects. Opening a result in the middle of a long turn retrieves the
-surrounding messages. With a compatible server, the transcript shows the
+reconnects. Opening a search result retrieves the surrounding messages and
+keeps the latest replies reachable even when those pages arrive out of order.
+Jump to bottom can retry a failed request for the latest replies.
+With a compatible server, the transcript shows the
 assistant’s text next to the tool it described. Copy uses the complete answer.
 
 An unsent message stays at the time it was sent, where its delivery notice
