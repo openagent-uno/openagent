@@ -1195,6 +1195,7 @@ const styles = StyleSheet.create({
     fontFamily: font.mono,
   },
   toolCard: {
+    width: '100%',
     backgroundColor: colors.surface, borderRadius: radius.md,
     borderWidth: 1, borderColor: colors.borderLight,
     marginVertical: 4, overflow: 'hidden',

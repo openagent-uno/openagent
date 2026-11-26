@@ -129,6 +129,9 @@ including attachments and rich parts. The App reuses the live positions during
 history reconciliation when the canonical reply matches the observed text.
 History without recorded positions keeps its durable order.
 
+Tool cards fill the available transcript column whether they are collapsed or
+expanded. The cards follow the column width when you resize the window.
+
 Completed assistant replies show their executing model at the start of the
 footer, before copy/fork actions and the timestamp. Model and time share the
 same muted color, monospace font and size. The canonical transcript exposes an

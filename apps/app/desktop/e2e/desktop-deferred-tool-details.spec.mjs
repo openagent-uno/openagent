@@ -57,16 +57,32 @@ test('tool summaries load details only when opened and retain errors without lea
     await expect(page.getByText('Conversation ready.', { exact: true })).toBeVisible();
     expect(gateway.details).toEqual([]);
     const saved = page.getByTestId('tool-invocation-saved-tool');
+    const denied = page.getByTestId('tool-invocation-denied-tool');
+    const expectFullTranscriptWidth = async (card) => {
+      await expect.poll(() => card.evaluate((element) => {
+        const { left, right } = element.getBoundingClientRect();
+        const row = element.closest('[data-oa-row]').getBoundingClientRect();
+        return Math.max(Math.abs(left - row.left), Math.abs(right - row.right));
+      })).toBeLessThan(1);
+    };
+    await expectFullTranscriptWidth(saved);
+    await expectFullTranscriptWidth(denied);
+    await page.setViewportSize({ width: 560, height: 860 });
+    await expectFullTranscriptWidth(saved);
+    await expectFullTranscriptWidth(denied);
     await saved.click();
     await expect(saved.getByLabel('Loading tool details')).toBeVisible();
     await expect(saved.getByText('Authorized result loaded on demand', { exact: true })).toBeVisible();
+    await expectFullTranscriptWidth(saved);
+    await page.setViewportSize({ width: 1440, height: 1024 });
+    await expectFullTranscriptWidth(saved);
     await saved.click(); await saved.click();
     await expect(saved.getByText('Authorized result loaded on demand', { exact: true })).toBeVisible();
     expect(gateway.details).toEqual(['/api/tool-invocations/saved-tool', '/api/tool-invocations/saved-tool']);
     await saved.click(); gateway.denied.add('saved-tool'); await saved.click();
     await expect(saved.getByRole('alert')).toContainText('could not be loaded');
     await expect(saved.getByText('Authorized result loaded on demand', { exact: true })).toHaveCount(0);
-    const denied = page.getByTestId('tool-invocation-denied-tool'); await denied.click();
+    await denied.click();
     await expect(denied.getByRole('alert')).toContainText('could not be loaded');
     await expect(denied.getByText('Authorized result loaded on demand', { exact: true })).toHaveCount(0);
     await denied.click(); await denied.click();
