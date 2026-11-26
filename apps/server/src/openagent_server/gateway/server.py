@@ -2113,6 +2113,15 @@ class Gateway:
                 "error": error.as_dict(),
             })
 
+        async def _remember_device(connection: CapabilityConnection) -> None:
+            from openagent_server.device_directory import directory_for
+            try:
+                async with asyncio.timeout(2.0):
+                    await directory_for(self).remember(connection)
+            except Exception as error:  # noqa: BLE001 - metadata is not capability authority
+                elog("gateway.device_metadata_failed", level="warning",
+                     device_id=connection.device_id, error_type=type(error).__name__)
+
         try:
             try:
                 first = await asyncio.wait_for(ws.receive(), timeout=10.0)
@@ -2176,15 +2185,9 @@ class Gateway:
                 network_id=cert.network_id,
                 auth_epoch=auth_epoch,
                 auth_epoch_reader=lambda: auth_state.device_epoch(cert.device_pubkey),
+                ready=False,
             )
-            if getattr(self, "runtime_service", None) is not None:
-                # A transport reconnect of this exact origin resumes the
-                # leases its running turns already hold.
-                self.runtime_service.reattach_device_origin(conn)
-                await self._lend_consented_devices(conn)
-            from openagent_server.device_directory import directory_for
-            await directory_for(self).remember(conn)
-            await self._safe_ws_send_json(ws, {
+            if not await self._safe_ws_send_json(ws, {
                 "type": P.CAPABILITY_HELLO_ACK,
                 "protocol": CAPABILITY_PROTOCOL,
                 "device_id": conn.device_id,
@@ -2193,7 +2196,19 @@ class Gateway:
                 "client_instance_id": conn.client_instance_id,
                 "generation": conn.generation,
                 "accepted": True,
-            })
+            }):
+                await ws.close()
+                return ws
+            if (auth_state.device_epoch(cert.device_pubkey) != auth_epoch
+                    or not self.capabilities.activate(conn)):
+                await ws.close(code=4003, message=b"device authorization changed")
+                return ws
+            if getattr(self, "runtime_service", None) is not None:
+                # A transport reconnect of this exact origin resumes the
+                # leases its running turns already hold.
+                self.runtime_service.reattach_device_origin(conn)
+                await self._lend_consented_devices(conn)
+            await _remember_device(conn)
             elog(
                 "gateway.capability_connect",
                 client_id=conn.device_id,
@@ -2213,15 +2228,16 @@ class Gateway:
                 t = frame.get("type")
                 try:
                     if t == P.CAPABILITY_CATALOG_UPDATE:
-                        await self.capabilities.update_catalog(
+                        changed = await self.capabilities.update_catalog(
                             conn,
                             generation=frame.get("generation"),
                             servers=frame.get("servers"),
                         )
-                        if getattr(self, "runtime_service", None) is not None:
-                            self.runtime_service.revoke_device_origin(conn)
-                        await self._lend_consented_devices(conn)
-                        await directory_for(self).remember(conn)
+                        if changed:
+                            if getattr(self, "runtime_service", None) is not None:
+                                self.runtime_service.revoke_device_origin(conn)
+                            await self._lend_consented_devices(conn)
+                            await _remember_device(conn)
                     elif t in {"client_media_packet", "client_media_end"}:
                         self.capabilities.receive_media(conn, frame)
                     elif t == P.CLIENT_TOOL_RESULT:
@@ -2247,12 +2263,12 @@ class Gateway:
                         ):
                             break
                         conn.last_seen_at = time.time()
-                        await directory_for(self).remember(conn)
                         await self._safe_ws_send_json(ws, {
                             "type": P.CAPABILITY_HEARTBEAT_ACK,
                             "generation": conn.generation,
                             "ts_ms": int(time.time() * 1000),
                         })
+                        await _remember_device(conn)
                     elif t == P.PING:
                         await self._safe_ws_send_json(ws, {"type": P.PONG})
                     elif t == P.CLIENT_ARTIFACT_CHUNK:
@@ -2276,8 +2292,8 @@ class Gateway:
                 )
         finally:
             if conn is not None:
+                status = self.capabilities.origin_status(conn)
                 if getattr(self, "runtime_service", None) is not None:
-                    status = self.capabilities.origin_status(conn)
                     if status == "reconnectable":
                         # Only the transport dropped. Running turns keep the
                         # exact origin's leases for a bounded grace; the
@@ -2289,16 +2305,15 @@ class Gateway:
                         self.runtime_service.revoke_device_origin(conn)
                     # "live": the same origin already re-registered on a
                     # newer socket and keeps its leases.
-                from openagent_server.device_directory import directory_for
-                try:
-                    await directory_for(self).remember(conn)
-                finally:
-                    await self.capabilities.unregister(conn)
+                await self.capabilities.unregister(conn)
+                if conn.ready and status != "live":
+                    await _remember_device(conn)
                 elog(
                     "gateway.capability_disconnect",
                     client_id=conn.device_id,
                     client_instance_id=conn.client_instance_id,
                     generation=conn.generation,
+                    close_code=ws.close_code,
                 )
         return ws
 

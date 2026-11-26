@@ -240,11 +240,15 @@ class IrohSite(web.BaseSite):
             loop=loop,
             access_log=None,
         )
-        protocol.connection_made(_ProtocolTransport(writer))
+        transport = _ProtocolTransport(writer)
+        protocol.connection_made(transport)
 
         async def _pump_iroh_to_protocol() -> None:
             try:
                 while True:
+                    await transport.read_ready.wait()
+                    if transport.is_closing():
+                        break
                     chunk = await recv_stream.read(64 * 1024)
                     if not chunk:
                         break
@@ -306,10 +310,12 @@ class _ProtocolTransport:
     keeps both sides consistent.
     """
 
-    __slots__ = ("_writer",)
+    __slots__ = ("_writer", "read_ready")
 
     def __init__(self, writer: IrohStreamWriter) -> None:
         self._writer = writer
+        self.read_ready = asyncio.Event()
+        self.read_ready.set()
 
     def get_extra_info(self, name: str, default: Any = None) -> Any:
         return self._writer.get_extra_info(name, default)
@@ -325,6 +331,7 @@ class _ProtocolTransport:
 
     def close(self) -> None:
         self._writer.close()
+        self.read_ready.set()
 
     def can_write_eof(self) -> bool:
         return self._writer.can_write_eof()
@@ -338,14 +345,12 @@ class _ProtocolTransport:
         loop.create_task(self._writer.write_eof())
 
     def pause_reading(self) -> None:
-        # Backpressure isn't wired through to Iroh's flow control — the
-        # pump task already buffers chunks. Real flow control would
-        # need ``recv_stream.stop()``/``resume()`` which iroh-py 0.35
-        # doesn't expose on Python.
-        return
+        # Stop pulling from the receive stream until aiohttp drains its
+        # request buffer. The unread bytes remain subject to QUIC flow control.
+        self.read_ready.clear()
 
     def resume_reading(self) -> None:
-        return
+        self.read_ready.set()
 
     def set_write_buffer_limits(self, high: int | None = None, low: int | None = None) -> None:
         return

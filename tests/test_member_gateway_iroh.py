@@ -1,13 +1,14 @@
 """Real coordinator/member/device wire: fresh authorization on every HTTP request."""
 import asyncio
 import gzip
+import hashlib
 import json
 import statistics
 import time
 from pathlib import Path
 import tempfile
 import unittest
-from aiohttp import web, ClientSession, ClientTimeout
+from aiohttp import web, ClientSession, ClientTimeout, FormData
 from openagent_core.engine import MemoryDB
 from openagent_gateway import json_compression
 from openagent_identity.identity import Identity
@@ -56,6 +57,17 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                     handled.append(request['user_handle'])
                     return web.json_response({'providers': [], 'authorized': request['user_handle'], 'catalog': 'fixture capability ' * 2000})
                 app.router.add_get('/api/providers', catalog)
+                async def transfer(request):
+                    from openagent_server.gateway.api.artifacts import _read_form
+
+                    staged, metadata = await _read_form(request)
+                    try:
+                        self.assertEqual(metadata["filename"], "transfer.bin")
+                        data = staged.read_bytes()
+                        return web.json_response({"size": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+                    finally:
+                        staged.unlink()
+                app.router.add_post('/api/transfer', transfer)
                 runner = web.AppRunner(app); await runner.setup()
                 site = IrohSite(runner, member.iroh_node)
                 member.iroh_node.register_handler(NetworkAlpn.GATEWAY, site._handle_stream)
@@ -95,6 +107,13 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                     self.assertGreaterEqual(len(live_checks) - before, 16)
                     self.assertEqual(len(handled), 17)
                     self.assertEqual(len(dials), 1)
+                    payload = bytes(range(256)) * (4096 * 12)
+                    form = FormData()
+                    form.add_field('file', payload, filename='transfer.bin', content_type='application/octet-stream')
+                    async with http.post(proxy.base_url + '/api/transfer', data=form) as response:
+                        self.assertEqual(response.status, 200)
+                        receipt = await response.json()
+                    self.assertEqual(receipt, {"size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()})
                     print('OPENAGENT_REAL_MEMBER_PERFORMANCE ' + json.dumps({'cold_ms':cold, 'serial_median_ms':statistics.median(serial), 'serial_total_ms':sum(serial), 'concurrent_median_ms':statistics.median(concurrent), 'coordinator_dials':len(dials), 'http_requests':len(handled), 'live_checks':len(live_checks)}))
                     await store.revoke_device(device.public_bytes)
                     await read(401); self.assertEqual(len(handled), 17)

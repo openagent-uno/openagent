@@ -30,6 +30,9 @@ MAX_CALL_TIMEOUT_S = 600.0
 # Extra time a foreground shell call gets beyond the shell's own ``timeout``,
 # so the shell's timeout result arrives before the call deadline.
 SHELL_TIMEOUT_MARGIN_S = 5.0
+# Older hosts can omit the default from their catalog.
+DEFAULT_SHELL_TIMEOUT_MS = 120_000
+TOOL_CANCEL_SEND_TIMEOUT_S = 1.0
 MAX_PENDING_CALLS_PER_CONNECTION = 64
 CAPABILITY_HEARTBEAT_TIMEOUT_S = 90.0
 MAX_ACTIVE_CAPABILITY_CONNECTIONS = 128
@@ -447,6 +450,7 @@ class CapabilityConnection:
     # Snapshot from NetworkAuthState.  A disconnect advances the epoch before
     # its async close callback, making late WebSocket registration detectable.
     auth_epoch: int = 0
+    ready: bool = True
     connected_at: float = field(default_factory=time.time)
     last_seen_at: float = field(default_factory=time.time)
     pending: dict[str, _PendingCall] = field(default_factory=dict)
@@ -497,7 +501,19 @@ class CapabilityRegistry:
     def connection(
         self, device_id: str, client_instance_id: str,
     ) -> CapabilityConnection | None:
-        return self._connections.get((device_id, client_instance_id))
+        conn = self._connections.get((device_id, client_instance_id))
+        return conn if conn is not None and conn.ready and not getattr(conn.ws, "closed", False) else None
+
+    def activate(self, conn: CapabilityConnection) -> bool:
+        """Publish a WebSocket only after its registration ACK is written."""
+        key = (conn.device_id, conn.client_instance_id)
+        if (self._connections.get(key) is not conn or getattr(conn.ws, "closed", False)
+                or conn.auth_epoch < self._device_block_epoch.get(conn.device_id, -1)):
+            return False
+        conn.ready = True
+        conn.last_seen_at = time.time()
+        self._signal_connection_changed()
+        return True
 
     def origin_for(
         self, device_id: str, client_instance_id: str | None,
@@ -552,6 +568,7 @@ class CapabilityRegistry:
                      if conn.network_id == tenant_id
                      and conn.owner_handle == handle
                      and conn.owner_kind == "user"
+                     and conn.ready
                      and not getattr(conn.ws, "closed", False)
                      and time.time() - conn.last_seen_at < CAPABILITY_HEARTBEAT_TIMEOUT_S)
 
@@ -572,6 +589,7 @@ class CapabilityRegistry:
         media_protocols: Any = None,
         owner_handle: str = "",
         owner_kind: str = "user",
+        ready: bool = True,
     ) -> CapabilityConnection:
         client_instance_id = str(client_instance_id or "").strip()
         device_label = str(device_label or "").strip() or "Client device"
@@ -615,6 +633,7 @@ class CapabilityRegistry:
                 str(network_id).strip() if network_id is not None else None
             ),
             auth_epoch=auth_epoch,
+            ready=ready,
         )
         key = (device_id, client_instance_id)
         detached_to_restore: _DetachedClientShells | None = None
@@ -709,14 +728,15 @@ class CapabilityRegistry:
             self._fail_pending(old, "CLIENT_REPLACED", "capability host was replaced")
             if old.ws is not ws and not getattr(old.ws, "closed", False):
                 try:
-                    await old.ws.close(code=4001, message=b"capability host replaced")
+                    async with asyncio.timeout(2.0):
+                        await old.ws.close(code=4001, message=b"capability host replaced")
                 except Exception:
                     pass
         return conn
 
     async def update_catalog(
         self, conn: CapabilityConnection, *, generation: int, servers: Any,
-    ) -> None:
+    ) -> bool:
         if int(generation or 0) != conn.generation:
             raise ClientCapabilityError("STALE_GENERATION", "catalog generation does not match connection")
         catalog = normalise_catalog(servers)
@@ -736,11 +756,13 @@ class CapabilityRegistry:
                     "CLIENT_REVOKED", "device authorization was revoked",
                     {"retryable": False},
                 )
+            changed = conn.catalog != catalog
             conn.catalog = catalog
             # Catalog mutation is not a liveness proof. Only the authenticated
             # heartbeat (which rechecks the live roster) and correlated tool
             # traffic may refresh ``last_seen_at``; otherwise a suspended host
             # could spam catalog_update forever to evade the heartbeat reaper.
+            return changed
 
     async def unregister(
         self,
@@ -1147,7 +1169,12 @@ class CapabilityRegistry:
             # it instead of the generic deadline: a command allowed to run
             # three minutes must not end at 120 s as an indeterminate
             # mutating call, which also cancels it on the client.
-            requested_ms = args.get("timeout")
+            properties = tool_manifest["input_schema"].get("properties")
+            timeout_schema = properties.get("timeout") if isinstance(properties, dict) else None
+            default_ms = DEFAULT_SHELL_TIMEOUT_MS
+            if isinstance(timeout_schema, dict):
+                default_ms = timeout_schema.get("default", default_ms)
+            requested_ms = args.get("timeout", default_ms)
             if (isinstance(requested_ms, (int, float)) and not isinstance(requested_ms, bool)
                     and math.isfinite(requested_ms) and requested_ms > 0):
                 timeout_s = max(float(timeout_s), requested_ms / 1000.0 + SHELL_TIMEOUT_MARGIN_S)
@@ -1265,48 +1292,45 @@ class CapabilityRegistry:
             retry_transport = False
             retry_cause: BaseException | None = None
             try:
-                # Once dispatch begins a mutating effect may have happened even
-                # if the socket fails before send_json confirms success. Such a
-                # call is never admitted to the retry path below.
-                recorder = getattr(self, "record_device_use", None)
-                if recorder is not None and session_id:
-                    await recorder(conn, session_id)
-                pending.dispatch_started = True
-                sent = await conn.send_json(conn.ws, {
-                    "type": "client_tool_call",
-                    "call_id": call_id,
-                    "generation": conn.generation,
-                    "server": server_name,
-                    "tool": tool_name,
-                    "args": args,
-                    "deadline_ms": deadline_ms,
-                    "session_id": session_id,
-                    # Trusted principal from the coordinator-signed cert.
-                    "account_id": conn.account_id,
-                    "network_id": conn.network_id,
-                    "idempotency_key": call_id,
-                    "arguments_sha256": arguments_sha256,
-                })
-                if not sent:
-                    if pending.result_may_be_indeterminate:
-                        raise self._indeterminate_error(pending)
-                    raise ClientCapabilityError(
-                        "CLIENT_OFFLINE",
-                        "client capability host is offline",
-                        {"classification": classification, "retryable": safe_to_retry},
-                    )
                 async with asyncio.timeout(remaining):
-                    result = await future
-            except asyncio.TimeoutError as exc:
-                try:
-                    await conn.send_json(conn.ws, {
-                        "type": "client_tool_cancel",
+                    recorder = getattr(self, "record_device_use", None)
+                    if recorder is not None and session_id:
+                        try:
+                            await recorder(conn, session_id)
+                        except Exception as error:
+                            _audit("client_tool_call.device_metadata_failed", error_code=type(error).__name__)
+                    if self._require_origin(origin) is not conn:
+                        raise ClientCapabilityError("CLIENT_REPLACED", "client capability host was replaced")
+                    # Once dispatch begins a mutating effect may have happened
+                    # even if the socket fails before confirming the write.
+                    pending.dispatch_started = True
+                    sent = await conn.send_json(conn.ws, {
+                        "type": "client_tool_call",
                         "call_id": call_id,
                         "generation": conn.generation,
-                        "reason": "deadline_exceeded",
+                        "server": server_name,
+                        "tool": tool_name,
+                        "args": args,
+                        "deadline_ms": deadline_ms,
+                        "session_id": session_id,
+                        # Trusted principal from the coordinator-signed cert.
+                        "account_id": conn.account_id,
+                        "network_id": conn.network_id,
+                        "idempotency_key": call_id,
+                        "arguments_sha256": arguments_sha256,
                     })
-                except BaseException:  # noqa: BLE001 - cancellation is best effort
-                    pass
+                    if not sent:
+                        if pending.result_may_be_indeterminate:
+                            raise self._indeterminate_error(pending)
+                        raise ClientCapabilityError(
+                            "CLIENT_OFFLINE",
+                            "client capability host is offline",
+                            {"classification": classification, "retryable": safe_to_retry},
+                        )
+                    result = await future
+            except asyncio.TimeoutError as exc:
+                if pending.dispatch_started:
+                    await self._cancel_tool_call(conn, call_id, "deadline_exceeded")
                 if pending.result_may_be_indeterminate:
                     error = self._indeterminate_error(pending)
                     _audit(
@@ -1328,15 +1352,8 @@ class CapabilityRegistry:
                     {"classification": classification, "retryable": safe_to_retry},
                 ) from exc
             except asyncio.CancelledError:
-                try:
-                    await conn.send_json(conn.ws, {
-                        "type": "client_tool_cancel",
-                        "call_id": call_id,
-                        "generation": conn.generation,
-                        "reason": "server_cancelled",
-                    })
-                except BaseException:  # noqa: BLE001 - preserve caller cancellation
-                    pass
+                if pending.dispatch_started:
+                    await self._cancel_tool_call(conn, call_id, "server_cancelled")
                 _audit(
                     "client_tool_call.cancelled",
                     outcome=(
@@ -1412,6 +1429,10 @@ class CapabilityRegistry:
                     raise
             finally:
                 conn.pending.pop(call_id, None)
+                if not future.done():
+                    future.cancel()
+                elif not future.cancelled():
+                    future.exception()
 
             if not retry_transport:
                 break
@@ -1471,6 +1492,19 @@ class CapabilityRegistry:
             return {**result, "_meta": meta, "execution_host": host}
         return {"content": result, "execution_host": host, "_meta": {"executionHost": host}}
 
+    @staticmethod
+    async def _cancel_tool_call(conn: CapabilityConnection, call_id: str, reason: str) -> None:
+        try:
+            async with asyncio.timeout(TOOL_CANCEL_SEND_TIMEOUT_S):
+                await conn.send_json(conn.ws, {
+                    "type": "client_tool_cancel",
+                    "call_id": call_id,
+                    "generation": conn.generation,
+                    "reason": reason,
+                })
+        except Exception:  # noqa: BLE001 - cancellation delivery is best effort
+            pass
+
     async def _wait_for_exact_reconnect(
         self,
         origin: TurnExecutionOrigin,
@@ -1499,7 +1533,7 @@ class CapabilityRegistry:
                     "a newer generation replaced this turn's client host",
                     {"retryable": False},
                 )
-            candidate = self.connection(origin.device_id, origin.client_instance_id)
+            candidate = self._connections.get((origin.device_id, origin.client_instance_id))
             if (
                 candidate is not None
                 and candidate.auth_epoch > origin.auth_epoch
@@ -1514,6 +1548,8 @@ class CapabilityRegistry:
                 and candidate is not previous
                 and candidate.generation == origin.generation
                 and candidate.auth_epoch == origin.auth_epoch
+                and candidate.ready
+                and not getattr(candidate.ws, "closed", False)
             ):
                 return candidate
             remaining = deadline_at - time.monotonic()

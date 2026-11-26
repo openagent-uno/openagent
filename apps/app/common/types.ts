@@ -979,6 +979,7 @@ export interface CompactionInfo {
 export interface ChatMessage {
   providerRunId?: string;
   delivery?: 'pending' | 'confirmed' | 'failed' | 'unconfirmed';
+  deliveryError?: string;
   sharedTurnId?: string;
   id: string;
   role: 'user' | 'assistant' | 'tool' | 'compaction';

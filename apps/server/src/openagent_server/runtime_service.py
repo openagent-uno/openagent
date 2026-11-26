@@ -561,9 +561,7 @@ class NativeRuntimeService:
             from openagent_server.document_vault import create_dream_evidence
             registry.bind(DocumentDreamEvidence, await create_dream_evidence(self,self.document_vault))
         from openagent_server.attachment_publisher import build_attachment_publisher
-        attachment_publisher = build_attachment_publisher(self)
-        if attachment_publisher is not None:
-            registry.bind("attachments.publisher", attachment_publisher)
+        registry.bind("attachments.publisher", build_attachment_publisher(self))
         if self.code_executor is not None:
             registry.bind(CodeExecutor, self.code_executor)
             registry.bind("code_executor", self.code_executor)

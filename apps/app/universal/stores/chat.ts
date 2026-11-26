@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
-import { mergeSharedTranscript, unconfirmedMessages } from '../../common/shared-transcript';
+import { mergeSharedTranscript, reconcileSharedReplies, unconfirmedMessages } from '../../common/shared-transcript';
 import {
   toolPhase,
   toolDisplay,
@@ -160,7 +160,7 @@ function transcriptPatch(
     kept.length ? clipLoadedRanges(previousRanges, previousMax) : [],
     pageLoadedRange(page),
   );
-  const messages = [...kept, ...tail];
+  const messages = reconcileSharedReplies(previous, [...kept, ...tail]);
   return {
     localDraft: false,
     messages: sharedSnapshot ? mergeSharedTranscript(messages, sharedSnapshot) : messages,
@@ -1160,12 +1160,13 @@ export const useChat = create<ChatState>((set, get) => ({
             toolInfo: message.toolInfo || prior?.toolInfo,
           });
         }
-        const messages = [...byId.values()].sort((a, b) => {
+        const ordered = [...byId.values()].sort((a, b) => {
           if (a.ordinal != null && b.ordinal != null) return a.ordinal - b.ordinal;
           if (a.ordinal != null) return -1;
           if (b.ordinal != null) return 1;
           return a.timestamp - b.timestamp;
         });
+        const messages = reconcileSharedReplies([], ordered);
         const loadedRanges = mergeLoadedRanges(session.loadedRanges, pageLoadedRange(page));
         const first = page.messages.length
           && messages.findIndex((message) => message.ordinal != null) === messages.findIndex((message) => message.id === page.messages[0].id);
@@ -2055,8 +2056,8 @@ export function sendTypedChat(
       if (legacyEditMessageId) return useChat.getState().editUserMessage(sessionId, legacyEditMessageId, text);
       useChat.getState().addUserMessage(sessionId, text, attachments);
     },
-    onRejected: (unconfirmed) => update(outbound => outbound.map(item => item.id === requestId
-      ? { ...item, delivery: unconfirmed ? 'unconfirmed' : 'failed' } : item)),
+    onRejected: (unconfirmed, reason) => update(outbound => outbound.map(item => item.id === requestId
+      ? { ...item, delivery: unconfirmed ? 'unconfirmed' : 'failed', deliveryError: reason } : item)),
     onSettled: () => {
       // HTTP success still confirms admission if the live observer is
       // temporarily offline. Keep the bubble until history can replace it.

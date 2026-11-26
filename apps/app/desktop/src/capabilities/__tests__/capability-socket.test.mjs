@@ -1,10 +1,130 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { once } from 'node:events';
 import test from 'node:test';
 import { WebSocketServer } from 'ws';
 
 import { CapabilitySocket } from '../../../dist/capabilities/capability-socket.js';
 import { CapabilityProtocolError } from '../../../dist/capabilities/protocol.js';
+
+test('reconnects when either registration or heartbeat acknowledgement goes silent', { timeout: 7000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const phases = [];
+  let connections = 0;
+  const recovered = new Promise((resolve) => {
+    server.on('connection', ws => {
+      const index = ++connections;
+      ws.on('message', bytes => {
+        const frame = JSON.parse(bytes);
+        if (index > 1 && frame.type === 'capability_hello') {
+          acknowledge(ws, frame);
+        } else if (index > 2 && frame.type === 'capability_heartbeat') {
+          ws.send(JSON.stringify({ type: 'capability_heartbeat_ack', generation: frame.generation }));
+          resolve();
+        }
+      });
+    });
+  });
+  const socket = fixtureSocket(server, {
+    onPhase: (phase, reason) => phases.push([phase, reason]),
+    connectTimeoutMs: 100, heartbeatMs: 25, heartbeatTimeoutMs: 150,
+  });
+  socket.start();
+  try {
+    await recovered;
+    assert.equal(connections, 3);
+    assert.ok(socket.isAcknowledged);
+    assert.ok(phases.some(([, reason]) => reason === 'Capability registration timed out'));
+    assert.ok(phases.some(([, reason]) => reason === 'Capability heartbeat timed out'));
+  } finally {
+    socket.stop();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('a retired invocation cannot clear or close the replacement connection', { timeout: 6000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  let connections = 0;
+  let invocations = 0;
+  let rejectRetired;
+  let finishReplacement;
+  let markFirstStarted;
+  let markReplacementStarted;
+  const firstStarted = new Promise(resolve => { markFirstStarted = resolve; });
+  const replacementStarted = new Promise(resolve => { markReplacementStarted = resolve; });
+  const completed = new Promise((resolve, reject) => {
+    server.on('connection', ws => {
+      const index = ++connections;
+      ws.on('message', bytes => {
+        const frame = JSON.parse(bytes);
+        if (frame.type === 'capability_hello') {
+          acknowledge(ws, frame);
+          ws.send(JSON.stringify({
+            type: 'client_tool_call', call_id: 'same-read', generation: 1,
+            server: 'filesystem', tool: 'read_text_file', args: {}, session_id: null,
+            account_id: 'fixture-network', idempotency_key: 'same-read',
+            arguments_sha256: '0'.repeat(64),
+          }));
+          if (index === 1) void firstStarted.then(() => ws.terminate());
+        } else if (frame.type === 'client_tool_result') {
+          if (index !== 2 || frame.result?.content?.[0]?.text !== 'from replacement') {
+            reject(new Error('Expected the replacement result only'));
+          } else {
+            resolve();
+          }
+        }
+      });
+    });
+  });
+  const active = [];
+  const socket = fixtureSocket(server, {
+    onActivity: count => active.push(count),
+    invoke: async () => {
+      if (++invocations === 1) {
+        return new Promise((_, reject) => { rejectRetired = reject; markFirstStarted(); });
+      }
+      return new Promise(resolve => { finishReplacement = resolve; markReplacementStarted(); });
+    },
+  });
+  socket.start();
+  try {
+    await replacementStarted;
+    rejectRetired(new CapabilityProtocolError('host_transport_lost', 'The previous host ended'));
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(active.at(-1), 1, 'the replacement owns the retry');
+    assert.ok(socket.isAcknowledged);
+    finishReplacement({ content: [{ type: 'text', text: 'from replacement' }] });
+    await completed;
+    assert.equal(connections, 2);
+  } finally {
+    socket.stop();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+function fixtureSocket(server, options) {
+  return new CapabilitySocket({
+    accountId: 'fixture-account', trustedAccountId: 'fixture-network', trustedDeviceId: 'fixture-device',
+    clientInstanceId: 'fixture-instance', deviceLabel: 'Fixture Desktop',
+    url: `ws://127.0.0.1:${server.address().port}/ws/capabilities`,
+    getOffer: () => ({
+      generation: 1,
+      servers: [{ name: 'filesystem', tools: [{ name: 'read_text_file', classification: 'read_only' }] }],
+    }),
+    invoke: async () => ({ content: [] }),
+    ...options,
+  });
+}
+
+function acknowledge(ws, frame) {
+  ws.send(JSON.stringify({
+    type: 'capability_hello_ack', protocol: frame.protocol, accepted: true,
+    account_id: 'fixture-network', device_id: 'fixture-device',
+    client_instance_id: frame.client_instance_id, generation: frame.generation,
+  }));
+}
 
 test('capability WS registers, executes once, chunks media, then returns result', async () => {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
@@ -173,6 +293,113 @@ test('artifact streaming applies websocket backpressure and preserves frame orde
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test('cancelled backpressured artifact leaves the channel usable', { timeout: 6000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const frames = [];
+  const blob = Buffer.alloc(12 * 1024 * 1024, 0x5a).toString('base64');
+  let peer;
+  let connections = 0;
+  const received = new Promise((resolve, reject) => {
+    server.on('connection', ws => {
+      peer = ws;
+      connections += 1;
+      ws.on('message', raw => {
+        const frame = JSON.parse(raw);
+        frames.push(frame);
+        if (frame.type === 'capability_hello') {
+          acknowledge(ws, frame);
+          sendFixtureTool(ws, 'large-result', 'write_file', () => ws._socket.pause());
+        } else if (frame.type === 'client_tool_result' && frame.call_id === 'next-call') {
+          if (frame.result?.content?.[0]?.text === 'still connected') resolve();
+          else reject(new Error('Expected successful call on the same socket'));
+        }
+      });
+      ws.on('close', () => reject(new Error('Artifact cancellation disconnected the client')));
+    });
+  });
+  const socket = fixtureSocket(server, {
+    reconnect: false,
+    getOffer: () => ({ generation: 1, servers: [{ name: 'filesystem', tools: [
+      { name: 'write_file', classification: 'mutating' },
+      { name: 'read_text_file', classification: 'read_only' },
+    ] }] }),
+    invoke: async call => call.call_id === 'large-result'
+      ? { content: [{ type: 'blob', data: blob, mimeType: 'application/octet-stream' }] }
+      : { content: [{ type: 'text', text: 'still connected' }] },
+  });
+  socket.start();
+  try {
+    await waitUntil(() => peer?._socket?.isPaused() && socket.socket?.bufferedAmount > 0, 4000);
+    peer.send(JSON.stringify({ type: 'client_tool_cancel', generation: 1, call_id: 'large-result' }));
+    await waitUntil(() => !socket.active.has('large-result'), 1000);
+    peer._socket.resume();
+    sendFixtureTool(peer, 'next-call', 'read_text_file');
+    await received;
+    assert.equal(connections, 1);
+    assert.ok(frames.some(frame => frame.type === 'client_artifact_chunk' && frame.call_id === 'large-result'));
+    assert.ok(!frames.some(frame => frame.type === 'client_tool_result' && frame.call_id === 'large-result'));
+  } finally {
+    peer?._socket?.resume();
+    socket.stop();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+test('read-only binary result restarts from its first chunk on the replacement socket', { timeout: 6000 }, async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });
+  await once(server, 'listening');
+  const bytes = Buffer.alloc(3 * 1024 * 1024, 0x5a);
+  const replacementChunks = [];
+  let connections = 0;
+  let invocations = 0;
+  const completed = new Promise((resolve, reject) => {
+    server.on('connection', ws => {
+      const connection = ++connections;
+      ws.on('message', raw => {
+        const frame = JSON.parse(raw);
+        if (frame.type === 'capability_hello') {
+          acknowledge(ws, frame);
+          sendFixtureTool(ws, 'retry-read', 'read_text_file');
+        } else if (frame.type === 'client_artifact_chunk') {
+          if (connection === 1) ws.terminate();
+          else replacementChunks.push(frame);
+        } else if (frame.type === 'client_tool_result') {
+          if (connection === 2 && frame.result?.content?.[0]?.type === 'artifact_ref') resolve();
+          else reject(new Error('Expected artifact from the replacement socket only'));
+        }
+      });
+    });
+  });
+  const socket = fixtureSocket(server, {
+    invoke: async () => {
+      invocations += 1;
+      return { content: [{ type: 'blob', data: bytes.toString('base64'), mimeType: 'application/octet-stream' }] };
+    },
+  });
+  socket.start();
+  try {
+    await completed;
+    assert.equal(connections, 2);
+    assert.equal(invocations, 2);
+    assert.equal(replacementChunks[0].seq, 0);
+    assert.equal(replacementChunks.at(-1).eof, true);
+    assert.equal(replacementChunks[0].sha256, createHash('sha256').update(bytes).digest('hex'));
+    assert.deepEqual(Buffer.concat(replacementChunks.map(frame => Buffer.from(frame.data, 'base64'))), bytes);
+  } finally {
+    socket.stop();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
+
+function sendFixtureTool(ws, id, tool, callback) {
+  ws.send(JSON.stringify({
+    type: 'client_tool_call', call_id: id, generation: 1,
+    server: 'filesystem', tool, args: {}, session_id: null,
+    account_id: 'fixture-network', idempotency_key: id, arguments_sha256: '0'.repeat(64),
+  }), callback);
+}
 
 test('ambiguous local-host loss closes capability transport without a determinate result', async () => {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 });

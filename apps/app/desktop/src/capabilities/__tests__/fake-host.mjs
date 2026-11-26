@@ -6,6 +6,7 @@ const sharedConsentPath = process.env.OPENAGENT_FAKE_CONSENT_PATH;
 const failDisableOncePath = process.env.OPENAGENT_FAKE_FAIL_DISABLE_ONCE_PATH;
 const exitOnCallOncePath = process.env.OPENAGENT_FAKE_EXIT_ON_CALL_ONCE_PATH;
 const lifecyclePath = process.env.OPENAGENT_FAKE_LIFECYCLE_PATH;
+const deniedFile = process.env.OPENAGENT_FAKE_DENIED_FILE;
 const disableDelayMs = Number(process.env.OPENAGENT_FAKE_DISABLE_DELAY_MS || 0);
 
 function lifecycle(event) {
@@ -29,6 +30,9 @@ const servers = [{
   instructions: 'fake filesystem',
   tools: [{ name: 'echo', description: 'echo', input_schema: { type: 'object' }, classification: 'read_only' }],
 }];
+if (deniedFile) servers[0].tools.push({
+  name: 'read_text_file', description: 'Read text', input_schema: { type: 'object' }, classification: 'read_only',
+});
 
 const lines = readline.createInterface({ input: process.stdin });
 lines.on('line', (line) => {
@@ -79,6 +83,9 @@ lines.on('line', (line) => {
         id: request.id, type: 'response', ok: false,
         error: { code: 'consent_required', message: 'disabled' },
       }) + '\n');
+    } else if (request.tool === 'read_text_file' && deniedFile) {
+      const error = { code: 'filesystem_access_denied', message: 'macOS refused the read', data: { path: deniedFile } };
+      response({ content: [{ type: 'text', text: error.message }], isError: true, _meta: { 'openagent/error': error } });
     } else {
       response({
         content: [{ type: 'text', text: String(request.args?.value ?? '') }],

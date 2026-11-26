@@ -79,6 +79,7 @@ export interface MessageListProps {
   onRegenerate?: () => void;
   /** Fired by the per-bubble Edit button on a user message. Omit to hide. */
   onEditUser?: (msgId: string, newText: string) => void;
+  onDismissFailedSend?: (msgId: string) => void;
   onFork?: (messageId: string) => Promise<void>;
   /** Fired when a delegation card is pressed — navigates into the child
    *  session. Omit to render delegation cards as non-clickable. */
@@ -115,7 +116,7 @@ export interface MessageListProps {
 const noPage = () => Promise.resolve();
 
 function MessageListBase({
-  sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onFork,
+  sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onDismissFailedSend, onFork,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
   controller, scrollRef, loadedRanges, hasMoreBefore, loadPage,
@@ -214,7 +215,7 @@ function MessageListBase({
       || message.toolInfo?.tool_invocation_id === anchorToolInvocationId
     ))?.id;
   }, [anchorMessageId, anchorToolInvocationId, messages]);
-  const canLoadEarlier = !capped && !infinite && hiddenCount > 0;
+  const canLoadEarlier = !capped && (infinite ? transcriptWindow.canBrowseEarlier : hiddenCount > 0);
   const revealedAnchor = useRef<string | null>(null);
   const { reveal } = transcriptWindow;
   useEffect(() => {
@@ -369,8 +370,10 @@ function MessageListBase({
           showHeader={showAuthorHeader}
           timestamp={msg.timestamp}
           delivery={msg.delivery}
+          deliveryError={msg.deliveryError}
           onFork={fork}
           onEdit={msg.delivery ? undefined : onEditUser}
+          onDismissFailedSend={onDismissFailedSend}
         />,
       );
     }
@@ -392,13 +395,15 @@ function MessageListBase({
       {canLoadEarlier && (
         <TouchableOpacity
           style={styles.loadEarlier}
-          onPress={() => setShown((n) => n + TRANSCRIPT_WINDOW)}
-          accessibilityLabel="Load earlier messages"
+          onPress={() => infinite ? transcriptWindow.browseEarlier(true) : setShown((n) => n + TRANSCRIPT_WINDOW)}
+          accessibilityLabel={infinite && transcriptWindow.earlierPageFailed ? 'Retry loading earlier messages' : 'Load earlier messages'}
           // @ts-ignore — web hover/press affordance
           {...(Platform.OS === 'web' ? { className: 'oa-side-row oa-press' } : {})}
         >
           <Feather name="chevron-up" size={12} color={colors.textMuted} />
-          <Text style={styles.loadEarlierText}>{`Load earlier (${hiddenCount})`}</Text>
+          <Text style={styles.loadEarlierText}>{infinite
+            ? (transcriptWindow.earlierPageFailed ? 'Couldn’t load earlier messages. Retry' : 'Load earlier messages')
+            : `Load earlier (${hiddenCount})`}</Text>
         </TouchableOpacity>
       )}
       {visible.map(renderMessage)}
@@ -418,7 +423,7 @@ export default MessageList;
 // ── Atoms ────────────────────────────────────────────────────────────
 
 const UserMessage = memo(function UserMessage({
-  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, onEdit, onFork,
+  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, deliveryError, onEdit, onDismissFailedSend, onFork,
   registerRef, highlighted,
 }: {
   id: string;
@@ -434,7 +439,9 @@ const UserMessage = memo(function UserMessage({
   showHeader: boolean;
   timestamp?: number;
   delivery?: ChatMessage['delivery'];
+  deliveryError?: string;
   onEdit?: (id: string, newText: string) => void;
+  onDismissFailedSend?: (id: string) => void;
   onFork?: () => Promise<void>;
 }) {
   const label = author?.display || author?.handle || fallbackLabel || 'You';
@@ -456,8 +463,21 @@ const UserMessage = memo(function UserMessage({
           <Feather name="edit-2" size={11} color={colors.textMuted} />
         </TouchableOpacity>
       )}
-      {delivery === 'failed' ? <Text style={styles.failedMessage}>Not sent</Text> : null}
-      {delivery === 'unconfirmed' ? <Text style={styles.failedMessage}>Delivery unconfirmed</Text> : null}
+      {delivery === 'failed' || delivery === 'unconfirmed' ? (
+        <>
+          <Text style={styles.failedMessage}>{delivery === 'failed' ? 'Not sent' : 'Delivery unconfirmed'}</Text>
+          {onDismissFailedSend ? (
+            <TouchableOpacity
+              style={styles.msgActionBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss delivery notice"
+              onPress={() => onDismissFailedSend(id)}
+            >
+              <Feather name="x" size={11} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </>
+      ) : null}
       <TurnTime timestamp={timestamp} />
     </View>
   ) : null;
@@ -470,6 +490,9 @@ const UserMessage = memo(function UserMessage({
       {...(Platform.OS === 'web' ? { className: 'oa-row-hover' } : {})}
     >
       <View style={styles.userBody}>
+        {deliveryError && (delivery === 'failed' || delivery === 'unconfirmed') ? (
+          <Text style={styles.failedMessage}>{deliveryError}</Text>
+        ) : null}
         {showHeader ? (
           <View style={styles.userHead} testID="oa-human-message-header">
             <Text style={styles.userLabel}>{label}</Text>

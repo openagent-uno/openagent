@@ -41,6 +41,15 @@ test('a tail reload only trusts what was loaded before it', () => {
   assert.deepEqual(clipLoadedRanges([{ start: 5, end: null }], null), []);
 });
 
+test('a tail page immediately after the previously loaded tail leaves no gap', () => {
+  const prior = clipLoadedRanges([{ start: null, end: null }], 60);
+  const ranges = mergeLoadedRanges(prior, { start: 61, end: null });
+  assert.deepEqual(ranges, [{ start: null, end: null }]);
+  assert.deepEqual(transcriptGaps(rows(59, 60, 61, 62), ranges), [false, false, false, false]);
+  assert.deepEqual(mergeLoadedRanges(prior, { start: 62, end: null }),
+    [{ start: null, end: 60 }, { start: 62, end: null }]);
+});
+
 test('gaps appear only between rows no loaded range connects', () => {
   const ranges = [{ start: 20, end: 25 }, { start: 100, end: null }];
   // Live rows without an ordinal inherit the previous one and join the tail.

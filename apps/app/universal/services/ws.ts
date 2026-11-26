@@ -495,12 +495,13 @@ export class OpenAgentWS {
       requestId?: string;
       onLegacy?: () => boolean | void;
       onSessionReady?: () => void;
-      onRejected?: (unconfirmed?: boolean) => void;
+      onRejected?: (unconfirmed: boolean, reason?: string) => void;
       onSettled?: () => void;
     },
   ): void {
     const rejected = (error: unknown) => {
-      options?.onRejected?.(error instanceof CollaborationDeliveryUnknown);
+      options?.onRejected?.(error instanceof CollaborationDeliveryUnknown,
+        error instanceof Error ? error.message : undefined);
       if (!options?.onRejected) this.sharedError(sessionId, error);
     };
     if (!this.sharedDiscovered && (!options?.source || options.source === 'user_typed')) {
@@ -518,8 +519,11 @@ export class OpenAgentWS {
         if (options?.systemPrompt && opened) {
           await shared.sendTurn(sessionId, sharedRequestId(), `[system] ${options.systemPrompt}`);
         }
-        await shared.sendTurn(sessionId, requestId, text, 'steer', undefined,
-          attachmentsForSend(options?.attachments || []), this.clientInstanceId || undefined);
+        const attachments = attachmentsForSend(options?.attachments);
+        // A new file is a complete input with its own durable reference.
+        // Queue it behind active work so a failed cancellation cannot lose it.
+        await shared.sendTurn(sessionId, requestId, text, attachments?.length ? 'queue' : 'steer', undefined,
+          attachments, this.clientInstanceId || undefined);
         options?.onSettled?.();
       }).catch(rejected);
       return;

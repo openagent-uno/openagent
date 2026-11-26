@@ -1005,10 +1005,12 @@ async def t_argument_specific_classification(ctx: TestContext) -> None:
         assert exc.code == "CLIENT_RESULT_INDETERMINATE"
 
     retry_conn: dict[str, object] = {}
+    retry_sent = asyncio.Event()
 
     async def send_retry(_ws, frame):
         if frame.get("type") == "client_tool_call":
             assert frame["call_id"] == screenshot_call_id
+            retry_sent.set()
             asyncio.get_running_loop().call_soon(
                 disconnected.resolve_result,
                 retry_conn["conn"],
@@ -1030,8 +1032,14 @@ async def t_argument_specific_classification(ctx: TestContext) -> None:
         ws=_Ws(),
         send_json=send_retry,
         servers=_computer_catalog(),
+        ready=False,
     )
+    await asyncio.sleep(0)
+    assert disconnected.origin_for("dynamic-dev", "desktop") is None
+    assert not retry_sent.is_set(), "the retry raced ahead of the replacement's hello ACK"
+    assert disconnected.activate(retry_conn["conn"])
     screenshot_result = await retryable_screenshot
+    assert retry_sent.is_set()
     assert screenshot_result["structuredContent"] == {"retried": True}
 
 
@@ -1065,12 +1073,12 @@ async def t_shell_call_deadline_follows_shell_timeout(ctx: TestContext) -> None:
     origin = registry.origin_for("dev", "desktop")
     assert origin is not None
     # A live run lost its device when "sleep 120" with timeout=180000 hit the
-    # generic 120 s deadline. The deadline now follows the shell's timeout,
-    # bounded by the maximum; absent or invalid values keep the default.
+    # generic 120 s deadline. Apply a return margin to explicit and implicit
+    # shell timeouts. Invalid values still get the basic dispatch deadline.
     for requested, expected in (
         (180_000, 185.0), (30_000, DEFAULT_CALL_TIMEOUT_S),
         (5_000_000, MAX_CALL_TIMEOUT_S), ("180000", DEFAULT_CALL_TIMEOUT_S),
-        (True, DEFAULT_CALL_TIMEOUT_S), (None, DEFAULT_CALL_TIMEOUT_S),
+        (True, DEFAULT_CALL_TIMEOUT_S), (None, 125.0),
     ):
         sent.clear()
         before = time.time()
@@ -1088,6 +1096,41 @@ async def t_shell_call_deadline_follows_shell_timeout(ctx: TestContext) -> None:
         frame = next(frame for frame in sent if frame.get("type") == "client_tool_call")
         waited = frame["deadline_ms"] / 1000 - before
         assert abs(waited - expected) < 2, (requested, waited, expected)
+
+
+@test("client_capabilities", "blocked WebSocket write and cancellation are bounded")
+async def t_capability_call_deadline_bounds_send(ctx: TestContext) -> None:
+    from unittest.mock import patch
+    from openagent_server.gateway import capabilities
+
+    registry = capabilities.CapabilityRegistry()
+    frames: list[dict] = []
+    never = asyncio.Event()
+
+    async def blocked(_ws, frame):
+        frames.append(frame)
+        await never.wait()
+
+    conn = await registry.register(
+        device_id="dev", account_id="network", client_instance_id="desktop",
+        generation=1, device_label="Desktop", ws=_Ws(), send_json=blocked,
+        servers=_safety_catalog(),
+    )
+    origin = conn.origin(registry)
+    with patch.object(capabilities, "TOOL_CANCEL_SEND_TIMEOUT_S", 0.02):
+        for tool, expected in (
+            ("read_file", "CLIENT_TIMEOUT"),
+            ("write_file", "CLIENT_RESULT_INDETERMINATE"),
+        ):
+            frames.clear()
+            try:
+                async with asyncio.timeout(1):
+                    await registry.call_tool(origin, "filesystem", tool, {}, timeout_s=0.1)
+                raise AssertionError("blocked capability send unexpectedly completed")
+            except capabilities.ClientCapabilityError as exc:
+                assert exc.code == expected
+            assert [frame["type"] for frame in frames] == ["client_tool_call", "client_tool_cancel"]
+            assert not conn.pending
 
 
 @test(
@@ -1505,9 +1548,10 @@ async def t_capability_heartbeat_reaper(ctx: TestContext) -> None:
     )
     stale.last_seen_at = 10.0
     live.last_seen_at = 19.0
-    await registry.update_catalog(
+    changed = await registry.update_catalog(
         stale, generation=1, servers=_safety_catalog(),
     )
+    assert not changed, "unchanged catalogs must not retire active capability leases"
     assert stale.last_seen_at == 10.0, (
         "catalog spam must not bypass authenticated-heartbeat expiry"
     )
@@ -1528,6 +1572,67 @@ async def t_capability_heartbeat_reaper(ctx: TestContext) -> None:
         raise AssertionError("stale-host pending call was not failed")
     except ClientCapabilityError as exc:
         assert exc.code == "CLIENT_RESULT_INDETERMINATE"
+
+
+@test("client_capabilities", "authenticated capability WebSocket survives inventory database failures")
+async def t_capability_ws_survives_inventory_failure(ctx: TestContext) -> None:
+    from sqlite3 import OperationalError
+    from unittest.mock import patch
+    from weakref import WeakKeyDictionary
+
+    from aiohttp import web
+    from aiohttp.test_utils import TestClient, TestServer
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    from openagent_identity.auth.device_cert import issue_cert
+    from openagent_identity.auth.middleware import NetworkAuthState, make_auth_middleware
+    from openagent_identity.identity import Identity
+    from openagent_identity.transport.aiohttp_iroh_site import _current_cert_wire, _current_peer_node_id
+    from openagent_server.gateway.capabilities import CAPABILITY_PROTOCOL, CapabilityRegistry
+    from openagent_server.gateway.server import Gateway
+
+    signer = Ed25519PrivateKey.generate()
+    device = Identity.generate()
+    network = "capability-test"
+    state = NetworkAuthState(coordinator_pubkey=signer.public_key(), network_id=network)
+    wire = issue_cert(coordinator_key=signer, handle="tester", device_pubkey=device.public_bytes, network_id=network)
+    gateway = object.__new__(Gateway)
+    gateway.capabilities = CapabilityRegistry()
+    gateway._network_state = SimpleNamespace(auth_state=state)
+    gateway._ws_send_locks = WeakKeyDictionary()
+    gateway._ws_history_guards = WeakKeyDictionary()
+    failures = 0
+
+    @web.middleware
+    async def fixture_iroh_context(request, handler):
+        cert_token = _current_cert_wire.set(wire)
+        peer_token = _current_peer_node_id.set(device.public_hex)
+        try:
+            return await handler(request)
+        finally:
+            _current_peer_node_id.reset(peer_token)
+            _current_cert_wire.reset(cert_token)
+
+    async def locked_inventory(_conn):
+        nonlocal failures
+        failures += 1
+        raise OperationalError("fixture inventory unavailable")
+
+    app = web.Application(middlewares=[fixture_iroh_context, make_auth_middleware(state)])
+    app.router.add_get("/ws/capabilities", gateway._handle_capabilities_ws)
+    with patch("openagent_server.device_directory.directory_for",
+               return_value=SimpleNamespace(remember=locked_inventory)):
+        async with TestClient(TestServer(app)) as client:
+            async with client.ws_connect("/ws/capabilities") as socket:
+                await socket.send_json({"type": "capability_hello", "protocol": CAPABILITY_PROTOCOL,
+                    "client_instance_id": "desktop", "generation": 1, "servers": _catalog()})
+                ack = await socket.receive_json(timeout=1)
+                assert ack["type"] == "capability_hello_ack" and ack["accepted"]
+                assert gateway.capabilities.origin_for(device.public_hex, "desktop") is not None
+                for _ in range(2):
+                    await socket.send_json({"type": "capability_heartbeat", "generation": 1})
+                    reply = await socket.receive_json(timeout=1)
+                    assert reply["type"] == "capability_heartbeat_ack"
+                assert failures >= 3
 
 
 @test(

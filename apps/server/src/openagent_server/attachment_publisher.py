@@ -1,4 +1,4 @@
-"""Explicit server-host attachment publication for the public Core sender.
+"""Publish admitted tool bytes and explicitly selected server-host files.
 
 The server filesystem opt-in selects this reader. It cannot select a connected
 App/device, grant a different session, or broaden the configured reader roots.
@@ -50,6 +50,8 @@ class ServerAttachmentPublisher:
 
     async def publish(self, context, path):
         await self.authorize(context)
+        if self.reader is None:
+            raise LookupError("Server filesystem attachment delivery is not enabled")
         from openagent_tool_protocol.types import HostError
         try:
             result = await self.reader.call("read_media_file", {"path": path})
@@ -80,10 +82,11 @@ def build_attachment_publisher(service):
     from openagent_filesystem import FilesystemServer
     from openagent_server.bootstrap import _server_host_selection
 
-    if "filesystem" not in _server_host_selection(service.agent.config):
-        return None
     # Exactly the standalone host filesystem composition: bootstrap's resolver
     # launches openagent_host_tools.mcp_server in the database parent, whose
     # filesystem factory is FilesystemServer(Path.cwd()). No device is involved.
-    workspace = Path(service.agent.memory_db.db_path).resolve().parent
-    return ServerAttachmentPublisher(service, FilesystemServer(workspace))
+    reader = None
+    if "filesystem" in _server_host_selection(service.agent.config):
+        workspace = Path(service.agent.memory_db.db_path).resolve().parent
+        reader = FilesystemServer(workspace)
+    return ServerAttachmentPublisher(service, reader)

@@ -138,11 +138,15 @@ class AgentSite(web.BaseSite):
             loop=loop,
             access_log=None,
         )
-        protocol.connection_made(_ProtocolTransport(writer))
+        transport = _ProtocolTransport(writer)
+        protocol.connection_made(transport)
 
         async def _pump_to_protocol() -> None:
             try:
                 while True:
+                    await transport.read_ready.wait()
+                    if transport.is_closing():
+                        break
                     chunk = await recv_stream.read(64 * 1024)
                     if not chunk:
                         break

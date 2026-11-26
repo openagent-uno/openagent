@@ -56,7 +56,7 @@ async def t_server_attachment_publisher_media(ctx: TestContext) -> None:
             assert stored.content == content and stored.filename == filename
 
 
-@test("attachment_publisher", "disabled filesystem gives no publisher; selected reader keeps its original roots")
+@test("attachment_publisher", "admitted bytes work without a filesystem reader; configured reader keeps its roots")
 async def t_server_attachment_publisher_disabled_and_roots(ctx: TestContext) -> None:
     from openagent_core.runtime import execution_scope
     from openagent_server.attachment_publisher import build_attachment_publisher
@@ -64,7 +64,18 @@ async def t_server_attachment_publisher_disabled_and_roots(ctx: TestContext) -> 
         service, context, record, workspace, publisher = await _setup(gateway, request)
         for config in ({"server_host_tools": False}, {"server_host_tools": {"tools": ["shell"]}}):
             service.agent.config = config
-            assert build_attachment_publisher(service) is None
+            selected = build_attachment_publisher(service)
+            assert selected.reader is None
+            with execution_scope(service.runtime, context, record.run_id):
+                try:
+                    await selected.publish(context, "unavailable.txt")
+                except LookupError:
+                    pass
+                else:
+                    raise AssertionError("Filesystem access was enabled without a reader")
+                ref = await selected.publish_content(context, b"scoped bytes",
+                    filename="document.txt", mime_type="text/plain")
+                assert ref["size_bytes"] == 12, ref
         service.agent.config = {"server_host_tools": {"tools": ["filesystem"]}}
         assert build_attachment_publisher(service) is not None
         (workspace.parent / "outside.csv").write_bytes(b"outside")

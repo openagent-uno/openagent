@@ -132,6 +132,41 @@ History without recorded positions keeps its durable order.
 Tool cards fill the available transcript column whether they are collapsed or
 expanded. The cards follow the column width when you resize the window.
 
+The App keeps the message and its selected files together until the uploads
+are ready. Retry a failed upload or remove that file to send the draft. A
+message with files queues behind the active shared turn so the preceding
+execution can finish. A rejected message stays near the time it was sent and
+its local delivery notice can be dismissed.
+
+The live response stays visible when the gateway has projected only the
+matching input or tools, including during observer reconnection. The
+canonical response takes over when it arrives. The transcript's earlier
+messages control loads older pages and gives you a retry if a page fails.
+
+On macOS the attachment picker can read the exact file you select. If the
+separate tool host is denied a text read, file attachment or directory listing,
+Desktop checks whether macOS already allowed the application to read that
+item. If needed, the connected Desktop window asks you to select the item
+for one-time access. The request returns the read result, denial or expiry
+to the tool.
+Approving a request doesn't change macOS privacy settings or the host's
+configured filesystem roots. The chat attachment picker remains available
+when a request can't reach an open agent window.
+
+Shared tool files and completed browser downloads can be offered as session
+attachments. The gateway checks the current run and gives the client a
+download reference. Iroh request readers pause with the HTTP parser's
+backpressure while the multipart handler stages the transfer in bounded
+blocks.
+
+Capability sockets wait for an authenticated registration acknowledgement and
+check heartbeat acknowledgements before becoming available for dispatch.
+A replacement socket keeps its own call state when replies from the previous
+socket arrive late. Cancelled calls can release an in-progress file transfer
+without closing every tool on the device. Safe retries use the same
+authenticated device and the original deadline. A foreground shell command
+has five seconds after its execution limit to report the result.
+
 Completed assistant replies show their executing model at the start of the
 footer, before copy/fork actions and the timestamp. Model and time share the
 same muted color, monospace font and size. The canonical transcript exposes an

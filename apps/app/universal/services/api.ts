@@ -112,6 +112,7 @@ export async function getUIViewBundleAsset(viewId: string, revision: number, ass
 // the user should see as an error rather than a permanently-disabled
 // button.
 const REQUEST_TIMEOUT_MS = 30_000;
+const UPLOAD_TIMEOUT_MS = 300_000;
 
 /** An API failure that still knows its HTTP status.
  *
@@ -164,14 +165,14 @@ export function isAgentUnreachable(e: unknown): boolean {
     .test(msg);
 }
 
-function withTimeout(init: RequestInit, label: string): RequestInit {
+function withTimeout(init: RequestInit, label: string, timeoutMs = REQUEST_TIMEOUT_MS): RequestInit {
   if (typeof AbortController === 'undefined') return init;
   const ctrl = new AbortController();
   const upstream = init.signal;
   const onUpstreamAbort = () => ctrl.abort(upstream?.reason);
   if (upstream?.aborted) onUpstreamAbort();
   else upstream?.addEventListener('abort', onUpstreamAbort, { once: true });
-  const timer = setTimeout(() => ctrl.abort(`request timed out after ${REQUEST_TIMEOUT_MS}ms: ${label}`), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => ctrl.abort(`request timed out after ${timeoutMs}ms: ${label}`), timeoutMs);
   const timed = { ...init, signal: ctrl.signal };
   // Sentinels are removed in `clearTimer`; they never reach fetch's
   // observable request surface.
@@ -978,13 +979,24 @@ export async function uploadFile(
   if (opts?.sessionId) query.set('session_id', opts.sessionId);
   const encodedQuery = query.toString();
   const qs = encodedQuery ? `?${encodedQuery}` : '';
-  const res = await fetchAgent(`${baseUrl}/api/upload${qs}`, {
+  const init = withTimeout({
     method: 'POST',
     body: form,
     signal: opts?.signal,
-  });
-  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  const payload = await res.json() as Record<string, unknown>;
+  }, 'file upload', UPLOAD_TIMEOUT_MS);
+  let payload: Record<string, unknown>;
+  try {
+    const res = await fetchAgent(`${baseUrl}/api/upload${qs}`, init);
+    if (!res.ok) throw await responseError(res);
+    payload = await res.json() as Record<string, unknown>;
+  } catch (error) {
+    if (init.signal?.aborted && !opts?.signal?.aborted) {
+      throw new Error('The upload timed out. Retry when the connection is available.');
+    }
+    throw error;
+  } finally {
+    clearTimer(init);
+  }
   const [attachment] = normalizeAttachmentRefs([{ type: opts?.kind, ...payload }]);
   if (!attachment) throw new Error('Upload failed: gateway returned an invalid attachment reference');
   return {

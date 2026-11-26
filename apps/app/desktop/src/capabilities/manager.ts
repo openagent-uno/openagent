@@ -11,6 +11,7 @@ import {
 import { CapabilitySocket, type CapabilityConnectionPhase } from './capability-socket';
 import { CapabilityConsentStore, type CapabilityConsent } from './consent-store';
 import { LocalHostBridge, type HostToolsLaunch } from './host-bridge';
+import { fileAccessRequest, offerFileAccess, type FileAccessPicker } from './file-access';
 
 interface LoopbackTarget {
   accountId: string;
@@ -37,6 +38,7 @@ export interface CapabilityManagerOptions {
   deviceLabel: string;
   hostLaunch: HostToolsLaunch;
   consentStore: CapabilityConsentStore;
+  pickFileAccess?: FileAccessPicker;
   onStatus?: (status: DesktopCapabilityStatus) => void;
   /** Test/diagnostic override; production watches shared consent twice/second. */
   statusPollMs?: number;
@@ -528,20 +530,36 @@ export class CapabilityManager {
         'Capability call network does not match its certified loopback',
       );
     }
-    return this.host.call({
-      callId: call.call_id,
-      server: call.server,
-      tool: call.tool,
-      toolArgs: call.args,
-      idempotencyKey: call.idempotency_key,
-      argumentsSha256: call.arguments_sha256,
-      deadlineMs: call.deadline_ms,
-      signal,
-      // CapabilitySocket already compared this server-supplied value with
-      // the coordinator-certified network bound to the local loopback. It is
-      // therefore safe as a broker isolation key, but never as a selector.
-      principal: this.accountPrincipal(accountId, call.account_id),
-    });
+    const recoverFileAccess = (outcome: unknown) => {
+      const pick = this.options.pickFileAccess;
+      const request = pick && fileAccessRequest(accountId, call, outcome);
+      if (!pick || !request || !target) return;
+      return offerFileAccess(pick, request, call, signal, () =>
+        this.targets.get(accountId) === target && call.generation === this.generation &&
+        this.consent.enabled && this.consentVerified && this.hostReady && !this.emergencyBlocked &&
+        !this.shuttingDown, { useApplicationAccess: process.platform === 'darwin' });
+    };
+    let result: unknown;
+    try {
+      result = await this.host.call({
+        callId: call.call_id,
+        server: call.server,
+        tool: call.tool,
+        toolArgs: call.args,
+        idempotencyKey: call.idempotency_key,
+        argumentsSha256: call.arguments_sha256,
+        deadlineMs: call.deadline_ms,
+        signal,
+        // CapabilitySocket already compared this server-supplied value with
+        // the coordinator-certified network bound to the local loopback.
+        principal: this.accountPrincipal(accountId, call.account_id),
+      });
+    } catch (error) {
+      const recovery = recoverFileAccess(error);
+      if (recovery) return recovery;
+      throw error;
+    }
+    return recoverFileAccess(result) ?? result;
   }
 
   async browserInventory(accountId: string): Promise<unknown> {

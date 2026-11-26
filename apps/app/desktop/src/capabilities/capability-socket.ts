@@ -15,6 +15,7 @@ import {
 
 const CONNECT_TIMEOUT_MS = 15_000;
 const HEARTBEAT_MS = 15_000;
+const HEARTBEAT_TIMEOUT_MS = 60_000;
 const MAX_PAYLOAD_BYTES = 16 * 1024 * 1024;
 const ARTIFACT_THRESHOLD_BYTES = 256 * 1024;
 const ARTIFACT_CHUNK_BYTES = 512 * 1024;
@@ -57,6 +58,8 @@ export interface CapabilitySocketOptions {
   reconnect?: boolean;
   /** Test/diagnostic override; production uses the protocol heartbeat. */
   heartbeatMs?: number;
+  heartbeatTimeoutMs?: number;
+  connectTimeoutMs?: number;
 }
 
 /**
@@ -81,6 +84,8 @@ export class CapabilitySocket {
   private pendingEvents = new Map<string, Record<string, unknown>>();
   private eventFlush: Promise<void> | null = null;
   private heartbeatPending = false;
+  private heartbeatAcknowledgedAt = 0;
+  private transportFailure: string | undefined;
   private outboundTail: Promise<void> = Promise.resolve();
   private outboundEpoch = 0;
 
@@ -146,21 +151,21 @@ export class CapabilitySocket {
   private connect(): void {
     if (this.stopped) return;
     this.options.onPhase?.('connecting');
+    this.transportFailure = undefined;
+    const connectTimeout = this.options.connectTimeoutMs ?? CONNECT_TIMEOUT_MS;
     const socket = new WebSocket(this.options.url, {
-      handshakeTimeout: CONNECT_TIMEOUT_MS,
+      handshakeTimeout: connectTimeout,
       maxPayload: MAX_PAYLOAD_BYTES,
     });
     this.socket = socket;
     this.connectTimer = setTimeout(() => {
-      if (this.socket === socket && socket.readyState === WebSocket.CONNECTING) {
-        socket.terminate();
+      if (this.socket === socket && !this.acknowledged) {
+        this.handleOutboundFailure(socket, new Error('Capability registration timed out'));
       }
-    }, CONNECT_TIMEOUT_MS);
+    }, connectTimeout);
 
     socket.on('open', () => {
       if (this.socket !== socket || this.stopped) return;
-      if (this.connectTimer) clearTimeout(this.connectTimer);
-      this.connectTimer = null;
       this.acknowledged = false;
       const offer = this.options.getOffer();
       this.outboundEpoch += 1;
@@ -183,16 +188,18 @@ export class CapabilitySocket {
         this.options.onPhase?.('error', 'Capability server sent an unexpected binary frame');
         return;
       }
-      void this.handleMessage(data.toString()).catch((error) => this.handleOutboundFailure(error));
+      void this.handleMessage(socket, data.toString())
+        .catch((error) => this.handleOutboundFailure(socket, error));
     });
 
     socket.on('error', (error) => {
       if (this.socket === socket && !this.stopped) {
-        this.options.onPhase?.('error', error.message);
+        this.transportFailure ??= error.message;
+        this.options.onPhase?.('error', this.transportFailure);
       }
     });
 
-    socket.on('close', () => {
+    socket.on('close', (code, detail) => {
       if (this.socket !== socket) return;
       this.socket = null;
       this.outboundEpoch += 1;
@@ -206,14 +213,15 @@ export class CapabilitySocket {
       this.heartbeatTimer = null;
       this.abortAll('Capability channel disconnected');
       if (this.stopped) return;
-      this.options.onPhase?.('error', 'Capability channel disconnected');
+      this.options.onPhase?.('error', this.transportFailure ||
+        (detail.length ? detail.toString() : `Capability channel disconnected (${code})`));
       if (this.options.reconnect === false) return;
       const delay = Math.min(30_000, 1_000 * 2 ** Math.min(this.reconnectAttempt++, 5));
       this.reconnectTimer = setTimeout(() => this.connect(), delay);
     });
   }
 
-  private async handleMessage(raw: string): Promise<void> {
+  private async handleMessage(socket: WebSocket, raw: string): Promise<void> {
     let frame;
     try {
       frame = parseCapabilityServerFrame(raw);
@@ -239,21 +247,29 @@ export class CapabilitySocket {
           this.socket?.close(1008, 'Capability registration rejected');
           return;
         }
+        if (this.connectTimer) clearTimeout(this.connectTimer);
+        this.connectTimer = null;
         this.acknowledged = true;
+        this.heartbeatAcknowledgedAt = performance.now();
         this.reconnectAttempt = 0;
         this.options.onPhase?.('connected');
         this.flushToolEvents();
         if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
         this.heartbeatTimer = setInterval(() => {
           const current = this.options.getOffer();
+          const idle = performance.now() - this.heartbeatAcknowledgedAt;
+          if (idle >= (this.options.heartbeatTimeoutMs ?? HEARTBEAT_TIMEOUT_MS)) {
+            this.handleOutboundFailure(socket, new Error('Capability heartbeat timed out'));
+            return;
+          }
           if (!this.heartbeatPending) {
             this.heartbeatPending = true;
             void this.send({
               type: 'capability_heartbeat',
               generation: current.generation,
               ts_ms: Date.now(),
-            }).catch((error) => this.handleOutboundFailure(error)).finally(() => {
-              this.heartbeatPending = false;
+            }).catch((error) => this.handleOutboundFailure(socket, error)).finally(() => {
+              if (this.socket === socket) this.heartbeatPending = false;
             });
           }
           // At-least-once delivery: an ACK can be lost while the WebSocket
@@ -263,6 +279,9 @@ export class CapabilitySocket {
         return;
       }
       case 'capability_heartbeat_ack':
+        if (this.acknowledged && frame.generation === this.options.getOffer().generation) {
+          this.heartbeatAcknowledgedAt = performance.now();
+        }
         return;
       case 'client_tool_event_ack':
         if (
@@ -321,13 +340,13 @@ export class CapabilitySocket {
       // still healthy capability channel; never replay or publish late data.
       if(!controller.signal.aborted)await this.sendError(call,error);
     }
-    finally{clearTimeout(timer);this.active.delete(call.call_id);this.options.onActivity?.(this.active.size)}
+    finally{clearTimeout(timer);this.finishCall(call.call_id,controller)}
   }
 
   private async handleMedia(frame:ClientMediaOpen):Promise<void> {
     if(!this.acknowledged||typeof frame.stream_id!=='string'||!frame.stream_id||frame.stream_id.length>128||frame.generation!==this.options.getOffer().generation||frame.account_id!==this.options.trustedAccountId
       ||frame.network_id!==undefined&&frame.network_id!==this.options.trustedAccountId||this.media.has(frame.stream_id))return;
-    const abort=new AbortController();this.media.set(frame.stream_id,abort);let queued=0,failed=false;const pending=new Set<Promise<void>>();
+    const socket=this.socket, abort=new AbortController();this.media.set(frame.stream_id,abort);let queued=0,failed=false;const pending=new Set<Promise<void>>();
     try {
       if(!this.options.openMedia||this.media.size>4)throw new Error('media_unavailable');
       await this.options.openMedia(frame,abort.signal,packet=>{
@@ -338,8 +357,9 @@ export class CapabilitySocket {
       });
     } catch {failed=true;} finally {
       await Promise.allSettled(pending);
-      await this.send({type:'client_media_end',stream_id:frame.stream_id,generation:frame.generation,...(failed?{error:'encoder_unavailable'}:{})}).catch(()=>{});
-      abort.abort();this.media.delete(frame.stream_id);
+      if(this.socket===socket)await this.send({type:'client_media_end',stream_id:frame.stream_id,generation:frame.generation,...(failed?{error:'encoder_unavailable'}:{})}).catch(()=>{});
+      abort.abort();
+      if(this.media.get(frame.stream_id)===abort)this.media.delete(frame.stream_id);
     }
   }
 
@@ -411,6 +431,7 @@ export class CapabilitySocket {
         result: prepared.result,
       }, controller.signal);
     } catch (error) {
+      if (this.socket !== callSocket) return;
       const deadlineOrCancel = error instanceof CapabilityProtocolError &&
         (error.code === 'cancelled' || error.code === 'host_timeout');
       if (mutating && deadlineOrCancel) {
@@ -422,18 +443,17 @@ export class CapabilitySocket {
         // report the explicit indeterminate outcome on the same channel.
         // A call aborted because its socket closed is settled by the Gateway's
         // own disconnect handling; it never reports on a newer socket.
-        if (!this.serverCancelled.has(call.call_id) && this.socket === callSocket) {
-          await this.send({
-            type: 'client_tool_result',
-            call_id: call.call_id,
-            generation: call.generation,
-            error: {
-              code: 'CLIENT_RESULT_INDETERMINATE',
-              message: 'The local tool call was stopped before it reported a result; it may have taken effect',
-              data: { local_code: error.code, retryable: false },
-            },
-          });
-        }
+        if (this.serverCancelled.has(call.call_id)) return;
+        await this.send({
+          type: 'client_tool_result',
+          call_id: call.call_id,
+          generation: call.generation,
+          error: {
+            code: 'CLIENT_RESULT_INDETERMINATE',
+            message: 'The local tool call was stopped before it reported a result; it may have taken effect',
+            data: { local_code: error.code, retryable: false },
+          },
+        });
         return;
       }
       if (isAmbiguousHostTransportError(error)) {
@@ -441,19 +461,13 @@ export class CapabilitySocket {
         // result: an effect may already have happened locally. Dropping this
         // exact capability socket lets the Gateway apply the catalog's safety
         // class (safe exact-host retry vs mutation indeterminate).
-        this.options.onPhase?.(
-          'error',
-          error instanceof Error ? error.message : 'Local capability transport lost',
-        );
-        this.socket?.terminate();
+        if (callSocket) this.handleOutboundFailure(callSocket, error);
         return;
       }
       await this.sendError(call, error);
     } finally {
       if (timer) clearTimeout(timer);
-      this.serverCancelled.delete(call.call_id);
-      this.active.delete(call.call_id);
-      this.options.onActivity?.(this.active.size);
+      this.finishCall(call.call_id, controller);
     }
   }
 
@@ -467,10 +481,11 @@ export class CapabilitySocket {
   }
 
   private flushToolEvents(): void {
-    if (!this.acknowledged || this.eventFlush) return;
+    const socket = this.socket;
+    if (!socket || !this.acknowledged || this.eventFlush) return;
     this.eventFlush = (async () => {
       for (const event of this.pendingEvents.values()) {
-        if (!this.acknowledged) return;
+        if (!this.acknowledged || this.socket !== socket) return;
         const offer = this.options.getOffer();
         await this.send({
           type: 'client_tool_event',
@@ -478,8 +493,8 @@ export class CapabilitySocket {
           event,
         });
       }
-    })().catch((error) => this.handleOutboundFailure(error)).finally(() => {
-      this.eventFlush = null;
+    })().catch((error) => this.handleOutboundFailure(socket, error)).finally(() => {
+      if (this.socket === socket) this.eventFlush = null;
     });
   }
 
@@ -548,23 +563,32 @@ export class CapabilitySocket {
 
   private assertCurrentTransport(socket: WebSocket, epoch: number, signal?: AbortSignal): void {
     if (
-      signal?.aborted ||
       this.socket !== socket ||
       this.outboundEpoch !== epoch ||
       socket.readyState !== WebSocket.OPEN
     ) {
       throw capabilityTransportLost('Capability WebSocket changed or closed during send');
     }
+    if (signal?.aborted) throw capabilitySendCancelled();
   }
 
   private sendDetached(frame: CapabilityClientFrame): void {
-    void this.send(frame).catch((error) => this.handleOutboundFailure(error));
+    const socket = this.socket;
+    if (socket) void this.send(frame).catch((error) => this.handleOutboundFailure(socket, error));
   }
 
-  private handleOutboundFailure(error: unknown): void {
-    if (this.stopped) return;
-    this.options.onPhase?.('error', error instanceof Error ? error.message : String(error));
-    if (this.socket?.readyState === WebSocket.OPEN) this.socket.terminate();
+  private handleOutboundFailure(socket: WebSocket, error: unknown): void {
+    if (this.stopped || this.socket !== socket) return;
+    this.transportFailure = error instanceof Error ? error.message : String(error);
+    this.options.onPhase?.('error', this.transportFailure);
+    if (socket.readyState < WebSocket.CLOSING) socket.terminate();
+  }
+
+  private finishCall(id: string, controller: AbortController): void {
+    if (this.active.get(id) !== controller) return;
+    this.serverCancelled.delete(id);
+    this.active.delete(id);
+    this.options.onActivity?.(this.active.size);
   }
 
   private abortAll(reason: string): void {
@@ -617,17 +641,21 @@ function capabilityTransportLost(message: string): CapabilityProtocolError {
   return new CapabilityProtocolError('capability_transport_lost', message);
 }
 
+function capabilitySendCancelled(): CapabilityProtocolError {
+  return new CapabilityProtocolError('cancelled', 'Capability send was cancelled');
+}
+
 function waitForSendCapacity(signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
-      reject(capabilityTransportLost('Capability send was cancelled'));
+      reject(capabilitySendCancelled());
       return;
     }
     const timer = setTimeout(done, SOCKET_BUFFER_POLL_MS);
     const onAbort = () => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
-      reject(capabilityTransportLost('Capability send was cancelled'));
+      reject(capabilitySendCancelled());
     };
     function done(): void {
       signal?.removeEventListener('abort', onAbort);
@@ -641,7 +669,7 @@ function sendWebSocketFrame(socket: WebSocket, payload: string, signal?: AbortSi
   return new Promise((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(() => finish(capabilityTransportLost('Capability WebSocket send timed out')), SOCKET_SEND_STALL_MS);
-    const onAbort = () => finish(capabilityTransportLost('Capability send was cancelled'));
+    const onAbort = () => finish(capabilitySendCancelled());
     const finish = (error?: Error | null) => {
       if (settled) return;
       settled = true;

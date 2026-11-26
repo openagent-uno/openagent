@@ -7,7 +7,7 @@ async function load(path) {
   return import('data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 }
 const { OpenAgentWS } = await load('../../universal/services/ws.ts');
-const { mergeSharedTranscript, placeSharedTools } = await load('../shared-transcript.ts');
+const { mergeOutboundTranscript, mergeSharedTranscript, placeSharedTools, reconcileSharedReplies } = await load('../shared-transcript.ts');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 test('a failed turn keeps its visible error after canonical user history arrives', () => {
@@ -31,12 +31,17 @@ test('native chat sends text, commands and exact Stop through collaboration', as
   const shared = await ws.enableShared();
   ws.sendMessage('Alice', 'chat'); await tick();
   ws.sendMessage('Bob steers', 'chat'); await tick();
+  ws.sendMessage('Read this file', 'chat', {
+    attachments: [{ artifact_id: 'art-fixture', type: 'file', filename: 'sample.txt' }],
+  }); await tick();
   await ws.sendSharedCommand('chat', '/model auto');
   shared.snapshot = () => ({ turns: [{ active: true, runId: 'active-request' }] });
   ws.sendInterrupt('chat'); await tick();
   const turns = requests.filter(r => r.url.endsWith('/turns')).map(r => r.body);
-  assert.deepEqual(turns.map(t => t.message), ['Alice', 'Bob steers', '/model auto']);
+  assert.deepEqual(turns.map(t => t.message), ['Alice', 'Bob steers', 'Read this file', '/model auto']);
   assert.equal(turns[1].delivery, 'steer');
+  assert.equal(turns[2].delivery, 'queue');
+  assert.deepEqual(turns[2].attachments, [{ artifact_id: 'art-fixture', type: 'file', filename: 'sample.txt' }]);
   assert.notEqual(turns[0].request_id, turns[1].request_id);
   assert.deepEqual(requests.find(r => r.url.endsWith('/stop')).body, { session_id: 'chat', request_id: 'active-request' });
   ws.disconnect();
@@ -59,8 +64,44 @@ test('replay replaces stable turns, keeps identical inputs and reconciles canoni
   assert.deepEqual(mergeSharedTranscript(first, snapshot), first);
   const canonical = { id: 'durable', providerRunId: 'run:chat:a', role: 'user', text: 'Same', timestamp: 1000 };
   const merged = mergeSharedTranscript([canonical, ...first], snapshot);
-  assert.equal(merged.filter(m => m.providerRunId === 'run:chat:a').length, 1);
+  assert.deepEqual(merged.filter(m => m.providerRunId === 'run:chat:a').map(m => m.id), ['durable', 'shared:a:response']);
   assert.equal(merged.find(m => m.id === 'shared:b:input').author.handle, 'bob');
+});
+
+test('a completed reply stays visible while only the input and tools are durable', () => {
+  const run = 'request';
+  const input = { id: 'input', role: 'user', text: 'Read the attachment', timestamp: 1000, providerRunId: run };
+  const tool = { id: 'tool', role: 'tool', text: '', timestamp: 2000, providerRunId: run };
+  const response = { id: 'reply', role: 'assistant', text: 'Read it', timestamp: 3 };
+  const snapshot = { session_id: 'chat', revision: 1, turns: [{
+    id: 'turn', runId: run, providerRunId: run, active: false, startedAt: 1,
+    messages: [{ ...input, timestamp: 1 }, response],
+  }] };
+  const incomplete = mergeSharedTranscript([input, tool], snapshot);
+  assert.deepEqual(incomplete.map(row => row.id), ['input', 'tool', 'shared:turn:reply']);
+  assert.deepEqual(mergeSharedTranscript(incomplete, snapshot), incomplete);
+
+  const durableReply = { ...response, id: 'canonical', timestamp: 3000, providerRunId: run };
+  assert.deepEqual(mergeSharedTranscript([input, tool, durableReply, ...incomplete.slice(-1)], snapshot),
+    [input, tool, durableReply]);
+});
+
+test('a rejected send keeps its chronological position as later replies arrive', () => {
+  const first = { id: 'first', role: 'assistant', timestamp: 1000, text: 'First answer' };
+  const failed = { id: 'failed', role: 'user', delivery: 'failed', timestamp: 2000, text: 'Unsent attachment' };
+  const last = { id: 'last', role: 'assistant', timestamp: 3000, text: 'Later answer' };
+  const pending = { id: 'pending', role: 'user', delivery: 'pending', timestamp: 4000, text: 'Latest message' };
+  assert.deepEqual(mergeOutboundTranscript([first, last], [failed, pending]), [first, failed, last, pending]);
+});
+
+test('a reconnect can drop the observer snapshot while the durable reply is still being projected', () => {
+  const input = { id: 'accepted', role: 'user', providerRunId: 'run', timestamp: 1000, text: 'Input' };
+  const live = { id: 'live', sharedTurnId: 'turn', role: 'assistant', providerRunId: 'run', timestamp: 2000, text: 'Visible reply' };
+  const durable = { id: 'exact', role: 'assistant', providerRunId: 'run', timestamp: 2000, text: 'Durable reply' };
+  assert.deepEqual(reconcileSharedReplies([live], [input]), [input, live]);
+  assert.deepEqual(reconcileSharedReplies([live], [input, durable]), [input, durable]);
+  assert.deepEqual(reconcileSharedReplies([live], []), []);
+  assert.deepEqual(reconcileSharedReplies([], [input, durable, live]), [input, durable]);
 });
 
 test('catalog tool cards preserve exact destination and reconcile with durable run history', () => {

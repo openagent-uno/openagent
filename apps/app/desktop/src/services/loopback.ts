@@ -88,8 +88,12 @@ export function onMcpAppContextReleased(listener: (accountId: string, rendererId
   return () => { mcpAppContextListeners.delete(listener); };
 }
 
+export function getLoopbackConsumerLifetime(accountId: string, rendererId: number) {
+  return consumers.consumerLifetime(accountId, rendererId);
+}
+
 export function getMcpAppConsumerLifetime(accountId: string, rendererId: number): object {
-  const lifetime = consumers.consumerLifetime(accountId, rendererId);
+  const lifetime = getLoopbackConsumerLifetime(accountId, rendererId);
   if (!lifetime) throw new Error('mcp_app_account_unavailable');
   return lifetime;
 }

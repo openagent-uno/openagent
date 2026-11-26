@@ -257,15 +257,12 @@ export default function MessageComposer({
 
   const activeModel = modelOptions?.find((m) => m.id === activeModelId);
   const files = pendingFiles ?? [];
-  // Failed and still-uploading entries stay in the list as visible
-  // chips but don't count toward "there's something to send". Without
-  // this check the user could fire a send before an upload settled and
-  // get a message with no durable attachment reference.
+  // Keep the draft together until every selected file has a reference.
   const sendableCount = files.reduce(
     (n, f) => n + (f.error || f.uploading || (!f.attachment && !f.remotePath) ? 0 : 1),
     0,
   );
-  const canSend = (input.trim().length > 0 || sendableCount > 0) && !disabled;
+  const canSend = (input.trim().length > 0 || sendableCount > 0) && sendableCount === files.length && !disabled;
 
   const handleKeyDown = useCallback((e: any) => {
     // IME composition (e.g. accent picker, CJK) ends with an Enter
@@ -419,14 +416,15 @@ export default function MessageComposer({
                   <Text
                     style={[styles.pendingText, failed && styles.pendingTextError]}
                     numberOfLines={1}
+                    accessibilityLabel={failed ? `${f.filename}: ${f.error}` : undefined}
                   >
                     {failed
-                      ? `${f.filename} — upload failed`
+                      ? `${f.filename} — ${f.error}`
                       : uploading
                         ? `${f.filename} — uploading…`
                         : f.filename}
                   </Text>
-                  {failed && onRetryFile && (
+                  {failed && onRetryFile && f.retry && (
                     <TouchableOpacity
                       onPress={() => onRetryFile(idx)}
                       accessibilityLabel="Retry upload"
@@ -490,6 +488,7 @@ export default function MessageComposer({
               <TouchableOpacity
                 style={styles.iconBtn}
                 onPress={onPickFile}
+                accessibilityLabel="Attach files"
                 // @ts-ignore — web hover/press affordance
                 {...(Platform.OS === 'web' ? { className: 'oa-icon-btn' } : {})}
               >

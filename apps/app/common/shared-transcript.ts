@@ -46,6 +46,14 @@ export function mergeSharedTranscript(previous: ChatMessage[], snapshot: SharedS
           }
         }
       }
+      // Acceptance can persist the user row before the completed reply is
+      // projected. A durable input or tool is not a replacement for the reply.
+      if (!durableReplies.length && response) {
+        base.push({
+          ...response, id: `shared:${turn.id}:${response.id}`, sharedTurnId: turn.id,
+          providerRunId: turn.providerRunId, timestamp: response.timestamp * 1000,
+        });
+      }
       if (turn.error && !durableReplies.some(message => message.text === turn.error)) {
         base.push({ id: `shared:${turn.id}:error`, sharedTurnId: turn.id,
           providerRunId: turn.providerRunId, role: 'assistant', text: turn.error,
@@ -73,6 +81,43 @@ export function unconfirmedMessages(
   for (const turn of snapshot?.turns ?? []) if (turn.runId) confirmed.add(turn.runId);
   const remaining = outbound.filter(message => !confirmed.has(message.providerRunId));
   return remaining.length === outbound.length ? outbound : remaining.length ? remaining : undefined;
+}
+
+/** Insert local sends by time without changing the order of durable rows. */
+export function mergeOutboundTranscript(
+  messages: ChatMessage[], outbound: readonly ChatMessage[] | undefined,
+): ChatMessage[] {
+  if (!outbound?.length) return messages;
+  const local = [...outbound].sort((a, b) => a.timestamp - b.timestamp);
+  const merged: ChatMessage[] = [];
+  let index = 0;
+  for (const message of messages) {
+    while (index < local.length && local[index].timestamp < message.timestamp) {
+      merged.push(local[index++]);
+    }
+    merged.push(message);
+  }
+  return [...merged, ...local.slice(index)];
+}
+
+/** Keep a finalized reply through a reconnect until its exact run is projected. */
+export function reconcileSharedReplies(
+  previous: readonly ChatMessage[], canonical: ChatMessage[],
+): ChatMessage[] {
+  const admittedRuns = new Set<string>();
+  const publishedRuns = new Set<string>();
+  const retainedIds = new Set(canonical.map(message => message.id));
+  for (const message of canonical) {
+    if (message.sharedTurnId || !message.providerRunId) continue;
+    if (message.role === 'user') admittedRuns.add(message.providerRunId);
+    if (message.role === 'assistant') publishedRuns.add(message.providerRunId);
+  }
+  const current = canonical.filter(message => !(message.sharedTurnId && message.role === 'assistant' &&
+    message.providerRunId && publishedRuns.has(message.providerRunId)));
+  const missing = previous.filter(message => message.sharedTurnId && message.role === 'assistant' &&
+    !message.streaming && message.providerRunId && admittedRuns.has(message.providerRunId) &&
+    !publishedRuns.has(message.providerRunId) && !retainedIds.has(message.id));
+  return mergeOutboundTranscript(current, missing);
 }
 
 /** Split only the rendered reply. Keep durable rows and pagination anchors

@@ -20,9 +20,8 @@ import {
 
 import type { Attachment } from '../../../common/types';
 import { runRoutePath, type RunLaunchTarget, type MemoryTarget } from '../../../common/types';
-import { unconfirmedMessages } from '../../../common/shared-transcript';
+import { mergeOutboundTranscript, unconfirmedMessages } from '../../../common/shared-transcript';
 import { useCollaboration } from '../../stores/collaboration';
-import { attachmentsForSend } from '../../../common/attachments';
 import { chatSessionIntent, resolveChatAnchor } from '../../../common/search-navigation';
 import { resolveChatRouteSession } from '../../../common/chat-route-session';
 import { useConnection } from '../../stores/connection';
@@ -57,7 +56,7 @@ import { Skeleton, SkeletonLines } from '../../components/Skeleton';
 import { useConfirm } from '../../components/ConfirmDialog';
 import { useRenameSession } from '../../components/RenameSessionDialog';
 import {
-  uploadFile, transcribeAudio, guessMimeType, listDbModels,
+  uploadFile, transcribeAudio, guessMimeType, listDbModels, currentAgentScope,
   getSessionModelPin, pinSessionModel, unpinSessionModel, isAgentUnreachable,
   getGatewayCommands, listServingAccounts, listSessionMessages, getToolInvocationDetail, forkConversation,
   createSessionLoop, deleteScheduledTask, describeLoopCron, getSessionLoops,
@@ -260,10 +259,17 @@ export default function ChatScreen() {
   const pending = useMemo(() => unconfirmedMessages(
     activeSession?.outbound, activeSession?.messages ?? [],
   ), [activeSession?.messages, activeSession?.outbound]);
-  const displayMessages = useMemo(() => {
-    const messages = activeSession?.messages ?? [];
-    return pending?.length ? [...messages, ...pending] : messages;
-  }, [activeSession?.messages, pending]);
+  const displayMessages = useMemo(() => mergeOutboundTranscript(
+    activeSession?.messages ?? [], pending,
+  ), [activeSession?.messages, pending]);
+  const dismissFailedSend = useCallback((id: string) => {
+    useChat.setState(state => ({
+      sessions: state.sessions.map(session => session.id === state.activeSessionId
+        ? { ...session, outbound: session.outbound?.filter(message =>
+            message.id !== id || !['failed', 'unconfirmed'].includes(message.delivery ?? '')) }
+        : session),
+    }));
+  }, []);
   const awaitingReply = pending?.some(message => message.delivery === 'pending');
 
   // Voice mode state
@@ -681,21 +687,28 @@ export default function ChatScreen() {
   // Run a single browser File through the upload pipeline + drive the
   // chip state. Reused by the initial upload AND by the retry handler.
   const runUpload = useCallback((
-    file: File,
     id: string,
+    filename: string,
     kind: 'image' | 'file',
+    read: () => Promise<File>,
+    sessionId?: string,
     previewUrl?: string,
+    scope = currentAgentScope(),
   ) => {
     const controller = new AbortController();
-    const retry = () => runUpload(file, id, kind, previewUrl);
+    const retry = () => runUpload(id, filename, kind, read, sessionId, previewUrl, scope);
     setPendingFiles((prev) => prev.map((p) => p.id === id
-      ? { id, filename: file.name, kind, uploading: true, previewUrl, abort: () => controller.abort(), retry }
+      ? { id, filename, kind, uploading: true, previewUrl, abort: () => controller.abort(), retry }
       : p));
     (async () => {
       try {
+        if (scope !== currentAgentScope()) throw new Error('Agent selection changed');
+        const file = await read();
+        if (controller.signal.aborted) return;
+        if (scope !== currentAgentScope()) throw new Error('Agent selection changed');
         const result = await uploadFile(file, undefined, {
           kind,
-          sessionId: activeSessionIdRef.current ?? undefined,
+          sessionId,
           signal: controller.signal,
         });
         setPendingFiles((prev) => prev.map((p) => p.id === id
@@ -704,9 +717,9 @@ export default function ChatScreen() {
       } catch (e: any) {
         if (e?.name === 'AbortError' || controller.signal.aborted) return;
         const msg = e instanceof Error ? e.message : String(e);
-        console.error('Upload failed:', file.name, msg);
+        console.error('Upload failed:', msg);
         setPendingFiles((prev) => prev.map((p) => p.id === id
-          ? { id, filename: file.name, kind, error: msg, previewUrl, retry }
+          ? { id, filename, kind, error: msg, previewUrl, retry }
           : p));
       }
     })();
@@ -727,7 +740,8 @@ export default function ChatScreen() {
         ...prev,
         { id, filename: file.name, kind, uploading: true, previewUrl },
       ]);
-      runUpload(file, id, kind, previewUrl);
+      runUpload(id, file.name, kind, async () => file,
+        activeSessionIdRef.current ?? undefined, previewUrl);
     }
   }, [runUpload]);
 
@@ -1148,13 +1162,9 @@ export default function ChatScreen() {
   const handleSend = () => {
     recallIdxRef.current = null;
     if (!ws || !activeSessionId) return;
+    if (pendingFiles.some(file => file.error || file.uploading || (!file.attachment && !file.remotePath))) return;
     const text = input.trim();
-    // Failed uploads stay in pendingFiles as visible error chips so the
-    // user knows the file didn't make it; they must dismiss explicitly.
-    // Filter them out of the WS message + attachment list here.
-    const sendableFiles = pendingFiles.filter(
-      (f) => !f.error && !f.uploading && (f.attachment || f.remotePath),
-    );
+    const sendableFiles = pendingFiles;
     if (!text && sendableFiles.length === 0) return;
 
     // Intercept gateway slash-commands typed with an argument (e.g.
@@ -1202,14 +1212,13 @@ export default function ChatScreen() {
     transcript.resetToTail();
     scrollToBottom(false);
     setInput('');
-    // Drop only the chips we actually sent; keep failed + still-uploading
-    // entries visible so the user notices them (and the next Enter can
-    // attach the late-arriving files into a follow-up message).
-    setPendingFiles((prev) => prev.filter((f) => f.error || f.uploading));
+    setPendingFiles((prev) => prev.filter(file => !sendableFiles.some(sent => sent.id === file.id)));
   };
 
   const handleFilePick = async () => {
     if (isDesktop && window.desktop?.pickFiles && window.desktop?.readFile) {
+      const sessionId = activeSessionIdRef.current ?? undefined;
+      const scope = currentAgentScope();
       type Picked = Awaited<ReturnType<NonNullable<typeof window.desktop.pickFiles>>>[number];
       let picked: Picked[] = [];
       try {
@@ -1218,7 +1227,7 @@ export default function ChatScreen() {
         console.error('Native picker failed:', e);
         return;
       }
-      if (!picked.length) return;
+      if (!picked.length || scope !== currentAgentScope()) return;
 
       // Reject oversized files before we spawn an in-flight chip — the
       // ``dialog:readFile`` IPC would otherwise refuse them with a
@@ -1240,45 +1249,17 @@ export default function ChatScreen() {
       }
       if (!okPicked.length) return;
 
-      // Same placeholder-first flow as the web drop path.
-      const items = okPicked.map((p) => ({
-        meta: p,
-        id: newPendingId(),
-        controller: new AbortController(),
-      }));
-      setPendingFiles((prev) => [
-        ...prev,
-        ...items.map(({ id, meta, controller }) => ({
-          id,
-          filename: meta.filename,
-          kind: meta.kind,
-          uploading: true,
-          abort: () => controller.abort(),
-        })),
-      ]);
-      await Promise.allSettled(items.map(async ({ meta, id, controller }) => {
-        try {
-          const bytes = await window.desktop!.readFile!(meta.path);
-          if (controller.signal.aborted) return;
-          const blob = new Blob([bytes as BlobPart], { type: guessMimeType(meta.filename, meta.kind) });
-          const file = new File([blob], meta.filename, { type: blob.type });
-          const result = await uploadFile(file, undefined, {
-            kind: meta.kind,
-            sessionId: activeSessionIdRef.current ?? undefined,
-            signal: controller.signal,
+      const readFile = window.desktop.readFile;
+      for (const meta of okPicked) {
+        const id = newPendingId();
+        setPendingFiles(prev => [...prev, { id, filename: meta.filename, kind: meta.kind, uploading: true }]);
+        runUpload(id, meta.filename, meta.kind, async () => {
+          const bytes = await readFile(meta.path);
+          return new File([bytes as BlobPart], meta.filename, {
+            type: guessMimeType(meta.filename, meta.kind),
           });
-          setPendingFiles((prev) => prev.map((p) => p.id === id
-            ? { id, filename: result.filename, attachment: result, kind: meta.kind }
-            : p));
-        } catch (e: any) {
-          if (e?.name === 'AbortError' || controller.signal.aborted) return;
-          const msg = e instanceof Error ? e.message : String(e);
-          console.error('Desktop upload failed:', meta.filename, msg);
-          setPendingFiles((prev) => prev.map((p) => p.id === id
-            ? { id, filename: meta.filename, kind: meta.kind, error: msg }
-            : p));
-        }
-      }));
+        }, sessionId, undefined, scope);
+      }
       return;
     }
 
@@ -1784,6 +1765,7 @@ export default function ChatScreen() {
                   isReasoning={activeSession.isReasoning}
                   onRegenerate={handleRegenerate}
                   onEditUser={handleEditUser}
+                  onDismissFailedSend={dismissFailedSend}
                   onFork={canFork ? handleFork : undefined}
                   onOpenChild={openChildSession}
                   onOpenRun={openRun}

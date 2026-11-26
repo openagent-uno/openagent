@@ -88,7 +88,7 @@ async def _read_form(request: web.Request) -> tuple[Path, dict[str, str]]:
                 try:
                     with os.fdopen(fd, "wb") as out:
                         while True:
-                            chunk = await field.read_chunk(size=1024 * 1024)
+                            chunk = await field.read_chunk(size=64 * 1024)
                             if not chunk:
                                 break
                             size += len(chunk)
@@ -115,7 +115,7 @@ async def _read_form(request: web.Request) -> tuple[Path, dict[str, str]]:
         if staged is None:
             raise ValueError("file is required")
         return staged, metadata
-    except Exception:
+    except BaseException:
         if staged is not None:
             with suppress(OSError):
                 staged.unlink()

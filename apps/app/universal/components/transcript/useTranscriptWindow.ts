@@ -105,6 +105,7 @@ export function useTranscriptWindow({
   const failures = useRef(new Map<string, number>());
   const inflight = useRef(new Set<string>());
   const loads = useRef(0);
+  const [earlierError, setEarlierError] = useState<string | null>(null);
 
   /** Remember what the reader sees before the window changes above it. */
   const captureAnchor = useCallback(() => {
@@ -136,18 +137,27 @@ export function useTranscriptWindow({
     node.style.overflowAnchor = 'none';
   }, [controller, scrollRef]);
 
-  const fetchPage = useCallback((index: number, direction: 'before' | 'after') => {
-    const { rows: current } = latest.current;
+  const fetchPage = useCallback((index: number, direction: 'before' | 'after', retry = false) => {
+    const { rows: current, sessionId: requestedSession } = latest.current;
     const row = current[index];
     if (!row) return;
     const id = canonicalRowId(row.id);
-    const key = `${direction}:${id}`;
-    if (inflight.current.has(key) || Date.now() - (failures.current.get(key) ?? 0) < RETRY_MS) return;
+    const key = `${requestedSession}:${direction}:${id}`;
+    if (inflight.current.has(key) || (!retry && Date.now() - (failures.current.get(key) ?? 0) < RETRY_MS)) return;
     inflight.current.add(key);
     loads.current += 1;
     controller.setLoading(direction);
     loadPage(id, direction)
-      .catch(() => { failures.current.set(key, Date.now()); })
+      .then(() => {
+        failures.current.delete(key);
+        if (direction === 'before' && requestedSession === latest.current.sessionId) setEarlierError(null);
+      })
+      .catch(() => {
+        failures.current.set(key, Date.now());
+        if (direction === 'before' && requestedSession && requestedSession === latest.current.sessionId) {
+          setEarlierError(requestedSession);
+        }
+      })
       .finally(() => {
         inflight.current.delete(key);
         loads.current -= 1;
@@ -155,30 +165,35 @@ export function useTranscriptWindow({
       });
   }, [controller, loadPage]);
 
+  const browseEarlier = useCallback((explicit: boolean) => {
+    const { rows: current, win: w, state: s, moreBefore: before } = latest.current;
+    if (explicit) controller.onDetach?.();
+    if (w.start > w.segmentStart) {
+      const start = Math.max(w.segmentStart, w.start - STEP_ROWS);
+      const overflow = w.end - start + 1 > MAX_ROWS;
+      // Short transcripts following live stay pinned until the reader browses earlier.
+      if (!explicit && overflow && w.followsTail && controller.pinned) return false;
+      captureAnchor();
+      setWindow({ start: edgeOf(current, start), end: overflow ? edgeOf(current, start + MAX_ROWS - 1) : s.end });
+      return true;
+    }
+    if (before) {
+      const anchor = ordinalRowAtOrAfter(current, w.segmentStart, w.segmentEnd);
+      if (anchor >= 0) fetchPage(anchor, 'before', explicit);
+    }
+    return false;
+  }, [captureAnchor, controller, fetchPage, setWindow]);
+
   const evaluate = useCallback(() => {
     if (adjusting.current) return;
-    const { rows: current, win: w, state: s, moreBefore: before } = latest.current;
+    const { rows: current, win: w, state: s } = latest.current;
     const metrics = controller.metrics;
     if (!metrics.viewport || !current.length) return;
     const threshold = Math.max(600, metrics.viewport * 1.2);
     const nearTop = metrics.offset < threshold;
     const nearBottom = metrics.content - metrics.offset - metrics.viewport < threshold;
 
-    if (nearTop) {
-      if (w.start > w.segmentStart) {
-        const start = Math.max(w.segmentStart, w.start - STEP_ROWS);
-        const overflow = w.end - start + 1 > MAX_ROWS;
-        // A short transcript followed live must not detach from its tail.
-        if (!(overflow && w.followsTail && controller.pinned)) {
-          captureAnchor();
-          setWindow({ start: edgeOf(current, start), end: overflow ? edgeOf(current, start + MAX_ROWS - 1) : s.end });
-          return;
-        }
-      } else if (before) {
-        const anchor = ordinalRowAtOrAfter(current, w.segmentStart, w.segmentEnd);
-        if (anchor >= 0) fetchPage(anchor, 'before');
-      }
-    }
+    if (nearTop && browseEarlier(false)) return;
 
     if (nearBottom && !w.followsTail) {
       if (w.end < w.segmentEnd) {
@@ -205,7 +220,7 @@ export function useTranscriptWindow({
     if (w.followsTail && controller.pinned && w.end - w.start + 1 > MAX_ROWS) {
       setWindow({ start: edgeOf(current, w.end - (MAX_ROWS - STEP_ROWS) + 1), end: null });
     }
-  }, [captureAnchor, controller, fetchPage, setWindow]);
+  }, [browseEarlier, captureAnchor, controller, fetchPage, setWindow]);
 
   const trackActiveTurn = useCallback(() => {
     const node = scrollNode(scrollRef);
@@ -398,5 +413,9 @@ export function useTranscriptWindow({
     return () => clearTimeout(timer);
   }, [rows, ranges, evaluate]);
 
-  return { visible, start: win.start, registerTurn, flashId, reveal };
+  return {
+    visible, start: win.start, registerTurn, flashId, reveal, browseEarlier,
+    canBrowseEarlier: win.start > win.segmentStart || moreBefore,
+    earlierPageFailed: earlierError != null && earlierError === sessionId,
+  };
 }

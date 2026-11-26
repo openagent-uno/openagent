@@ -54,7 +54,7 @@ export function pageLoadedRange(page: PageShape): LoadedRange | null {
   };
 }
 
-/** Union ``add`` into sorted disjoint ranges, merging every overlap. */
+/** Union ``add`` into sorted ranges, merging overlaps and consecutive ordinals. */
 export function mergeLoadedRanges(
   ranges: readonly LoadedRange[] | undefined,
   add: LoadedRange | null | undefined,
@@ -64,7 +64,7 @@ export function mergeLoadedRanges(
   const merged: LoadedRange[] = [];
   for (const range of all) {
     const last = merged.at(-1);
-    if (last && lower(range.start) <= upper(last.end)) {
+    if (last && lower(range.start) <= upper(last.end) + 1) {
       if (upper(range.end) > upper(last.end)) last.end = range.end;
       continue;
     }

@@ -20,6 +20,7 @@ import { randomUUID } from 'crypto';
 import { registerStorageHandlers } from './services/storage';
 import {
   configureLoopbackLifecycleHooks,
+  getLoopbackConsumerLifetime,
   getVerifiedLoopbackTarget,
   installTestLoopback,
   registerLoopbackHandlers,
@@ -35,6 +36,8 @@ import { CapabilityConsentStore } from './capabilities/consent-store';
 import { discoverHostTools } from './capabilities/host-bridge';
 import { broadcastCapabilityStatus, registerCapabilityHandlers } from './capabilities/ipc';
 import { CapabilityManager } from './capabilities/manager';
+import { readPickedFile, type FileAccessPicker } from './capabilities/file-access';
+import { CapabilityProtocolError } from './capabilities/protocol';
 import {
   buildRendererTarget,
   createRendererUrlPolicy,
@@ -102,6 +105,41 @@ const MAX_READ_BYTES = 200 * 1024 * 1024;
 // third-party script) to read ~/.ssh/id_rsa just because the renderer can
 // send arbitrary IPC args.
 const pickedPaths = new Set<string>();
+let fileAccessPromptOpen = false;
+
+const pickFileAccess: FileAccessPicker = async (request, signal) => {
+  const target = getVerifiedLoopbackTarget(request.accountId);
+  const candidates = getAllWindows().filter(({ id, win }) =>
+    !win.isDestroyed() && win.isVisible() && getLoopbackConsumerLifetime(request.accountId, id));
+  const entry = candidates.find(({ win }) => win.isFocused()) ?? candidates[0];
+  if (!entry || !target || fileAccessPromptOpen) {
+    throw new CapabilityProtocolError('file_permission_unavailable',
+      'The Mac cannot show this access request. Open the agent window or attach the file manually.');
+  }
+  const owner = entry.win;
+  const lifetime = getLoopbackConsumerLifetime(request.accountId, entry.id);
+  const current = () => !signal.aborted && !owner.isDestroyed() &&
+    getLoopbackConsumerLifetime(request.accountId, entry.id) === lifetime;
+  fileAccessPromptOpen = true;
+  try {
+    const item = request.directory ? 'folder' : 'file';
+    const { response } = await dialog.showMessageBox(owner, {
+      type: 'question', title: 'OpenAgent file access',
+      message: `Allow ${target.agentHandle} to read a ${item}?`,
+      detail: `${request.path}\n\nThis grants one-time access to the requested ${item} for this chat.`,
+      buttons: [`Select ${item}…`, 'Deny'], defaultId: 1, cancelId: 1, signal,
+    });
+    if (response !== 0 || !current()) return null;
+    const choice = await dialog.showOpenDialog(owner, {
+      title: `Select the requested ${item}`, defaultPath: request.path,
+      buttonLabel: 'Allow once',
+      properties: [request.directory ? 'openDirectory' : 'openFile', 'dontAddToRecent'],
+    });
+    return !current() || choice.canceled ? null : choice.filePaths[0] ?? null;
+  } finally {
+    fileAccessPromptOpen = false;
+  }
+};
 
 function registerDialogHandlers(): void {
   handleTrustedIpc('dialog:pickFiles', async () => {
@@ -151,18 +189,9 @@ function registerDialogHandlers(): void {
     if (!pickedPaths.has(filePath)) {
       throw new Error('readFile: path was not picked via the native dialog');
     }
-    const stat = await fs.promises.stat(filePath);
-    if (!stat.isFile()) {
-      throw new Error(`readFile: ${filePath} is not a regular file`);
-    }
-    if (stat.size > MAX_READ_BYTES) {
-      throw new Error(
-        `readFile: ${filePath} is ${stat.size} bytes (limit ${MAX_READ_BYTES})`,
-      );
-    }
     // Buffer crosses the IPC boundary as a Node Buffer which Electron
     // structured-clones into the renderer as a Uint8Array. No base64.
-    return fs.promises.readFile(filePath);
+    return readPickedFile(await fs.promises.realpath(filePath), MAX_READ_BYTES);
   });
 
   // Deep-link the OS privacy pane so the user can grant mic access
@@ -879,6 +908,7 @@ app.whenReady().then(async () => {
       manifestPath: path.join(__dirname, 'host-tools-manifest.json'),
     }),
     consentStore: new CapabilityConsentStore(),
+    ...(process.platform === 'darwin' ? { pickFileAccess } : {}),
     onStatus: (status) => {
       updateTrayCapabilityStatus(status);
       broadcastCapabilityStatus(status);
