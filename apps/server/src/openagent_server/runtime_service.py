@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 import uuid
@@ -769,7 +769,7 @@ class NativeRuntimeService:
         # coordinator from valid single-installation native ingress.
         return principal
 
-    async def _device_grant_route(self, context, granted):
+    async def _private_run_route(self, context, granted, *, inherited_sources=frozenset()):
         if context.deferred:
             return False
         if context.session_id == granted.session_id:
@@ -787,10 +787,56 @@ class NativeRuntimeService:
                     or parent.audience != granted.audience or parent.ingress_id != granted.ingress_id
                     or parent.deferred):
                 return False
+            if inherited_sources:
+                available = await self.runtime.services.store.document_sources(granted, run_id=parent_id)
+                if not inherited_sources.issubset(available):
+                    return False
             if parent.request.session_id == granted.session_id:
-                return True
+                return not inherited_sources or parent.author == granted.authority
+            if inherited_sources and parent.author.kind != "agent":
+                return False
             parent_id = parent.parent_run_id
         return False
+
+    async def _bridge_history_viewer(self, request, viewer):
+        """Use the certified private conversation only for its inherited note revisions."""
+        from openagent_server.bridge_vault_access import is_owner_bridge_principal, owner_bridge_vault_turn
+
+        if (not is_owner_bridge_principal(viewer.initiator)
+                or owner_bridge_vault_turn(viewer, self.agent.config)):
+            return viewer, None
+        conn = await self.agent.memory_db._ensure_connected()
+        row = await (await conn.execute(
+            "SELECT root_session_id FROM sessions_v2 WHERE id=? AND tenant_id=? "
+            "AND agent_id=? AND deleted_at_ms IS NULL AND parent_session_id IS NOT NULL",
+            (viewer.session_id, viewer.tenant_id, viewer.agent_id),
+        )).fetchone()
+        if not row or not row[0] or row[0] == viewer.session_id:
+            return viewer, None
+        root = await self.context(request, row[0])
+        if (replace(viewer, session_id=root.session_id) != root
+                or not owner_bridge_vault_turn(root, self.agent.config)):
+            return viewer, None
+        await self.runtime.authorize(root, "session.read", ResourceRef("session", root.tenant_id, root.session_id),
+                                     audience=root.audience)
+        store = self.runtime.services.store
+        runs = await store.document_source_runs(viewer, viewer.session_id)
+        if not runs:
+            return viewer, None
+        evidence = set()
+        for run_id in runs:
+            accepted = await store.accepted_request(run_id)
+            if (accepted.request.session_id != viewer.session_id or accepted.author.kind != "agent"
+                    or accepted.authority != root.authority or accepted.initiator != root.initiator
+                    or accepted.audience != root.audience or accepted.ingress_id != root.ingress_id
+                    or accepted.deferred or accepted.delegation_id or not accepted.parent_run_id):
+                return viewer, None
+            sources = frozenset(await store.document_sources(viewer, run_id=run_id))
+            child = replace(viewer, author=accepted.author, parent_run_id=accepted.parent_run_id)
+            if not sources or not await self._private_run_route(child, root, inherited_sources=sources):
+                return viewer, None
+            evidence.add((run_id, sources))
+        return root, frozenset(evidence)
 
     async def _capability_context(self, context):
         from openagent_core.core.execution_origin import current_execution_origin
@@ -1066,7 +1112,7 @@ class NativeRuntimeService:
                     and context.authority == granted_context.authority
                     and context.ingress_id == granted_context.ingress_id
                     and context.audience == granted_context.audience
-                    and await self._device_grant_route(context, granted_context)
+                    and await self._private_run_route(context, granted_context)
                     and await self._device_owner(granted_context) == granted_owner)
         if context.delegation_id and f"capability:{source}" not in context.scopes:
             return False
@@ -1138,7 +1184,14 @@ async def bind_runtime_identity(request, handler):
             raise PermissionError("The authorized session runtime is unavailable")
         context = await service.context(request, session_id)
         inspector = SessionInspection(service.agent.memory_db, service.authorizer, runtime=service.runtime)
-        await inspector.authorize(context, session_id)
+        viewer, evidence = await service._bridge_history_viewer(request, context)
+        await inspector.authorize(viewer, session_id)
+        if evidence is not None:
+            # A concurrent turn or ACL edit may have changed the receipts or recipients
+            # while Core checked the note revisions. Publish only the same live lineage.
+            current = await service.context(request, session_id)
+            if current != context or await service._bridge_history_viewer(request, current) != (viewer, evidence):
+                raise PermissionError("The private conversation history changed during authorization")
 
     projection = SessionProjectionGuard(authorize_history)
     request["openagent_session_projection"] = projection

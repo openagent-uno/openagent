@@ -6,6 +6,12 @@ Immutable earlier releases are unchanged. This is not
 a claim of live Slack/Discord acceptance. No provider account, model, release or
 deployment is exercised by its deterministic fixtures.
 
+A certified private messaging bridge can show document-dependent progress from an
+admitted worker when its root conversation still has access to the same note
+revisions. The gateway checks the original certificate binding, recipients and
+persisted parent runs before publishing. Forgetting a source note, changing the
+audience or ending the owner-channel permission also withdraws that progress.
+
 Slack and Discord default to quiet delivery: one acknowledgement followed by
 the final reply and its attachments. Explicit `delivery_mode: quiet` suppresses
 tool messages, text deltas, editable status and compaction notices. Choose
