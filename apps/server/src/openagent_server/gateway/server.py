@@ -1973,7 +1973,6 @@ class Gateway:
         """
         from aiohttp import web
         from aiohttp.helpers import content_disposition_header
-        import hashlib
         import mimetypes
 
         from openagent_core.memory.artifacts import (
@@ -1984,6 +1983,7 @@ class Gateway:
             safe_attachment_filename,
         )
         from openagent_identity.runtime_access import AccessContext
+        from .api.artifacts import download_response, verified_download
 
         try:
             access = AccessContext.from_request(request)
@@ -2012,13 +2012,15 @@ class Gateway:
             )
 
         try:
-            data = await asyncio.to_thread(real.read_bytes)
+            artifact, snapshot = await verified_download(db, artifact, real, access)
+        except ArtifactIntegrityError:
+            return web.Response(status=503, text="artifact unavailable")
+        except ArtifactNotFound:
+            return web.Response(status=404, text="not found")
         except MemoryError:
             return web.Response(status=503, text="file too large to serve")
         except OSError:
             return web.Response(status=404, text="not found")
-        if len(data) != size or hashlib.sha256(data).hexdigest() != str(artifact["sha256"]):
-            return web.Response(status=503, text="artifact unavailable")
 
         canonical_name = safe_attachment_filename(
             artifact["authorized_filename"] or artifact["id"]
@@ -2033,10 +2035,8 @@ class Gateway:
             disposition,
             filename=canonical_name,
         )
-        return web.Response(
-            body=data,
-            content_type=ctype,
-            headers={
+        return download_response(
+            request, snapshot, size, ctype, {
                 "Content-Disposition": content_disposition,
                 # Revalidate on every request so a link ACL change takes
                 # effect immediately even for legacy clients.

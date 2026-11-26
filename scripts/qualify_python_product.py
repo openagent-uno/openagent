@@ -86,22 +86,22 @@ def qualify(wheels: Path) -> None:
         assert importlib.import_module(module).__version__ == version, module
     assert importlib.metadata.version('openagent-product-config') == config_version
     subprocess.run([sys.executable,'-m','pytest','tests','-q'],cwd=ROOT,check=True)
-    # The existing deterministic Custom Views protocol suite uses its own
-    # registry rather than pytest. It needs no live account/configuration.
+    # These deterministic product suites use the server's test registry.
     import asyncio
     import importlib
     sys.path.insert(0, str(ROOT/'apps/server'))
     importlib.import_module('scripts.tests.test_custom_views')
     importlib.import_module('scripts.tests.test_operational_api')
+    importlib.import_module('scripts.tests.test_artifacts')
     from scripts.tests._framework import TESTS
-    async def custom_views():
-        for category_name, minimum in [('custom_views', 20), ('operational_api', 25)]:
+    async def check_registered_suites():
+        for category_name, minimum in [('custom_views', 20), ('operational_api', 25), ('artifacts', 8)]:
             checks = [(name, fn) for category, name, fn in TESTS if category == category_name]
             assert len(checks) >= minimum, category_name
             for name, fn in checks:
                 await fn(None)
                 print(category_name + ': ' + name, flush=True)
-    asyncio.run(custom_views())
+    asyncio.run(check_registered_suites())
     # Installed packages, rather than source PYTHONPATH, own the public imports.
     import openagent_dashboards.repository as repository
     assert str(ROOT) not in str(Path(repository.__file__).resolve())

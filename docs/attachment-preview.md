@@ -1,5 +1,10 @@
 # Attachment preview in OpenAgent App
 
+The gateway serves downloads through the authorized artifact URL. It checks the
+content hash and current visibility before responding. Large downloads use a
+private temporary file and a bounded amount of memory for each transfer. The
+legacy file URL follows the same delivery path.
+
 User and agent attachments expose adjacent expand and download controls in
 message streams. Images and videos can be enlarged to the available window;
 browser audio and video players provide play/pause and seeking. PDF files open

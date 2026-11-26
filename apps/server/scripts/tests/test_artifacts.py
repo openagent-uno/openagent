@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import os
 import sqlite3
 import tempfile
@@ -777,6 +778,7 @@ async def t_artifact_endpoint_acl(ctx: TestContext) -> None:
                 capabilities=[],
             )
             request["device_cert"] = cert
+            request["auth_kind"] = "device_cert"
             request["network_id"] = tenant
             request["user_handle"] = handle
             request["client_id"] = cert.device_pubkey_hex
@@ -807,7 +809,7 @@ async def t_artifact_endpoint_acl(ctx: TestContext) -> None:
             response = await client.get(
                 f"/api/artifacts/{ref['artifact_id']}/content",
             )
-            assert response.status == 200
+            assert response.status == 200, (response.status, await response.text())
             assert await response.read() == payload
             assert response.headers["Content-Type"].startswith("image/png")
 
@@ -891,6 +893,55 @@ async def t_artifact_endpoint_acl(ctx: TestContext) -> None:
             )
             assert bob_file.name in bob_legacy.headers["Content-Disposition"]
             assert await bob_legacy.read() == bob_file.read_bytes()
+
+            # Both public routes deliver a file much larger than the heap
+            # budget while retaining its length, digest and presentation.
+            import tracemalloc
+            from unittest.mock import patch
+
+            large = root / "sample.bin"
+            block = bytes(range(256)) * 256
+            expected = hashlib.sha256()
+            with large.open("wb") as output:
+                for _ in range(192):
+                    output.write(block)
+                    expected.update(block)
+            large_ref, = await normalize_inbound_attachments(
+                db, ({"path": str(large)},), session_id="", principal=alice, allow_local_paths=True,
+            )
+            content_route = f"/api/artifacts/{large_ref['artifact_id']}/content"
+            for route, params in ((content_route, {}), ("/api/files", {"path": large_ref["path"]})):
+                async with client.head(route, params=params) as head:
+                    assert head.status == 200 and head.content_length == large.stat().st_size
+                    assert await head.read() == b""
+                tracemalloc.start()
+                try:
+                    received = hashlib.sha256()
+                    async with client.get(route, params=params) as body:
+                        assert body.status == 200 and body.content_length == large.stat().st_size
+                        async for chunk in body.content.iter_chunked(64 * 1024):
+                            received.update(chunk)
+                    assert received.digest() == expected.digest()
+                    _, peak = tracemalloc.get_traced_memory()
+                    assert peak < 8 * 1024 * 1024, f"download peak was {peak} bytes"
+                finally:
+                    tracemalloc.stop()
+
+            opened = []
+            prepare = artifacts_api.verified_download
+
+            async def observe_download(*args):
+                current, snapshot = await prepare(*args)
+                opened.append(snapshot)
+                return current, snapshot
+
+            with patch.object(artifacts_api, "verified_download", observe_download):
+                partial = await client.get(content_route)
+                assert await partial.content.read(1024)
+                partial.close()
+                async with asyncio.timeout(5):
+                    while not opened[0].closed:
+                        await asyncio.sleep(0.01)
 
             # Same-length tampering must not be masked by metadata size or a
             # stale ETag. The visible artifact remains distinguishable from an

@@ -14,7 +14,7 @@ import hashlib
 import os
 from pathlib import Path
 import tempfile
-from typing import Any
+from typing import Any, BinaryIO
 
 from aiohttp import web
 from aiohttp.helpers import content_disposition_header
@@ -191,6 +191,48 @@ async def handle_content(request: web.Request) -> web.Response:
     return await _read_artifact(request, include_content=True)
 
 
+async def verified_download(db, row, path: Path, access) -> tuple[dict, BinaryIO]:
+    """Return the exact verified bytes and current presentation metadata."""
+    block_size = 256 * 1024
+    snapshot = tempfile.SpooledTemporaryFile(max_size=block_size, mode="w+b")
+    try:
+        size = int(row["size_bytes"])
+        digest = hashlib.sha256()
+        copied = 0
+        with path.open("rb") as source:
+            while chunk := await asyncio.to_thread(source.read, block_size):
+                copied += len(chunk)
+                if copied > size:
+                    raise ArtifactIntegrityError(row["id"])
+                digest.update(chunk)
+                await asyncio.to_thread(snapshot.write, chunk)
+        if copied != size or digest.hexdigest() != row["sha256"]:
+            raise ArtifactIntegrityError(row["id"])
+        current = await artifact_authorized_metadata(db, row["id"], access)
+        if current["sha256"] != row["sha256"] or int(current["size_bytes"]) != size:
+            raise ArtifactIntegrityError(row["id"])
+        snapshot.seek(0)
+        return current, snapshot
+    except BaseException:
+        snapshot.close()
+        raise
+
+
+def download_response(
+    request: web.Request, snapshot: BinaryIO, size: int, mime: str, headers: dict[str, str],
+) -> web.Response:
+    """Give aiohttp ownership of a chunked file payload after normal middleware."""
+    headers["Content-Length"] = str(size)
+    if request.method == "HEAD":
+        snapshot.close()
+        return web.Response(content_type=mime, headers=headers)
+    try:
+        return web.Response(body=snapshot, content_type=mime, headers=headers)
+    except BaseException:
+        snapshot.close()
+        raise
+
+
 async def _read_artifact(
     request: web.Request,
     *,
@@ -238,22 +280,15 @@ async def _read_artifact(
     if limit and size > limit:
         return _problem(413, "artifact_too_large", "Artifact is too large to serve")
     try:
-        data = await asyncio.to_thread(path.read_bytes)
-    except (MemoryError, OSError):
-        return _problem(503, "artifact_unavailable", "Artifact bytes are unavailable")
-    if len(data) != size or hashlib.sha256(data).hexdigest() != str(row["sha256"]):
+        row, snapshot = await verified_download(db, row, path, access)
+    except ArtifactIntegrityError:
         return _problem(503, "artifact_unavailable", "Artifact bytes failed integrity checks")
-    try:
-        current = await artifact_authorized_metadata(db, artifact_id, access)
     except ArtifactNotFound:
         return _problem(404, "artifact_not_found", "Artifact is not available")
-    if current["sha256"] != row["sha256"]:
-        return _problem(503, "artifact_unavailable", "Artifact bytes changed during delivery")
-    row = current
+    except (MemoryError, OSError):
+        return _problem(503, "artifact_unavailable", "Artifact bytes are unavailable")
     filename = safe_attachment_filename(row["authorized_filename"] or artifact_id)
     headers = {
-        # Revalidate authorization on every fetch. Content hashes are stable,
-        # but an ACL grant can be revoked while the artifact still exists.
         "Cache-Control": "private, no-store",
         "Content-Disposition": content_disposition_header(
             "inline" if str(row["kind"]) in {"image", "voice", "video"} else "attachment",
@@ -262,11 +297,7 @@ async def _read_artifact(
         "X-Content-Type-Options": "nosniff",
         "ETag": f'"sha256-{row["sha256"]}"',
     }
-    return web.Response(
-        body=data,
-        content_type=str(row["mime"] or "application/octet-stream"),
-        headers=headers,
-    )
+    return download_response(request, snapshot, size, str(row["mime"] or "application/octet-stream"), headers)
 
 
 __all__ = ["handle_content", "handle_metadata", "handle_upload"]
