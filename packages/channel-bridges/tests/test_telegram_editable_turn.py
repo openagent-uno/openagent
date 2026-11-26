@@ -157,9 +157,14 @@ async def test_each_subagent_has_one_separate_message_updated_with_its_own_opera
                 "tool_call_id": child, "child_session_id": child, "tool_args": {"member_id": child}})))
         await asyncio.sleep(0)
         for child in ("child-one", "child-two"):
+            await emit(BridgeEvent("child", json.dumps({"session_id": child, "type": "delta",
+                "text": f"narration from {child}"})))
+            await asyncio.sleep(0)
             for index in range(20):
                 await emit(BridgeEvent("child", json.dumps({"session_id": child, "type": "status", "text": f"operation-{child}-{index}"})))
             await asyncio.sleep(0)
+            await emit(BridgeEvent("child", json.dumps({"session_id": child, "type": "response",
+                "text": f"final from {child}"})))
             await emit(BridgeEvent("child", json.dumps({"session_id": child, "type": "turn_complete", "reason": "completed"})))
     bridge, message, _ = fixture(produce)
     await bridge.dispatch_turn(message, "tg:100", "question", context=bridge._bridge_context(message))
@@ -168,6 +173,11 @@ async def test_each_subagent_has_one_separate_message_updated_with_its_own_opera
     children = [sent for sent in message.sent if sent.text.startswith("Delegated to sub-agent")]
     assert len(children) == 2 and all(sent.text.endswith("Completed") for sent in children)
     assert all(any("operation-" in edit for edit in sent.edits) for sent in children)
+    for child, sibling in (("child-one", "child-two"), ("child-two", "child-one")):
+        message_for_child = next(sent for sent in children if f"· {child}" in sent.text)
+        assert f"final from {child}" in message_for_child.text
+        assert any(f"narration from {child}" in edit for edit in message_for_child.edits)
+        assert sibling not in message_for_child.text
     await bridge.stop()
 
 
@@ -243,3 +253,209 @@ async def test_retry_after_cools_the_parent_and_children_on_the_same_destination
     await asyncio.gather(turn.main.task, turn.children["child"].task)
     assert len(posted) == 3
     assert all(at - posted[0][1] >= retry * .9 for _, at in posted[1:])
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 0
+        self.waiting = []
+
+    def monotonic(self):
+        return self.now
+
+    async def sleep(self, delay):
+        future = asyncio.get_running_loop().create_future()
+        self.waiting.append((self.now + delay, future))
+        await future
+
+    def advance(self, value):
+        self.now = value
+        for deadline, future in self.waiting:
+            if deadline <= value and not future.done():
+                future.set_result(None)
+
+
+async def _spin_until(predicate):
+    for _ in range(30):
+        if predicate():
+            return
+        await asyncio.sleep(0)
+    assert predicate(), "The expected provider pause was never armed"
+
+
+@pytest.fixture
+def delivery_clock(monkeypatch):
+    from openagent_channel_bridges import turn_messages as delivery
+
+    clock = _Clock()
+    monkeypatch.setattr(delivery, "time", clock)
+    awaits = SimpleNamespace(sleep=clock.sleep, create_task=asyncio.create_task,
+        Lock=asyncio.Lock, CancelledError=asyncio.CancelledError, timeout=asyncio.timeout, gather=asyncio.gather)
+    monkeypatch.setattr(delivery, "asyncio", awaits)
+    return clock
+
+
+@pytest.mark.asyncio
+async def test_54_second_retry_coalesces_parent_and_child_and_delivers_the_final_once(delivery_clock):
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges import turn_messages as delivery
+
+    clock = delivery_clock
+    attempts, accepted = [], []
+
+    async def post(_target, text):
+        attempts.append((clock.now, text))
+        if len(attempts) == 1:
+            raise RetryAfter(54)
+        accepted.append(text)
+        return object()
+
+    stub = SimpleNamespace(turn_edit_interval=0, turn_retry_budget=90, message_limit=4096,
+        post_turn_message=post, split_text=lambda text: [text])
+    turn = delivery.EditableTurn(stub, object())
+    await turn.delta("Initial draft")
+    await _spin_until(lambda: bool(clock.waiting))
+    await turn.delta("Intermediate draft")
+    await turn.child("child", "Reading")
+    await turn.child_frame({"session_id": "child", "type": "delta", "text": "Child working"})
+    await turn.child_frame({"session_id": "child", "type": "response", "text": "Child result"})
+    await turn.child_frame({"session_id": "child", "type": "turn_complete"})
+    finish = asyncio.create_task(turn.finish("Final parent reply"))
+    await asyncio.sleep(0)
+    await turn.delta("Late detached delta")
+    await turn.child_frame({"session_id": "late", "type": "delta", "text": "Late child"})
+    clock.advance(53)
+    await asyncio.sleep(0)
+    assert attempts == [(0, "Initial draft")] and not finish.done()
+    clock.advance(54)
+    await asyncio.wait_for(finish, 1)
+    assert accepted.count("Final parent reply") == 1
+    assert accepted.count("Delegated to sub-agent\n\nChild result\n\nCompleted") == 1
+    assert len(accepted) == 2
+    assert all(at == 54 for at, _ in attempts[1:])
+
+
+@pytest.mark.asyncio
+async def test_over_budget_cooldown_blocks_new_turns_only_in_the_same_telegram_chat(delivery_clock):
+    from dataclasses import replace
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges import turn_messages as delivery
+    from openagent_channel_bridges.base import _active_context
+
+    clock = delivery_clock
+    telegram, target, _ = fixture(lambda _: None)
+    context = telegram._bridge_context(target)
+    token = _active_context.set(context)
+    try:
+        same = telegram.editable_turn_cooldown()
+        assert telegram.editable_turn_cooldown() is same
+    finally:
+        _active_context.reset(token)
+    token = _active_context.set(replace(context, conversation_id="200"))
+    try:
+        separate = telegram.editable_turn_cooldown()
+    finally:
+        _active_context.reset(token)
+    assert separate is not same
+
+    attempts = []
+
+    async def post(destination, text):
+        attempts.append((destination, clock.now, text))
+        if len(attempts) == 1:
+            raise RetryAfter(120)
+        return object()
+
+    stub = SimpleNamespace(turn_edit_interval=0, turn_retry_budget=90, message_limit=4096,
+        post_turn_message=post, split_text=lambda text: [text], editable_turn_cooldown=lambda: same)
+    blocked = delivery.EditableTurn(stub, "same")
+    await blocked.delta("Rejected preview")
+    await blocked.main.task
+    for index in range(20):
+        await blocked.delta(f"Deferred preview {index}")
+    with pytest.raises(delivery.EditableDeliveryDeferred):
+        await blocked.finish("Blocked final")
+    with pytest.raises(delivery.EditableDeliveryDeferred):
+        await delivery.EditableTurn(stub, "same").finish("Still blocked")
+
+    stub.editable_turn_cooldown = lambda: separate
+    await delivery.EditableTurn(stub, "separate").finish("Different chat")
+    stub.editable_turn_cooldown = lambda: same
+    clock.advance(120)
+    await delivery.EditableTurn(stub, "same").finish("Accepted after cooldown")
+    assert attempts == [("same", 0, "Rejected preview"), ("separate", 0, "Different chat"),
+                        ("same", 120, "Accepted after cooldown")]
+
+
+@pytest.mark.asyncio
+async def test_total_delivery_budget_does_not_stack_provider_cooldowns(delivery_clock):
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges import turn_messages as delivery
+
+    clock = delivery_clock
+    attempts = []
+
+    async def post(_destination, text):
+        attempts.append((clock.now, text))
+        raise RetryAfter(54)
+
+    stub = SimpleNamespace(turn_edit_interval=0, turn_retry_budget=90, message_limit=4096,
+                           post_turn_message=post, split_text=lambda text: [text])
+    turn = delivery.EditableTurn(stub, object())
+    finish = asyncio.create_task(turn.finish("Final answer"))
+    await _spin_until(lambda: bool(clock.waiting))
+    clock.advance(54)
+    with pytest.raises(delivery.EditableDeliveryDeferred):
+        await asyncio.wait_for(finish, 1)
+    assert attempts == [(0, "Final answer"), (54, "Final answer")]
+    assert turn.gate.cooldown.ready_at == 108
+
+
+@pytest.mark.asyncio
+async def test_cancellation_stops_pending_parent_and_child_deliveries(delivery_clock):
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges import turn_messages as delivery
+
+    clock = delivery_clock
+    attempts = []
+
+    async def post(_destination, text):
+        attempts.append(text)
+        raise RetryAfter(54)
+
+    stub = SimpleNamespace(turn_edit_interval=0, turn_retry_budget=90, message_limit=4096,
+                           post_turn_message=post, split_text=lambda text: [text])
+    turn = delivery.EditableTurn(stub, object())
+    await turn.delta("Limited preview")
+    await _spin_until(lambda: bool(clock.waiting))
+    await turn.child("child", "Child pending")
+    finish = asyncio.create_task(turn.finish("Cancelled reply"))
+    await asyncio.sleep(0)
+    finish.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await finish
+    clock.advance(54)
+    await asyncio.sleep(0)
+    assert attempts == ["Limited preview"]
+    assert all(item.closed and item.task.done() for item in (turn.main, turn.children["child"]))
+
+
+@pytest.mark.asyncio
+async def test_provider_cooldown_also_suspends_typing_for_that_telegram_chat(delivery_clock):
+    from telegram.error import RetryAfter
+    from openagent_channel_bridges.telegram import _TypingAnimator
+    from openagent_channel_bridges.turn_messages import DeliveryCooldown
+
+    clock = delivery_clock
+    pulses = []
+
+    async def typing(chat, _action):
+        pulses.append(chat)
+
+    cooldown = DeliveryCooldown()
+    cooldown.observe(RetryAfter(54))
+    animator = _TypingAnimator(SimpleNamespace(send_chat_action=typing), 100, cooldown)
+    await animator._pulse("initial")
+    clock.advance(54)
+    await animator._pulse("keepalive")
+    assert pulses == [100]
