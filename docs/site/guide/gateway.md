@@ -63,7 +63,7 @@ rejects token, bridge and agent-peer identities. See
 | `session_open` | `{session_id}` | Open or resume a conversation session |
 | `text_final` | `{text, session_id, attachments?}` | Send a user turn to the agent |
 | `audio_chunk_in` | `{session_id, data: base64, seq, is_end}` | Voice mode audio input |
-| `attachment` | `{session_id, path, filename, type}` | Attach a file to the current turn |
+| `attachment` | `{session_id, artifact_id, artifact_link_id, filename, kind}` | Attach a previously uploaded file to the current turn |
 | `interrupt` | `{session_id}` | Interrupt the current agent run |
 | `command` | `{name: stop\|clear\|new\|reset\|…, session_id}` | Slash-command equivalents |
 | `ping` | `{}` | Keep-alive |
@@ -89,7 +89,11 @@ rejects token, bridge and agent-peer identities. See
 
 ### Attachments
 
-Attachments use markers in reply text (`[IMAGE:/path]`, `[FILE:/path]`, `[VOICE:/path]`, `[VIDEO:/path]`) which the gateway strips and moves into the structured `attachments` array with `{type, path, filename}` entries.
+A client sends the uploaded artifact reference with the turn. For an
+outgoing file, Core resolves the delivery marker from the final answer
+against an artifact already published in the session. The `response` frame
+carries the attachment reference. Use its `artifact_id` to download the
+verified bytes under the current viewer's permissions.
 
 ## Session management
 
@@ -188,8 +192,11 @@ GET    /api/sessions/{id}/turns   → compact index of human prompts: id, ordina
 POST   /api/sessions/{id}/pin     → pin session to a model
 POST   /api/sessions/{id}/clear   → clear session history
 
-# File uploads
-POST   /api/upload                → save uploaded file, returns {path, filename}
+# Attachments
+POST   /api/artifacts              → upload multipart file, returns {attachment: …}
+GET    /api/artifacts/{id}/content → download verified bytes with current read permission
+POST   /api/upload                 → compatibility upload with flat reference fields and a legacy storage path
+GET    /api/files?path=…           → compatibility download of an authorized stored artifact
 
 # TTS / STT
 POST   /api/tts/synthesize        → text-to-speech

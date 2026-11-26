@@ -59,10 +59,10 @@ then uses that exact reference in the same run:
 result = await capability_catalog.call_tool(tool_ref, arguments)
 ```
 
-The registry binds the source, executor, destination, instance and generation.
-Arguments cannot redirect “Shell — Mac di Alice” to another computer. If that
-executor disconnects or is revoked, a later call fails; OpenAgent does not fall
-back to an agent pod or another device.
+The registry binds a tool reference to its source, executor, destination,
+instance and generation. During an interactive turn, a read-only or declared
+idempotent call can wait for that exact device to reconnect and retry within
+the original deadline. Revoking the grant invalidates the reference.
 
 MCP results preserve structured content, attachments, errors and metadata.
 Every route—agent tools, host API, workflows, PTC and imports—uses the same
@@ -81,11 +81,10 @@ durable bearer token.
 
 ## Client and computer capabilities
 
-OpenAgent App and CLI may register filesystem, editor, shell,
-computer-control, agent-in-chrome and dashboard capabilities for the verified
-client instance. Those tools come from
-[`openagent-tools`](https://github.com/openagent-uno/openagent-tools) or the
-standalone product package, not from Core.
+OpenAgent App and CLI may register filesystem, editor, shell, computer-control
+and agent-in-chrome capabilities for the verified device. The App also
+registers its dashboard tools. The standalone product and
+[`openagent-tools`](https://github.com/openagent-uno/openagent-tools) provide these tools.
 
 Starting with host-tools `1.0.0b2`, the editor also exposes `apply_patch` for verified unified-diff edits to one
 existing file at a time. The shell exposes `shell_processes` for a structured
@@ -94,9 +93,12 @@ environment variables are excluded. Both use the same client or server
 destination as their parent capability and are discoverable through Tool
 Discovery without any new model-facing dispatch path.
 
-Only the originating interactive turn and its authorized child sessions can use
-them. Telegram, another app connection, scheduled work and delayed automation
-do not inherit them. See [Client Computer Capabilities](./client-capabilities.md).
+An interactive turn can use its granted device tools and pass those grants to
+an authorized synchronous child. A supported private channel can receive a
+grant through a verified owner mapping. A scheduled task needs an explicit
+loan from its approver, and a device disconnect ends that loan. App dashboard
+tools stay bound to the originating App connection.
+See [Client Computer Capabilities](./client-capabilities.md).
 
 The standalone full profile also registers `filesystem`, `editor` and `shell`
 for the server workspace. These are durable product-owned destinations and are

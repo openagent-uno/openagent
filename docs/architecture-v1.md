@@ -30,10 +30,11 @@ One uniform catalog binds opaque tool references to exact sources, executors
 and generations. The host grants consented device sources explicitly. The
 standalone product can grant the same authenticated owner’s connected devices
 to private human sessions, while Core stays independent of client topology.
-App injects dashboard capabilities itself;
-keeping the persistent dashboard service in the server does not advertise
-those tools to Telegram, another client, or a scheduled task. Disconnect and
-revocation invalidate further calls, without selecting another computer.
+The App registers dashboard capabilities on its authenticated chat connection.
+Closing or revoking that connection invalidates its dashboard handles. Device
+tools use a separate connection. An existing interactive grant can survive
+a temporary disconnect and authorize a read-only or idempotent retry on the
+same device. See [Client Computer Capabilities](site/guide/client-capabilities.md#capability-protocol).
 
 Every actual agent run uses the same mandatory framework and enabled-module
 instructions. Product persona and configurable system prompts add to them.

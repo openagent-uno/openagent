@@ -86,11 +86,10 @@ enabled = true
 
 ## Enabling and revoking access
 
-Local control is disabled until the user grants the device-level consent once.
-After that grant, OpenAgent does not ask before each file, shell, screen or
-browser action and does not impose an additional filesystem root. Tools inherit
-the permissions of the operating-system user running the client; they do not
-gain administrator/root privileges automatically.
+Local control requires one device-level consent. The broker then runs tools
+with the OS user's permissions and configured filesystem roots. On macOS,
+Desktop can separately request one-time access to a file or directory when
+the tool host receives a permission denial.
 
 Desktop exposes the switch and current host status in Settings. The CLI uses:
 
@@ -159,13 +158,15 @@ download reference. Iroh request readers pause with the HTTP parser's
 backpressure while the multipart handler stages the transfer in bounded
 blocks.
 
-Capability sockets wait for an authenticated registration acknowledgement and
-check heartbeat acknowledgements before becoming available for dispatch.
+The gateway activates a capability socket after sending its authenticated
+registration acknowledgement. Desktop then checks heartbeat acknowledgements
+to detect a stalled connection.
 A replacement socket keeps its own call state when replies from the previous
 socket arrive late. Cancelled calls can release an in-progress file transfer
 without closing every tool on the device. Safe retries use the same
-authenticated device and the original deadline. A foreground shell command
-has five seconds after its execution limit to report the result.
+authenticated device and the original deadline. For a foreground shell call,
+the gateway uses the longer of the normal call timeout and the shell's
+execution timeout plus five seconds, up to 600 seconds in total.
 
 Completed assistant replies show their executing model at the start of the
 footer, before copy/fork actions and the timestamp. Model and time share the
@@ -203,13 +204,10 @@ Observer failures use content-free diagnostic reasons. Logout/account switching
 cancels its timers and prevents an old client or grant from reopening a view.
 See the [source and isolated Mac Electron qualification](../../qualification/shared-observer-recovery-2026-11-12.json).
 
-The separate deferred-delegation link defect is owned by Core: its internal
-tool dispatcher must retain the originating provider call ID so a `run.child`
-event can link an already running child to its card. The App already opens that
-authorized child without waiting for the tool result. Adoption of the upstream
-source fix requires the next published Core dependency; the currently pinned
-Core beta81 does not include it. No timing/name inference or local runtime
-override supplies a missing link.
+The 12 November qualification used Core beta81. At that revision, deferred
+delegation could omit the originating provider call ID from a `run.child`
+event. The App opens an authorized child as soon as that link arrives.
+The Server beta115 source pins Core beta174.
 
 ### Desktop host transport lifecycle
 
@@ -289,21 +287,21 @@ A cancelled or timed-out call ends only that call. The Gateway settles its own
 cancellations immediately. When the client's deadline stops a mutating call
 first, it reports `CLIENT_RESULT_INDETERMINATE` on the same channel.
 
-A running turn's device grants are fixed when the turn starts. If only the
-capability transport drops, the turn keeps the grants of that exact origin
+A running interactive turn's device grants are fixed when the turn starts.
+If the capability transport drops, the turn keeps the grants of that exact origin
 (device, instance, generation and authorization epoch) for up to five minutes.
-The existing tool descriptions remain available to the running turn. Its
-read-only and idempotent calls wait within their original deadline and dispatch after
-the same host acknowledges registration with the same tool contract. Operations
-that can change state fail before dispatch while the device is offline. New
-device grants require a live registration. A new generation, a revoked or
-re-authorized device, or expiry of the grace period ends the existing grants.
+The existing tool descriptions remain available. Calls classified as
+`read_only` or `idempotent` can wait for that host to register the same tool
+contract and can retry with the original call ID and deadline. A `mutating`
+call fails before dispatch while the device is offline. If that call's delivery becomes
+uncertain after dispatch, the gateway reports an indeterminate result without
+retrying. New grants require a live registration. Revocation, a new generation
+or authorization epoch, or expiry of the grace period ends the existing grants.
 
 The desktop reconnects if the registration or heartbeat acknowledgement is
 missing. Callbacks from a retired socket stay scoped to that socket. The Gateway
 acknowledges each authenticated heartbeat and writes the device inventory
-summary at most once a minute during steady traffic. Foreground shell calls
-include time for the tool to report its own timeout.
+summary at most once a minute during steady traffic.
 
 The capability endpoint accepts only a coordinator-issued device certificate
 whose public key matches the Iroh peer. Shared HTTP tokens, bridges and

@@ -1,6 +1,8 @@
 # Channels
 
-All channels support text, images, files, voice, and video. The "is writing" indicator shows the agent is working, and — in [live mode](#live-messages) (on by default) — each tool call and each span of the answer is posted as its own chat message as the turn unfolds.
+Channels carry text and supported media, including images, files, voice and
+video. Standalone Telegram defaults to editable live replies. Slack and
+Discord default to quiet delivery. See [Live messages](#live-messages).
 
 Core owns the shared command catalogue and semantics. Each host advertises its
 supported scopes; instance administration commands appear only where supported.
@@ -182,32 +184,22 @@ Or disable it fleet-wide with the `OPENAGENT_CHANNEL_LIVE=0` environment variabl
 
 ### Files & images from user → agent
 
-Upload endpoint:
-
-```
-POST /api/upload        (multipart/form-data, field: "file")
-```
-
-Returns `{path, filename, transcription?}`. The `path` is a local absolute path the agent can read with the filesystem MCP (`filesystem_read_text_file`, `filesystem_read_media_file`, `filesystem_get_file_info`, etc.). On macOS it's a `/private/var/folders/.../T/oa_upload_<rand>/<filename>` realpath — already resolved so the filesystem MCP's allowlist check doesn't reject it.
-
-Flow:
-
-1. Client (web app, desktop, any bridge) posts the file to `/api/upload`.
-2. The returned path goes into the next chat message text (e.g. `"Summarise the file at /private/var/.../report.pdf"`) — OR into the WS `attachments` field if the client builds one directly via `Agent.run(attachments=[...])`.
-3. The LLM calls a filesystem MCP tool with that path to read content.
+Upload the bytes as the multipart `file` field on `POST /api/artifacts`.
+Pass the returned `attachment` reference, including its `artifact_id` and
+`artifact_link_id`, in the next turn's `attachments` list. A client using the
+compatibility endpoint `POST /api/upload` receives the reference fields at the
+top level, along with a legacy storage path and optional voice transcription.
+The gateway removes its temporary staging file after upload.
 
 ### Agent → user attachments
 
-The agent signals attachments back to the client by emitting markers in its reply text:
-
-```
-[IMAGE:/path/to/chart.png]
-[FILE:/path/to/report.pdf]
-[VOICE:/path/to/memo.ogg]
-[VIDEO:/path/to/clip.mp4]
-```
-
-The gateway strips these markers from the response text and delivers them as a structured `attachments: [{type, path, filename}]` array on the WS `response` message. Bridges render them as native media attachments (Telegram photo, Discord file, WhatsApp media).
+For an authorized server file, `send_file_to_user` publishes the bytes and
+returns a delivery marker. For a file already linked to the conversation,
+`resend_session_attachment(artifact_id)` prepares a marker for that artifact.
+The agent includes the returned marker in its final answer. Core resolves it
+against the current session and supplies a structured attachment reference.
+The bridge delivers the file through the provider's native media API. App
+clients download it from the authenticated `/api/artifacts/{id}/content` URL.
 
 ## Voice Transcription
 
@@ -247,21 +239,21 @@ handle and channel bindings stay the same.
 ## Editable live turns (beta23)
 
 Live text turns use one editable main provider message for narration, tool
-progress, compaction and the final answer. Each actual child session has one
-separate editable message headed `Delegated to sub-agent`, with only its own
-current operation and terminal outcome. Updates are coalesced into a bounded
-latest-value mailbox and throttled across the turn; every send/edit retains
-fresh audience and host authorization. An explicit provider rate-limit
+progress, compaction and the final answer. Each observed child session has one
+separate editable message headed `Delegated to sub-agent`, showing its own
+streamed text, current operation, final reply and outcome. The bridge keeps
+the latest pending update and paces edits across the turn. Each send or edit
+rechecks the audience and host authorization. An explicit provider rate-limit
 rejection has at most two bounded retries. An uncertain initial send is never
 blindly repeated. Final answers exceeding a provider's size limit use
 continuation messages; files retain the normal attachment path. Quiet and
 voice delivery keep their existing semantics.
 
 Hosts may advertise `child` in `progress_kinds` and emit `BridgeEvent("child",
-json_frame)` with exact `session_id`, `type` (`status`, `turn_complete`, `error`)
-and optional `text`/terminal `reason`. Only the host's admitted child events may
-be forwarded; stale events must not attach to a later turn. Hosts that do not
-provide child events retain the main edited reply.
+json_frame)` with the exact child `session_id`. A `delta` appends text and a
+`response` supplies the complete reply. A `status` updates the operation,
+and `turn_complete` or `error` records the outcome. Forward admitted child
+events only while their parent turn owns the delivery.
 
 Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
 acceptance for this revision is tested separately; live QA is limited to

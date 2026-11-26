@@ -90,9 +90,12 @@ client or:
 openagent-cli local-tools enable
 ```
 
-That consent is persistent and unrestricted: after enabling, there are no
-per-call prompts or artificial filesystem roots. Only built-ins and MCP plugins
-explicitly present in `client-mcps.toml` are loaded.
+The broker reuses the device consent for subsequent calls with the OS user's
+permissions. On macOS, if the tool host receives a permission denial for
+`read_text_file`, `attach_file` or `list_directory`, Desktop first tries its
+own OS access. If necessary, the user can select the exact file or directory
+for that one operation. Only built-ins and MCP plugins explicitly present in
+`client-mcps.toml` are loaded.
 
 Desktop and CLI share `~/.openagent/user/client-mcps.toml` and
 `~/.openagent/user/client-tools-consent.json`. Set

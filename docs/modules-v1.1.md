@@ -17,17 +17,21 @@ reference-counted by domain, so hot removal of Scheduler does not stop Workflow
 or Event work. Product task seeding and UI broadcasts attach to that module-owned
 worker instead of starting a second scheduler loop.
 
-OpenAgent App and CLI continue to register dashboard, filesystem, editor, shell,
-computer-control and agent-in-chrome capabilities from the authenticated client.
-These are temporary capability sources for that exact device turn; channels and
-durable automations do not inherit them. The standalone full profile separately
-registers filesystem, editor and shell for the server workspace. An operator
-may also enable the server's own computer-control and agent-in-chrome sidecars
-with `server_host_tools`. These durable capabilities operate on the agent host,
+OpenAgent App and CLI register filesystem, editor, shell, computer-control
+and agent-in-chrome capabilities for the authenticated device. The App also
+registers dashboard tools on its own chat connection. An authorized
+interactive turn can share its device grants with a synchronous child.
+Verified private channel mappings can grant access to the same owner's
+devices. A scheduled task can use a device explicitly lent by its approver
+while that device stays connected.
+
+The standalone full profile separately registers filesystem, editor and shell
+for the server workspace. An operator may also enable the server's own
+computer-control and agent-in-chrome sidecars with `server_host_tools`.
+These durable capabilities operate on the agent host,
 have distinct references from a connected client device, and are available to
-channels and automation when enabled. The server never promotes a connected
-client's computer or dashboard tools to a channel. The server's dashboard
-persistence does not globally advertise dashboard tools.
+channels and automation when enabled. Dashboard state stays in the server's
+dashboard service.
 
 The product system prompt is composed after mandatory kernel and active-module
 blocks. Removing Vault removes its tools, hooks, reminders and prompt rules.
