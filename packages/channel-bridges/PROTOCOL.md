@@ -281,8 +281,12 @@ child’s streamed text and current operation, then retains the child’s reply
 alongside its terminal outcome. Updates are coalesced into a bounded
 latest-value mailbox and throttled across the turn; every send/edit retains
 fresh audience and host authorization. An explicit provider rate-limit
-rejection has at most two bounded retries and delays both the parent and
-child receipts in the same turn. An uncertain initial send is never
+rejection has at most two bounded retries. For Telegram, the authenticated
+bot chat shares its cooldown and pacing across turns. Final publication
+has a 90-second total budget, including the parent, children and text
+continuations. A provider wait beyond the budget defers delivery without
+another request to that chat during its cooldown. When the provider resumes,
+only the latest queued text is sent. An uncertain initial send is never
 blindly repeated. Final answers exceeding a provider's size limit use
 continuation messages; files retain the normal attachment path. Quiet and
 voice delivery keep their existing semantics.

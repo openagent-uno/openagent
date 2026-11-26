@@ -8,7 +8,7 @@ import logging
 import shutil
 import tempfile
 import time
-from collections import deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass, field, replace
 from datetime import timedelta
 from pathlib import Path
@@ -27,6 +27,7 @@ from openagent_channel_bridges.media import (
 
 from openagent_channel_bridges.base import elog
 from openagent_channel_bridges.typing import TypingRateLimited, TypingSpec
+from openagent_channel_bridges.turn_messages import DeliveryCooldown
 
 logger = logging.getLogger(__name__)
 
@@ -116,8 +117,9 @@ class _TypingAnimator:
     # doesn't accidentally throttle the next user-facing edit either.
     _STREAM_EDIT_MIN_INTERVAL_S = 1.1
 
-    def __init__(self, bot, chat_id: int) -> None:
+    def __init__(self, bot, chat_id: int, cooldown: DeliveryCooldown | None = None) -> None:
         self._bot = bot
+        self._cooldown = cooldown
         self._chat_id = chat_id
         self._stop = asyncio.Event()
         self._task: asyncio.Task | None = None
@@ -129,39 +131,30 @@ class _TypingAnimator:
         self._pending_text: str | None = None
         self._edit_lock = asyncio.Lock()
 
-    async def start(self) -> None:
+    async def _pulse(self, phase: str) -> None:
         from telegram.constants import ChatAction
-        # First action awaited synchronously so Telegram registers TYPING
-        # before dispatch_turn proceeds to the model round-trip. Without
-        # this the chat-list preview can miss the "typing…" state for
-        # sub-second turns: the reply lands before the client has had
-        # time to switch the preview off the user's last message.
+
+        if self._cooldown is not None and self._cooldown.active():
+            return
         try:
             await self._bot.send_chat_action(self._chat_id, ChatAction.TYPING)
-        except Exception as e:  # noqa: BLE001
-            elog(
-                "bridge.telegram.typing_action_failed",
-                chat_id=self._chat_id, phase="initial", error_type=type(e).__name__,
-            )
+        except Exception as error:  # noqa: BLE001
+            if self._cooldown is not None:
+                self._cooldown.observe(error)
+            elog("bridge.telegram.typing_action_failed", phase=phase, error_type=type(error).__name__)
+
+    async def start(self) -> None:
+        # Start before dispatch so even a quick response can show typing.
+        await self._pulse("initial")
+
         async def _loop() -> None:
             while not self._stop.is_set():
                 try:
                     await asyncio.wait_for(self._stop.wait(), timeout=self._TYPING_REFRESH_S)
                 except asyncio.TimeoutError:
-                    pass
-                if self._stop.is_set():
-                    break
-                try:
-                    await self._bot.send_chat_action(self._chat_id, ChatAction.TYPING)
-                except Exception as e:  # noqa: BLE001
-                    # Network blip or chat-removed; keep looping, the
-                    # outer dispatch will tear us down when the turn ends.
-                    # Surface via elog so silent throttling/permission
-                    # issues become diagnosable instead of disappearing.
-                    elog(
-                        "bridge.telegram.typing_action_failed",
-                        chat_id=self._chat_id, phase="keepalive", error_type=type(e).__name__,
-                    )
+                    if not self._stop.is_set():
+                        await self._pulse("keepalive")
+
         self._task = asyncio.create_task(_loop())
 
     async def stream_chunk(self, full_text: str) -> None:
@@ -234,6 +227,9 @@ class TelegramBridge(BaseBridge):
     editable_turns = True
     name = "telegram"
     message_limit = TELEGRAM_MSG_LIMIT
+    # A real provider RetryAfter can be close to a minute. Bound the entire
+    # final publication, including its children, below the normal media budget.
+    turn_retry_budget = 90.0
 
     def __init__(self, token: str, allowed_users: list[str] | None = None,
                  personality: str | None = None, streaming: bool = False,
@@ -244,6 +240,7 @@ class TelegramBridge(BaseBridge):
             raise ValueError("A host-owned binding_id is required")
         self.binding_id = binding_id
         self.token = token
+        self._editable_cooldowns: OrderedDict[tuple[str, str], DeliveryCooldown] = OrderedDict()
         # Group/supergroup chats the bot is allowed to listen in. ``None``
         # = listen anywhere it's added (still gated by @mention / reply
         # so it doesn't spam). Provide as a list of chat IDs (signed
@@ -1495,6 +1492,19 @@ class TelegramBridge(BaseBridge):
 
         return TypingSpec(pulse, interval=_TypingAnimator._TYPING_REFRESH_S)
 
+    def editable_turn_cooldown(self) -> DeliveryCooldown:
+        context = self._resolve_context()
+        # Telegram rate limits are reflected only into the authorized chat.
+        # Topic replies in that chat use the same provider destination.
+        key = (context.account_id, context.conversation_id)
+        cooldown = self._editable_cooldowns.pop(key, None)
+        if cooldown is None:
+            cooldown = DeliveryCooldown()
+        self._editable_cooldowns[key] = cooldown
+        if len(self._editable_cooldowns) > 128:
+            self._editable_cooldowns.popitem(last=False)
+        return cooldown
+
     async def post_status(self, msg, text: str):
         # Surface the agent's in-flight state as Telegram's native typing
         # action (matches Hermes' UX) instead of a "Thinking..." reply
@@ -1504,7 +1514,7 @@ class TelegramBridge(BaseBridge):
         # the typing dot replaces the spinner text entirely, and the agent
         # actual reply lands a few seconds later.
         try:
-            animator = _TypingAnimator(msg.get_bot(), msg.chat_id)
+            animator = _TypingAnimator(msg.get_bot(), msg.chat_id, self.editable_turn_cooldown())
             await animator.start()
             return animator
         except Exception:
