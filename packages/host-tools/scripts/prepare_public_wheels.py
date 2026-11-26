@@ -49,7 +49,9 @@ def main():
         manifest = json.loads(fetch(base, 'manifest.json', digest, root/(label+'-manifest.json')))
         if manifest.get('dirty_snapshot') is not False or (source and manifest.get('repository_commit', manifest.get('source_commit')) != source):
             raise ValueError('Public dependency provenance differs from the reviewed source')
-        specs = manifest.get('wheels')
+        # Device Tools publishes its wheel through the device release's
+        # artifacts list. Core and Tools use the wheel inventory.
+        specs = manifest.get('wheels', manifest.get('artifacts'))
         if specs is None:
             specs = [{'file':name, **value} for name,value in manifest['files'].items() if name.endswith('.whl')]
         for spec in specs:
