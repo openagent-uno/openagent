@@ -9,9 +9,9 @@ assistant’s text next to the tool it described. Copy uses the complete answer.
 
 An unsent message stays at the time it was sent, where its delivery notice
 can be dismissed. An attachment stays in the composer until it is ready.
-A failed upload can be retried or removed from the draft. Switching chats,
-starting a session or changing accounts keeps each conversation's text and
-attachments together, including uploads that finish while you are away.
+A failed upload can be retried or removed from the draft.
+Files stay with the conversation and account that selected them. You can switch
+chats within that account during an upload and return to the original draft.
 For supported read operations, macOS can use the permission granted to the
 app when the separate tool process receives an operating-system denial.
 If access still requires a selection, the request identifies the item and
