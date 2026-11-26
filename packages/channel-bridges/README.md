@@ -355,7 +355,11 @@ Live text turns use one editable main provider message for narration, tool
 progress, compaction and the final answer. Each actual child session has one
 separate editable message headed `Delegated to sub-agent`. It shows the
 child’s streamed text and current operation, then retains the child’s reply
-alongside its terminal outcome. Updates are coalesced into a bounded
+alongside its terminal outcome. If the parent finishes before the bridge
+receives a child's terminal event, its message ends with `Outcome unavailable`
+and omits the child's earlier narration. An empty final reply clears the
+current operation and retains any streamed parent narration, or shows
+`Completed` when there was none. Updates are coalesced into a bounded
 latest-value mailbox and throttled across the turn; every send/edit retains
 fresh audience and host authorization. An explicit provider rate-limit
 rejection has at most two bounded retries. For Telegram, the authenticated

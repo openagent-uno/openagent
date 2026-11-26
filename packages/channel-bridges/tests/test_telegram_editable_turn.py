@@ -47,8 +47,8 @@ class Message:
 
 
 class Transport:
-    def __init__(self, produce, answer="Final answer"):
-        self.produce, self.answer = produce, answer
+    def __init__(self, produce, answer="Final answer", status="completed"):
+        self.produce, self.answer, self.status = produce, answer, status
         self.allowed = True
 
     async def authorize_context(self, context):
@@ -62,18 +62,22 @@ class Transport:
 
     async def send(self, request, *, on_event=None):
         await self.produce(on_event)
-        return BridgeReply(parts=(BridgePart(text=self.answer),))
+        return BridgeReply(parts=(BridgePart(text=self.answer),), status=self.status)
 
 
 class Bridge(TelegramBridge):
     turn_edit_interval = 0
 
+    async def flush_updates_offset(self):
+        # The test transport never starts a Telegram polling subscription.
+        pass
+
     async def post_status(self, *args):
         return None
 
 
-def fixture(produce, answer="Final answer"):
-    transport = Transport(produce, answer)
+def fixture(produce, answer="Final answer", status="completed"):
+    transport = Transport(produce, answer, status)
     bridge = Bridge("fixture-token", allowed_users=["100"], transport=transport, binding_id="test")
     message = Message()
     return bridge, message, transport
@@ -225,6 +229,39 @@ async def test_failed_child_remains_failed_after_successful_parent():
     children = [sent for sent in message.sent if sent.text.startswith('Delegated to sub-agent')]
     assert len(children) == 1 and children[0].text.endswith('Failed')
     await bridge.stop()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("status", "answer", "narration", "expected_parent"), [
+    ("completed", "", "", "Completed"),
+    ("completed", "", "Visible narration", "Visible narration"),
+    ("completed", "Parent reply", "", "Parent reply"),
+    ("cancelled", "", "", "Stopped"),
+    ("failed", "private diagnostics", "", None),
+])
+async def test_parent_terminal_replaces_waiting_without_guessing_a_child_outcome(
+    status, answer, narration, expected_parent,
+):
+    from openagent_core.core.public_errors import PUBLIC_MESSAGES
+
+    async def produce(emit):
+        if narration:
+            await emit(BridgeEvent("text", narration))
+        await emit(BridgeEvent("status", json.dumps({"tool_name": "delegate_task_to_member",
+            "tool_call_id": "delegation", "child_session_id": "child"})))
+        await emit(BridgeEvent("child", json.dumps({"session_id": "child", "type": "delta",
+            "text": "Child narration before its updates ended"})))
+        await asyncio.sleep(0)
+
+    bridge, message, _ = fixture(produce, answer, status)
+    try:
+        await bridge.dispatch_turn(message, "tg:100", "question", context=bridge._bridge_context(message))
+        assert {receipt.text for receipt in message.sent} == {
+            expected_parent or "⚠️ " + PUBLIC_MESSAGES["generic"],
+            "Delegated to sub-agent\n\nOutcome unavailable",
+        }
+    finally:
+        await bridge.stop()
 
 
 @pytest.mark.asyncio
