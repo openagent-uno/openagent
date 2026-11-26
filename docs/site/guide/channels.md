@@ -255,6 +255,12 @@ json_frame)` with the exact child `session_id`. A `delta` appends text and a
 and `turn_complete` or `error` records the outcome. Forward admitted child
 events only while their parent turn owns the delivery.
 
+The standalone gateway checks session visibility for each outgoing frame.
+If access to a child changes, its remaining updates are withheld while the
+parent and other visible children continue on the same connection. A client
+reconnecting mid-turn receives each visible session's own replay. A child's
+terminal update closes only that child's replay.
+
 Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
 acceptance for this revision is tested separately; live QA is limited to
 Telegram. Offline SDK fixtures do not establish live provider acceptance.

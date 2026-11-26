@@ -451,7 +451,9 @@ class Gateway:
 
         Serialised per-socket (``_ws_send_locks``) so concurrent producers —
         a session's channel pump and a broadcast of a child run's live deltas —
-        never interleave frames on aiohttp's single writer."""
+        never interleave frames on aiohttp's single writer. A frame consumed
+        by the viewer's projection is handled. Only a lost transport needs
+        the realtime pump to retry its queued frame."""
         if ws is None or getattr(ws, "closed", False):
             return False
         lock = self._ws_send_locks.get(ws)
@@ -468,7 +470,7 @@ class Gateway:
                     # A queued delta or replay can outlive the source note.
                     conn = await self.agent.memory_db._ensure_connected()
                     if sid not in await projection.visible(conn, (sid,), remember=False):
-                        return False
+                        return True
                 await ws.send_json(payload)
             return True
         except Exception as e:
@@ -544,15 +546,20 @@ class Gateway:
         replay.start(frame, owner=owner)
 
     def _record_live_output(
-        self, session_id: str, frame: dict[str, Any], *, owner: str | None = None,
+        self, stream_session_id: str, frame: dict[str, Any], *, owner: str | None = None,
     ) -> None:
         """Append one outbound frame to a session's live replay.
 
         ``turn_complete`` ends the replay immediately; a reconnect after that
         should hydrate from the DB, whose run write has landed by then.
         """
+        session_id = frame.get("session_id")
         if not session_id or frame.get("type") not in _LIVE_REPLAY_FRAME_TYPES:
             return
+        if session_id != stream_session_id:
+            # Inline children use the parent's transport. Resolve their own
+            # replay owner from storage when a client requests a snapshot.
+            owner = None
         collaboration = getattr(self, "_collaboration", None)
         if collaboration is not None:
             collaboration.hub.publish(frame)
