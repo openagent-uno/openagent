@@ -57,21 +57,29 @@ async def _send_turn(client, ingress, run, session, attachments=()):
 
 
 async def _reopen_outputs(client, ingress, history):
+    async with client.get(history) as response:
+        assert response.status == 200, await response.text()
+        messages = (await response.json())["messages"]
+    attached = [(m["role"], m["run_id"]) for m in messages if m["attachments"]]
+    assert attached == [("user", "original"), ("assistant", "original"), ("assistant", "again")]
+    outputs = [m["attachments"] for m in messages if m["role"] == "assistant" and m["attachments"]]
+    async with client.get(history, params={"timeline": "interleaved", "tool_details": "deferred"}) as response:
+        assert response.status == 200, await response.text()
+        page = (await response.json())["messages"]
+    rendered_files = [(m["run_id"], part["attachment"]["artifact_id"]) for m in page
+                      for part in m.get("transcript_segment", m)["parts"] if part["kind"] == "attachment"]
+    assert rendered_files == [("original", outputs[0][0]["artifact_id"]),
+                              ("original", outputs[0][0]["artifact_id"]), ("again", outputs[1][0]["artifact_id"])]
     if ingress == "app":
-        async with client.get(history) as response:
-            assert response.status == 200, await response.text()
-            messages = (await response.json())["messages"]
-        replies = [m for m in messages if m["role"] == "assistant" and m["attachments"]]
-        assert [reply["run_id"] for reply in replies] == ["original", "again"]
-        return [reply["attachments"] for reply in replies]
-    outputs = []
-    for run in ("original", "again"):
+        return outputs
+    for run, refs in zip(("original", "again"), outputs, strict=True):
         async with client.get(f"/api/runtime/runs/{run}/events") as response:
             assert response.status == 200, await response.text()
             events = (await response.json())["events"]
         terminal, = [e["payload"] for e in events if e["kind"] == "run.stream"
                      and e["payload"].get("kind") == "done"]
-        outputs.append(terminal["final_answer"]["attachments"])
+        journal, = terminal["final_answer"]["attachments"]
+        assert [ref["artifact_id"] for ref in refs] == [journal["artifact_id"]]
     return outputs
 
 
@@ -232,8 +240,7 @@ async def test_certified_owner_resends_original_attachment_after_reading_a_note(
                 assert original_id in found, found
                 assert len(sent) == 1 and original_id in sent[0]
 
-        # Reopen the corresponding public history in a fresh client. The App
-        # reads chat messages; direct runtime clients replay the run journal.
+        # A fresh client can open a conversation started through either ingress.
         async with aiohttp.ClientSession(base_url=server.make_url("/")) as client:
             outputs = await _reopen_outputs(client, ingress, history)
             for attachments in outputs:
