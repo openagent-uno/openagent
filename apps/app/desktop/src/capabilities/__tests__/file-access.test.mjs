@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import runTest from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { CapabilityManager } from '../../../dist/capabilities/manager.js';
 import { fileAccessRequest, offerFileAccess } from '../../../dist/capabilities/file-access.js';
+
+// The Electron fixture cannot wait for Node's process-idle test summary.
+const tests = [];
+const test = (...args) => tests.push(runTest(...args));
+export const complete = () => Promise.all(tests);
 
 test('desktop returns approval and denial through the authenticated tool socket', { timeout: 6000 }, async t => {
   const temporary = await mkdtemp(join(await realpath(tmpdir()), 'openagent-file-access-'));
@@ -26,13 +31,15 @@ test('desktop returns approval and denial through the authenticated tool socket'
     hostLaunch: {
       command: process.execPath,
       args: [fileURLToPath(new URL('./fake-host.mjs', import.meta.url))],
-      env: { OPENAGENT_FAKE_ENABLED: '1', OPENAGENT_FAKE_DENIED_FILE: file },
+      env: { OPENAGENT_FAKE_ENABLED: '1', OPENAGENT_FAKE_DENIED_FILE: file,
+        ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) },
       source: 'development',
     },
     consentStore: { get: () => consent, cacheCanonical: () => consent },
     pickFileAccess: async request => {
       assert.deepEqual(request, { accountId: 'fixture-account', path: file, directory: false });
       prompts++;
+      if (selection === file && appHasAccess) await chmod(file, 0o600);
       return selection;
     },
   });
@@ -63,19 +70,51 @@ test('desktop returns approval and denial through the authenticated tool socket'
       return JSON.parse((await response)[0]);
     }
     const initial = await call('permission-check', 'fixture-session');
-    if (appHasAccess) assert.equal(initial.result._meta.permission, 'application_access');
-    else assert.equal(initial.error.code, 'file_permission_denied');
+    if (appHasAccess) {
+      assert.equal(initial.result._meta.permission, 'application_access');
+      assert.equal(prompts, 0);
+    }
+    const canDenyRead = !appHasAccess || process.getuid?.() !== 0;
+    if (canDenyRead) {
+      if (appHasAccess) {
+        await chmod(file, 0o000);
+        const denied = await call('permission-denied', 'fixture-session');
+        assert.equal(denied.error.code, 'file_permission_denied');
+      } else {
+        assert.equal(initial.error.code, 'file_permission_denied');
+      }
+    }
     selection = file;
     const approved = await call('approved', 'fixture-session');
     assert.equal(approved.result.content[0].text, 'synthetic permission receipt');
-    assert.equal(approved.result._meta.permission, appHasAccess ? 'application_access' : 'granted_once');
+    assert.equal(approved.result._meta.permission, canDenyRead ? 'granted_once' : 'application_access');
     const unattended = await call('no-session', null);
     assert.equal(unattended.result.isError, true);
-    assert.equal(prompts, appHasAccess ? 0 : 2);
+    assert.equal(prompts, canDenyRead ? 2 : 0);
   } finally {
     await manager.shutdown();
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('an invalid text slice never prompts or reads and valid slices preserve text boundaries', async t => {
+  const temporary = await mkdtemp(join(await realpath(tmpdir()), 'openagent-file-lines-'));
+  t.after(() => rm(temporary, { recursive: true, force: true }));
+  const path = join(temporary, 'sample.txt');
+  await writeFile(path, 'first\r\nsecond\u2028third\r');
+  const signal = new AbortController().signal;
+  const request = { accountId: 'fixture-account', path, directory: false };
+  const rejected = [true, [], {}, '', '0x2'];
+  for (const head of rejected) {
+    const call = { server: 'filesystem', tool: 'read_text_file', args: { path, head }, session_id: 'fixture' };
+    await assert.rejects(offerFileAccess(
+      async () => { assert.fail('invalid arguments prompted the user'); },
+      request, call, signal, () => true, { useApplicationAccess: true },
+    ), { code: 'invalid_arguments' });
+  }
+  const call = { server: 'filesystem', tool: 'read_text_file', args: { path, head: 2 }, session_id: 'fixture' };
+  const read = await offerFileAccess(async () => path, request, call, signal, () => true);
+  assert.equal(read.content[0].text, 'first\nsecond');
 });
 
 test('a mismatched selection, withdrawn consent or expired request never reads the file', async t => {

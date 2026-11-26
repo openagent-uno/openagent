@@ -34,14 +34,19 @@ export async function offerFileAccess(
   { timeoutMs = PERMISSION_WAIT_MS, useApplicationAccess = false } = {},
 ): Promise<unknown> {
   const { path, directory } = request;
+  const attachment = call.tool === 'attach_file';
+  const textSelection = call.tool === 'read_text_file' ? selectTextLines(call.args) : undefined;
+  const expiry = AbortSignal.timeout(timeoutMs);
+  const promptSignal = AbortSignal.any([signal, expiry]);
   const validate = () => {
     if (signal.aborted || !stillAuthorized()) {
       throw new CapabilityProtocolError('cancelled', 'The file access request is no longer active');
     }
+    if (expiry.aborted) {
+      throw new CapabilityProtocolError('file_permission_timeout', 'The file access request expired');
+    }
   };
   validate();
-  const expiry = AbortSignal.timeout(timeoutMs);
-  const promptSignal = AbortSignal.any([signal, expiry]);
   let onAbort: (() => void) | undefined;
   const interrupted = new Promise<never>((_, reject) => {
     onAbort = () => reject(expiry.aborted
@@ -50,7 +55,7 @@ export async function offerFileAccess(
     promptSignal.addEventListener('abort', onAbort, { once: true });
   });
   const read = (permission: 'application_access' | 'granted_once') =>
-    readItem(path, directory, call.tool === 'attach_file', call.args, permission);
+    readItem(path, directory, attachment, textSelection, permission, promptSignal);
   const approved = async () => {
     if (useApplicationAccess) {
       try {
@@ -66,7 +71,6 @@ export async function offerFileAccess(
       }
     }
     validate();
-    if (promptSignal.aborted) throw promptSignal.reason;
     const chosen = await pick(request, promptSignal);
     validate();
     if (chosen === null) {
@@ -90,8 +94,22 @@ export async function offerFileAccess(
   }
 }
 
+function selectTextLines(args: Record<string, unknown>) {
+  const end = args.head !== undefined ? 'head' : args.tail !== undefined ? 'tail' : undefined;
+  if (!end) return;
+  const value = args[end];
+  const count = typeof value === 'number' ? Math.trunc(value) :
+    typeof value === 'string' && /^[+-]?\d+$/.test(value.trim()) ? Number(value) : NaN;
+  if ((args.head !== undefined && args.tail !== undefined) || !Number.isInteger(count) ||
+      count < 1 || count > 1_000_000) {
+    throw new CapabilityProtocolError('invalid_arguments', 'Expected a valid head or tail count');
+  }
+  return { end, count };
+}
+
 async function readItem(
-  path: string, directory: boolean, attachment: boolean, args: Record<string, unknown>, permission: string,
+  path: string, directory: boolean, attachment: boolean,
+  selection: ReturnType<typeof selectTextLines>, permission: string, signal: AbortSignal,
 ) {
   const meta = {
     permission,
@@ -101,10 +119,12 @@ async function readItem(
   if (await fs.realpath(path) !== path) {
     throw new CapabilityProtocolError('file_permission_denied', 'The selected item changed before it could be opened');
   }
+  signal.throwIfAborted();
   if (directory) {
     const entries: string[] = [];
     let truncated = false;
     for await (const entry of await fs.opendir(path)) {
+      signal.throwIfAborted();
       if (entries.length === DIRECTORY_MAX_ENTRIES) {
         truncated = true;
         break;
@@ -115,7 +135,7 @@ async function readItem(
       undefined, { sensitivity: 'base' }));
     return textResult(entries.join('\n'), meta, { path, entries, ...(truncated ? { truncated } : {}) });
   }
-  const bytes = await readPickedFile(path, attachment ? FILE_MAX_BYTES : TEXT_MAX_BYTES);
+  const bytes = await readPickedFile(path, attachment ? FILE_MAX_BYTES : TEXT_MAX_BYTES, signal);
   if (attachment) {
     return {
       content: [{
@@ -127,14 +147,11 @@ async function readItem(
     };
   }
   let text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes).replace(/\r\n?/g, '\n');
-  if (args.head !== undefined || args.tail !== undefined) {
-    const count = Math.trunc(Number(args.head ?? args.tail));
-    if ((args.head !== undefined && args.tail !== undefined) || !Number.isInteger(count) ||
-        count < 1 || count > 1_000_000) {
-      throw new CapabilityProtocolError('invalid_arguments', 'Expected a valid head or tail count');
-    }
-    const lines = text.replace(/\n$/, '').split('\n');
-    text = (args.head !== undefined ? lines.slice(0, count) : lines.slice(-count)).join('\n');
+  if (selection) {
+    const lines = text.split(/[\n\v\f\u001c-\u001e\u0085\u2028\u2029]/);
+    if (lines.at(-1) === '') lines.pop();
+    const { end, count } = selection;
+    text = (end === 'head' ? lines.slice(0, count) : lines.slice(-count)).join('\n');
   }
   return textResult(text, { ...meta, path });
 }
@@ -144,20 +161,27 @@ function textResult(text: string, meta: Record<string, string>, structuredConten
 }
 
 /** Open a user-picked regular file once and bound the read even if it grows. */
-export async function readPickedFile(path: string, limit: number): Promise<Buffer> {
+export async function readPickedFile(path: string, limit: number, signal?: AbortSignal): Promise<Buffer> {
+  signal?.throwIfAborted();
   const file = await fs.open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
-    const stat = await file.stat();
+    const stat = await file.stat({ bigint: true });
     if (!stat.isFile()) throw new CapabilityProtocolError('invalid_file', 'The selected item is not a regular file');
     if (stat.size > limit) throw new CapabilityProtocolError('file_too_large', `The selected file exceeds ${limit} bytes`);
-    const buffer = Buffer.allocUnsafe(stat.size + 1);
+    const size = Number(stat.size);
+    const buffer = Buffer.allocUnsafe(size + 1);
     let offset = 0;
     while (offset < buffer.length) {
+      signal?.throwIfAborted();
       const result = await file.read(buffer, offset, buffer.length - offset);
       if (!result.bytesRead) break;
       offset += result.bytesRead;
     }
-    if (offset !== stat.size) throw new CapabilityProtocolError('file_changed', 'The selected file size changed during the read');
+    const after = await file.stat({ bigint: true });
+    if (offset !== size || stat.mtimeNs !== after.mtimeNs || stat.ctimeNs !== after.ctimeNs) {
+      throw new CapabilityProtocolError('file_changed', 'The selected file changed during the read');
+    }
+    signal?.throwIfAborted();
     return buffer.subarray(0, offset);
   } finally {
     await file.close();
