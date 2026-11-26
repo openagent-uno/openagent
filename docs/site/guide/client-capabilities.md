@@ -147,7 +147,8 @@ separate tool host is denied a text read, file attachment or directory listing,
 Desktop checks whether macOS already allowed the application to read that
 item. If needed, the connected Desktop window asks you to select the item
 for one-time access. The request returns the read result, denial or expiry
-to the tool.
+to the tool. An expired or cancelled request closes its selection panel so
+the next request can open immediately.
 Approving a request doesn't change macOS privacy settings or the host's
 configured filesystem roots. The chat attachment picker remains available
 when a request can't reach an open agent window.

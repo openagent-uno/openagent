@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { once } from 'node:events';
 import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import runTest from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { WebSocketServer } from 'ws';
 import { CapabilityManager } from '../../../dist/capabilities/manager.js';
 import { fileAccessRequest, offerFileAccess } from '../../../dist/capabilities/file-access.js';
@@ -13,6 +15,14 @@ import { fileAccessRequest, offerFileAccess } from '../../../dist/capabilities/f
 const tests = [];
 const test = (...args) => tests.push(runTest(...args));
 export const complete = () => Promise.all(tests);
+
+if (process.platform === 'darwin' && !process.versions.electron) {
+  test('macOS releases an expired selection sheet before another account retries', { timeout: 25000 }, async () => {
+    const { default: executable } = await import('electron');
+    const fixture = fileURLToPath(new URL('./file-access-dialog-electron.cjs', import.meta.url));
+    await promisify(execFile)(executable, [fixture], { timeout: 20000 });
+  });
+}
 
 test('desktop returns approval and denial through the authenticated tool socket', { timeout: 6000 }, async t => {
   const temporary = await mkdtemp(join(await realpath(tmpdir()), 'openagent-file-access-'));

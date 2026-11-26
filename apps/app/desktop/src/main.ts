@@ -36,8 +36,8 @@ import { CapabilityConsentStore } from './capabilities/consent-store';
 import { discoverHostTools } from './capabilities/host-bridge';
 import { broadcastCapabilityStatus, registerCapabilityHandlers } from './capabilities/ipc';
 import { CapabilityManager } from './capabilities/manager';
-import { readPickedFile, type FileAccessPicker } from './capabilities/file-access';
-import { CapabilityProtocolError } from './capabilities/protocol';
+import { readPickedFile } from './capabilities/file-access';
+import { createFileAccessPicker } from './capabilities/file-access-dialog';
 import {
   buildRendererTarget,
   createRendererUrlPolicy,
@@ -105,41 +105,18 @@ const MAX_READ_BYTES = 200 * 1024 * 1024;
 // third-party script) to read ~/.ssh/id_rsa just because the renderer can
 // send arbitrary IPC args.
 const pickedPaths = new Set<string>();
-let fileAccessPromptOpen = false;
-
-const pickFileAccess: FileAccessPicker = async (request, signal) => {
-  const target = getVerifiedLoopbackTarget(request.accountId);
+const pickFileAccess = createFileAccessPicker((accountId) => {
+  const target = getVerifiedLoopbackTarget(accountId);
   const candidates = getAllWindows().filter(({ id, win }) =>
-    !win.isDestroyed() && win.isVisible() && getLoopbackConsumerLifetime(request.accountId, id));
+    !win.isDestroyed() && win.isVisible() && getLoopbackConsumerLifetime(accountId, id));
   const entry = candidates.find(({ win }) => win.isFocused()) ?? candidates[0];
-  if (!entry || !target || fileAccessPromptOpen) {
-    throw new CapabilityProtocolError('file_permission_unavailable',
-      'The Mac cannot show this access request. Open the agent window or attach the file manually.');
-  }
-  const owner = entry.win;
-  const lifetime = getLoopbackConsumerLifetime(request.accountId, entry.id);
-  const current = () => !signal.aborted && !owner.isDestroyed() &&
-    getLoopbackConsumerLifetime(request.accountId, entry.id) === lifetime;
-  fileAccessPromptOpen = true;
-  try {
-    const item = request.directory ? 'folder' : 'file';
-    const { response } = await dialog.showMessageBox(owner, {
-      type: 'question', title: 'OpenAgent file access',
-      message: `Allow ${target.agentHandle} to read a ${item}?`,
-      detail: `${request.path}\n\nThis grants one-time access to the requested ${item} for this chat.`,
-      buttons: [`Select ${item}…`, 'Deny'], defaultId: 1, cancelId: 1, signal,
-    });
-    if (response !== 0 || !current()) return null;
-    const choice = await dialog.showOpenDialog(owner, {
-      title: `Select the requested ${item}`, defaultPath: request.path,
-      buttonLabel: 'Allow once',
-      properties: [request.directory ? 'openDirectory' : 'openFile', 'dontAddToRecent'],
-    });
-    return !current() || choice.canceled ? null : choice.filePaths[0] ?? null;
-  } finally {
-    fileAccessPromptOpen = false;
-  }
-};
+  if (!entry || !target) return;
+  const lifetime = getLoopbackConsumerLifetime(accountId, entry.id);
+  return {
+    window: entry.win, agentHandle: target.agentHandle,
+    current: () => !entry.win.isDestroyed() && getLoopbackConsumerLifetime(accountId, entry.id) === lifetime,
+  };
+});
 
 function registerDialogHandlers(): void {
   handleTrustedIpc('dialog:pickFiles', async () => {
