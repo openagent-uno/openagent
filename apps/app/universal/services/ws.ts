@@ -6,7 +6,7 @@
 import type { Attachment, ClientMessage, ServerMessage } from '../../common/types';
 import { attachmentsForSend } from '../../common/attachments';
 import { isConnectionReplacedClose } from '../../common/websocket-close';
-import { CollaborationClient, CollaborationDeliveryUnknown } from './collaboration';
+import { CollaborationClient, CollaborationDeliveryUnknown, CollaborationRejected } from './collaboration';
 const sharedRequestId = () => globalThis.crypto?.randomUUID?.() || `request-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
 
 export type MessageHandler = (msg: ServerMessage) => void;
@@ -493,15 +493,17 @@ export class OpenAgentWS {
       systemPrompt?: string;
       attachments?: Attachment[];
       requestId?: string;
+      retrySharedTurn?: boolean;
       onLegacy?: () => boolean | void;
       onSessionReady?: () => void;
-      onRejected?: (unconfirmed: boolean, reason?: string) => void;
+      onSharedSubmit?: () => boolean | void;
+      onRejected?: (unconfirmed: boolean, reason?: string, retryable?: boolean) => void;
       onSettled?: () => void;
     },
   ): void {
-    const rejected = (error: unknown) => {
+    const rejected = (error: unknown, retryable = options?.retrySharedTurn === true) => {
       options?.onRejected?.(error instanceof CollaborationDeliveryUnknown,
-        error instanceof Error ? error.message : undefined);
+        error instanceof Error ? error.message : undefined, retryable);
       if (!options?.onRejected) this.sharedError(sessionId, error);
     };
     if (!this.sharedDiscovered && (!options?.source || options.source === 'user_typed')) {
@@ -523,9 +525,13 @@ export class OpenAgentWS {
         // A new file is a complete input with its own durable reference.
         // Queue it behind active work so a failed cancellation cannot lose it.
         await shared.sendTurn(sessionId, requestId, text, attachments?.length ? 'queue' : 'steer', undefined,
-          attachments, this.clientInstanceId || undefined);
-        options?.onSettled?.();
+          attachments, this.clientInstanceId || undefined, options?.onSharedSubmit).then(options?.onSettled,
+            error => rejected(error, error instanceof CollaborationRejected));
       }).catch(rejected);
+      return;
+    }
+    if (options?.retrySharedTurn) {
+      rejected(new Error('Retry requires a shared session connection.'), true);
       return;
     }
     if (options?.onLegacy?.() === false) return;

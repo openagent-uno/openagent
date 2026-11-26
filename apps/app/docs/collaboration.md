@@ -38,6 +38,14 @@ Reopening observes the existing run; it never resends the user's input. Canonica
 run IDs reconcile replay, and command history survives the live replay window.
 Integrations may resolve actual avatar images from their own user directory.
 
+When the shared gateway rejects a typed request, **Retry** on its transcript
+row reuses its request ID, text and uploaded attachment references. A lost
+response triggers an authorized read of that run. **Check delivery** repeats
+only that read. Each account and chat keeps its interrupted rows across
+reconnects. The desktop and web renderer can also recover them after a reload
+within the same tab. Native keeps them in memory. Acceptance, dismissal,
+withdrawal of access and sign-out remove the corresponding recovery data.
+
 History reconciliation retains a turn's reported error when canonical history
 has arrived with only its user input. Repeated snapshots keep one error scoped
 to that turn and provider run. This is client presentation state; it does not

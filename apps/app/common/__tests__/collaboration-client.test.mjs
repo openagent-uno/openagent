@@ -166,6 +166,19 @@ test('an explicit request rejection is not treated as uncertain delivery', async
   assert.equal(requests, 1);
 });
 
+test('a delayed connection lease cannot post a retry after its account or session was reset', async t => {
+  const lease = Promise.withResolvers();
+  const value = new CollaborationClient('http://localhost', undefined, () => lease.promise);
+  t.after(() => value.dispose());
+  const requests = t.mock.method(globalThis, 'fetch', () => assert.fail('sent after account reset'));
+  let current = true;
+  const sending = value.sendTurn('chat', 'same-id', 'Sample', 'queue', undefined, undefined, 'device', () => current);
+  current = false;
+  lease.resolve('old-lease');
+  await assert.rejects(sending, /access changed/);
+  assert.equal(requests.mock.callCount(), 0);
+});
+
 test('invalid snapshots close the observer and discard cached content', t => {
   const { value, sockets } = client(); t.after(() => value.dispose());
   value.observe(['chat']); sockets[0].receive({ type: 'auth_ok', shared: true });

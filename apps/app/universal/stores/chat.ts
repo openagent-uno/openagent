@@ -4,8 +4,9 @@
 
 import { create } from 'zustand';
 import { discardDraftFiles } from './attachmentDrafts';
+import { forgetInterrupted, reconcileInterrupted, rememberInterrupted } from './interruptedSends';
 import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
-import { mergeSharedTranscript, reconcileSharedReplies, replySegments, unconfirmedMessages } from '../../common/shared-transcript';
+import { mergeSharedTranscript, reconcileSharedReplies, replySegments } from '../../common/shared-transcript';
 import {
   toolPhase,
   toolDisplay,
@@ -1080,15 +1081,15 @@ export const useChat = create<ChatState>((set, get) => ({
       const hasMessages = loaded.kind === 'v2'
         ? loaded.page.messages.length > 0
         : loaded.messages.length > 0;
-      if (!hasMessages) return;
       set((s) => ({
         sessions: s.sessions.map(session => {
           if (session.id !== id) return session;
+          if (!hasMessages) return { ...session, outbound: reconcileInterrupted(session, session.messages) };
           // Native in-flight rows are reconciled by their terminal frame.
           if (session.messages.length && !session.sharedSnapshot
               && (loaded.kind !== 'v2' || !session.messageWindow || session.isProcessing)) return session;
           const patch = applyTailPage(session, loaded, originalWindow);
-          return patch ? { ...session, ...patch } : session;
+          return patch ? { ...session, ...patch, outbound: reconcileInterrupted(session, patch.messages) } : session;
         }),
       }));
     } catch (error) {
@@ -1180,6 +1181,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   removeSession: (id, accountId) => set((s) => {
+    forgetInterrupted(id, undefined, accountId);
     if (accountId !== undefined) discardDraftFiles(accountId, id);
     // Best-effort delete on the server (fire-and-forget).
     deleteSessionApi(id).catch(() => {});
@@ -1323,7 +1325,7 @@ export const useChat = create<ChatState>((set, get) => ({
     };
     const patch = mergeCanonicalPage(session, page, tool, windowAtRequest);
     if (!patch) return {};
-    const updated = { ...session, ...patch };
+    const updated = { ...session, ...patch, outbound: reconcileInterrupted(session, patch.messages) };
     return { sessions: known
       ? state.sessions.map(value => value === known ? updated : value)
       : [...state.sessions, updated] };
@@ -1982,7 +1984,7 @@ export const useChat = create<ChatState>((set, get) => ({
             // Re-check at apply time: a turn may have started during the fetch.
             if (!canReconcile(se)) return se;
             const patch = applyTailPage(se, loaded, originalWindow);
-            return patch ? { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) } : se;
+            return patch ? { ...se, ...patch, outbound: reconcileInterrupted(se, patch.messages) } : se;
           }),
         }));
         return true;
@@ -2019,6 +2021,7 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   dropSessionLocal: (sessionId, accountId) => set((s) => {
+    forgetInterrupted(sessionId, undefined, accountId);
     if (accountId !== undefined) discardDraftFiles(accountId, sessionId);
     pendingDeltas.delete(sessionId);
     if (!s.sessions.some((ses) => ses.id === sessionId)) return {};
@@ -2109,17 +2112,21 @@ export const useChat = create<ChatState>((set, get) => ({
 
 /** Display a typed turn before discovery/admission, then reconcile by the
  * idempotency key. Legacy transports keep their existing local echo. */
-export function sendTypedChat(
-  connection: OpenAgentWS, sessionId: string, text: string,
-  options: { llmPin?: string; systemPrompt?: string; attachments?: Attachment[]; legacyEditMessageId?: string } = {},
-) {
+type TypedChatOptions = { llmPin?: string; systemPrompt?: string; attachments?: Attachment[]; legacyEditMessageId?: string };
+
+export function sendTypedChat(connection: OpenAgentWS, sessionId: string, text: string, options: TypedChatOptions = {}) {
+  return submitTypedChat(connection, sessionId, text, options);
+}
+
+function submitTypedChat(connection: OpenAgentWS, sessionId: string, text: string, options: TypedChatOptions, original?: ChatMessage) {
   const current = sessionReadGuard(sessionId);
   if (!current()) return false;
-  const requestId = globalThis.crypto?.randomUUID?.() ?? genId();
+  const requestId = original?.id ?? globalThis.crypto?.randomUUID?.() ?? genId();
   const { attachments, llmPin, systemPrompt, legacyEditMessageId } = options;
   const message: ChatMessage = {
     id: requestId, providerRunId: requestId, role: 'user', text,
-    timestamp: Date.now(), attachments, delivery: 'pending',
+    timestamp: original?.timestamp ?? Date.now(), attachments,
+    delivery: original?.delivery === 'unconfirmed' ? 'checking' : 'pending',
   };
   const update = (change: (outbound: ChatMessage[]) => ChatMessage[]) => {
     if (!current()) return;
@@ -2135,10 +2142,37 @@ export function sendTypedChat(
       { id: sessionId, messages: [], isProcessing: false, ...childStubFor(sessionId) } as ChatSession,
     ], state.activeSessionId);
     return { sessions: sessions.map(session => session.id === sessionId
-      ? { ...session, outbound: [...(session.outbound ?? []), message] } : session) };
+      ? { ...session, outbound: original ? session.outbound?.map(item => item.id === requestId ? message : item)
+          : [...(session.outbound ?? []), message] } : session) };
   });
+  const rejected = (unconfirmed: boolean, reason?: string, retryable?: boolean) => {
+    update(outbound => outbound.map(item => {
+      if (item.id !== requestId) return item;
+      const failed: ChatMessage = { ...item, delivery: unconfirmed ? 'unconfirmed' : 'failed', deliveryError: reason, retryable };
+      if (unconfirmed || retryable) rememberInterrupted(sessionId, failed);
+      else forgetInterrupted(sessionId, requestId);
+      return failed;
+    }));
+  };
+  const settled = () => {
+    if (!current()) return;
+    forgetInterrupted(sessionId, requestId);
+    update(outbound => outbound.map(item => item.id === requestId ? { ...item, delivery: 'confirmed' } : item));
+    void useChat.getState().reconcileSession(sessionId);
+  };
+  if (original?.delivery === 'unconfirmed') {
+    void connection.enableShared().then(shared => current() ? shared?.recoverTurn(sessionId, requestId) : undefined)
+      .then(receipt => receipt ? settled() : rejected(true, 'The turn could not be confirmed.'))
+      .catch(() => rejected(true, 'The turn could not be confirmed.'));
+    return true;
+  }
   connection.sendMessage(text, sessionId, {
-    requestId, llmPin, systemPrompt, attachments: attachmentsForSend(attachments),
+    requestId, llmPin, systemPrompt, attachments: attachmentsForSend(attachments), retrySharedTurn: !!original,
+    onSharedSubmit: () => {
+      // A renderer lost with the HTTP POST in flight may only check its receipt.
+      if (!current()) return false;
+      rememberInterrupted(sessionId, { ...message, delivery: 'unconfirmed' });
+    },
     onSessionReady: () => {
       if (!current()) return;
       useChat.setState(state => {
@@ -2153,15 +2187,17 @@ export function sendTypedChat(
       if (legacyEditMessageId) return useChat.getState().editUserMessage(sessionId, legacyEditMessageId, text);
       useChat.getState().addUserMessage(sessionId, text, attachments);
     },
-    onRejected: (unconfirmed, reason) => update(outbound => outbound.map(item => item.id === requestId
-      ? { ...item, delivery: unconfirmed ? 'unconfirmed' : 'failed', deliveryError: reason } : item)),
-    onSettled: () => {
-      // HTTP success still confirms admission if the live observer is
-      // temporarily offline. Keep the bubble until history can replace it.
-      update(outbound => outbound.map(item => item.id === requestId
-        ? { ...item, delivery: 'confirmed' } : item));
-      if (current()) void useChat.getState().reconcileSession(sessionId);
-    },
+    onRejected: rejected,
+    onSettled: settled,
   });
   return true;
+}
+
+export function retryTypedChat(connection: OpenAgentWS, sessionId: string, id: string) {
+  const state = useChat.getState();
+  if (state.activeSessionId !== sessionId) return false;
+  const session = state.sessions.find(item => item.id === sessionId);
+  const row = session?.outbound?.find(item => item.id === id);
+  if (!row || session?.accessRevoked || !(row.delivery === 'unconfirmed' || (row.delivery === 'failed' && row.retryable))) return false;
+  return submitTypedChat(connection, sessionId, row.text, { attachments: row.attachments }, row);
 }

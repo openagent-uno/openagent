@@ -80,6 +80,7 @@ export interface MessageListProps {
   /** Fired by the per-bubble Edit button on a user message. Omit to hide. */
   onEditUser?: (msgId: string, newText: string) => void;
   onDismissFailedSend?: (msgId: string) => void;
+  onRetryFailedSend?: (msgId: string) => void;
   onFork?: (messageId: string) => Promise<void>;
   /** Fired when a delegation card is pressed — navigates into the child
    *  session. Omit to render delegation cards as non-clickable. */
@@ -116,7 +117,7 @@ export interface MessageListProps {
 const noPage = () => Promise.resolve();
 
 function MessageListBase({
-  sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onDismissFailedSend, onFork,
+  sessionId, messages: transcript, isProcessing, isReasoning, maxItems, onRegenerate, onEditUser, onDismissFailedSend, onRetryFailedSend, onFork,
   onOpenChild, onOpenRun, onOpenMemory, currentUserHandle,
   anchorMessageId, anchorToolInvocationId, onAnchorLayout,
   controller, scrollRef, loadedRanges, hasMoreBefore, loadPage,
@@ -374,6 +375,7 @@ function MessageListBase({
           onFork={fork}
           onEdit={msg.delivery ? undefined : onEditUser}
           onDismissFailedSend={onDismissFailedSend}
+          onRetryFailedSend={msg.retryable || msg.delivery === 'unconfirmed' ? onRetryFailedSend : undefined}
         />,
       );
     }
@@ -423,7 +425,7 @@ export default MessageList;
 // ── Atoms ────────────────────────────────────────────────────────────
 
 const UserMessage = memo(function UserMessage({
-  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, deliveryError, onEdit, onDismissFailedSend, onFork,
+  id, text, attachments, parts, author, fallbackLabel, showHeader, timestamp, delivery, deliveryError, onEdit, onDismissFailedSend, onRetryFailedSend, onFork,
   registerRef, highlighted,
 }: {
   id: string;
@@ -442,6 +444,7 @@ const UserMessage = memo(function UserMessage({
   deliveryError?: string;
   onEdit?: (id: string, newText: string) => void;
   onDismissFailedSend?: (id: string) => void;
+  onRetryFailedSend?: (id: string) => void;
   onFork?: () => Promise<void>;
 }) {
   const label = author?.display || author?.handle || fallbackLabel || 'You';
@@ -463,9 +466,19 @@ const UserMessage = memo(function UserMessage({
           <Feather name="edit-2" size={11} color={colors.textMuted} />
         </TouchableOpacity>
       )}
+      {delivery === 'pending' || delivery === 'checking' ? (
+        <Text style={styles.userLabel}>{delivery === 'checking' ? 'Checking delivery…' : 'Sending…'}</Text>
+      ) : null}
       {delivery === 'failed' || delivery === 'unconfirmed' ? (
         <>
           <Text style={styles.failedMessage}>{delivery === 'failed' ? 'Not sent' : 'Delivery unconfirmed'}</Text>
+          {onRetryFailedSend ? (
+            <TouchableOpacity style={styles.msgActionBtn} accessibilityRole="button"
+              accessibilityLabel={delivery === 'failed' ? 'Retry send' : 'Check delivery'}
+              onPress={() => onRetryFailedSend(id)}>
+              <Text style={styles.userLabel}>{delivery === 'failed' ? 'Retry' : 'Check delivery'}</Text>
+            </TouchableOpacity>
+          ) : null}
           {onDismissFailedSend ? (
             <TouchableOpacity
               style={styles.msgActionBtn}

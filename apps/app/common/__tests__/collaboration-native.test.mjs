@@ -114,6 +114,21 @@ test('a rejected send keeps its chronological position as later replies arrive',
   assert.deepEqual(mergeOutboundTranscript([first, last], [failed, pending]), [first, failed, last, pending]);
 });
 
+test('retry of a shared turn never publishes through a legacy socket', async t => {
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async url => { requests.push(url); return { ok: false, status: 404 }; });
+  const connection = new OpenAgentWS('ws://localhost/ws');
+  const frames = [], failures = [];
+  connection.send = frame => frames.push(frame);
+  connection.sendMessage('Sample', 'chat', { requestId: 'same-id', retrySharedTurn: true,
+    onRejected: (...args) => failures.push(args), onLegacy: () => assert.fail('legacy replay') });
+  await tick();
+  assert.deepEqual(frames, []);
+  assert.deepEqual(requests, ['http://localhost/api/collaboration']);
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0][2], true);
+});
+
 test('a reconnect can drop the observer snapshot while the durable reply is still being projected', () => {
   const input = { id: 'accepted', role: 'user', providerRunId: 'run', timestamp: 1000, text: 'Input' };
   const live = { id: 'live', sharedTurnId: 'turn', role: 'assistant', providerRunId: 'run', timestamp: 2000, text: 'Visible reply' };

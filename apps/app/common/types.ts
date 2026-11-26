@@ -978,8 +978,10 @@ export interface CompactionInfo {
 
 export interface ChatMessage {
   providerRunId?: string;
-  delivery?: 'pending' | 'confirmed' | 'failed' | 'unconfirmed';
+  delivery?: 'pending' | 'checking' | 'confirmed' | 'failed' | 'unconfirmed';
   deliveryError?: string;
+  /** The shared gateway definitively rejected this exact typed input. */
+  retryable?: boolean;
   sharedTurnId?: string;
   id: string;
   role: 'user' | 'assistant' | 'tool' | 'compaction';

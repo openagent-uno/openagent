@@ -8,6 +8,7 @@ const bundle = await build({
   absWorkingDir: root, bundle: true, write: false, platform: 'node', format: 'esm',
   stdin: { contents: `export { useChat } from './universal/stores/chat';
     export { bindShared, observeShared } from './universal/stores/collaboration';
+    export { setOutboxAccount, rememberInterrupted, reconcileInterrupted, clearInterruptedAccount } from './universal/stores/interruptedSends';
     export { CollaborationClient } from './universal/services/collaboration';`, resolveDir: root },
   nodePaths: [root + '/universal/node_modules', root + '/desktop/node_modules'],
   plugins: [{ name: 'api-fixture', setup(api) {
@@ -23,7 +24,8 @@ const bundle = await build({
     ` }));
   } }],
 });
-const { useChat, bindShared, observeShared, CollaborationClient } = await import(
+const { useChat, bindShared, observeShared, CollaborationClient, setOutboxAccount, rememberInterrupted,
+  reconcileInterrupted, clearInterruptedAccount } = await import(
   'data:text/javascript;base64,' + Buffer.from(bundle.outputFiles[0].text).toString('base64'));
 class Socket {
   readyState = 1;
@@ -51,6 +53,40 @@ function setup(t) {
   return { client, sockets, texts: () => useChat.getState().sessions.find(s => s.id === 'chat')?.messages.map(m => m.text) ?? [] };
 }
 const flush = async () => { for (let i = 0; i < 10; i++) await Promise.resolve(); };
+
+test('only the owning account and session recover interrupted text and CAS references until revocation or logout', t => {
+  const { sockets } = setup(t);
+  const stored = new Map();
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
+    getItem: key => stored.get(key), setItem: (key, value) => stored.set(key, value), removeItem: key => stored.delete(key),
+  } });
+  t.after(() => {
+    if (previous) Object.defineProperty(globalThis, 'sessionStorage', previous);
+    else delete globalThis.sessionStorage;
+  });
+  const input = { id: 'request', role: 'user', text: 'My sample', timestamp: 18, delivery: 'failed', retryable: true,
+    attachments: [{ type: 'file', filename: 'sample.txt', artifact_id: 'art_sample', path: '/internal/only', data: 'raw-bytes' }] };
+  const restored = id => reconcileInterrupted({ id, messages: [] }, []) ?? [];
+  setOutboxAccount('owner');
+  t.after(() => { clearInterruptedAccount('owner'); setOutboxAccount(null); });
+  rememberInterrupted('chat', input);
+  assert.equal(restored('other').length, 0);
+  assert.deepEqual(restored('chat')[0].attachments, [{ type: 'file', filename: 'sample.txt', artifact_id: 'art_sample' }]);
+  assert.doesNotMatch([...stored.values()].join(''), /internal|raw-bytes/);
+  setOutboxAccount('other');
+  assert.deepEqual(restored('chat'), []);
+  setOutboxAccount('owner');
+  sockets[0].receive({ type: 'shared_state', session_id: 'chat', revision: 1, turns: [] });
+  assert.equal(useChat.getState().sessions[0].outbound[0].id, 'request');
+  sockets[0].receive({ type: 'shared_revoked', session_id: 'chat' });
+  assert.deepEqual(restored('chat'), []);
+  assert.equal(stored.size, 0);
+  rememberInterrupted('other', input);
+  clearInterruptedAccount('owner');
+  assert.deepEqual(restored('other'), []);
+  assert.equal(stored.size, 0);
+});
 
 test('a shared run acknowledgement retires a local draft, but an empty observation does not', async t => {
   const { sockets } = setup(t);

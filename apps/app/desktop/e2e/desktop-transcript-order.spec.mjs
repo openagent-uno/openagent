@@ -70,7 +70,8 @@ class TranscriptGateway extends DeterministicGateway {
       next_cursor: null, has_more: false, revision: '1',
       snapshot: { snapshot_id: 'fixture', revision: '1', expires_at: '2030-01-01T00:00:00Z' },
     });
-    if (pathname === '/api/collaboration') return json({ error: 'Legacy live transport fixture' }, 404);
+    if (pathname === '/api/collaboration') return this.sharedDelivery ? json({ version: 1 })
+      : json({ error: 'Legacy live transport fixture' }, 404);
     if (pathname !== `/api/sessions/${sessionId}/messages`) return super.handleHttp(request, response);
     const around = searchParams.get('around');
     if (!around && this.pausedRequest === 'latest page') await this.resume.promise;
@@ -108,12 +109,17 @@ test.use({
   }),
 });
 
-async function openTranscript(page, { anchor, live = false, pausedRequest } = {}) {
+async function openTranscript(page, { anchor, live = false, pausedRequest, sharedDelivery = false } = {}) {
   const webRoot = process.env.OPENAGENT_E2E_WEB_ROOT
     || fileURLToPath(new URL('../../universal/dist', import.meta.url));
   const gateway = await new TranscriptGateway({ webRoot, accountId: 'transcript-fixture',
     networkId: 'transcript-network', deviceId: 'fixture-device', agentNodeId: 'fixture-agent' }).start();
   if (live) gateway.transcriptRows = messages.filter(row => row.run_id !== 'fixture-run-8');
+  gateway.sharedDelivery = sharedDelivery;
+  if (sharedDelivery) await page.routeWebSocket('**/ws/collaboration', socket => {
+    socket.send(JSON.stringify({ type: 'auth_ok', shared: true }));
+    socket.onMessage(() => {});
+  });
   gateway.pausedRequest = pausedRequest;
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
@@ -122,10 +128,11 @@ async function openTranscript(page, { anchor, live = false, pausedRequest } = {}
     return route.abort();
   });
   await page.addInitScript(({ port, accountId, platform }) => {
-    const account = { id: accountId, name: 'Transcript Fixture', network: 'transcript-network',
+    const id = sessionStorage.getItem('fixture-account') ?? accountId;
+    const account = { id, name: 'Transcript Fixture', network: 'transcript-network',
       handle: 'e2e-user', agentHandle: 'fixture-agent', isLocal: true, createdAt: 1 };
     localStorage.setItem('openagent:accounts', JSON.stringify([account]));
-    localStorage.setItem('openagent:activeConnection', JSON.stringify({ accountId, sidecarPort: port }));
+    localStorage.setItem('openagent:activeConnection', JSON.stringify({ accountId: id, sidecarPort: port }));
     // Only the preload boundary is simulated. Browser storage and the
     // application's real fetch, websocket, transcript and pagination run.
     window.desktop = {
@@ -174,6 +181,118 @@ async function reconnect(gateway) {
   for (const socket of gateway.chatServer.clients) socket.terminate();
   await expect.poll(() => countAuthentications(gateway)).toBeGreaterThan(previous);
 }
+
+test('retries one rejected shared input with its uploaded file after returning and reconnecting', async ({ page }) => {
+  const { gateway } = await openTranscript(page, { sharedDelivery: true });
+  const filename = 'retry-original.txt';
+  const prompt = 'Return the exact sample';
+  const row = page.getByTestId('oa-user-message').filter({ hasText: prompt });
+  const retry = row.getByRole('button', { name: 'Retry send' });
+  const posts = [];
+  let uploads = 0;
+  const release = Promise.withResolvers();
+  const artifact = { artifact_id: 'art_retry_sample', filename, type: 'file', size_bytes: 5 };
+  try {
+    await page.evaluate(filename => {
+      window.desktop.pickFiles = async () => [{ path: '/fixture/' + filename, filename, kind: 'file', size: 5, maxBytes: 1024 }];
+      window.desktop.readFile = async () => new TextEncoder().encode('hello');
+    }, filename);
+    await page.route('**/api/upload*', route => { uploads++; return route.fulfill({ json: artifact }); });
+    await page.route('**/api/collaboration/turns', async route => {
+      const body = route.request().postDataJSON();
+      posts.push(body);
+      if (posts.length === 1) return route.fulfill({ status: 404, json: { error: 'Turn unavailable' } });
+      await release.promise;
+      gateway.transcriptRows = [...messages, { id: 'received-retry', run_id: body.request_id, session_id: sessionId,
+        ordinal: messages.length + 1, role: 'user', text: body.message, attachments: body.attachments,
+        author: { kind: 'user' }, status: 'complete', created_at: new Date().toISOString() }];
+      return route.fulfill({ json: { session_id: sessionId, request_id: body.request_id, response: 'Received' } });
+    });
+    await expect(page.getByText(conclusion, { exact: true })).toBeVisible();
+    await page.getByLabel('Attach files', { exact: true }).click();
+    await page.locator('textarea').last().fill(prompt);
+    await page.getByLabel('Send message', { exact: true }).click();
+    await expect(row.getByText('Not sent', { exact: true })).toBeVisible();
+    await expect(retry).toBeVisible();
+    await expect(row.getByLabel('Download ' + filename)).toBeVisible();
+    await page.getByRole('button', { name: 'New session', exact: true }).first().click();
+    await expect(row).toHaveCount(0);
+    await page.getByText('Synthetic transcript', { exact: true }).first().click();
+    await expect(retry).toBeVisible();
+    await page.evaluate(() => sessionStorage.setItem('fixture-account', 'different-test-account'));
+    await page.reload();
+    await expect(page.getByText(conclusion, { exact: true })).toBeVisible();
+    await expect(row).toHaveCount(0);
+    await page.evaluate(() => sessionStorage.removeItem('fixture-account'));
+    await page.reload();
+    await expect(retry).toBeVisible();
+    await retry.evaluate(button => { button.click(); button.click(); });
+    await expect(row.getByText('Sending…', { exact: true })).toBeVisible();
+    await expect.poll(() => posts.length).toBe(2);
+    expect(posts[1]).toEqual(posts[0]);
+    expect(posts[1].attachments[0].artifact_id).toBe(artifact.artifact_id);
+    release.resolve();
+    await expect.poll(() => gateway.messagePages.some(page => page.rows.some(row => row.id === 'received-retry'))).toBe(true);
+    await expect(row).toHaveCount(1);
+    await expect(row.getByText('Sending…')).toHaveCount(0);
+    await expect(row.getByLabel('Download ' + filename)).toBeVisible();
+    await page.reload();
+    await expect(row).toHaveCount(1);
+    await expect(retry).toHaveCount(0);
+    expect([posts.length, uploads]).toEqual([2, 1]);
+  } finally { release.resolve(); await gateway.close(); }
+});
+
+test('checks uncertain delivery by exact receipt and forgets dismissed input on reload', async ({ page }) => {
+  const { gateway } = await openTranscript(page, { sharedDelivery: true });
+  const prompt = 'Check my existing receipt';
+  const row = page.getByTestId('oa-user-message').filter({ hasText: prompt });
+  const posts = [], reads = [];
+  let matching = false;
+  try {
+    await page.route('**/api/collaboration/turns', route => {
+      posts.push(route.request().postDataJSON());
+      return route.fulfill({ status: 504, json: { error: 'Response lost' } });
+    });
+    await page.route('**/api/runtime/runs/*', route => {
+      const requestId = new URL(route.request().url()).pathname.split('/').at(-1);
+      reads.push([route.request().method(), requestId]);
+      return route.fulfill({ json: { run_id: requestId, session_id: matching ? sessionId : 'other-chat',
+        status: 'success', output: 'Received' } });
+    });
+    await expect(page.getByText(conclusion, { exact: true })).toBeVisible();
+    await page.locator('textarea').last().fill(prompt);
+    await page.getByLabel('Send message', { exact: true }).click();
+    await expect(row.getByText('Delivery unconfirmed', { exact: true })).toBeVisible();
+    await expect(row.getByLabel('Retry send')).toHaveCount(0);
+    const id = posts[0].request_id;
+    expect(reads).toEqual([['GET', id]]);
+    await page.reload();
+    const check = row.getByRole('button', { name: 'Check delivery' });
+    await expect(check).toBeVisible();
+    await check.click();
+    await expect(check).toBeVisible();
+    matching = true;
+    gateway.transcriptRows = [...messages, { id: 'canonical-uncertain', ordinal: messages.length + 1, session_id: sessionId,
+      run_id: id, role: 'user', text: prompt, author: { kind: 'user' }, status: 'complete', created_at: new Date().toISOString() }];
+    await check.click();
+    await expect(check).toHaveCount(0);
+    await expect(row).toHaveCount(1);
+    expect(reads).toEqual([['GET', id], ['GET', id], ['GET', id]]);
+    expect(posts).toHaveLength(1);
+
+    const second = 'Dismiss this refusal';
+    const refused = page.getByTestId('oa-user-message').filter({ hasText: second });
+    await page.route('**/api/collaboration/turns', route => route.fulfill({ status: 404, json: { error: 'Refused' } }));
+    await page.locator('textarea').last().fill(second);
+    await page.getByLabel('Send message', { exact: true }).click();
+    await refused.getByLabel('Dismiss delivery notice').click();
+    await expect(refused).toHaveCount(0);
+    await page.reload();
+    await expect(row).toHaveCount(1);
+    await expect(refused).toHaveCount(0);
+  } finally { await gateway.close(); }
+});
 
 test('keeps a failed or pending attachment with its original chat draft', async ({ page }) => {
   const { gateway } = await openTranscript(page);

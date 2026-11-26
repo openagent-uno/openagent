@@ -26,7 +26,8 @@ import { useCollaboration } from '../../stores/collaboration';
 import { chatSessionIntent, resolveChatAnchor } from '../../../common/search-navigation';
 import { resolveChatRouteSession } from '../../../common/chat-route-session';
 import { useConnection } from '../../stores/connection';
-import { sendTypedChat, useChat } from '../../stores/chat';
+import { retryTypedChat, sendTypedChat, useChat } from '../../stores/chat';
+import { forgetInterrupted } from '../../stores/interruptedSends';
 import { sessionReadGuard } from '../../stores/sessionReadAccess';
 import { useEvents } from '../../stores/events';
 import { useSearch } from '../../stores/search';
@@ -264,13 +265,22 @@ export default function ChatScreen() {
     activeSession?.messages ?? [], pending,
   ), [activeSession?.messages, pending]);
   const dismissFailedSend = useCallback((id: string) => {
+    if (!activeSessionId || activeSessionId !== useChat.getState().activeSessionId ||
+        draftAccountId !== useConnection.getState().activeAccountId) return;
+    forgetInterrupted(activeSessionId, id);
     useChat.setState(state => ({
       sessions: state.sessions.map(session => session.id === state.activeSessionId
         ? { ...session, outbound: session.outbound?.filter(message =>
             message.id !== id || !['failed', 'unconfirmed'].includes(message.delivery ?? '')) }
         : session),
     }));
-  }, []);
+  }, [activeSessionId, draftAccountId]);
+  const retryFailedSend = useCallback((id: string) => {
+    const connection = useConnection.getState();
+    if (ws && ws === connection.ws && draftAccountId === connection.activeAccountId && activeSessionId) {
+      retryTypedChat(ws, activeSessionId, id);
+    }
+  }, [activeSessionId, draftAccountId, ws]);
   const awaitingReply = pending?.some(message => message.delivery === 'pending');
 
   // Voice mode state
@@ -1784,6 +1794,7 @@ export default function ChatScreen() {
                   onRegenerate={handleRegenerate}
                   onEditUser={handleEditUser}
                   onDismissFailedSend={dismissFailedSend}
+                  onRetryFailedSend={retryFailedSend}
                   onFork={canFork ? handleFork : undefined}
                   onOpenChild={openChildSession}
                   onOpenRun={openRun}

@@ -6,7 +6,7 @@ import { validSharedSnapshot, validSharedTarget } from '../../common/collaborati
 import type { SharedPerson, SharedSnapshot, SharedTarget, SharedTurnResult } from '../../common/collaboration';
 import type { Attachment } from '../../common/types';
 
-class CollaborationRejected extends Error {}
+export class CollaborationRejected extends Error {}
 export class CollaborationDeliveryUnknown extends Error {}
 
 export class CollaborationClient {
@@ -49,6 +49,7 @@ export class CollaborationClient {
   /** True when access was withdrawn (or this client was disposed on logout),
    *  false while a snapshot is only temporarily missing. */
   revoked(sessionId: string): boolean { return this.disposed || this.revokedIds.has(sessionId); }
+  explicitlyRevoked(sessionId: string): boolean { return this.revokedIds.has(sessionId); }
 
   async commands(sessionId: string): Promise<SharedSnapshot> {
     const response = await fetch(this.origin.replace(/\/$/, '') + '/api/collaboration/' + encodeURIComponent(sessionId) + '/commands');
@@ -214,11 +215,12 @@ export class CollaborationClient {
     }, Math.min(8000, 250 * 2 ** Math.min(this.retry++, 5)));
   }
 
-  async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal, attachments?: Attachment[], clientInstanceId?: string): Promise<SharedTurnResult> {
+  async sendTurn(sessionId: string, requestId: string, message: string, delivery: 'queue' | 'steer' = 'queue', signal?: AbortSignal, attachments?: Attachment[], clientInstanceId?: string, onSubmitting?: () => boolean | void): Promise<SharedTurnResult> {
     if (this.disposed) throw new Error('Shared client disposed');
     const generation = this.accessGeneration;
     const appConnectionId = await this.appConnection?.();
     if (this.disposed) throw new Error('Shared client disposed');
+    if (this.revoked(sessionId) || onSubmitting?.() === false) throw new Error('Session access changed before submission');
     let result: SharedTurnResult;
     try {
       result = await this.post<SharedTurnResult>('/api/collaboration/turns', { session_id: sessionId, request_id: requestId, message, delivery,
@@ -265,7 +267,9 @@ export class CollaborationClient {
     return result;
   }
 
-  private async recoverTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<SharedTurnResult | undefined> {
+  async recoverTurn(sessionId: string, requestId: string, signal?: AbortSignal): Promise<SharedTurnResult | undefined> {
+    const generation = this.accessGeneration;
+    if (this.disposed || this.revoked(sessionId)) return undefined;
     const controller = new AbortController();
     const abort = () => controller.abort();
     signal?.addEventListener('abort', abort, { once: true });
@@ -277,7 +281,8 @@ export class CollaborationClient {
       const response = await fetch(source, { signal: controller.signal });
       if (!response.ok) return undefined;
       const record = await response.json();
-      if (record.run_id !== requestId || record.session_id !== sessionId) return undefined;
+      if (this.disposed || this.revoked(sessionId) || generation !== this.accessGeneration ||
+          record.run_id !== requestId || record.session_id !== sessionId) return undefined;
       const pending = record.status === 'queued' || record.status === 'running';
       const success = record.status === 'success';
       const terminalFailure = ['failed', 'cancelled', 'rejected', 'interrupted', 'skipped', 'timed_out'].includes(record.status);
@@ -300,7 +305,10 @@ export class CollaborationClient {
     const response = await fetch(this.origin.replace(/\/$/, '') + path, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal,
     });
-    if (response.status === 502 || response.status === 504) throw new CollaborationDeliveryUnknown('The gateway did not return the turn response.');
+    if (response.status === 502 || response.status === 504 ||
+        (path === '/api/collaboration/turns' && (response.status >= 500 || response.status === 408))) {
+      throw new CollaborationDeliveryUnknown('The gateway did not return the turn response.');
+    }
     if (!response.ok) {
       const result = await response.json().catch(() => ({}));
       throw new CollaborationRejected(`Collaboration ${response.status}: ${result.error || 'Request failed'}`);

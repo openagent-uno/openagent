@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import type { SharedPerson, SharedSnapshot, SharedTarget } from '../../common/collaboration';
-import { mergeSharedTranscript, unconfirmedMessages } from '../../common/shared-transcript';
+import { mergeSharedTranscript } from '../../common/shared-transcript';
 import { CollaborationClient } from '../services/collaboration';
 import { useChat } from './chat';
 import { sessionIsRevoked, setSessionRevoked } from './sessionReadAccess';
+import { forgetInterrupted, reconcileInterrupted } from './interruptedSends';
 import { getSessionModelPin } from '../services/api';
 
 export const useCollaboration = create<{ client: CollaborationClient | null; people: readonly SharedPerson[] }>(() => ({ client: null, people: [] }));
@@ -69,7 +70,10 @@ export function bindShared(next: CollaborationClient | null) {
           // the revoked transcript back in. A socket that merely dropped keeps
           // the transcript, but still discards the snapshot so nothing stale
           // can be re-merged before the reconnect delivers a fresh one.
-          if (withdrawn) setSessionRevoked(id, true);
+          if (withdrawn) {
+            if (next.explicitlyRevoked(id)) forgetInterrupted(id);
+            setSessionRevoked(id, true);
+          }
           useChat.setState(s => ({ sessions: (withdrawn && !s.sessions.some(se => se.id === id)
             ? [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false }]
             : s.sessions).map(se => se.id === id
@@ -97,7 +101,7 @@ export function bindShared(next: CollaborationClient | null) {
       useChat.setState(s => ({ sessions: (s.sessions.some(se => se.id === id) ? s.sessions : [...s.sessions, { id, title: 'Session', messages: [], isProcessing: false, origin: 'delegation' as const }]).map(se => se.id === id ? {
         ...se, localDraft: snapshot.turns.length ? false : se.localDraft,
         accessRevoked: false, messages: mergeSharedTranscript(se.messages, snapshot), isProcessing: running,
-        sharedSnapshot: snapshot, outbound: unconfirmedMessages(se.outbound, se.messages, snapshot),
+        sharedSnapshot: snapshot, outbound: reconcileInterrupted(se, se.messages, snapshot),
         isReasoning: last?.reasoning, statusText: running ? status : undefined,
       } : se) }));
       const newFinish = snapshot.turns.some(turn => !turn.active && turn.runId
