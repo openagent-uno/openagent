@@ -1,46 +1,46 @@
 {
   "bundle_manifest_version": 1,
-  "host_tools_version": "1.0.0b18",
+  "host_tools_version": "1.0.0b21",
   "manifest_version": 1,
   "platforms": {
     "darwin-arm64": {
-      "archive_sha256": "688a0214b0a9690dfe071728eb4ca794eaf376d52a892a9eb790d5329d34d73e",
+      "archive_sha256": "c8d48dc1aef59badaafa76c1ff703723914b337c44505e70ba13498aed61cbbe",
       "asset": "openagent-host-tools-darwin-arm64.tar.gz",
-      "bundle_manifest_sha256": "76771d2b39dea746492450d13dea5bdff5d8a6830fbe7ad78bc0feef366c4f04"
+      "bundle_manifest_sha256": "ce509c422dab45b9788969b1a60c28193fe577307ee008411aea38da722d2f3f"
     },
     "darwin-x64": {
-      "archive_sha256": "d0ea157a87872d76f5916ff20de3c120bcf5d59535d5f9a6535492f7d36bd5f8",
+      "archive_sha256": "782d6d7d1d59eb9b7901b901f823463b55e5bccb8da05e72c67d6506c3d43764",
       "asset": "openagent-host-tools-darwin-x64.tar.gz",
-      "bundle_manifest_sha256": "60d7e16d0dedb617670843f26ea46414cd618840ded8d1b5fec5503840ae5c9d"
+      "bundle_manifest_sha256": "d206b0e058c194d826f5e83c6733f6f377213f7a414feb12e87d6efe7f366e5f"
     },
     "linux-arm64": {
-      "archive_sha256": "2d9a0352370694de24a96c9b6c9b09015d3da1b5ed6619e0e3675b71112c9788",
+      "archive_sha256": "458ee7a3ba648a23d19551757f7f74e71f6d228a23bfe79743b510c477fbf07e",
       "asset": "openagent-host-tools-linux-arm64.tar.gz",
-      "bundle_manifest_sha256": "63618b77408f3d5de5e0e9d76a097a768d62204df81829f5b72646f3ad21e682"
+      "bundle_manifest_sha256": "fbbd0681a1f672e6923bcff08a02001b98e94cce5d78e2497beb1283bae55d25"
     },
     "linux-x64": {
-      "archive_sha256": "68b9a42cef0b94b77b7fa6df3fb1c1b6e70a3a07497a4b1148cd170f83bca45c",
+      "archive_sha256": "ceb7bbb5e77f3bf7e6882d51e17e7c541f23e54e5afbc69eeeca8e0895e96198",
       "asset": "openagent-host-tools-linux-x64.tar.gz",
-      "bundle_manifest_sha256": "7e0e073c74b41254d7c7742c5fdaa710bba9b855e70739642ac4a5be32fe2708"
+      "bundle_manifest_sha256": "b3c3b7de1e49b1cd545614fb34e4753cf58837433832c508d31f28cde809e8e6"
     },
     "win32-arm64": {
-      "archive_sha256": "fd1de7c5210f8ce87adc3081c0fbd15318a8f2dbf9dcaae50790b51e769188ff",
+      "archive_sha256": "fbabd1058eab3b5a7fc39564dbee23aa714efc29a42e7264a39eef8ed3e3076e",
       "asset": "openagent-host-tools-win32-arm64.tar.gz",
-      "bundle_manifest_sha256": "8ed0a3550bab41d917e0fa2a47d0557297a1395afb6932cdd035d9878bb968e1"
+      "bundle_manifest_sha256": "f9dfde95d2c8699867228c027eea202998ade4aa2e9fcbfcdf7e5ce9af1c9688"
     },
     "win32-x64": {
-      "archive_sha256": "df9efd96338b54b122f7045bea5f14ed680cd508d707779ea24bf3e0a01454d4",
+      "archive_sha256": "ef80fd4f038ce030bdb9ffa465880a68f45c331493564c6f7a0721bae53fed10",
       "asset": "openagent-host-tools-win32-x64.tar.gz",
-      "bundle_manifest_sha256": "f01f8f88cd5df4cae859f243370d0e6e3acbd576d407e6b520e9ed3178a6e7d1"
+      "bundle_manifest_sha256": "b132308a64e1f53b01a22bc9eb5d2023a73f26447e0bbcbb33f9e7970216ba24"
     }
   },
   "python_wheel": {
-    "asset": "openagent_host_tools-1.0.0b18-py3-none-any.whl",
-    "sha256": "a64c1ce6ada608701a0b0afb08832d80c7c2cfac736959a2dcdfc1c07456e70f"
+    "asset": "openagent_host_tools-1.0.0b21-py3-none-any.whl",
+    "sha256": "a9d6eeee1090bc72d831ee1f1cc3c8c286ec62818ceb02d1f42453ae3898ccd8"
   },
   "schema": 1,
-  "source_commit": "20f17dcbcaedb36e07c6bccfeca968824bb8c896",
-  "source_ref": "v1.0.0b18",
+  "source_commit": "9c045bdb9707d665fbee77e03cc344e9e5f6e2bc",
+  "source_ref": "v1.0.0b21",
   "source_repository": "openagent-uno/openagent",
-  "version": "1.0.0b18"
+  "version": "1.0.0b21"
 }
