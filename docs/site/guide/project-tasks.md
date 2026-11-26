@@ -6,6 +6,8 @@ Open a task to see its current status and final response. **Review changes** sho
 
 ## Approving revisions
 
+With `project_tasks` unset, the authenticated project catalog is empty and individual task requests return HTTP 404. The host loads the computer broker and initializes its project tables when `project_tasks` is configured.
+
 Enable the standalone host's optional `project_tasks` setting in the agent configuration. A host operator prepares a private Lima home and a stopped base image containing the supported guest tools and the workspace commit at `/srv/workspace`. The process running OpenAgent must be able to run `limactl`. Set `lima_executable` to its absolute path if the service manager sets a different search path.
 
 ```yaml

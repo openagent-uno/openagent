@@ -308,7 +308,7 @@ class NativeRuntimeAuthorizer:
         *,
         audience: tuple[PrincipalRef, ...] = (),
     ) -> bool:
-        from openagent_server.project_tasks import is_project_session
+        from openagent_server.project_task_routes import is_project_session
 
         if resource.kind == "session" and is_project_session(resource.resource_id):
             access = getattr(self, "project_task_access", None)

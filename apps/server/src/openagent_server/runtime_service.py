@@ -484,10 +484,12 @@ class NativeRuntimeService:
         await self.management_access.start()
         await self.official_connectors.start()
         await self.automations.start()
-        from openagent_server.project_tasks import StandaloneProjectTasks
-        self.project_tasks = await StandaloneProjectTasks.from_service(self)
-        if self.project_tasks:
-            self.authorizer.project_task_access = self.project_tasks.session_access
+        self.project_tasks = None
+        if self.agent.config.get("project_tasks"):
+            from openagent_server.project_tasks import StandaloneProjectTasks
+
+            self.project_tasks = await StandaloneProjectTasks.from_service(self)
+        self.authorizer.project_task_access = self.project_tasks.session_access if self.project_tasks else None
         executor = AgentExecutor(self.agent, owns_agent=False, **(
             {"request_scope": self.project_tasks.request_scope} if self.project_tasks else {}))
         environment = dict(getattr(self.agent, "product_environment", os.environ))

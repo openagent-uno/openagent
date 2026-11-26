@@ -81,7 +81,7 @@ def _args(body, revision, rights):
 
 
 def install_surfaces(app, tasks):
-    from .project_tasks import PRIVATE, task_ref
+    from .project_task_routes import PRIVATE, task_ref
 
     runtime = tasks.service.runtime
     human = ComputerInteraction(runtime)
