@@ -2,7 +2,9 @@
 import hashlib
 import importlib.util
 import io
+import json
 from pathlib import Path
+import sys
 
 import pytest
 
@@ -36,3 +38,31 @@ def test_unsafe_locator_rejected_before_network(monkeypatch, tmp_path):
     monkeypatch.setattr(module.urllib.request, 'urlopen', forbidden)
     with pytest.raises(ValueError, match='locator'):
         module.fetch('https://example.invalid/', '../fixture.whl', '0'*64, tmp_path/'fixture.whl')
+
+
+def test_consumes_device_release_artifacts_inventory(monkeypatch, tmp_path):
+    wheel = b'qualified-device-wheel'
+    filename = 'openagent_device_tools-1.0.0b21-py3-none-any.whl'
+    source = 'a' * 40
+    manifest = json.dumps({
+        'repository_commit': source,
+        'dirty_snapshot': False,
+        'artifacts': [{
+            'file': filename,
+            'sha256': hashlib.sha256(wheel).hexdigest(),
+            'bytes': len(wheel),
+        }],
+    }).encode()
+    base = 'https://example.invalid/'
+    monkeypatch.setattr(module, 'release_inputs', lambda: [
+        ('device', base, hashlib.sha256(manifest).hexdigest(), source),
+    ])
+    payloads = {'manifest.json': manifest, filename: wheel}
+    monkeypatch.setattr(module.urllib.request, 'urlopen',
+        lambda url, **kwargs: io.BytesIO(payloads[url.removeprefix(base).removesuffix('?download=1')]))
+    target = tmp_path / 'release-inputs'
+    monkeypatch.setattr(sys, 'argv', [str(SCRIPT), str(target)])
+
+    module.main()
+
+    assert (target / filename).read_bytes() == wheel

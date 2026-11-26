@@ -2,7 +2,7 @@
   "lock_version": 1,
   "servers": {
     "agent-in-chrome": {
-      "sha256": "50dd37d658b242a748050bf4e4629e2017062f65df7f53bfd5f261b949ead581",
+      "sha256": "13d57efcf11b7d1be542741861813679c7ad8b2f2720a814319ff6784b5875d9",
       "version": "3.0.0"
     },
     "computer-control": {
@@ -14,7 +14,7 @@
       "version": "1.1.0"
     },
     "filesystem": {
-      "sha256": "4b4e7b3f67af741f464ae5948711ad50334e9b556c06c2430e5ab5c43c6b336d",
+      "sha256": "2fb6ba3c3762701e08fa417072fe5df376f5c3b6139a881bf785280c4d86e804",
       "version": "1.0.1"
     },
     "shell": {

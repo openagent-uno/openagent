@@ -139,3 +139,7 @@ task, with the shell running as the unprivileged workspace owner.
 
 The Python tag is `host-tools-python-v1.0.0b20`. This composition pins Device Tools `1.0.0b20` and Shell `1.0.0b5`. Native archives and Desktop
 and CLI bundle indices use their existing release channels.
+
+Host Tools `1.0.0b21` pins Filesystem `1.0.0b4` and Device Tools `1.0.0b21`.
+The bundle advertises local file and managed browser download attachments and
+can report a macOS file permission denial to the currently authorized client.
