@@ -1,6 +1,7 @@
 # OpenAgent documentation
 
 - [App beta 76 and conversation recovery](releases/app-v1.1.0-beta.76.md).
+- [Server beta 117 and private conversation delivery](releases/v1.1.9-beta.117.md).
 - [Server beta 116 and delegated channel replies](releases/v1.1.9-beta.116.md).
 - [Server beta 115 and session and device reliability](releases/v1.1.9-beta.115.md).
 - [App beta 75 and session tool-card alignment](releases/app-v1.1.0-beta.75.md).
