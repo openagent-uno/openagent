@@ -1,5 +1,7 @@
 # OpenAgent documentation
 
+- [App beta 76 and conversation recovery](releases/app-v1.1.0-beta.76.md).
+- [Server beta 115 and session and device reliability](releases/v1.1.9-beta.115.md).
 - [App beta 75 and session tool-card alignment](releases/app-v1.1.0-beta.75.md).
 - [App beta 74 and desktop page reloads](releases/app-v1.1.0-beta.74.md).
 - [Server beta 108 and durable manual automation](releases/v1.1.9-beta.108.md).

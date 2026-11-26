@@ -156,21 +156,24 @@ openagent serve -ch telegram     # specific channel only
 
 ## Live messages
 
-By default every channel narrates a turn in the chat itself, the way Hermes does:
+On the standalone server, `channels.telegram.live: true` enables progress in
+the conversation. The bridge edits one message as the assistant writes or
+changes tools. Each delegated agent gets its own message showing its text,
+current tool and eventual outcome. Short updates can be combined between edits.
+A long final answer can continue in additional messages to fit Telegram’s limit.
 
-- the platform's **native "is writing" indicator** turns on where one exists (Telegram's typing dot, Discord's "Bot is typing…"); platforms without one (Slack, WhatsApp) simply lean on the step messages. There is no `Thinking…` placeholder message — the server reports reasoning as a boolean flag, never a chat bubble,
-- each tool the agent uses is posted as its own message with a **friendly, human label** rather than the raw tool name — memory-vault work reads `🧠 Memorizing — <note>`, `📖 Recalling — <note>`, `🔍 Searching memory — "<query>"`, `🗑️ Forgetting — <note>`; a shell call reads `🔧 Running command`, a web search `🌐 Searching the web`, and a failure `⚠️ <label> failed: …`. The labels match the app's tool chips,
-- each span of the assistant's text is posted as it is produced — the narration before a tool call, then the final answer — instead of one reply at the end.
+A Telegram rate limit pauses edits and typing in the affected chat. If delivery
+can resume within the 90-second retry budget, the next edit uses the most recent
+text. An unknown outcome on the first send is reported for reconciliation to
+avoid posting a second copy.
 
-The final message is never a duplicate: only the still-unposted tail of the answer is sent. This is one agent with many doorways (vision §9) — the same outbound stream the desktop app renders as a live transcript, mapped onto platform-native messages.
-
-Turn it off per channel to get a single final reply per turn:
+To receive just the final reply, set the channel option explicitly.
 
 ```yaml
 channels:
   telegram:
     token: ${TELEGRAM_BOT_TOKEN}
-    live: false        # one reply per turn; "is writing" indicator still shows
+    live: false
 ```
 
 Or disable it fleet-wide with the `OPENAGENT_CHANNEL_LIVE=0` environment variable (a per-channel `live:` value still wins). Voice-note turns always use the single-reply path so a spoken question gets a spoken answer rather than a wall of intermediate text.
