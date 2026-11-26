@@ -21,7 +21,10 @@ cd apps/app
   nears either edge, keeping the reading position fixed. A rail of dots on the left
   marks every human prompt of the session (primary for your own, text colour for other
   participants); hovering previews the prompt and clicking jumps to it, loading the
-  surrounding page when needed. Auto-scroll detaches only on a real upward gesture
+  surrounding page when needed. Opening a search result keeps it in view while
+  the latest page loads. **Jump to bottom** returns directly to the newest answer.
+  Scrolling between those positions loads the intervening pages.
+  Auto-scroll detaches only on a real upward gesture
   (wheel, drag, keyboard, scrollbar), never on programmatic layout corrections.
   The chat requests `timeline=interleaved` on message pages. When the saved stream
   matches the published answer, the gateway includes the assistant's prose before

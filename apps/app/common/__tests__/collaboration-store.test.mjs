@@ -39,7 +39,7 @@ const snapshot = (revision, active = true, text = 'Secret') => ({
 function setup(t) {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   globalThis.__sharedHistory = async () => [];
-  globalThis.__sharedPage = async () => ({ messages: [] });
+  globalThis.__sharedPage = async sessionId => ({ session_id: sessionId, messages: [] });
   useChat.getState().clearAll();
   useChat.setState({ sessions: [{ id: 'chat', title: 'Chat', messages: [], isProcessing: false }], sessionHistoryMode: 'legacy' });
   const sockets = [];
@@ -169,6 +169,7 @@ test('a completed turn receives its durable fork anchor while the next turn stre
   const { sockets } = setup(t);
   useChat.setState({ sessionHistoryMode: 'v2' });
   globalThis.__sharedPage = async () => ({
+    session_id: 'chat',
     revision: 'test-revision',
     messages: [{
       id: 'durable-answer', run_id: 'first-run', ordinal: 3, status: 'complete',
@@ -205,7 +206,7 @@ test('six parallel tool completions replace a frozen live projection after the t
   const rows = calls.map((toolInfo, i) => ({ id: `durable-${i}`, run_id: 'request', ordinal: i + 1,
     status: 'complete', role: 'tool', text: '', tool_summary: { ...toolInfo, status: 'success' },
     created_at: '2026-01-01T00:00:00Z', author: { kind: 'agent' } }));
-  globalThis.__sharedPage = async () => ({ revision: 'finished', messages: [...rows, {
+  globalThis.__sharedPage = async () => ({ session_id: 'chat', revision: 'finished', messages: [...rows, {
     id: 'final-answer', run_id: 'request', ordinal: 7, status: 'complete', role: 'assistant',
     text: 'All notes saved', model: 'provider:turn-model', created_at: '2026-01-01T00:00:01Z', author: { kind: 'agent' },
   }] });

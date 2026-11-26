@@ -126,3 +126,13 @@ test('a jump far back leaves a gap that paging forward closes', async (t) => {
   assert.deepEqual(session().loadedRanges, [{ start: null, end: null }]);
   assert.equal(session().messageWindow.hasMoreBefore, false);
 });
+
+test('a newer middle page beyond an old complete tail leaves both gaps open', async t => {
+  setup(t, 60);
+  await useChat.getState().loadInitialTranscript('chat');
+  assert.deepEqual(session().loadedRanges, [{ start: null, end: null }]);
+  const newer = await server(300)('chat', { around: 'm180', before: 10, after: 10 });
+  useChat.getState().mergeMessageWindow({ ...newer, revision: '2' });
+  assert.deepEqual(session().loadedRanges, [{ start: null, end: 59 }, { start: 170, end: 190 }]);
+  assert.equal(session().messageWindow.hasMoreAfter, true);
+});

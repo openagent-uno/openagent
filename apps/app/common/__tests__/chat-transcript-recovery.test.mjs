@@ -146,6 +146,100 @@ const versionedPage = (revision, rows, moreBefore = true, moreAfter = false) => 
   after_cursor: moreAfter ? 'after-' + rows.at(-1).ordinal : null,
 });
 
+for (const order of ['while opening', 'before discovery']) {
+  test(`a search page arriving ${order} keeps its separate range and loads the latest page`, async t => {
+    setup(t);
+    const tail = Promise.withResolvers();
+    let calls = 0;
+    globalThis.__page = () => { calls++; return tail.promise; };
+    if (order === 'while opening') useChat.getState().ensureActiveTranscript();
+    else useChat.setState({ sessionHistoryMode: 'unknown' });
+    useChat.getState().mergeMessageWindow(versionedPage(12, [wire(50), wire(51)], true, true));
+    useChat.getState().setSessionHistoryMode('v2');
+    useChat.getState().ensureActiveTranscript();
+    assert.equal(calls, 1);
+    tail.resolve(versionedPage(12, [wire(240), wire(241)]));
+    await settle();
+    const session = useChat.getState().sessions[0];
+    assert.deepEqual(session.messages.map(row => row.ordinal), [50, 51, 240, 241]);
+    assert.deepEqual(session.loadedRanges, [{ start: 50, end: 51 }, { start: 240, end: null }]);
+    assert.equal(session.messageWindow.hasMoreAfter, false);
+    useChat.getState().ensureActiveTranscript();
+    assert.equal(calls, 1);
+  });
+}
+
+test('an old initial tail cannot replace a newer search row or certify the current live end', async t => {
+  setup(t);
+  const tail = Promise.withResolvers();
+  globalThis.__page = () => tail.promise;
+  const opening = useChat.getState().loadInitialTranscript('chat');
+  const corrected = { ...wire(51), text: 'Corrected search result' };
+  useChat.getState().mergeMessageWindow(versionedPage(12, [wire(50), corrected], true, true));
+  tail.resolve(versionedPage(11, [wire(51), wire(52)]));
+  await opening;
+  let session = useChat.getState().sessions[0];
+  assert.equal(session.messages.find(row => row.id === corrected.id).text, corrected.text);
+  assert.deepEqual(session.loadedRanges, [{ start: 50, end: 52 }]);
+  assert.equal(session.messageWindow.revision, '12');
+  assert.equal(session.messageWindow.hasMoreAfter, true);
+  globalThis.__page = async () => versionedPage(12, [wire(240), wire(241)]);
+  await useChat.getState().loadInitialTranscript('chat');
+  session = useChat.getState().sessions[0];
+  assert.deepEqual(session.loadedRanges, [{ start: 50, end: 52 }, { start: 240, end: null }]);
+});
+
+for (const change of ['account', 'read grant']) {
+  test(`a new ${change} can load the same session while its old tail is in flight`, async t => {
+    setup(t);
+    const old = Promise.withResolvers();
+    const fresh = Promise.withResolvers();
+    let calls = 0;
+    globalThis.__page = () => ++calls === 1 ? old.promise : fresh.promise;
+    const oldLoad = useChat.getState().loadInitialTranscript('chat');
+    if (change === 'account') setup(t);
+    else {
+      setSessionRevoked('chat', true);
+      setSessionRevoked('chat', false);
+    }
+    const freshLoad = useChat.getState().loadInitialTranscript('chat');
+    assert.equal(calls, 2);
+    old.resolve(versionedPage(20, [wire(10)]));
+    await oldLoad;
+    assert.deepEqual(useChat.getState().sessions[0].messages, []);
+    assert.equal(useChat.getState().transcriptLoading.chat, true);
+    assert.equal(useChat.getState().transcriptChecked.chat, undefined);
+    fresh.resolve(versionedPage(12, [wire(240)]));
+    await freshLoad;
+    assert.deepEqual(useChat.getState().sessions[0].messages.map(row => row.ordinal), [240]);
+  });
+}
+
+test('a first tail for a different session cannot enter the active transcript', async t => {
+  setup(t);
+  globalThis.__page = async () => ({ ...versionedPage(12, [wire(240)]), session_id: 'other' });
+  await useChat.getState().loadInitialTranscript('chat');
+  assert.deepEqual(useChat.getState().sessions[0].messages, []);
+  assert.match(useChat.getState().transcriptLoadError.chat, /another session/);
+});
+
+test('a native turn starting after a search keeps its live rows during the initial tail read', async t => {
+  setup(t);
+  const tail = Promise.withResolvers();
+  globalThis.__page = () => tail.promise;
+  const opening = useChat.getState().loadInitialTranscript('chat');
+  useChat.getState().mergeMessageWindow(versionedPage(12, [wire(50), wire(51)], true, true));
+  const active = { id: 'native-live', text: 'Still streaming', role: 'assistant', streaming: true, timestamp: 1 };
+  useChat.setState(state => ({ sessions: state.sessions.map(session =>
+    ({ ...session, isProcessing: true, messages: [...session.messages, active] })) }));
+  tail.resolve(versionedPage(12, [wire(240), wire(241)]));
+  await opening;
+  const session = useChat.getState().sessions[0];
+  assert.equal(session.isProcessing, true);
+  assert.deepEqual(session.messages.map(row => row.id), ['m50', 'm51', active.id]);
+  assert.equal(session.messages.at(-1), active);
+});
+
 test('a delayed earlier page extends history without replacing a newer canonical turn', async t => {
   setup(t);
   const oldAnchor = { ...wire(5), run_id: 'current', text: 'old reply' };

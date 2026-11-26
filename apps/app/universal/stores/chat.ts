@@ -31,6 +31,7 @@ import { isAutomaticSessionTitle, sessionTitleFromPrompt } from '../../common/se
 import {
   clipLoadedRanges,
   hasHistoryBefore,
+  hasUnloadedTail,
   mergeLoadedRanges,
   pageLoadedRange,
   type LoadedRange,
@@ -204,7 +205,9 @@ function mergeCanonicalPage(
   // actually fetched. Otherwise it could bridge a gap to a newer tail.
   const boundedRange = order < 0 && range?.end === null && pageLast != null
     ? { ...range, end: pageLast } : range;
-  const loadedRanges = mergeLoadedRanges(session.loadedRanges, boundedRange);
+  const previousRanges = order > 0 && last != null && pageLast != null && pageLast > last
+    ? clipLoadedRanges(session.loadedRanges, last) : session.loadedRanges;
+  const loadedRanges = mergeLoadedRanges(previousRanges, boundedRange);
   if (preferCached && !accepted.length && current && session.loadedRanges
       && loadedRanges.length === session.loadedRanges.length
       && loadedRanges.every((item, index) => item.start === session.loadedRanges?.[index].start
@@ -223,7 +226,7 @@ function mergeCanonicalPage(
       beforeCursor: growsBefore ? page.before_cursor : current?.beforeCursor ?? null,
       afterCursor: growsAfter ? page.after_cursor : current?.afterCursor ?? null,
       hasMoreBefore: hasHistoryBefore(messages, loadedRanges, page.has_more_before),
-      hasMoreAfter: growsAfter ? page.has_more_after : current?.hasMoreAfter ?? page.has_more_after,
+      hasMoreAfter: loadedRanges.length ? hasUnloadedTail(loadedRanges) : page.has_more_after,
     },
   };
 }
@@ -255,7 +258,10 @@ async function loadSessionTranscript(
   // identical URL in flight. Single-flight for the current grant stays here.
   const request = requestTranscript<LoadedTranscript>((signal) => mode === 'v2'
     ? listSessionMessages(sessionId, { limit: SESSION_MESSAGE_PAGE_SIZE }, signal)
-      .then(page => ({ kind: 'v2', page }))
+      .then(page => {
+        if (page.session_id !== sessionId) throw new Error('Transcript page belongs to another session');
+        return { kind: 'v2', page };
+      })
     : fetchSessionRuns(sessionId, undefined, signal)
       .then(rows => ({ kind: 'legacy', messages: (rows || []).map(runMsgToChat) })))
     .finally(() => {
@@ -323,6 +329,19 @@ function transcriptPatch(
       hasMoreAfter: page.has_more_after,
     },
   };
+}
+
+/** An anchor can arrive while the latest page is in flight. Apply both
+ * against the same revision rules used when an open chat reconnects. */
+function applyTailPage(session: ChatSession, loaded: LoadedTranscript, originalWindow: TranscriptWindow | null) {
+  const current = session.messageWindow;
+  if (loaded.kind === 'v2' && current) {
+    const order = compareTranscriptRevision(loaded.page.revision, current.revision);
+    if (order < 0 || (order === 0 && originalWindow !== current)) {
+      return mergeCanonicalPage(session, loaded.page, undefined, originalWindow);
+    }
+  }
+  return transcriptPatch(loaded, session.messages, session.sharedSnapshot, session.loadedRanges, current);
 }
 
 // When each session last heard anything at all from the server. Used by
@@ -904,7 +923,7 @@ interface ChatState {
   transcriptLoading: Record<string, true>;
   /** Last initial-load failure per session, cleared by a successful load. */
   transcriptLoadError: Record<string, string>;
-  /** Fetch the newest transcript page of a session that has no rows yet. */
+  /** Fetch the newest transcript page, including when only search context is loaded. */
   loadInitialTranscript: (id: string) => Promise<void>;
   /** Sessions whose initial load already settled (with or without rows) since
    * the last (re)connect, so an empty-but-real conversation is not refetched
@@ -1026,7 +1045,7 @@ function sessionId(): string {
 
 /** Bound an unresponsive transport so the reader can retry a transcript page. */
 export const TRANSCRIPT_LOAD_TIMEOUT_MS = 20_000;
-const transcriptLoadAttempts = new Map<string, number>();
+const transcriptLoadAttempts = new Map<string, () => boolean>();
 
 export const useChat = create<ChatState>((set, get) => ({
   sessions: [],
@@ -1045,11 +1064,11 @@ export const useChat = create<ChatState>((set, get) => ({
     const mode = get().sessionHistoryMode;
     // A live frame or a deep link can precede capability discovery. Unknown
     // does not mean legacy: wait for the authenticated server contract.
-    if (mode === 'unknown' || get().transcriptLoading[id]) return;
+    if (mode === 'unknown' || transcriptLoadAttempts.get(id)?.()) return;
     const current = sessionReadGuard(id);
     if (!current()) return;
-    const attempt = (transcriptLoadAttempts.get(id) ?? 0) + 1;
-    transcriptLoadAttempts.set(id, attempt);
+    const originalWindow = get().sessions.find(session => session.id === id)?.messageWindow ?? null;
+    transcriptLoadAttempts.set(id, current);
     set((s) => {
       const { [id]: _previous, ...errors } = s.transcriptLoadError;
       return { transcriptLoading: { ...s.transcriptLoading, [id]: true }, transcriptLoadError: errors };
@@ -1057,26 +1076,31 @@ export const useChat = create<ChatState>((set, get) => ({
     let failure: string | null = null;
     try {
       const loaded = await loadSessionTranscript(id, mode);
-      if (!current() || transcriptLoadAttempts.get(id) !== attempt) return;
+      if (!current() || transcriptLoadAttempts.get(id) !== current) return;
       const hasMessages = loaded.kind === 'v2'
         ? loaded.page.messages.length > 0
         : loaded.messages.length > 0;
       if (!hasMessages) return;
       set((s) => ({
-        sessions: s.sessions.map((se) =>
-          se.id !== id || (se.messages.length > 0 && !se.sharedSnapshot)
-            ? se
-            : { ...se, ...transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, se.messageWindow) },
-        ),
+        sessions: s.sessions.map(session => {
+          if (session.id !== id) return session;
+          // Native in-flight rows are reconciled by their terminal frame.
+          if (session.messages.length && !session.sharedSnapshot
+              && (loaded.kind !== 'v2' || !session.messageWindow || session.isProcessing)) return session;
+          const patch = applyTailPage(session, loaded, originalWindow);
+          return patch ? { ...session, ...patch } : session;
+        }),
       }));
     } catch (error) {
       failure = error instanceof Error && error.message ? error.message : 'The conversation could not be loaded.';
     } finally {
-      if (transcriptLoadAttempts.get(id) !== attempt) return;
+      if (transcriptLoadAttempts.get(id) !== current) return;
+      transcriptLoadAttempts.delete(id);
       set((s) => {
         const { [id]: _done, ...loading } = s.transcriptLoading;
+        if (!current()) return { transcriptLoading: loading };
         const checked = { ...s.transcriptChecked, [id]: true as const };
-        return failure && current()
+        return failure
           ? { transcriptLoading: loading, transcriptChecked: checked, transcriptLoadError: { ...s.transcriptLoadError, [id]: failure } }
           : { transcriptLoading: loading, transcriptChecked: checked };
       });
@@ -1089,11 +1113,11 @@ export const useChat = create<ChatState>((set, get) => ({
     if (!id || state.sessionHistoryMode === 'unknown') return;
     const session = state.sessions.find((s) => s.id === id);
     if (!session || session.localDraft) return;
-    // Live observation and the first durable page arrive independently. Only
-    // the latter proves the earlier history of a v2 conversation was loaded.
-    if (session.messages.length && (!session.sharedSnapshot || state.sessionHistoryMode !== 'v2'
-      || session.loadedRanges?.length)) return;
-    if (state.transcriptLoading[id] || state.transcriptLoadError[id] || state.transcriptChecked[id]) return;
+    // Search and live observation may both precede the initial latest page.
+    // An anchor window with a finite end still needs that page.
+    if (session.messages.length && (state.sessionHistoryMode !== 'v2'
+      || (session.messageWindow ? !hasUnloadedTail(session.loadedRanges) : !session.sharedSnapshot))) return;
+    if (state.transcriptLoadError[id] || state.transcriptChecked[id]) return;
     void get().loadInitialTranscript(id);
   },
 
@@ -1957,12 +1981,7 @@ export const useChat = create<ChatState>((set, get) => ({
             if (se.id !== sessionId) return se;
             // Re-check at apply time: a turn may have started during the fetch.
             if (!canReconcile(se)) return se;
-            const currentWindow = se.messageWindow;
-            const revisionOrder = loaded.kind === 'v2' && currentWindow
-              ? compareTranscriptRevision(loaded.page.revision, currentWindow.revision) : 1;
-            const incremental = revisionOrder < 0 || (revisionOrder === 0 && originalWindow !== currentWindow);
-            const patch = incremental && loaded.kind === 'v2' ? mergeCanonicalPage(se, loaded.page, undefined, originalWindow)
-              : transcriptPatch(loaded, se.messages, se.sharedSnapshot, se.loadedRanges, currentWindow);
+            const patch = applyTailPage(se, loaded, originalWindow);
             return patch ? { ...se, ...patch, outbound: unconfirmedMessages(se.outbound, patch.messages, se.sharedSnapshot) } : se;
           }),
         }));

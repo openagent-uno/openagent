@@ -97,6 +97,11 @@ function rangeIndexFor(ranges: readonly LoadedRange[], ordinal: number): number 
   return -1;
 }
 
+/** A bounded last page has newer history, even when its last row is on screen. */
+export function hasUnloadedTail(ranges?: readonly LoadedRange[]): boolean {
+  return ranges?.at(-1)?.end != null;
+}
+
 /** Effective ordinals: a row without one (a live/optimistic row, or a split
  * of a canonical reply) belongs with the closest preceding ordinal. */
 export function effectiveOrdinals(rows: readonly OrderedRow[]): (number | null)[] {
@@ -233,6 +238,7 @@ export function resolveWindow(
   gaps: readonly boolean[],
   state: WindowState,
   size: number,
+  moreAfter = false,
 ): ResolvedWindow {
   const last = rows.length - 1;
   if (last < 0) return { start: 0, end: -1, segmentStart: 0, segmentEnd: -1, followsTail: true };
@@ -242,5 +248,5 @@ export function resolveWindow(
   let start = state.start ? resolveEdge(rows, state.start, 'start') : -1;
   if (start < 0 || start > end) start = Math.max(segmentStart, end - size + 1);
   start = Math.max(start, segmentStart);
-  return { start, end, segmentStart, segmentEnd, followsTail: end === last && state.end == null };
+  return { start, end, segmentStart, segmentEnd, followsTail: end === last && state.end == null && !moreAfter };
 }

@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 
 import type { Attachment } from '../../../common/types';
+import { hasUnloadedTail } from '../../../common/transcript-window';
 import { runRoutePath, type RunLaunchTarget, type MemoryTarget } from '../../../common/types';
 import { mergeOutboundTranscript, unconfirmedMessages } from '../../../common/shared-transcript';
 import { useCollaboration } from '../../stores/collaboration';
@@ -680,6 +681,11 @@ export default function ChatScreen() {
     transcript.update({ viewport: event.nativeEvent.layout.height }, 'layout');
   }, [onTranscriptLayout, transcript]);
   const jumpToLatest = useCallback(() => {
+    const chat = useChat.getState();
+    const id = chat.activeSessionId;
+    if (id && hasUnloadedTail(chat.sessions.find(session => session.id === id)?.loadedRanges)) {
+      void chat.loadInitialTranscript(id);
+    }
     transcript.resetToTail();
     scrollToBottom(true);
   }, [scrollToBottom, transcript]);
@@ -1823,7 +1829,7 @@ export default function ChatScreen() {
                 </TouchableOpacity>
               </View>
             ) : null}
-            {!isPinned && (
+            {(!isPinned || hasUnloadedTail(activeSession.loadedRanges)) && (
               <TouchableOpacity
                 style={styles.jumpToBottom}
                 onPress={jumpToLatest}

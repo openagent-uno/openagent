@@ -19,6 +19,7 @@ import {
   canonicalRowId,
   edgeOf,
   hasHistoryBefore,
+  hasUnloadedTail,
   ordinalRowAtOrAfter,
   ordinalRowAtOrBefore,
   resolveWindow,
@@ -78,15 +79,16 @@ export function useTranscriptWindow({
   const setWindow = useCallback((next: WindowState) => setStored({ sessionId, ...next }), [sessionId]);
 
   const gaps = useMemo(() => transcriptGaps(rows, ranges), [rows, ranges]);
-  const win = resolveWindow(rows, gaps, state, WINDOW_ROWS);
+  const moreAfter = hasUnloadedTail(ranges);
+  const win = resolveWindow(rows, gaps, state, WINDOW_ROWS, moreAfter);
   const visible = useMemo(
     () => (win.start === 0 && win.end === rows.length - 1 ? rows : rows.slice(win.start, win.end + 1)),
     [rows, win.start, win.end],
   );
   const moreBefore = win.segmentStart > 0 || hasHistoryBefore(rows, ranges, hasMoreBeforeFallback);
 
-  const latest = useRef({ rows, gaps, win, state, moreBefore, sessionId });
-  latest.current = { rows, gaps, win, state, moreBefore, sessionId };
+  const latest = useRef({ rows, gaps, win, state, moreBefore, moreAfter, sessionId });
+  latest.current = { rows, gaps, win, state, moreBefore, moreAfter, sessionId };
   controller.followsTail = win.followsTail;
 
   const turnRefs = useRef(new Map<string, unknown>());
@@ -186,7 +188,7 @@ export function useTranscriptWindow({
 
   const evaluate = useCallback(() => {
     if (adjusting.current) return;
-    const { rows: current, win: w, state: s } = latest.current;
+    const { rows: current, win: w, state: s, moreAfter } = latest.current;
     const metrics = controller.metrics;
     if (!metrics.viewport || !current.length) return;
     const threshold = Math.max(600, metrics.viewport * 1.2);
@@ -198,7 +200,7 @@ export function useTranscriptWindow({
     if (nearBottom && !w.followsTail) {
       if (w.end < w.segmentEnd) {
         const end = Math.min(w.segmentEnd, w.end + STEP_ROWS);
-        const endEdge = end === current.length - 1 ? null : edgeOf(current, end);
+        const endEdge = end === current.length - 1 && !moreAfter ? null : edgeOf(current, end);
         let startEdge = s.start ?? edgeOf(current, w.start);
         if (end - w.start + 1 > MAX_ROWS) {
           captureAnchor();
@@ -207,7 +209,7 @@ export function useTranscriptWindow({
         setWindow({ start: startEdge, end: endEdge });
         return;
       }
-      if (w.segmentEnd < current.length - 1) {
+      if (w.segmentEnd < current.length - 1 || moreAfter) {
         const anchor = ordinalRowAtOrBefore(current, w.segmentEnd, w.segmentStart);
         if (anchor >= 0) fetchPage(anchor, 'after');
       } else {
@@ -262,27 +264,35 @@ export function useTranscriptWindow({
   /** Put a row inside the window (e.g. a search anchor) without moving the
    * scroll position; the caller scrolls it into view. */
   const reveal = useCallback((messageId: string) => {
-    const { rows: current, gaps: g, win: w } = latest.current;
+    const { rows: current, gaps: g, win: w, moreAfter } = latest.current;
     const index = current.findIndex((row) => row.id === messageId);
-    if (index < 0 || (index >= w.start && index <= w.end)) return;
+    if (index < 0) return;
+    if (index >= w.start && index <= w.end) {
+      // A search result may be the first page to arrive. Keep the reader on
+      // that result when the separate latest page extends the loaded list.
+      if (moreAfter && !latest.current.state.end) {
+        setWindow({ start: edgeOf(current, w.start), end: edgeOf(current, w.end) });
+      }
+      return;
+    }
     controller.onDetach?.();
     const [segmentStart, segmentEnd] = segmentBounds(g, index);
     const start = Math.max(segmentStart, index - WINDOW_ROWS / 2);
     const end = Math.min(segmentEnd, index + WINDOW_ROWS / 2);
     setWindow({
       start: edgeOf(current, start),
-      end: end === current.length - 1 ? null : edgeOf(current, end),
+      end: end === current.length - 1 && !moreAfter ? null : edgeOf(current, end),
     });
   }, [controller, setWindow]);
 
   const doJump = useCallback((index: number) => {
-    const { rows: current, gaps: g } = latest.current;
+    const { rows: current, gaps: g, moreAfter } = latest.current;
     const [segmentStart, segmentEnd] = segmentBounds(g, index);
     const start = Math.max(segmentStart, index - JUMP_CONTEXT_ROWS);
     const end = Math.min(segmentEnd, index + WINDOW_ROWS);
     setWindow({
       start: edgeOf(current, start),
-      end: end === current.length - 1 ? null : edgeOf(current, end),
+      end: end === current.length - 1 && !moreAfter ? null : edgeOf(current, end),
     });
     const id = current[index].id;
     setJump({ id, nonce: Date.now() });

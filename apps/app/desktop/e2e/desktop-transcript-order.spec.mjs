@@ -49,15 +49,21 @@ for (const [index, toolCount] of [2, 5, 190, 4, 0, 9, 4, 6, 8].entries()) {
 class TranscriptGateway extends DeterministicGateway {
   messagePages = [];
   failBefore = false;
+  failLatest = false;
   transcriptRows = messages;
+  pausedRequest;
+  resume = Promise.withResolvers();
 
   async handleHttp(request, response) {
     const { pathname, searchParams } = new URL(request.url, 'http://fixture');
     const json = (value, status = 200) => response.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(value));
-    if (pathname === '/api/capabilities') return json({
-      api_revision: 1, features: { history: { version: 2, kinds: ['chat'], snapshot_pagination: true, max_page_size: 100 } },
-      storage: { history_ready: true, history_pending: 0, search_ready: false },
-    });
+    if (pathname === '/api/capabilities') {
+      if (this.pausedRequest === 'discovery') await this.resume.promise;
+      return json({
+        api_revision: 1, features: { history: { version: 2, kinds: ['chat'], snapshot_pagination: true, max_page_size: 100 } },
+        storage: { history_ready: true, history_pending: 0, search_ready: false },
+      });
+    }
     if (pathname === '/api/history') return json({
       items: [{ id: sessionId, resource_id: sessionId, kind: 'chat', title: 'Synthetic transcript',
         live: false, occurred_at: dated, updated_at: dated }],
@@ -67,6 +73,7 @@ class TranscriptGateway extends DeterministicGateway {
     if (pathname === '/api/collaboration') return json({ error: 'Legacy live transport fixture' }, 404);
     if (pathname !== `/api/sessions/${sessionId}/messages`) return super.handleHttp(request, response);
     const around = searchParams.get('around');
+    if (!around && this.pausedRequest === 'latest page') await this.resume.promise;
     const interleaved = searchParams.get('timeline') === 'interleaved';
     const anchor = this.transcriptRows.findIndex(row => row.id === around);
     const lower = Math.max(0, anchor < 0 ? this.transcriptRows.length - Number(searchParams.get('limit') || 60)
@@ -74,10 +81,11 @@ class TranscriptGateway extends DeterministicGateway {
     const upper = anchor < 0 ? this.transcriptRows.length
       : Math.min(this.transcriptRows.length, anchor + 1 + Number(searchParams.get('after')));
     const rows = this.transcriptRows.slice(lower, upper);
-    const failed = this.failBefore && around && searchParams.get('after') === '0';
+    const failed = around ? this.failBefore && searchParams.get('after') === '0' : this.failLatest;
     this.messagePages.push({ around, interleaved, rows, failed });
     if (failed) {
-      this.failBefore = false;
+      if (around) this.failBefore = false;
+      else this.failLatest = false;
       return json({ error: 'synthetic interrupted history page' }, 503);
     }
     return json({
@@ -100,12 +108,13 @@ test.use({
   }),
 });
 
-async function openTranscript(page, { anchor, live = false } = {}) {
+async function openTranscript(page, { anchor, live = false, pausedRequest } = {}) {
   const webRoot = process.env.OPENAGENT_E2E_WEB_ROOT
     || fileURLToPath(new URL('../../universal/dist', import.meta.url));
   const gateway = await new TranscriptGateway({ webRoot, accountId: 'transcript-fixture',
     networkId: 'transcript-network', deviceId: 'fixture-device', agentNodeId: 'fixture-agent' }).start();
   if (live) gateway.transcriptRows = messages.filter(row => row.run_id !== 'fixture-run-8');
+  gateway.pausedRequest = pausedRequest;
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
   await page.route('**/*', route => {
@@ -247,6 +256,55 @@ test('completed transcript keeps live text and tools in order after opening and 
     await expectOrder(...order);
     expect(errors).toEqual([]);
   } finally {
+    await gateway.close();
+  }
+});
+
+for (const pausedRequest of ['latest page', 'discovery']) {
+  test(`a middle result stays in view with delayed ${pausedRequest} and can jump to the latest answer`, async ({ page }) => {
+    const anchor = 'fixture-tool-2-95';
+    const { gateway, errors } = await openTranscript(page, { anchor, pausedRequest });
+    try {
+      const result = page.getByTestId(`tool-invocation-${anchor}`);
+      const latest = page.getByText(conclusion, { exact: true });
+      const jump = page.getByLabel('Jump to bottom', { exact: true });
+      await expect(result).toBeInViewport();
+      await expect(latest).toHaveCount(0);
+      await expect(jump).toBeVisible();
+      const tailReceived = page.waitForResponse(response => {
+        const url = new URL(response.url());
+        return url.pathname === `/api/sessions/${sessionId}/messages` && !url.searchParams.has('around');
+      });
+      gateway.resume.resolve();
+      await (await tailReceived).finished();
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await expect(result).toBeInViewport();
+      await expect(latest).toHaveCount(0);
+      await jump.click();
+      await expect(latest).toBeInViewport();
+      await expect(result).toHaveCount(0);
+      expect(errors).toEqual([]);
+    } finally {
+      gateway.resume.resolve();
+      await gateway.close();
+    }
+  });
+}
+
+test('Jump to bottom retries a failed latest page from a search result', async ({ page }) => {
+  const anchor = 'fixture-tool-2-95';
+  const { gateway, errors } = await openTranscript(page, { anchor, pausedRequest: 'latest page' });
+  try {
+    await expect(page.getByTestId(`tool-invocation-${anchor}`)).toBeInViewport();
+    gateway.failLatest = true;
+    gateway.resume.resolve();
+    await expect.poll(() => gateway.messagePages.some(entry => !entry.around && entry.failed)).toBe(true);
+    await page.getByLabel('Jump to bottom', { exact: true }).click();
+    await expect(page.getByText(conclusion, { exact: true })).toBeInViewport();
+    expect(gateway.messagePages.filter(entry => !entry.around).map(entry => entry.failed)).toEqual([true, false]);
+    expect(errors).toEqual([]);
+  } finally {
+    gateway.resume.resolve();
     await gateway.close();
   }
 });
