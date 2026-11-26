@@ -6,6 +6,7 @@ import json
 import statistics
 import time
 from pathlib import Path
+from types import SimpleNamespace
 import tempfile
 import unittest
 from aiohttp import web, ClientSession, ClientTimeout, FormData
@@ -19,6 +20,8 @@ from openagent_identity.auth.middleware import make_auth_middleware
 from openagent_identity.auth.device_cert import issue_cert
 from openagent_identity.transport.aiohttp_iroh_site import IrohSite
 from openagent_identity.client.session import SessionDialer, NetworkBinding, LoopbackProxy
+from openagent_server.gateway.api.artifacts import handle_upload, handle_content
+from openagent_server.gateway.server import Gateway
 
 class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
     async def test_real_member_http_reuses_transport_and_honors_revocation_and_outage(self):
@@ -57,17 +60,16 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                     handled.append(request['user_handle'])
                     return web.json_response({'providers': [], 'authorized': request['user_handle'], 'catalog': 'fixture capability ' * 2000})
                 app.router.add_get('/api/providers', catalog)
-                async def transfer(request):
-                    from openagent_server.gateway.api.artifacts import _read_form
+                gateway = SimpleNamespace(agent=SimpleNamespace(memory_db=member_db))
+                app["gateway"] = gateway
+                await member_db.upsert_session("attachment-test", client_id="alice", title="Transfer")
 
-                    staged, metadata = await _read_form(request)
-                    try:
-                        self.assertEqual(metadata["filename"], "transfer.bin")
-                        data = staged.read_bytes()
-                        return web.json_response({"size": len(data), "sha256": hashlib.sha256(data).hexdigest()})
-                    finally:
-                        staged.unlink()
-                app.router.add_post('/api/transfer', transfer)
+                async def upload(request):
+                    return await Gateway._handle_upload(gateway, request)
+
+                app.router.add_post('/api/upload', upload)
+                app.router.add_post('/api/artifacts', handle_upload)
+                app.router.add_get('/api/artifacts/{artifact_id}/content', handle_content)
                 runner = web.AppRunner(app); await runner.setup()
                 site = IrohSite(runner, member.iroh_node)
                 member.iroh_node.register_handler(NetworkAlpn.GATEWAY, site._handle_stream)
@@ -108,12 +110,23 @@ class MemberGatewayIrohTests(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(len(handled), 17)
                     self.assertEqual(len(dials), 1)
                     payload = bytes(range(256)) * (4096 * 12)
-                    form = FormData()
-                    form.add_field('file', payload, filename='transfer.bin', content_type='application/octet-stream')
-                    async with http.post(proxy.base_url + '/api/transfer', data=form) as response:
-                        self.assertEqual(response.status, 200)
-                        receipt = await response.json()
-                    self.assertEqual(receipt, {"size": len(payload), "sha256": hashlib.sha256(payload).hexdigest()})
+                    checksum = hashlib.sha256(payload).hexdigest()
+                    for route, status in (('/api/upload', 200), ('/api/artifacts', 201)):
+                        form = FormData()
+                        form.add_field('file', payload, filename='transfer.bin', content_type='application/octet-stream')
+                        form.add_field('session_id', 'attachment-test')
+                        async with http.post(proxy.base_url + route, data=form) as response:
+                            self.assertEqual(response.status, status)
+                            receipt = await response.json()
+                        attachment = receipt.get('attachment', receipt)
+                        self.assertEqual(attachment['sha256'], checksum)
+                        self.assertEqual(attachment['size_bytes'], len(payload))
+                        async with http.get(proxy.base_url + attachment['url']) as download:
+                            self.assertEqual(download.status, 200)
+                            received = hashlib.sha256()
+                            async for chunk in download.content.iter_chunked(64 * 1024):
+                                received.update(chunk)
+                            self.assertEqual(received.hexdigest(), checksum)
                     print('OPENAGENT_REAL_MEMBER_PERFORMANCE ' + json.dumps({'cold_ms':cold, 'serial_median_ms':statistics.median(serial), 'serial_total_ms':sum(serial), 'concurrent_median_ms':statistics.median(concurrent), 'coordinator_dials':len(dials), 'http_requests':len(handled), 'live_checks':len(live_checks)}))
                     await store.revoke_device(device.public_bytes)
                     await read(401); self.assertEqual(len(handled), 17)
