@@ -1,7 +1,6 @@
 """Real transport correlation feeds only the originating runtime context."""
 import asyncio
 from dataclasses import replace
-from types import SimpleNamespace
 import unittest
 
 from openagent_core.capabilities import CapabilityCatalog
@@ -10,6 +9,13 @@ from openagent_core.core.execution_origin import execution_origin_scope
 from openagent_core.jobs import BackgroundJobs
 from openagent_core.mcp.catalog import register_interactive_capabilities
 from openagent_server.gateway.capabilities import CapabilityRegistry, ClientCapabilityError
+
+
+class DeviceSocket:
+    closed = False
+
+    async def close(self, **_options):
+        self.closed = True
 
 
 class BackgroundCapabilityTests(unittest.IsolatedAsyncioTestCase):
@@ -34,7 +40,7 @@ class BackgroundCapabilityTests(unittest.IsolatedAsyncioTestCase):
             return True
         return await self.registry.register(device_id=device, account_id='alice',
             client_instance_id='desktop', generation=generation, device_label=device,
-            ws=SimpleNamespace(closed=True), send_json=send,
+            ws=DeviceSocket(), send_json=send,
             servers=[{'name':'shell', 'version':'1', 'tools':[
                 {'name':'shell_exec', 'classification':'mutating', 'input_schema':{'type':'object'}},
                 {'name':'shell_output', 'classification':'read_only', 'input_schema':{'type':'object'}}]}])
@@ -119,6 +125,16 @@ class BackgroundCapabilityTests(unittest.IsolatedAsyncioTestCase):
                 {'command':'never dispatched','run_in_background':True},session_id='shared-session')
         self.assertEqual(raised.exception.code,'MISSING_EXECUTION_CONTEXT')
         self.assertEqual(self.sent,[])
+
+    async def test_closed_socket_cannot_dispatch_a_background_job(self):
+        connection = await self.connect()
+        origin = connection.origin(self.registry)
+        await connection.ws.close()
+        with self.assertRaises(ClientCapabilityError) as raised:
+            await self.registry.call_tool(origin, 'shell', 'shell_exec',
+                {'command': 'fixture', 'run_in_background': True}, session_id=self.context.session_id)
+        self.assertEqual(raised.exception.code, 'CLIENT_OFFLINE')
+        self.assertEqual(self.sent, [])
 
 
 if __name__=='__main__': unittest.main()
