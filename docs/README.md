@@ -1,5 +1,6 @@
 # OpenAgent documentation
 
+- [App beta 77 and retrying a rejected chat message](releases/app-v1.1.0-beta.77.md).
 - [App beta 76 and conversation recovery](releases/app-v1.1.0-beta.76.md).
 - [Server beta 117 and private conversation delivery](releases/v1.1.9-beta.117.md).
 - [Server beta 116 and delegated channel replies](releases/v1.1.9-beta.116.md).
