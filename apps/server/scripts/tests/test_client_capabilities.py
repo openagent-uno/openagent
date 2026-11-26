@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+from dataclasses import replace
 from types import SimpleNamespace
 
 from ._framework import TestContext, test
@@ -15,6 +16,49 @@ class _Ws:
 
     async def close(self, **_kwargs):
         self.closed = True
+
+
+def _catalog_execution(toolkits):
+    """An owner-authorized local catalog; test tools use normal leases and refs."""
+    from openagent_core.capabilities import CapabilityCatalog
+    from openagent_core.contracts import ExecutionContext, PrincipalRef
+    from openagent_core.mcp.pool import MCPPool
+    from openagent_core.runtime import RuntimeSettings
+
+    owner = PrincipalRef("fixture", "network-1", "alice")
+    context = ExecutionContext(owner, owner, owner, "chat:provider-test", "agent", (owner,),
+                               ingress_id="interactive-ingress")
+
+    class OwnerPolicy:
+        async def authorize(self, active, action, resource, *, audience=()):
+            return (active.authority == owner and active.audience == (owner,)
+                    and resource.tenant_id == owner.tenant_id
+                    and action in {"tool.discover", "tool.call", "tool.publish"})
+
+    pool = MCPPool([])
+    pool._toolkit_by_name.update(toolkits)
+    catalog = CapabilityCatalog(OwnerPolicy())
+    pool.bind_capability_catalog(catalog)
+    runtime = SimpleNamespace(
+        capabilities=catalog,
+        services=SimpleNamespace(executor=SimpleNamespace(agent=SimpleNamespace(capability_pool=pool))),
+        settings=RuntimeSettings(agent_id="agent"),
+    )
+    return pool, runtime, context
+
+
+class _FixtureAutomationExecution:
+    """Admit only synthetic schedule/API work, then use the scheduler callbacks."""
+
+    async def run_task(self, _scheduler, task, *, trigger, request_id, payload, execute):
+        assert task["id"] == "t1" and trigger == "schedule"
+        return await execute(task, trigger=trigger, request_id=request_id, context=payload)
+
+    async def run_workflow(self, _scheduler, workflow, *, trigger, inputs, request_id,
+                           entry_node_id, run_id, execute):
+        assert workflow["id"] in {"wf-1", "w1"} and trigger in {"schedule", "api"}
+        return await execute(workflow, trigger=trigger, inputs=inputs, request_id=request_id,
+                             entry_node_id=entry_node_id, run_id=run_id)
 
 
 def _catalog(marker: str = "client") -> list[dict]:
@@ -447,17 +491,16 @@ async def t_scoped_tool_search(ctx: TestContext) -> None:
         parameters={},
     )
 
-    class Pool:
-        def __init__(self):
-            self._toolkit_by_name = {
-                "filesystem": SimpleNamespace(functions={"read_file": server_fn}),
-                "other": SimpleNamespace(functions={"only_other": other_fn}),
-            }
+    from openagent_core.mcp.catalog import register_interactive_capabilities
+    from openagent_core.runtime import execution_scope
 
-        def toolkit_by_name(self, name):
-            return self._toolkit_by_name.get(name)
+    toolkits = {
+        "filesystem": SimpleNamespace(functions={"read_file": server_fn}),
+        "other": SimpleNamespace(functions={"only_other": other_fn}),
+    }
+    pool, runtime, context = _catalog_execution(toolkits)
+    catalog = runtime.capabilities
 
-    pool = Pool()
     registry = CapabilityRegistry()
     conn_box: dict[str, object] = {}
 
@@ -482,29 +525,30 @@ async def t_scoped_tool_search(ctx: TestContext) -> None:
     conn_box["conn"] = conn
     origin = registry.origin_for("dev", "desktop")
     assert origin is not None
-    token = install_execution_origin(origin)
-    try:
-        names = [item["name"] for item in _list_scoped_servers_impl(pool)]
-        assert "server:filesystem" in names and "client:filesystem" in names
-        server_result = await _call_scoped_tool_impl(
-            pool, "server:filesystem", "read_file", {},
-        )
-        client_result = await _call_scoped_tool_impl(
-            pool, "client:filesystem", "read_file", {},
-        )
-        assert server_result["marker"] == "server"
-        assert server_result["execution_host"]["kind"] == "server"
-        assert hook_hits == ["pre", "post"], "runtime Function hooks were bypassed"
-        assert client_result["marker"] == "client"
-        assert client_result["execution_host"]["kind"] == "client"
-        # Right leaf on the wrong named MCP is an error, never a global search.
-        fn, resolved = await _resolve_tool(pool, "filesystem", "only_other")
-        assert fn is None and resolved is None
-    finally:
-        reset_execution_origin(token)
+    leases = register_interactive_capabilities(catalog, origin, source_namespace="desktop")
+    interactive = replace(context, capabilities=leases)
+    with execution_scope(runtime, interactive, None):
+        token = install_execution_origin(origin)
+        try:
+            names = [item["name"] for item in await _list_scoped_servers_impl(pool)]
+            assert "filesystem" in names and "desktop/filesystem" in names
+            server_ref = await catalog.resolve_tool_ref("filesystem", "read_file", interactive)
+            client_ref = await catalog.resolve_tool_ref("desktop/filesystem", "read_file", interactive)
+            server_result = await _call_scoped_tool_impl(pool, server_ref, {})
+            client_result = await _call_scoped_tool_impl(pool, client_ref, {})
+            assert server_result["marker"] == "server"
+            assert (await catalog.describe_tool(server_ref, interactive)).target_label == "Agent workspace"
+            assert hook_hits == ["pre", "post"], "runtime Function hooks were bypassed"
+            assert client_result["marker"] == "client"
+            assert client_result["execution_host"]["kind"] == "client"
+            fn, resolved = await _resolve_tool(pool, "filesystem", "only_other")
+            assert fn is None and resolved is None, "Resolved a leaf on the wrong source"
+        finally:
+            reset_execution_origin(token)
 
-    names = [item["name"] for item in _list_scoped_servers_impl(pool)]
-    assert all(not name.startswith("client:") for name in names)
+    with execution_scope(runtime, context, None):
+        names = [item["name"] for item in await _list_scoped_servers_impl(pool)]
+    assert "desktop/filesystem" not in names
 
     envelope = SimpleNamespace(
         content=[{"type": "text", "text": "ok"}],
@@ -553,21 +597,14 @@ async def t_tool_provider_contracts(ctx: TestContext) -> None:
         parameters={"type": "object"},
     )
 
-    class Pool:
-        _toolkit_by_name = {
-            "filesystem": SimpleNamespace(functions={"read_file": server_fn}),
-        }
-
-        def toolkit_by_name(self, name):
-            return self._toolkit_by_name.get(name)
-
-    pool = Pool()
-    server_provider = ServerMCPProvider(pool)
-    assert isinstance(server_provider, ToolCatalogProvider)
-    assert isinstance(server_provider, ToolDispatcher)
-    assert [item["name"] for item in server_provider.list_servers()] == [
-        "server:filesystem",
-    ]
+    toolkit = SimpleNamespace(functions={"read_file": server_fn})
+    pool, runtime, context = _catalog_execution({})
+    catalog = runtime.capabilities
+    pool._toolkit_by_name["filesystem"] = toolkit
+    server_provider = ServerMCPProvider(pool, "filesystem", toolkit)
+    server_source: ToolCatalogProvider = server_provider
+    server_dispatcher: ToolDispatcher = server_provider
+    catalog.register("filesystem", server_source, server_dispatcher, target_label="Agent workspace")
 
     registry = CapabilityRegistry()
     conn_box: dict[str, object] = {}
@@ -598,35 +635,34 @@ async def t_tool_provider_contracts(ctx: TestContext) -> None:
     conn_box["conn"] = conn
     origin = registry.origin_for("dev", "desktop")
     assert origin is not None
-    client_provider = InteractiveClientMCPProvider(registry)
-    assert isinstance(client_provider, ToolCatalogProvider)
-    assert isinstance(client_provider, ToolDispatcher)
+    from openagent_core.contracts import CapabilityLease
+    from openagent_core.runtime import execution_scope
 
-    # A client backend is useless outside the trusted turn context; merely
-    # retaining the provider cannot turn a future server-owned task into a
-    # device-bound execution.
-    try:
-        client_provider.list_servers()
-        raise AssertionError("client provider escaped its interactive turn")
-    except PermissionError:
-        pass
+    client_provider = InteractiveClientMCPProvider(origin, "filesystem", "desktop/filesystem")
+    client_source: ToolCatalogProvider = client_provider
+    client_dispatcher: ToolDispatcher = client_provider
+    lease = CapabilityLease("desktop/filesystem", "desktop", "9:0")
+    catalog.register("desktop/filesystem", client_source, client_dispatcher, target_label="Mac", lease=lease)
+    interactive = replace(context, capabilities=(lease,))
 
+    assert await client_provider.discover(context) == ()
     token = install_execution_origin(origin)
     try:
-        assert [item["name"] for item in client_provider.list_servers()] == [
-            "client:filesystem",
-        ]
-        server_result = await server_provider.call_tool(
-            "filesystem", "read_file", {},
-        )
-        client_result = await client_provider.call_tool(
-            "filesystem", "read_file", {}, session_id="chat:provider-test",
-        )
+        with execution_scope(runtime, interactive, None):
+            tools = await catalog.discover(interactive)
+            assert {(tool.source_id, tool.target_label) for tool in tools} == {
+                ("filesystem", "Agent workspace"), ("desktop/filesystem", "Mac"),
+            }
+            server_ref = await catalog.resolve_tool_ref("filesystem", "read_file", interactive)
+            client_ref = await catalog.resolve_tool_ref("desktop/filesystem", "read_file", interactive)
+            assert server_ref != client_ref
+            server_result = await catalog.call_tool(server_ref, {}, interactive)
+            client_result = await catalog.call_tool(client_ref, {}, interactive)
+        assert not catalog.has_source("desktop/filesystem", context), "origin alone granted a device"
     finally:
         reset_execution_origin(token)
 
     assert server_result["structuredContent"]["marker"] == "server"
-    assert server_result["execution_host"]["kind"] == "server"
     assert client_result["structuredContent"]["marker"] == "client"
     assert client_result["execution_host"]["kind"] == "client"
     assert client_result["execution_host"]["generation"] == 9
@@ -646,9 +682,11 @@ async def t_workflow_node_client_dispatch(ctx: TestContext) -> None:
 
     registry = CapabilityRegistry()
     conn_box: dict[str, object] = {}
+    invoked: list[dict] = []
 
     async def send(_ws, payload):
         if payload.get("type") == "client_tool_call":
+            invoked.append(payload)
             asyncio.get_running_loop().call_soon(
                 registry.resolve_result,
                 conn_box["conn"],
@@ -674,28 +712,27 @@ async def t_workflow_node_client_dispatch(ctx: TestContext) -> None:
     origin = registry.origin_for("dev", "desktop")
     assert origin is not None
 
-    class Pool:
-        def __init__(self):
-            self._toolkit_by_name: dict[str, object] = {}
+    from openagent_core.mcp.catalog import PoolCapabilitySource, register_interactive_capabilities
+    from openagent_core.runtime import execution_scope
 
-        def toolkit_by_name(self, name):
-            return self._toolkit_by_name.get(name)
-
-    pool = Pool()
-    pool._toolkit_by_name["tool-search"] = build_runtime_toolkit(pool=pool)
+    pool, runtime, context = _catalog_execution({})
+    catalog = runtime.capabilities
+    toolkit = build_runtime_toolkit(pool=pool)
+    pool._toolkit_by_name["tool-search"] = toolkit
+    broker = PoolCapabilitySource(pool, "tool-search", toolkit)
+    catalog.register("tool-search", broker, broker, target_label="Agent workspace")
+    leases = register_interactive_capabilities(catalog, origin, source_namespace="desktop")
+    interactive = replace(context, capabilities=leases)
     executor = SimpleNamespace(agent=SimpleNamespace(_mcp=pool))
     run_ctx = _RunCtx(run_id="run-1", workflow_id="wf-1", inputs={}, vars={})
-    config = {
-        "mcp_name": "tool-search",
-        "tool_name": "tool_search_call_tool",
-        "args": {
-            "server": "client:filesystem",
-            "tool": "read_file",
-            "args": {"path": "/client/sentinel"},
-        },
-    }
 
-    with execution_origin_scope(origin):
+    with execution_scope(runtime, interactive, None), execution_origin_scope(origin):
+        ref = await catalog.resolve_tool_ref("desktop/filesystem", "read_file", interactive)
+        config = {
+            "mcp_name": "tool-search",
+            "tool_name": "tool_search_call_tool",
+            "args": {"tool_ref": ref, "args": {"path": "/client/sentinel"}},
+        }
         output = await _h_mcp_tool(
             executor, {"id": "local", "type": "mcp-tool"}, config, run_ctx,
         )
@@ -703,16 +740,19 @@ async def t_workflow_node_client_dispatch(ctx: TestContext) -> None:
     assert result["structuredContent"]["marker"] == "workflow-client"
     assert result["execution_host"]["client_instance_id"] == "desktop"
 
-    # The same durable/automatic node has no implicit target and must fail;
-    # it cannot use the live device merely because the workflow references a
-    # canonical client MCP id.
-    try:
-        await _h_mcp_tool(
-            executor, {"id": "automatic", "type": "mcp-tool"}, config, run_ctx,
-        )
-        raise AssertionError("automatic workflow node reached a client host")
-    except PermissionError as exc:
-        assert "server-owned turn" in str(exc)
+    # Give detached work neither an active device origin nor its temporary
+    # lease, even if the workflow retained a previously working opaque ref.
+    deferred = replace(context, ingress_id=None, deferred=True, delegation_id="automation-test")
+    with execution_scope(runtime, deferred, None):
+        try:
+            await _h_mcp_tool(
+                executor, {"id": "automatic", "type": "mcp-tool"}, config, run_ctx,
+            )
+        except RuntimeError as exc:
+            assert "exact capability instance is unavailable" in str(exc)
+        else:
+            raise AssertionError("A detached workflow reused a client tool reference")
+    assert [call["args"] for call in invoked] == [{"path": "/client/sentinel"}]
 
 
 @test(
@@ -1345,7 +1385,12 @@ async def t_runtime_mcp_envelope(ctx: TestContext) -> None:
     assert dispatched["structuredContent"] == {"rows": [{"id": 1}]}
     assert dispatched["isError"] is False
     assert dispatched["_meta"] == {"vendor": "test"}
-    assert "images" in dispatched and "audios" in dispatched
+    assert [block["type"] for block in dispatched["content"]] == [
+        "text", "image", "audio", "resource_link",
+    ]
+    assert base64.b64decode(dispatched["content"][1]["data"], validate=True) == image_bytes
+    assert base64.b64decode(dispatched["content"][2]["data"], validate=True) == audio_bytes
+    assert dispatched["content"][3]["uri"] == "https://example.test/report.pdf"
 
 
 @test(
@@ -2004,8 +2049,14 @@ async def t_chat_attach_epoch_recheck(ctx: TestContext) -> None:
         SimpleNamespace(name="test", model=None),
         SimpleNamespace(auth_state=auth_state),
     )
+    persisted = []
+
+    async def persist_session(session_id, _device_id, *, handle):
+        persisted.append((session_id, handle))
+
     gateway.sessions = SimpleNamespace(
         get_or_create_session=lambda *_args, **_kwargs: "s",
+        ensure_session_persisted=persist_session,
     )
     calls = {"allow": 0, "push": 0, "capabilities": 0}
 
@@ -2056,6 +2107,8 @@ async def t_chat_attach_epoch_recheck(ctx: TestContext) -> None:
         device_pubkey=device_pubkey,
         device_auth_epoch=0,
     )
+    assert persisted == [("s", "alice")]
+    assert auth_state.epoch == 1, "The attach revocation barrier was never reached"
     assert calls == {"allow": 0, "push": 0, "capabilities": 0}
     assert session.on_behalf_identity == "original-principal"
     assert session.allow_local_attachment_paths is False
@@ -2440,20 +2493,11 @@ async def t_workflow_origin_boundaries(ctx: TestContext) -> None:
         fallback_calls.append(kwargs)
         return {"status": "queued"}
 
-    class Pool:
-        def __init__(self):
-            self._interactive_workflow_runner = None
-            self._toolkit_by_name = {
-                "workflow-manager": SimpleNamespace(functions={
-                    "workflow_manager_run_workflow": queued_run_workflow,
-                }),
-            }
+    from openagent_core.runtime import execution_scope
 
-        def bind_interactive_workflow_runner(self, runner):
-            self._interactive_workflow_runner = runner
-
-        def toolkit_by_name(self, name):
-            return self._toolkit_by_name.get(name)
+    function = SimpleNamespace(entrypoint=queued_run_workflow, parameters={"type": "object"})
+    toolkit = SimpleNamespace(functions={"workflow_manager_run_workflow": function})
+    pool, runtime, context = _catalog_execution({"workflow-manager": toolkit})
 
     class DB:
         async def get_workflow(self, id_or_name):
@@ -2473,22 +2517,20 @@ async def t_workflow_origin_boundaries(ctx: TestContext) -> None:
                 "status": "success", "trace": [],
             }
 
-    pool = Pool()
-
     class Agent:
         _mcp = pool
 
         async def refresh_registries(self):
             return None
 
-    scheduler = Scheduler(DB(), Agent())
+    scheduler = Scheduler(DB(), Agent(), execution_service=_FixtureAutomationExecution())
     scheduler._workflow_executor = Executor()
     origin = TurnExecutionOrigin(
         device_id="dev", client_instance_id="desktop", generation=7,
         device_label="Mac", registry=object(),
     )
 
-    with execution_origin_scope(origin):
+    with execution_scope(runtime, context, None), execution_origin_scope(origin):
         result = await _call_tool_impl(
             pool,
             "workflow-manager",
@@ -2503,7 +2545,7 @@ async def t_workflow_origin_boundaries(ctx: TestContext) -> None:
         queued = await _call_tool_impl(
             pool,
             "workflow-manager",
-            "run_workflow",
+            "workflow_manager_run_workflow",
             {"id_or_name": "later", "wait": False},
         )
         assert queued["status"] == "queued"
@@ -2518,12 +2560,13 @@ async def t_workflow_origin_boundaries(ctx: TestContext) -> None:
         assert seen[-1] is None
 
     # With no trusted client origin, wait=True also stays on the durable path.
-    automatic = await _call_tool_impl(
-        pool,
-        "workflow-manager",
-        "run_workflow",
-        {"id_or_name": "server-owned", "wait": True},
-    )
+    with execution_scope(runtime, context, None):
+        automatic = await _call_tool_impl(
+            pool,
+            "workflow-manager",
+            "workflow_manager_run_workflow",
+            {"id_or_name": "server-owned", "wait": True},
+        )
     assert automatic["status"] == "queued"
 
 
@@ -2558,24 +2601,24 @@ async def t_automation_origin_clearing(ctx: TestContext) -> None:
     token = install_execution_origin(origin)
     try:
         await run_child_session(
-            agent=Agent(), db=None, parent_session_id="chat:1",
+            agent=Agent(), db=None, owner_client_id="alice", parent_session_id="chat:1",
             origin="delegation", title="delegate", prompt="work",
         )
         await run_child_session(
-            agent=Agent(), db=None, parent_session_id="scheduler:t1",
+            agent=Agent(), db=None, owner_client_id="alice", parent_session_id="scheduler:t1",
             origin="scheduler", title="scheduled", prompt="work",
         )
         await run_child_session(
-            agent=Agent(), db=None, parent_session_id="workflow:w1",
+            agent=Agent(), db=None, owner_client_id="alice", parent_session_id="workflow:w1",
             origin="workflow", title="workflow", prompt="work",
         )
         await run_child_session(
-            agent=Agent(), db=None, parent_session_id="chat:1",
+            agent=Agent(), db=None, owner_client_id="alice", parent_session_id="chat:1",
             origin="workflow", title="inline workflow", prompt="work",
             inherit_execution_origin=True,
         )
         await run_child_session(
-            agent=Agent(), db=None, parent_session_id="event:e1",
+            agent=Agent(), db=None, owner_client_id="alice", parent_session_id="event:e1",
             origin="event", title="event", prompt="work",
         )
     finally:
@@ -2607,7 +2650,7 @@ async def t_automation_origin_clearing(ctx: TestContext) -> None:
             automatic_seen.append(current_execution_origin())
             return {"id": kwargs["run_id"], "status": "success"}
 
-    scheduler = scheduler_module.Scheduler(None, AutomaticAgent())
+    scheduler = scheduler_module.Scheduler(None, AutomaticAgent(), execution_service=_FixtureAutomationExecution())
     scheduler._workflow_executor = WorkflowExecutor()
     original_durable = scheduler_module._durable_child_sessions
     scheduler_module._durable_child_sessions = lambda: False
