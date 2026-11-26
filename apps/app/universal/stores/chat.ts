@@ -3,6 +3,7 @@
  */
 
 import { create } from 'zustand';
+import { discardDraftFiles } from './attachmentDrafts';
 import { resetSessionReadAccess, sessionIsRevoked, sessionReadGuard } from './sessionReadAccess';
 import { mergeSharedTranscript, reconcileSharedReplies, replySegments, unconfirmedMessages } from '../../common/shared-transcript';
 import {
@@ -928,7 +929,7 @@ interface ChatState {
 
   createSession: () => string;
   setActiveSession: (id: string) => void;
-  removeSession: (id: string) => void;
+  removeSession: (id: string, accountId?: string | null) => void;
   /** Rename a session optimistically, rolling back if durable persistence fails. */
   renameSession: (id: string, title: string) => Promise<void>;
   /** Apply a server-confirmed title without writing it back. */
@@ -1014,7 +1015,7 @@ interface ChatState {
   /** Remove a session row locally WITHOUT calling the delete API — used when
    *  the server broadcasts that a session was deleted elsewhere (another
    *  device, a prune), so it disappears from this sidebar in realtime. */
-  dropSessionLocal: (sessionId: string) => void;
+  dropSessionLocal: (sessionId: string, accountId?: string | null) => void;
   clearAll: () => void;
   loadSession: (id: string, title: string, history: { role: string; content: string; tool_result?: string; tool_error?: string; tool_name?: string; tool_args?: Record<string, any> }[]) => string;
 }
@@ -1154,7 +1155,8 @@ export const useChat = create<ChatState>((set, get) => ({
     get().refreshContext(id);
   },
 
-  removeSession: (id) => set((s) => {
+  removeSession: (id, accountId) => set((s) => {
+    if (accountId !== undefined) discardDraftFiles(accountId, id);
     // Best-effort delete on the server (fire-and-forget).
     deleteSessionApi(id).catch(() => {});
     const sessions = s.sessions.filter((ses) => ses.id !== id);
@@ -1997,7 +1999,8 @@ export const useChat = create<ChatState>((set, get) => ({
       .catch(() => {});
   },
 
-  dropSessionLocal: (sessionId) => set((s) => {
+  dropSessionLocal: (sessionId, accountId) => set((s) => {
+    if (accountId !== undefined) discardDraftFiles(accountId, sessionId);
     pendingDeltas.delete(sessionId);
     if (!s.sessions.some((ses) => ses.id === sessionId)) return {};
     const sessions = s.sessions.filter((ses) => ses.id !== sessionId);

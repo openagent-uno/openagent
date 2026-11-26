@@ -153,6 +153,11 @@ Approving a request doesn't change macOS privacy settings or the host's
 configured filesystem roots. The chat attachment picker remains available
 when a request can't reach an open agent window.
 
+In the chat composer, attachments stay in the draft for the account and
+conversation where you selected them. You can send a message in another
+chat while a file uploads, then return to the first chat to send, retry or
+remove its attachment.
+
 Shared tool files and completed browser downloads can be offered as session
 attachments. The gateway checks the current run and gives the client a
 download reference. Iroh request readers pause with the HTTP parser's

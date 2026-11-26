@@ -31,6 +31,7 @@ import { useEvents } from '../../stores/events';
 import { useSearch } from '../../stores/search';
 import { fetchChildSessions, fetchSessions } from '../../services/api';
 import MessageComposer, { type PendingFile, type SlashCommand } from '../../components/MessageComposer';
+import { attachmentDraftKey, newPendingFileId, updateDraftFiles, useDraftFiles } from '../../stores/attachmentDrafts';
 import { SessionGoalBar } from '../../components/SessionGoal';
 import MessageList from '../../components/MessageList';
 import TurnRail from '../../components/transcript/TurnRail';
@@ -157,12 +158,16 @@ export default function ChatScreen() {
         cancelLabel: 'Cancel',
         confirmVariant: 'danger',
       });
-      if (ok) removeSession(ses.id);
+      if (ok && useConnection.getState().activeAccountId === draftAccountId) removeSession(ses.id, draftAccountId);
     },
-    [confirm, removeSession],
+    [confirm, draftAccountId, removeSession],
   );
   const [input, setInput] = useState('');
-  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const draftKey = attachmentDraftKey(draftAccountId, activeSessionId);
+  const pendingFiles = useDraftFiles(draftKey);
+  const setPendingFiles = useCallback((update: (prev: PendingFile[]) => PendingFile[]) => {
+    updateDraftFiles(draftKey, update);
+  }, [draftKey]);
   const [dragActive, setDragActive] = useState(false);
   const [llmModels, setLlmModels] = useState<ModelEntry[]>([]);
   // Set when the server refuses a model pin, so the composer can say why
@@ -242,11 +247,6 @@ export default function ChatScreen() {
   // The composer's underlying text field, so a stray printable keystroke
   // anywhere on the chat screen can be routed into it (type-to-focus).
   const composerInputRef = useRef<any>(null);
-  // Monotonic per-mount counter for stable chip ids — collisions across
-  // remounts don't matter (state resets), and we only need uniqueness
-  // within one ``pendingFiles`` array.
-  const nextPendingId = useRef(0);
-  const newPendingId = () => `pf-${++nextPendingId.current}`;
   const activeSession = sessions.find((s) => s.id === activeSessionId);
   // A server-known conversation can lose its rows without a reload (for
   // example when the agent restarts and the client reconnects): load it again
@@ -373,19 +373,19 @@ export default function ChatScreen() {
   // Hydrate composer from the active session's persisted draft. Runs
   // only on session-switch (id change) so we don't clobber whatever
   // the user is currently typing.
-  const hydratedSessionRef = useRef<string | null>(null);
+  const hydratedSessionRef = useRef<{ accountId: string | null; id: string } | null>(null);
   useEffect(() => {
     if (!activeSessionId) return;
-    if (hydratedSessionRef.current === activeSessionId) return;
-    const prevId = hydratedSessionRef.current;
+    const previous = hydratedSessionRef.current;
+    if (previous?.id === activeSessionId && previous.accountId === draftAccountId) return;
     // Flush the OUTGOING session's draft synchronously before swapping, so
     // switching sessions within the persist debounce window never drops the
     // text still sitting in the composer.
-    if (prevId) setDraftInput(prevId, inputValueRef.current);
-    hydratedSessionRef.current = activeSessionId;
+    if (previous?.accountId === draftAccountId) setDraftInput(previous.id, inputValueRef.current);
+    hydratedSessionRef.current = { accountId: draftAccountId, id: activeSessionId };
     const draft = activeSession?.draftInput ?? '';
     setInput(draft);
-  }, [activeSessionId, activeSession?.draftInput, setDraftInput]);
+  }, [activeSessionId, activeSession?.draftInput, draftAccountId, setDraftInput]);
 
   // Persist composer text back into the active session, DEBOUNCED. Writing on
   // every keystroke rebuilt the whole ``sessions`` array in the store, which
@@ -400,7 +400,7 @@ export default function ChatScreen() {
     const sid = activeSessionId;
     const t = setTimeout(() => setDraftInput(sid, input), 400);
     return () => clearTimeout(t);
-  }, [input, activeSessionId, setDraftInput]);
+  }, [input, activeSessionId, draftAccountId, setDraftInput]);
 
   // Deep-link: a ``?session=<id>`` param (set when a delegation card is
   // pressed, or by linking into a run's child session) drives the active
@@ -691,64 +691,73 @@ export default function ChatScreen() {
   // spot.
   // Run a single browser File through the upload pipeline + drive the
   // chip state. Reused by the initial upload AND by the retry handler.
+  const uploadDraft = useCallback(() => ({
+    accountId: useConnection.getState().activeAccountId,
+    sessionId: useChat.getState().activeSessionId ?? startNewSession(),
+  }), [startNewSession]);
+
   const runUpload = useCallback((
     id: string,
     filename: string,
     kind: 'image' | 'file',
     read: () => Promise<File>,
-    sessionId?: string,
+    draft: ReturnType<typeof uploadDraft>,
     previewUrl?: string,
     scope = currentAgentScope(),
   ) => {
     const controller = new AbortController();
-    const retry = () => runUpload(id, filename, kind, read, sessionId, previewUrl, scope);
-    setPendingFiles((prev) => prev.map((p) => p.id === id
+    const key = attachmentDraftKey(draft.accountId, draft.sessionId);
+    const retry = () => runUpload(id, filename, kind, read, draft, previewUrl);
+    const current = () => scope === currentAgentScope() && draft.accountId === useConnection.getState().activeAccountId;
+    updateDraftFiles(key, (prev) => prev.map((p) => p.id === id
       ? { id, filename, kind, uploading: true, previewUrl, abort: () => controller.abort(), retry }
       : p));
     (async () => {
       try {
-        if (scope !== currentAgentScope()) throw new Error('Agent selection changed');
+        if (!current()) throw new Error('Agent selection changed');
         const file = await read();
         if (controller.signal.aborted) return;
-        if (scope !== currentAgentScope()) throw new Error('Agent selection changed');
+        if (!current()) throw new Error('Agent selection changed');
         const result = await uploadFile(file, undefined, {
           kind,
-          sessionId,
+          sessionId: draft.sessionId,
           signal: controller.signal,
         });
-        setPendingFiles((prev) => prev.map((p) => p.id === id
-          ? { id, filename: result.filename, attachment: result, kind, previewUrl, retry }
+        updateDraftFiles(key, (prev) => prev.map((p) => p.id === id
+          ? { id, filename: result.filename, attachment: result, kind, previewUrl }
           : p));
       } catch (e: any) {
         if (e?.name === 'AbortError' || controller.signal.aborted) return;
         const msg = e instanceof Error ? e.message : String(e);
         console.error('Upload failed:', msg);
-        setPendingFiles((prev) => prev.map((p) => p.id === id
+        updateDraftFiles(key, (prev) => prev.map((p) => p.id === id
           ? { id, filename, kind, error: msg, previewUrl, retry }
           : p));
       }
     })();
   }, []);
 
-  const uploadBrowserFiles = useCallback(async (files: File[]) => {
+  const uploadBrowserFiles = useCallback(async (files: File[], origin?: ReturnType<typeof uploadDraft>) => {
     if (!files.length) return;
+    const draft = origin ?? uploadDraft();
+    if (draft.accountId !== useConnection.getState().activeAccountId) return;
+    const key = attachmentDraftKey(draft.accountId, draft.sessionId);
     // Spawn an in-flight placeholder chip per file *before* awaiting the
     // upload so the user gets immediate visual feedback.
     for (const file of files) {
-      const id = newPendingId();
+      const id = newPendingFileId();
       const kind = file.type?.startsWith('image/') ? 'image' as const : 'file' as const;
       const previewUrl = kind === 'image' && typeof URL !== 'undefined'
         ? URL.createObjectURL(file) : undefined;
       // Push the placeholder first so the chip appears immediately;
       // runUpload then transitions it through uploading → ok/error.
-      setPendingFiles((prev) => [
+      updateDraftFiles(key, (prev) => [
         ...prev,
         { id, filename: file.name, kind, uploading: true, previewUrl },
       ]);
-      runUpload(id, file.name, kind, async () => file,
-        activeSessionIdRef.current ?? undefined, previewUrl);
+      runUpload(id, file.name, kind, async () => file, draft, previewUrl);
     }
-  }, [runUpload]);
+  }, [runUpload, uploadDraft]);
 
   // Drag-and-drop attachments. Web + Electron only — RN mobile has no
   // OS drag source. We listen on ``window`` (not the composer) so the
@@ -903,10 +912,7 @@ export default function ChatScreen() {
         if (!isTextarea) return;
         e.preventDefault();
         setInput('');
-        setPendingFiles((prev) => {
-          prev.forEach((p) => p.abort?.());
-          return [];
-        });
+        setPendingFiles(() => []);
         return;
       }
 
@@ -917,7 +923,7 @@ export default function ChatScreen() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [startNewSession]);
+  }, [startNewSession, setPendingFiles]);
 
   // Switch the LLM pin for the active session. We must close the WS
   // session so the next sendMessage re-opens it with the new pin —
@@ -1221,8 +1227,9 @@ export default function ChatScreen() {
   };
 
   const handleFilePick = async () => {
+    const draft = uploadDraft();
+    const key = attachmentDraftKey(draft.accountId, draft.sessionId);
     if (isDesktop && window.desktop?.pickFiles && window.desktop?.readFile) {
-      const sessionId = activeSessionIdRef.current ?? undefined;
       const scope = currentAgentScope();
       type Picked = Awaited<ReturnType<NonNullable<typeof window.desktop.pickFiles>>>[number];
       let picked: Picked[] = [];
@@ -1232,7 +1239,7 @@ export default function ChatScreen() {
         console.error('Native picker failed:', e);
         return;
       }
-      if (!picked.length || scope !== currentAgentScope()) return;
+      if (!picked.length || scope !== currentAgentScope() || draft.accountId !== useConnection.getState().activeAccountId) return;
 
       // Reject oversized files before we spawn an in-flight chip — the
       // ``dialog:readFile`` IPC would otherwise refuse them with a
@@ -1242,10 +1249,10 @@ export default function ChatScreen() {
       const oversized = picked.filter((p) => p.size > 0 && p.size > p.maxBytes);
       const okPicked = picked.filter((p) => !(p.size > 0 && p.size > p.maxBytes));
       if (oversized.length) {
-        setPendingFiles((prev) => [
+        updateDraftFiles(key, (prev) => [
           ...prev,
           ...oversized.map((p) => ({
-            id: newPendingId(),
+            id: newPendingFileId(),
             filename: p.filename,
             kind: p.kind,
             error: `File too large (${(p.size / 1024 / 1024).toFixed(1)} MB; limit ${Math.round(p.maxBytes / 1024 / 1024)} MB)`,
@@ -1256,14 +1263,14 @@ export default function ChatScreen() {
 
       const readFile = window.desktop.readFile;
       for (const meta of okPicked) {
-        const id = newPendingId();
-        setPendingFiles(prev => [...prev, { id, filename: meta.filename, kind: meta.kind, uploading: true }]);
+        const id = newPendingFileId();
+        updateDraftFiles(key, prev => [...prev, { id, filename: meta.filename, kind: meta.kind, uploading: true }]);
         runUpload(id, meta.filename, meta.kind, async () => {
           const bytes = await readFile(meta.path);
           return new File([bytes as BlobPart], meta.filename, {
             type: guessMimeType(meta.filename, meta.kind),
           });
-        }, sessionId, undefined, scope);
+        }, draft, undefined, scope);
       }
       return;
     }
@@ -1271,11 +1278,11 @@ export default function ChatScreen() {
     if (isDesktop && window.desktop?.pickFiles) {
       try {
         const picked = await window.desktop.pickFiles();
-        if (picked.length) {
-          setPendingFiles((prev) => [
+        if (picked.length && draft.accountId === useConnection.getState().activeAccountId) {
+          updateDraftFiles(key, (prev) => [
             ...prev,
             ...picked.map((f) => ({
-              id: newPendingId(),
+              id: newPendingFileId(),
               filename: f.filename,
               remotePath: f.path,
               kind: f.kind,
@@ -1299,7 +1306,7 @@ export default function ChatScreen() {
     fileInput.onchange = async () => {
       const files = Array.from(fileInput.files || []);
       document.body.removeChild(fileInput);
-      await uploadBrowserFiles(files);
+      await uploadBrowserFiles(files, draft);
     };
     fileInput.click();
   };
@@ -1867,17 +1874,7 @@ export default function ChatScreen() {
                 const target = pendingFiles[idx];
                 if (target?.retry) target.retry();
               }}
-              onRemoveFile={(idx) => setPendingFiles((prev) => {
-                const target = prev[idx];
-                // Cancel the underlying fetch if the upload is still in
-                // flight — otherwise the request orphan-completes and
-                // the gateway accepts a file the user no longer wants.
-                target?.abort?.();
-                if (target?.previewUrl) {
-                  try { URL.revokeObjectURL(target.previewUrl); } catch { /* ignore */ }
-                }
-                return prev.filter((_, i) => i !== idx);
-              })}
+              onRemoveFile={(idx) => setPendingFiles(prev => prev.filter((_, i) => i !== idx))}
               onPickFile={(Platform.OS === 'web' || isDesktop) ? handleFilePick : undefined}
               onSend={handleSend}
               // Composer stays interactive while the agent is processing so

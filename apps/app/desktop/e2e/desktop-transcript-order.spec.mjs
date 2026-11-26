@@ -166,6 +166,70 @@ async function reconnect(gateway) {
   await expect.poll(() => countAuthentications(gateway)).toBeGreaterThan(previous);
 }
 
+test('keeps a failed or pending attachment with its original chat draft', async ({ page }) => {
+  const { gateway } = await openTranscript(page);
+  const resume = Promise.withResolvers();
+  const uploads = [];
+  const file = 'draft-sample.txt';
+  const activeSession = () => new URL(page.url()).searchParams.get('session');
+  const composer = page.locator('textarea').last();
+  const send = page.getByLabel('Send message', { exact: true });
+  const firstChat = page.getByText('Synthetic transcript', { exact: true }).first();
+  const newChat = page.getByRole('button', { name: 'New session', exact: true }).first();
+  try {
+    await page.evaluate(file => {
+      window.desktop.pickFiles = async () => [{ path: '/fixture/' + file, filename: file, kind: 'file', size: 5, maxBytes: 1024 }];
+      window.desktop.readFile = async () => new TextEncoder().encode('hello');
+    }, file);
+    await page.route('**/api/upload*', async route => {
+      uploads.push(new URL(route.request().url()).searchParams.get('session_id'));
+      if (uploads.length === 1) return route.fulfill({ status: 503, json: { error: 'Paused fixture upload' } });
+      await resume.promise;
+      return route.fulfill({ json: { artifact_id: 'fixture-artifact', filename: file, kind: 'file', size_bytes: 5 } });
+    });
+    await expect(page.getByText(conclusion, { exact: true })).toBeVisible();
+    await composer.fill('First chat draft');
+    await page.getByLabel('Attach files', { exact: true }).click();
+    const retry = page.getByLabel('Retry upload', { exact: true });
+    await expect(retry).toBeVisible();
+    await newChat.click();
+    await expect.poll(activeSession).not.toBe(sessionId);
+    await composer.fill('Independent note');
+    await expect(retry).toHaveCount(0);
+    await expect(send).toBeEnabled();
+    await send.click();
+    await expect.poll(() => gateway.chatFrames.some(frame => frame.text === 'Independent note' &&
+      frame.session_id === activeSession() && !frame.attachments?.length)).toBe(true);
+
+    await firstChat.click();
+    await expect.poll(activeSession).toBe(sessionId);
+    await expect(composer).toHaveValue('First chat draft');
+    await expect(retry).toBeVisible();
+    await retry.click();
+    await expect.poll(() => uploads.length).toBe(2);
+    await newChat.click();
+    await expect.poll(activeSession).not.toBe(sessionId);
+    const delivered = page.waitForResponse(response => new URL(response.url()).pathname === '/api/upload' && response.status() === 200);
+    resume.resolve();
+    await (await delivered).finished();
+    await expect(page.getByText(file, { exact: true })).toHaveCount(0);
+    await firstChat.click();
+    await expect.poll(activeSession).toBe(sessionId);
+    await expect(page.getByText(file, { exact: true })).toBeVisible();
+    expect(uploads).toEqual([sessionId, sessionId]);
+    await newChat.click();
+    await expect.poll(activeSession).not.toBe(sessionId);
+    await expect(page.getByText(file, { exact: true })).toHaveCount(0);
+    await firstChat.click();
+    await expect(page.getByText(file, { exact: true })).toBeVisible();
+    await page.getByLabel('Remove ' + file, { exact: true }).click();
+    await expect(page.getByText(file, { exact: true })).toHaveCount(0);
+  } finally {
+    resume.resolve();
+    await gateway.close();
+  }
+});
+
 test('completed transcript keeps live text and tools in order after opening and reconnecting', async ({ page }) => {
   const { gateway, errors } = await openTranscript(page);
   const order = latestTurnOrder(page);

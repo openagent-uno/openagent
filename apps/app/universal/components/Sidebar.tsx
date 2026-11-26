@@ -322,6 +322,7 @@ function RecentFeed({
   // surface, so the affordance lives here rather than only in the chat-screen
   // session switcher.
   const confirmAndRemove = useCallback(async (id: string, title: string) => {
+    const accountId = useConnection.getState().activeAccountId;
     const ok = await confirm({
       title: 'Delete chat',
       message:
@@ -331,7 +332,7 @@ function RecentFeed({
       cancelLabel: 'Cancel',
       confirmVariant: 'danger',
     });
-    if (ok) removeSession(id);
+    if (ok && useConnection.getState().activeAccountId === accountId) removeSession(id, accountId);
   }, [confirm, removeSession]);
 
   const workflowRuns = useActivity((s) => s.workflowRuns);

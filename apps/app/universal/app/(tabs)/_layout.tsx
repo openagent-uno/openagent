@@ -182,7 +182,7 @@ export default function AppDrawerLayout() {
             chat.hydrateFromServer([entry]);
           }
         } else if (message.kind === 'chat' || message.kind === 'delegated_session') {
-          useChat.getState().dropSessionLocal(message.resource_id);
+          useChat.getState().dropSessionLocal(message.resource_id, useConnection.getState().activeAccountId);
         }
       } else if (message.type === 'search_index_changed') {
         useSearch.getState().handleSearchIndexChanged(message);

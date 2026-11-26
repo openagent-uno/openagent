@@ -40,6 +40,7 @@ import {
 } from '../services/api';
 import * as storage from '../services/storage';
 import { useChat } from './chat';
+import { discardDraftFiles } from './attachmentDrafts';
 import { useConfig } from './config';
 
 const STORAGE_KEY = 'openagent:accounts';
@@ -525,6 +526,7 @@ export const useConnection = create<ConnectionState>((set, get) => {
   },
 
   removeAccount: async (id) => {
+    discardDraftFiles(id);
     const wasActive = get().activeAccountId === id;
     const filtered = get().accounts.filter((a) => a.id !== id);
     set({ accounts: filtered });

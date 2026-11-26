@@ -437,6 +437,7 @@ export default function MessageComposer({
                   {onRemoveFile && (
                     <TouchableOpacity
                       onPress={() => onRemoveFile(idx)}
+                      accessibilityLabel={`Remove ${f.filename}`}
                       // @ts-ignore — web press affordance
                       {...(Platform.OS === 'web' ? { className: 'oa-press' } : {})}
                     >

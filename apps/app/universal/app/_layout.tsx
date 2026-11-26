@@ -202,7 +202,7 @@ export default function RootLayout() {
       // refetching the list, which surfaces new sub-agent sessions live).
       if (msg.type === 'resource_event' && msg.resource === 'session'
           && msg.action === 'deleted' && msg.id) {
-        useChat.getState().dropSessionLocal(msg.id);
+        useChat.getState().dropSessionLocal(msg.id, useConnection.getState().activeAccountId);
       }
 
     });
