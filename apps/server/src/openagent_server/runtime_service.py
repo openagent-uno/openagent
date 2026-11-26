@@ -1054,6 +1054,16 @@ class NativeRuntimeService:
             action = "tool.discover"
         if resource.kind in {"computer-project-version", "computer-task"}:
             return bool(self.project_tasks and await self.project_tasks.computer_access(context, action, resource))
+        tool_action = action in {"tool.discover", "tool.call", "tool.publish"}
+        source = resource.resource_id.rsplit("/", 1)[0] if resource.kind == "tool" else resource.resource_id
+        if tool_action:
+            lent = getattr(self, "_lent_sources", {}).get(source)
+            if lent is not None:
+                return await self._lent_device_allows(context, self._lent_devices.get(lent))
+            # All durable sources, including personal connectors, require both
+            # the automation's captured scope and the source's current policy.
+            if context.delegation_id and f"capability:{source}" not in context.scopes:
+                return False
         # This policy is host-owned. No MCP row or client-provided ownership
         # field can promote a personal capability into a shared-data source.
         if self.dashboards is not None:
@@ -1062,7 +1072,7 @@ class NativeRuntimeService:
             )
             if result is not None:
                 return result
-        if action in {"tool.discover", "tool.call", "tool.publish"}:
+        if tool_action:
             official = await self.official_connectors.authorize_source(context, resource)
             if official is not None:
                 return official
@@ -1097,14 +1107,8 @@ class NativeRuntimeService:
                 ResourceRef("session", context.tenant_id, context.session_id),
                 audience=context.audience,
             )
-        if action not in {"tool.discover", "tool.call", "tool.publish"}:
+        if not tool_action:
             return False
-        source = resource.resource_id
-        if resource.kind == "tool":
-            source = source.rsplit("/", 1)[0]
-        lent = getattr(self, "_lent_sources", {}).get(source)
-        if lent is not None:
-            return await self._lent_device_allows(context, self._lent_devices.get(lent))
         owner = self._interactive_sources.get(source)
         if owner is not None:
             granted_context, granted_owner = owner
@@ -1114,8 +1118,6 @@ class NativeRuntimeService:
                     and context.audience == granted_context.audience
                     and await self._private_run_route(context, granted_context)
                     and await self._device_owner(granted_context) == granted_owner)
-        if context.delegation_id and f"capability:{source}" not in context.scopes:
-            return False
         # One catalog owns native module capabilities, external MCPs and
         # product sources. Pool membership is an implementation detail of the
         # optional MCP module and cannot authorize (or hide) the other kinds.

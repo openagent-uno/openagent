@@ -120,6 +120,18 @@ class AutomationAuthorityTests(unittest.IsolatedAsyncioTestCase):
         self.active=False
         self.assertFalse(await self.authority.validate(context))
 
+    async def test_explicit_selection_replaces_inherited_capability_scopes_and_rejects_leases(self):
+        from dataclasses import replace
+
+        owner = replace(self.context, scopes=("audit:fixture", "capability:unselected"))
+        with self.assertRaises(PermissionError):
+            await self.authority.capture("task", self.task, owner, sources=["fixed", "device"])
+        self.assertIsNone(await self.authority.granted_sources("task", self.task))
+        await self.authority.capture("task", self.task, owner, sources=["fixed"])
+        delegated = await self.authority.resolve("task", self.task, "occurrence", "child")
+        self.assertEqual(delegated.scopes, ("audit:fixture", "capability:fixed"))
+        self.assertFalse(await self.authority.validate(replace(delegated, scopes=owner.scopes)))
+
     async def test_changed_definition_revokes_but_schedule_cursor_does_not(self):
         await self.authority.capture('task',self.task,self.context)
         context=await self.authority.resolve('task',self.task,'occurrence','child')

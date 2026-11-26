@@ -155,7 +155,7 @@ class NativeAutomationAuthority:
             if scope.startswith("capability:")
         )
 
-    async def capture(self, kind, definition, context, *, connection=None):
+    async def capture(self, kind, definition, context, *, connection=None, sources=None):
         await require_authorized(
             self.service.authorizer,
             context,
@@ -175,10 +175,18 @@ class NativeAutomationAuthority:
         if not definition.get("enabled", True):
             await self.revoke(kind, definition["id"], context, connection=connection)
             return None
-        sources = await self.grantable_sources(context)
-        scopes = tuple(
-            sorted(set(context.scopes) | {"capability:" + source for source in sources})
-        )
+        grantable = set(await self.grantable_sources(context))
+        scopes = set(context.scopes)
+        if sources is None:
+            selected = grantable
+        else:
+            if not isinstance(sources, (list, tuple)) or not all(isinstance(s, str) and s.strip() for s in sources):
+                raise ValueError("sources must be an array of nonempty source IDs")
+            selected = set(sources)
+            if not selected <= grantable:
+                raise PermissionError("Requested sources are not grantable")
+            scopes = {scope for scope in scopes if not scope.startswith("capability:")}
+        scopes.update("capability:" + source for source in selected)
         identifier = str(uuid.uuid4())
         async with self._connection(connection) as conn:
             if connection is None:
@@ -200,7 +208,7 @@ class NativeAutomationAuthority:
                     digest,
                     canonical_json(asdict(context.initiator)),
                     canonical_json([asdict(p) for p in context.audience]),
-                    canonical_json(scopes),
+                    canonical_json(sorted(scopes)),
                 ),
             )
             if connection is None:

@@ -318,7 +318,7 @@ class NativeAutomationManagement:
                     reconciled += 1
         return reconciled
 
-    async def approve_authorization(self, kind, identifier, digest, context):
+    async def approve_authorization(self, kind, identifier, digest, context, *, sources=None):
         """Grant only the enabled definition revision named by ``digest``."""
         if kind not in _KIND:
             raise ValueError("Unknown automation kind")
@@ -357,7 +357,7 @@ class NativeAutomationManagement:
                         "Enable the definition before approving scheduled execution"
                     )
                 grant = await self.service.automations.capture(
-                    _KIND[kind], definition, context, connection=connection,
+                    _KIND[kind], definition, context, connection=connection, sources=sources,
                 )
                 reconciled = await self._reconcile_schedule_cursor(
                     connection, kind, definition,
@@ -485,13 +485,15 @@ async def handle_authorize(request):
         body = await request.json()
         if (
             not isinstance(body, dict)
-            or set(body) != {"digest"}
+            or "digest" not in body or set(body) - {"digest", "sources"}
             or not isinstance(body["digest"], str)
         ):
             raise ValueError("Supply the exact digest of the reviewed definition")
+        if "sources" in body and not isinstance(body["sources"], list):
+            raise ValueError("sources must be an array of nonempty source IDs")
         context = await service.context(request, "__automation_management__")
         result = await service.automation_management.approve_authorization(
-            kind, request.match_info["id"], body["digest"], context,
+            kind, request.match_info["id"], body["digest"], context, sources=body.get("sources"),
         )
         return web.json_response(result)
     except AutomationRevisionChanged as error:

@@ -58,16 +58,15 @@ automation management and device grants stay limited to live owner turns.
 `openagent_server.bridge_vault_access` holds this single policy for both the
 live turn and the deferred grant.
 
-An approved automation reaches exactly the durable capability sources the
-reviewing owner could grant at approval time (`capability:<source>` scopes);
-sources leased to a live client, such as desktop or mobile device tools, are
-never part of a grant. A grant never widens by itself: a source configured
-later (a new MCP, the host computer's tools after an upgrade) stays
-unreachable for scheduled runs until the owner approves the same revision
-again. `GET /api/automations/{kind}/{id}/authorization` reports this drift in
-`capabilities.missing` (with `granted` and `grantable`), and the App's review
-banner offers "Approve again" while the list is not empty;
-`POST` with the same `digest` re-captures the grant.
+An approved automation reaches the durable capability sources captured by the
+reviewing owner at approval time (`capability:<source>` scopes).
+Sources leased to a live client, such as desktop or mobile device tools, are
+excluded from the grant. A source configured later becomes available to
+scheduled runs when the owner includes it in a subsequent approval.
+`GET /api/automations/{kind}/{id}/authorization` lists currently grantable
+sources outside an active grant in `capabilities.missing`, alongside
+`granted` and `grantable`. When that list is nonempty, the App's
+"Approve again" action captures all currently grantable durable sources.
 
 App dashboard capabilities require the authenticated WebSocket registration
 and the exact `app_connection_id` on a collaboration turn. Device tools also
@@ -109,9 +108,18 @@ scheduler and operational storage.
 
 Historical definitions without a grant remain pending. An authorized owner
 can inspect `GET /api/automations/{kind}/{id}/authorization` and approve that
-exact returned digest with `POST` to the same path and JSON `{"digest":"…"}`.
-Kinds are `scheduled_task`, `event` and `workflow`. A changed digest returns a
-conflict. Disabling or changing a definition revokes the previous authority.
+exact returned digest with `POST` to the same path. The usual
+`{"digest":"…"}` approves all currently grantable durable sources.
+To select an exact subset, send `{"digest":"…","sources":["source-a","source-b"]}`
+using IDs from `capabilities.grantable`. An empty array approves the revision
+with zero durable sources. The server checks the selection against the
+reviewing identity's current catalog. An unavailable source returns HTTP 403
+and leaves the previous grant intact. Successful reapproval replaces the old
+grant, including its selected sources. Device loans require separate consent
+and a live device connection.
+
+Kinds are `scheduled_task`, `event` and `workflow`. A changed digest returns
+HTTP 409. Disabling or changing a definition revokes the previous authority.
 No startup path adopts the installation owner as an automation principal.
 
 An event delivery claimed by the Scheduler drain carries a claim lease
