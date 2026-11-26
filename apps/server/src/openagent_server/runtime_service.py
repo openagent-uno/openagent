@@ -1076,6 +1076,13 @@ class NativeRuntimeService:
         catalog = getattr(self.runtime, "capabilities", None)
         if catalog is None or not catalog.has_source(source, context):
             return False
+        if source in {"mcp", "mcp-manager"} and not await self.authorizer.authorize(
+            context, "catalog.read", ResourceRef("capability", context.tenant_id, "*"),
+            audience=context.audience,
+        ):
+            # The manager exposes configuration. Its availability is
+            # independent of the caller's grants to use individual tools.
+            return False
         policies = self.agent.config.get("runtime_tool_audiences") or {}
         domain = {"vault-gate": "vault", "skill-data": "skills"}.get(source, source)
         if policies.get(domain) == "installation":

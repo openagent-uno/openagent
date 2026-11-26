@@ -120,6 +120,7 @@ class NativeCatalogService:
             context,
             "catalog." + action,
             ResourceRef("capability", context.tenant_id, name),
+            audience=context.audience,
         )
 
     async def list(self, context):

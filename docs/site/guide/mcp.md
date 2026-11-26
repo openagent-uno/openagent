@@ -34,6 +34,13 @@ ModuleConfig(
 A host with a managed capability catalog uses `managed`; its control plane owns connector and MCP
 policy. A configured integration can use `fixed`. The standalone full profile uses `dynamic`.
 
+In standalone, agent turns discover the MCP manager only with the host's
+catalog-read permission. Each manager operation also checks its own permission.
+Use Tool Discovery to find tools available to the current turn. An authorized
+shell or connector tool remains usable independently of catalog administration.
+Configured sources with a temporary handshake failure can appear as
+`temporarily_unavailable` until an exact registration recovers.
+
 ## Discovery and invocation
 
 The active catalog first returns compact, ranked pages containing names,
