@@ -1305,7 +1305,7 @@ class BaseBridge:
         # before the normal attachment / chunking path tries to render
         # it as a regular reply.
         if editable is not None and response.get("status") == "cancelled":
-            await editable.finish("Stopped", child_outcome="Stopped")
+            await editable.finish("Stopped")
             return
         if response.get("type") == "error":
             from openagent_core.core.public_errors import PUBLIC_MESSAGES
@@ -1317,7 +1317,7 @@ class BaseBridge:
             user_msg = "⚠️ " + public
             try:
                 if editable is not None:
-                    await editable.finish(user_msg, child_outcome="Failed")
+                    await editable.finish(user_msg)
                 else:
                     await self.send_response_text(target, user_msg)
             except Exception:

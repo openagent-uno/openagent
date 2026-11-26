@@ -237,7 +237,7 @@ class EditableTurn:
             message = self.children[session_id] = EditableMessage(self.bridge, self.target, self.gate)
         await message.update(self._child_body(session_id, operation))
 
-    def _child_body(self, session_id, operation):
+    def _child_body(self, session_id, operation, *, include_narration=True):
         title = "Delegated to sub-agent"
         if self.child_labels.get(session_id):
             title += " · " + self.child_labels[session_id]
@@ -245,7 +245,7 @@ class EditableTurn:
         # answer must fit the same editable receipt.
         operation = operation[:max(0, self.bridge.message_limit - len(title) - 2)]
         budget = self.bridge.message_limit - len(title) - len(operation) - 4
-        narration = self.child_text.get(session_id, "").strip()
+        narration = self.child_text.get(session_id, "").strip() if include_narration else ""
         if budget > 0:
             narration = narration[-budget:]
         else:
@@ -287,12 +287,16 @@ class EditableTurn:
         elif sid and sid not in self.children:
             await self.child(sid, "Thinking…")
 
-    async def finish(self, text, *, child_outcome="Completed"):
+    async def finish(self, text):
         # Give already-pending writers the terminal text before waiting for
         # Telegram. Nothing can flush an outdated draft after cooldown.
         self.finalizing = True
-        child_updates = [(message, self._child_body(sid, self.child_states.get(sid, child_outcome)))
-                         for sid, message in self.children.items()]
+        self.operation = ""
+        child_updates = [
+            (message, self._child_body(sid, self.child_states.get(sid, "Outcome unavailable"),
+                                       include_narration=sid in self.child_states))
+            for sid, message in self.children.items()
+        ]
         try:
             async with asyncio.timeout(self.main.retry_budget):
                 for message, final in child_updates:
