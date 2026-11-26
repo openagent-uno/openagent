@@ -12,6 +12,12 @@ revisions. The gateway checks the original certificate binding, recipients and
 persisted parent runs before publishing. Forgetting a source note, changing the
 audience or ending the owner-channel permission also withdraws that progress.
 
+An executing worker uses this same private route to revalidate only the
+note revisions already admitted to its parent. The server checks the
+persisted child and parent runs, the recipients and the current
+authorization before the worker starts and before it publishes. Access to
+other notes requires the worker's own vault permission.
+
 Slack and Discord default to quiet delivery: one acknowledgement followed by
 the final reply and its attachments. Explicit `delivery_mode: quiet` suppresses
 tool messages, text deltas, editable status and compaction notices. Choose

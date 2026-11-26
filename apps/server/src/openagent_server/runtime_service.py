@@ -554,9 +554,11 @@ class NativeRuntimeService:
             "memory_access": self.memory_access,
         })
         if document_backend and "vault" in profile.module_ids:
+            from openagent_core.memory_access import InheritedDocumentHistory
             from openagent_core.memory.vault.documents import SqlDocumentVault
             self.document_vault = await create_document_vault(self)
             registry.bind(SqlDocumentVault, self.document_vault)
+            registry.bind(InheritedDocumentHistory, self)
             from openagent_core.dream_evidence import DocumentDreamEvidence
             from openagent_server.document_vault import create_dream_evidence
             registry.bind(DocumentDreamEvidence, await create_dream_evidence(self,self.document_vault))
@@ -798,6 +800,49 @@ class NativeRuntimeService:
             parent_id = parent.parent_run_id
         return False
 
+    async def _private_root_id(self, viewer):
+        conn = await self.agent.memory_db._ensure_connected()
+        row = await (await conn.execute(
+            "SELECT root_session_id FROM sessions_v2 WHERE id=? AND tenant_id=? "
+            "AND agent_id=? AND deleted_at_ms IS NULL AND parent_session_id IS NOT NULL",
+            (viewer.session_id, viewer.tenant_id, viewer.agent_id),
+        )).fetchone()
+        return row[0] if row and row[0] and row[0] != viewer.session_id else None
+
+    async def approved_session(self, context, run_id, revisions):
+        """Prove this executing child inherited these revisions from its private route."""
+        from openagent_server.bridge_vault_access import is_owner_bridge_principal, owner_bridge_vault_turn
+
+        if (not revisions or not is_owner_bridge_principal(context.initiator)
+                or not context.parent_run_id or context.deferred or context.delegation_id):
+            return None
+        root_id = await self._private_root_id(context)
+        if not root_id:
+            return None
+        root = replace(context, session_id=root_id, author=context.initiator,
+                       parent_run_id=None, capabilities=())
+        if not owner_bridge_vault_turn(root, self.agent.config):
+            return None
+        store = self.runtime.services.store
+        try:
+            child = await store.accepted_request(run_id)
+        except LookupError:
+            return None
+        if (child.request.session_id != context.session_id or child.author != context.author
+                or child.parent_run_id != context.parent_run_id or child.authority != context.authority
+                or child.initiator != context.initiator or child.audience != context.audience
+                or child.ingress_id != context.ingress_id or child.scopes != context.scopes
+                or child.deferred or child.delegation_id):
+            return None
+        if not revisions.issubset(await store.document_sources(context, run_id=run_id)):
+            return None
+        if not await self._private_run_route(context, root, inherited_sources=revisions):
+            return None
+        if not await self.authorizer.authorize(root, "run.publish", ResourceRef("session", root.tenant_id, root_id),
+                                               audience=root.audience):
+            return None
+        return root_id
+
     async def _bridge_history_viewer(self, request, viewer):
         """Use the certified private conversation only for its inherited note revisions."""
         from openagent_server.bridge_vault_access import is_owner_bridge_principal, owner_bridge_vault_turn
@@ -805,15 +850,10 @@ class NativeRuntimeService:
         if (not is_owner_bridge_principal(viewer.initiator)
                 or owner_bridge_vault_turn(viewer, self.agent.config)):
             return viewer, None
-        conn = await self.agent.memory_db._ensure_connected()
-        row = await (await conn.execute(
-            "SELECT root_session_id FROM sessions_v2 WHERE id=? AND tenant_id=? "
-            "AND agent_id=? AND deleted_at_ms IS NULL AND parent_session_id IS NOT NULL",
-            (viewer.session_id, viewer.tenant_id, viewer.agent_id),
-        )).fetchone()
-        if not row or not row[0] or row[0] == viewer.session_id:
+        root_id = await self._private_root_id(viewer)
+        if not root_id:
             return viewer, None
-        root = await self.context(request, row[0])
+        root = await self.context(request, root_id)
         if (replace(viewer, session_id=root.session_id) != root
                 or not owner_bridge_vault_turn(root, self.agent.config)):
             return viewer, None
