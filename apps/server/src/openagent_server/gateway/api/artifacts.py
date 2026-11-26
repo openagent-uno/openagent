@@ -55,6 +55,20 @@ def _public_ref(ref: dict[str, Any]) -> dict[str, Any]:
     return public_attachment_ref(ref)
 
 
+async def normalize_turn_attachments(db, attachments, *, session_id, principal, allow_local_paths=False):
+    """Resolve references and recheck their linked sessions before turn admission."""
+    refs = await normalize_inbound_attachments(
+        db, attachments, session_id=session_id, principal=principal, allow_local_paths=allow_local_paths,
+    )
+    projection = getattr(principal, "projection", None)
+    if projection is not None:
+        try:
+            await projection.recheck(resolve_connection=db._ensure_connected)
+        except PermissionError:
+            raise ArtifactNotFound("Attachment is not available") from None
+    return refs
+
+
 async def _read_form(request: web.Request) -> tuple[Path, dict[str, str]]:
     """Stream one multipart file to a bounded staging path."""
 

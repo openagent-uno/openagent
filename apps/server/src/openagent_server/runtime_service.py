@@ -1290,6 +1290,10 @@ def _service(request) -> NativeRuntimeService:
 
 
 async def handle_submit(request):
+    from openagent_core.memory.artifacts import ArtifactNotFound
+    from openagent_identity.runtime_access import AccessContext
+    from openagent_server.gateway.api.artifacts import normalize_turn_attachments
+
     try:
         body = await request.json()
         fields = {
@@ -1317,15 +1321,11 @@ async def handle_submit(request):
         service = _service(request)
         context = await service.context(request, body["session_id"])
         if attachments:
-            from openagent_core.memory.artifacts import normalize_inbound_attachments
-
-            identity = await service.authorizer.bind_request(request)
-            attachments = await normalize_inbound_attachments(
+            attachments = await normalize_turn_attachments(
                 request.app["gateway"].agent.memory_db,
                 attachments,
                 session_id=body["session_id"],
-                principal=service.facade.canonical_access_context(identity),
-                allow_local_paths=False,
+                principal=AccessContext.from_request(request),
             )
         candidate = RunRequest(
             body["run_id"],
@@ -1356,6 +1356,8 @@ async def handle_submit(request):
         return web.json_response({"error": "idempotency_conflict"}, status=409)
     except AdmissionCapacityExceeded:
         return web.json_response({"error": "runtime_busy"}, status=429, headers={"Retry-After": "1"})
+    except ArtifactNotFound:
+        return web.json_response({"error": "attachment_unavailable"}, status=404)
     except (ValueError, TypeError):
         return web.json_response({"error": "invalid_run_request"}, status=400)
     except PermissionError:

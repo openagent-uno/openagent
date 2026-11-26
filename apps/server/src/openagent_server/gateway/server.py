@@ -2548,6 +2548,7 @@ class Gateway:
                             cert,
                             auth_kind=str(request.get("auth_kind") or ""),
                         ),
+                        attachment_access=ui_access,
                         trusted_bridge="bridge" in set(cert.capabilities or ()),
                         connection_id=connection_id,
                         device_pubkey=cert.device_pubkey,
@@ -2976,6 +2977,7 @@ class Gateway:
         self, ws, client_id: str, frame: dict,
         *, handle: str | None = None,
         on_behalf_identity=None,
+        attachment_access=None,
         trusted_bridge: bool = False,
         connection_id: str | None = None,
         device_pubkey: bytes | None = None,
@@ -3075,19 +3077,24 @@ class Gateway:
             from openagent_core.memory.artifacts import (
                 ArtifactError,
                 ArtifactNotFound,
-                normalize_inbound_attachments,
             )
+            from openagent_core.memory.legacy_document_history import SessionProjectionGuard
 
             artifact_db = (
                 getattr(self.agent, "memory_db", None)
                 or getattr(self.agent, "db", None)
             )
+            principal = on_behalf_identity
+            if attachment_access is not None:
+                # Keep the certificate's live viewer, but remember reads for this frame only.
+                projection = SessionProjectionGuard(attachment_access.projection.authorize)
+                principal = replace(attachment_access, projection=projection)
             try:
-                normalized = await normalize_inbound_attachments(
+                normalized = await artifacts_api.normalize_turn_attachments(
                     artifact_db,
                     attachment_values,
                     session_id=sid,
-                    principal=on_behalf_identity,
+                    principal=principal,
                     allow_local_paths=bool(trusted_bridge),
                 )
                 if not normalized:
@@ -3096,7 +3103,7 @@ class Gateway:
                 await self._safe_ws_send_json(ws, {
                     "type": P.ERROR,
                     "session_id": sid,
-                    "text": str(exc),
+                    "text": "Attachment is not available" if isinstance(exc, ArtifactNotFound) else str(exc),
                 })
                 await self._safe_ws_send_json(ws, {
                     "type": "turn_complete",

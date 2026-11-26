@@ -393,14 +393,14 @@ class Collaboration:
         }
         normalized_attachments = []
         if attachments:
-            from openagent_core.memory.artifacts import normalize_inbound_attachments
+            from openagent_identity.runtime_access import AccessContext
+            from .api.artifacts import normalize_turn_attachments
 
-            normalized_attachments = await normalize_inbound_attachments(
+            normalized_attachments = await normalize_turn_attachments(
                 self.gateway.agent.memory_db,
                 attachments,
                 session_id=sid,
-                principal=self.gateway.agent.canonical_access_context(principal),
-                allow_local_paths=False,
+                principal=AccessContext.from_request(request),
             )
             await self._check(request, sid)
         app_ingress = None

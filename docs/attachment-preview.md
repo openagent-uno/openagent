@@ -5,6 +5,12 @@ content hash and current visibility before responding. Large downloads use a
 private temporary file and a bounded amount of memory for each transfer. The
 legacy file URL follows the same delivery path.
 
+When a user attaches an uploaded file to a turn, the shared chat, runtime API
+and chat WebSocket check the file with the sending device's current access to
+the linked conversations and their source documents. The user can send and
+download the original after reading a note while that access remains active.
+Withdrawing access to a source also prevents attaching the file to a new chat.
+
 User and agent attachments expose adjacent expand and download controls in
 message streams. Images and videos can be enlarged to the available window;
 browser audio and video players provide play/pause and seeking. PDF files open

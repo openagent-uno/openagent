@@ -32,19 +32,44 @@ from openagent_server.gateway.server import Gateway
 from openagent_server.runtime_service import NativeRuntimeService, bind_runtime_identity
 
 
-async def _send_turn(client, ingress, run, session, attachments=()):
+async def _send_turn(client, ingress, run, session, attachments=(), *, unavailable=False):
     body = {"request_id": run, "session_id": session, "delivery": "queue",
             "message": "Check " + run, "attachments": list(attachments)}
     async with asyncio.timeout(15):
         if ingress == "app":
             async with client.post("/api/collaboration/turns", json=body) as response:
+                if unavailable:
+                    assert response.status == 404, await response.text()
+                    return
                 assert response.status == 200, await response.text()
                 reply = await response.json()
                 assert not reply["errored"], reply
             return
+        if ingress == "stream":
+            async with client.ws_connect("/ws") as socket:
+                assert (await socket.receive_json())["type"] == "auth_ok"
+                await socket.send_json({"type": "session_open", "session_id": session,
+                                        "coalesce_window_ms": 0, "speak": False})
+                await socket.send_json({"type": "text_final", "session_id": session, "request_id": run,
+                                        "text": body["message"], "attachments": list(attachments)})
+                while True:
+                    frame = await socket.receive_json()
+                    if frame.get("session_id") != session:
+                        continue
+                    if frame["type"] == "error":
+                        assert unavailable and frame["text"] == "Attachment is not available", frame
+                        break
+                    if frame["type"] == "turn_complete":
+                        assert not unavailable and frame.get("reason") != "error", frame
+                        break
+                await socket.send_json({"type": "session_close", "session_id": session})
+                return
         request = {"run_id": run, "session_id": session, "idempotency_key": run,
                    "input": body["message"], "attachments": list(attachments), "model_ref": "fixture:fixture"}
         async with client.post("/api/runtime/runs", json=request) as response:
+            if unavailable:
+                assert response.status == 404, await response.text()
+                return
             assert response.status == 202, await response.text()
         while True:
             async with client.get("/api/runtime/runs/" + run) as response:
@@ -70,6 +95,9 @@ async def _reopen_outputs(client, ingress, history):
                       for part in m.get("transcript_segment", m)["parts"] if part["kind"] == "attachment"]
     assert rendered_files == [("original", outputs[0][0]["artifact_id"]),
                               ("original", outputs[0][0]["artifact_id"]), ("again", outputs[1][0]["artifact_id"])]
+    original, = [m for m in messages if m["role"] == "user" and m["attachments"]]
+    original_ref, = original["attachments"]
+    assert original_ref["artifact_id"] == outputs[0][0]["artifact_id"]
     if ingress == "app":
         return outputs
     for run, refs in zip(("original", "again"), outputs, strict=True):
@@ -84,12 +112,14 @@ async def _reopen_outputs(client, ingress, history):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("ingress", ["app", "runtime"])
+@pytest.mark.parametrize("ingress", ["app", "runtime", "stream"])
 async def test_certified_owner_resends_original_attachment_after_reading_a_note(tmp_path, monkeypatch, ingress):
     monkeypatch.setenv("LITELLM_LOCAL_MODEL_COST_MAP", "True")
     monkeypatch.setenv("LITELLM_LOCAL_ANTHROPIC_BETA_HEADERS", "True")
-    content = b"item,count\nblue,7\n"
-    filename = "fixture-stock.csv"
+    if ingress == "app":
+        content, filename, mime = bytes(range(256)) * 32768, "fixture-stock.bin", "application/octet-stream"
+    else:
+        content, filename, mime = b"item,count\nblue,7\n", "fixture-stock.csv", "text/csv"
     note = "Synthetic filing guidance."
     derivative = tmp_path / "derived.txt"
     derivative.write_text(note)
@@ -114,6 +144,12 @@ async def test_certified_owner_resends_original_attachment_after_reading_a_note(
 
         async def ainvoke(self, *, messages, **kwargs):
             run = current_run_id()
+            if run in {"prior-note", "forget-note"}:
+                if messages[-1].role == "tool":
+                    return ModelResponse(role="assistant", content="Filing guidance checked.")
+                if run == "forget-note":
+                    return call("vault", "vault_forget_note", {"path": "filing.md", "expected_revision": 1})
+                return call("vault", "vault_read_note", {"path": "filing.md"})
             if run not in {"original", "again", "other"}:
                 return ModelResponse(role="assistant", content="Ready")
             seen = receipts.setdefault(run, [])
@@ -211,12 +247,20 @@ async def test_certified_owner_resends_original_attachment_after_reading_a_note(
                 assert response.status == 200, await response.text()
             async with client.put("/api/vault/notes/filing.md", json={"content": note}) as response:
                 assert response.status == 200, await response.text()
+            await _send_turn(client, ingress, "prior-note", "chat")
+            source = await (await conn.execute(
+                "SELECT source_id FROM oa_document_run_sources WHERE run_id='prior-note'"
+            )).fetchone()
+            assert source is not None
             form = aiohttp.FormData()
-            form.add_field("file", content, filename=filename, content_type="text/csv")
+            form.add_field("file", content, filename=filename, content_type=mime)
             async with client.post("/api/upload", params={"session_id": "chat"}, data=form) as response:
                 assert response.status == 200, await response.text()
                 original = await response.json()
             original_id = original["artifact_id"]
+            async with client.get(original["url"]) as response:
+                assert response.status == 200
+                assert await response.read() == content
             uploaded = {key: original[key] for key in ("artifact_id", "artifact_link_id", "filename", "mime_type")}
             pending = asyncio.create_task(_send_turn(client, ingress, "original", "chat", [uploaded]))
             try:
@@ -264,7 +308,25 @@ async def test_certified_owner_resends_original_attachment_after_reading_a_note(
                     assert response.status == 404
                     message = await response.text()
                     assert original_id not in message and filename not in message
+            async with client.patch("/api/sessions/peer-chat", json={"title": "Separate report"}) as response:
+                assert response.status == 200, await response.text()
+            await _send_turn(client, ingress, "another-owner", "peer-chat", [uploaded], unavailable=True)
             identity = "owner"
+            async with client.patch("/api/sessions/management", json={"title": "Note maintenance"}) as response:
+                assert response.status == 200, await response.text()
+            await _send_turn(client, "runtime", "forget-note", "management")
+            async with client.get(ref["url"]) as response:
+                assert response.status == 404
+            async with client.patch("/api/sessions/fresh-chat", json={"title": "New report"}) as response:
+                assert response.status == 200, await response.text()
+            await _send_turn(client, ingress, "withdrawn-original", "fresh-chat", [uploaded], unavailable=True)
+            assert not await (await conn.execute(
+                "SELECT id FROM session_runs WHERE id IN ('another-owner', 'withdrawn-original')"
+            )).fetchall()
+            assert not await (await conn.execute(
+                "SELECT id FROM artifact_links WHERE artifact_id=? AND resource_type='session' "
+                "AND resource_id IN ('fresh-chat', 'peer-chat')", (original_id,),
+            )).fetchall()
             device = peers[identity][0].public_bytes
             assert await store.revoke_device(device)
             state.auth_state.revoke(device)
