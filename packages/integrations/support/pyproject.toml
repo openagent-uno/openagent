@@ -8,7 +8,7 @@ version = "1.1.9b116"
 description = "Optional host-configured support integration boundary"
 requires-python = ">=3.11"
 license = "MIT"
-dependencies = ["openagent-core[engine]==1.1.0b175"]
+dependencies = ["openagent-core[engine]==1.1.0b176"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
