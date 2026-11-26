@@ -276,21 +276,28 @@ gateway/transport failure regressions. No provider account or publication was us
 
 Live text turns use one editable main provider message for narration, tool
 progress, compaction and the final answer. Each actual child session has one
-separate editable message headed `Delegated to sub-agent`, with only its own
-current operation and terminal outcome. Updates are coalesced into a bounded
+separate editable message headed `Delegated to sub-agent`. It shows the
+child’s streamed text and current operation, then retains the child’s reply
+alongside its terminal outcome. Updates are coalesced into a bounded
 latest-value mailbox and throttled across the turn; every send/edit retains
 fresh audience and host authorization. An explicit provider rate-limit
-rejection has at most two bounded retries. An uncertain initial send is never
+rejection has at most two bounded retries and delays both the parent and
+child receipts in the same turn. An uncertain initial send is never
 blindly repeated. Final answers exceeding a provider's size limit use
 continuation messages; files retain the normal attachment path. Quiet and
 voice delivery keep their existing semantics.
 
 Hosts may advertise `child` in `progress_kinds` and emit `BridgeEvent("child",
-json_frame)` with exact `session_id`, `type` (`status`, `turn_complete`, `error`)
-and optional `text`/terminal `reason`. Only the host's admitted child events may
+json_frame)` with exact `session_id`, `type` (`delta`, `response`, `status`,
+`turn_complete`, `error`) and optional `text`/terminal `reason`. A `delta`
+appends text and a `response` replaces it with the complete child reply. Only the host's admitted child events may
 be forwarded; stale events must not attach to a later turn. Hosts that do not
 provide child events retain the main edited reply.
 
 Telegram, WhatsApp, Slack and Discord implement the edit primitives. Provider
 acceptance for this revision is tested separately; live QA is limited to
 Telegram. Offline SDK fixtures do not establish live provider acceptance.
+
+Beta24 acknowledges Telegram confirmation clicks before awaiting the host and
+renders command outcomes without Markdown interpretation. It still requires a
+completed host outcome before acknowledging success; see the [channel guide](../../docs/site/guide/channels.md#telegram-command-confirmation-beta24).
