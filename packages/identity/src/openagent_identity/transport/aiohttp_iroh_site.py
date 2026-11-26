@@ -244,6 +244,7 @@ class IrohSite(web.BaseSite):
         protocol.connection_made(transport)
 
         async def _pump_iroh_to_protocol() -> None:
+            read_error = None
             try:
                 while True:
                     await transport.read_ready.wait()
@@ -254,16 +255,19 @@ class IrohSite(web.BaseSite):
                         break
                     protocol.data_received(chunk)
             except Exception as e:  # noqa: BLE001
+                read_error = e
+                writer.abort(e)
                 logger.debug("iroh-gw: read pump ended: %s", e)
             finally:
                 # Tell aiohttp the client side has gone away. Without
                 # this its parser keeps waiting for headers and
                 # ``task_handler`` never completes.
                 try:
-                    protocol.connection_lost(None)
+                    protocol.connection_lost(read_error)
                 except Exception:
                     pass
 
+        writer.bind_write_protocol(protocol)
         pump_task = asyncio.create_task(
             _pump_iroh_to_protocol(),
             name=f"iroh-gw-pump-{peer_node_id[:8]}",
@@ -284,6 +288,7 @@ class IrohSite(web.BaseSite):
             except Exception as e:  # noqa: BLE001
                 logger.debug("aiohttp task_handler ended: %s", e)
         except asyncio.CancelledError:
+            writer.abort(ConnectionAbortedError("Iroh response cancelled"))
             raise
         except Exception as e:  # noqa: BLE001
             logger.warning("aiohttp protocol crashed on iroh stream: %s", e)
@@ -296,10 +301,7 @@ class IrohSite(web.BaseSite):
                     await pump_task
                 except (asyncio.CancelledError, Exception):
                     pass
-            try:
-                writer.close()
-            except Exception:
-                pass
+            await writer.close_and_wait()
 
 
 class _ProtocolTransport:
@@ -352,8 +354,14 @@ class _ProtocolTransport:
     def resume_reading(self) -> None:
         self.read_ready.set()
 
+    def get_write_buffer_size(self) -> int:
+        return self._writer.get_write_buffer_size()
+
+    def get_write_buffer_limits(self) -> tuple[int, int]:
+        return self._writer.get_write_buffer_limits()
+
     def set_write_buffer_limits(self, high: int | None = None, low: int | None = None) -> None:
-        return
+        self._writer.set_write_buffer_limits(high=high, low=low)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────

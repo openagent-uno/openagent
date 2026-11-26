@@ -181,6 +181,12 @@ response can take longer. Clean EOF follows the final successful write. If
 a send stalls, the transport abandons that stream with a reset so the peer
 can detect the failure.
 
+Both Iroh HTTP ALPNs expose aiohttp's write buffer limits. The default
+high and low watermarks are 64 KiB and 16 KiB. A producer that streams
+its response can queue one application write past the high watermark
+before aiohttp waits for the buffer to drain. Handlers that construct a
+single response body still hold that body in memory.
+
 The limit covers send progress in the server transport. Client request
 deadlines and the speed of the underlying QUIC path are independent.
 

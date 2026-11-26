@@ -142,6 +142,7 @@ class AgentSite(web.BaseSite):
         protocol.connection_made(transport)
 
         async def _pump_to_protocol() -> None:
+            read_error = None
             try:
                 while True:
                     await transport.read_ready.wait()
@@ -152,13 +153,16 @@ class AgentSite(web.BaseSite):
                         break
                     protocol.data_received(chunk)
             except Exception as e:  # noqa: BLE001
+                read_error = e
+                writer.abort(e)
                 logger.debug("iroh-agent: read pump ended: %s", e)
             finally:
                 try:
-                    protocol.connection_lost(None)
+                    protocol.connection_lost(read_error)
                 except Exception:
                     pass
 
+        writer.bind_write_protocol(protocol)
         pump_task = asyncio.create_task(
             _pump_to_protocol(),
             name=f"iroh-agent-pump-{peer_node_id[:8]}",
@@ -177,6 +181,7 @@ class AgentSite(web.BaseSite):
             except Exception as e:  # noqa: BLE001
                 logger.debug("aiohttp task_handler ended (agent stream): %s", e)
         except asyncio.CancelledError:
+            writer.abort(ConnectionAbortedError("Iroh response cancelled"))
             raise
         except Exception as e:  # noqa: BLE001
             logger.warning("aiohttp protocol crashed on agent stream: %s", e)
@@ -189,7 +194,4 @@ class AgentSite(web.BaseSite):
                     await pump_task
                 except (asyncio.CancelledError, Exception):
                     pass
-            try:
-                writer.close()
-            except Exception:
-                pass
+            await writer.close_and_wait()

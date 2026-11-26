@@ -39,6 +39,7 @@ READ_CHUNK = 64 * 1024  # large enough to keep up with WS frames; small enough f
 # total time the response body takes to reach a slow reader.
 _WRITE_IDLE_TIMEOUT_S = 120.0
 _WRITE_CHUNK = 64 * 1024
+_DEFAULT_WRITE_HIGH_WATER = 64 * 1024
 
 
 class _FakeTransport:
@@ -122,7 +123,12 @@ class IrohStreamWriter:
     ) -> None:
         self._send = send_stream
         self._closed = False
-        self._write_error: Exception | None = None
+        self._write_error: type[OSError] | None = None
+        self._write_protocol: asyncio.Protocol | None = None
+        self._buffered_bytes = 0
+        self._high_water = _DEFAULT_WRITE_HIGH_WATER
+        self._low_water = self._high_water // 4
+        self._write_paused = False
         self._transport = _FakeTransport(peer_node_id, alpn)
         # Writes within a response stay ordered even when a QUIC send
         # accepts only part of an aiohttp buffer.
@@ -153,6 +159,43 @@ class IrohStreamWriter:
         # ancient HTTP/0.9 transport.
         return True
 
+    def bind_write_protocol(self, protocol: asyncio.Protocol) -> None:
+        self._write_protocol = protocol
+        self._update_write_pressure()
+
+    def get_write_buffer_size(self) -> int:
+        return self._buffered_bytes
+
+    def get_write_buffer_limits(self) -> tuple[int, int]:
+        return self._low_water, self._high_water
+
+    def set_write_buffer_limits(self, high: int | None = None, low: int | None = None) -> None:
+        if high is None:
+            high = _DEFAULT_WRITE_HIGH_WATER if low is None else 4 * low
+        if low is None:
+            low = high // 4
+        if not 0 <= low <= high:
+            raise ValueError("Write buffer limits require 0 <= low <= high")
+        self._low_water, self._high_water = low, high
+        self._update_write_pressure()
+
+    def _update_write_pressure(self) -> None:
+        protocol = self._write_protocol
+        if protocol is None or self._write_error is not None:
+            return
+        if not self._write_paused and self._buffered_bytes > self._high_water:
+            self._write_paused = True
+            protocol.pause_writing()
+        elif self._write_paused and self._buffered_bytes <= self._low_water:
+            self._write_paused = False
+            protocol.resume_writing()
+
+    def _write_done(self, task: asyncio.Task, size: int) -> None:
+        self._pending.discard(task)
+        # A partial write still retains its original buffer until completion.
+        self._buffered_bytes -= size
+        self._update_write_pressure()
+
     def write(self, data: bytes) -> None:
         if self._closed or not data:
             return
@@ -160,12 +203,12 @@ class IrohStreamWriter:
         # ``write`` to be sync (queue and drain). Schedule the actual
         # send on the loop and let ``drain()`` await it.
         loop = asyncio.get_event_loop()
+        size = len(data)
+        self._buffered_bytes += size
+        self._update_write_pressure()
         task = loop.create_task(self._write_async(data))
-        # Register the in-flight write so ``drain()`` can await it even
-        # before it has acquired ``_write_lock`` (a just-scheduled write
-        # hasn't started yet, so the lock alone wouldn't wait for it).
         self._pending.add(task)
-        task.add_done_callback(self._pending.discard)
+        task.add_done_callback(lambda completed: self._write_done(completed, size))
 
     def writelines(self, data) -> None:
         for d in data:
@@ -191,16 +234,34 @@ class IrohStreamWriter:
                         raise ConnectionError("Iroh send returned invalid write progress")
                     offset += written
             except Exception as error:
-                self._write_error = error
-                self.close()
+                self.abort(error)
+
+    def abort(self, error: Exception) -> None:
+        if self._write_error is not None or (self._finish_task is not None and self._finish_task.done()):
+            return
+        # Saving the original traceback would retain the failed write buffer.
+        self._write_error = TimeoutError if isinstance(error, TimeoutError) else ConnectionError
+        current = asyncio.current_task()
+        for task in self._pending:
+            if task is not current:
+                task.cancel()
+        self.close()
+        if self._write_protocol is not None:
+            # A paused aiohttp producer must wake with a connection error.
+            asyncio.get_running_loop().call_soon(
+                self._write_protocol.connection_lost, self._write_error("Iroh send aborted"),
+            )
+
+    def _raise_write_error(self) -> None:
+        if self._write_error is not None:
+            raise self._write_error("Iroh send aborted")
 
     async def drain(self) -> None:
         # An observer cancelling its own drain does not own scheduled writes.
         pending = [asyncio.shield(task) for task in self._pending if not task.done()]
         if pending:
-            await asyncio.gather(*pending)
-        if self._write_error is not None:
-            raise self._write_error
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._raise_write_error()
 
     async def write_eof(self) -> None:
         self.close()
@@ -217,6 +278,15 @@ class IrohStreamWriter:
             return
         self._finish_task = loop.create_task(self._drain_then_finish(), name="iroh-send-finish")
 
+    async def close_and_wait(self) -> None:
+        self.close()
+        try:
+            await self.wait_closed()
+        except asyncio.CancelledError:
+            self.abort(ConnectionAbortedError("Iroh response cancelled during close"))
+            await self.wait_closed()
+            raise
+
     async def _drain_then_finish(self) -> None:
         """Publish EOF only after the response body has been accepted."""
         try:
@@ -225,9 +295,9 @@ class IrohStreamWriter:
             if finish is not None:
                 async with asyncio.timeout(_WRITE_IDLE_TIMEOUT_S):
                     await finish()
+            self._raise_write_error()
         except Exception as error:
-            if self._write_error is None:
-                self._write_error = error
+            self.abort(error)
             logger.warning("Iroh send aborted before a clean EOF (%s)", type(error).__name__)
             reset = getattr(self._send, "reset", None)
             if reset is not None:
@@ -236,6 +306,8 @@ class IrohStreamWriter:
                         await reset(1)
                 except Exception as exc:
                     logger.debug("Iroh send reset failed (%s)", type(exc).__name__)
+        finally:
+            self._write_protocol = None
 
     async def wait_closed(self) -> None:
         if self._finish_task is not None:
