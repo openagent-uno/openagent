@@ -11,6 +11,13 @@ runtime catalog. It does not infer native module availability from the MCP
 module's connection pool, so Sessions, Vault and other native capabilities are
 visible whenever their registered surface is active.
 
+When the profile requires the file vault, `openagent serve` waits for its
+catalog before the gateway accepts requests. If the first handshake times
+out, startup waits for the retry series Core has already scheduled. A complete
+catalog can contain zero tools. Startup fails on a permanent error or when
+the retries are exhausted. Recovery runs discovery without calling a tool.
+[Core startup and recovery](https://github.com/openagent-uno/openagent-core/blob/v1.1.0-beta.184/docs/mcp-transport-recovery.md#bounded-reconnect-for-configured-sources).
+
 The three automation domains contribute separate workers to the runtime graph.
 They share one execution implementation, but activation and shutdown are
 reference-counted by domain, so hot removal of Scheduler does not stop Workflow

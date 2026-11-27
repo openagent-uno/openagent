@@ -83,8 +83,16 @@ returned authorization URL, and completes it at
 `POST /api/providers/{id}/sign-in/complete` with `{state, code, name?}`. A code
 or complete callback address is accepted. Tokens and PKCE verifiers never
 reach the app. `PUT /api/providers/{id}/accounts/{account_id}` changes the
-exact account's name or enabled state; disabling it never spends a sibling
-account's quota. Use another connection for another simultaneous account.
+exact account's name or enabled state. Use a separate connection for each account.
+
+If a subscription endpoint sends HTTP 200 and then reports a 401 before its
+first output frame, a configured account group can try another enabled account
+for the same vendor and model, within its budget. Once the provider emits a
+frame, even one without text, a subsequent error ends the stream. The partial
+reply is preserved and the request is not replayed. A legacy `subscription_refused`
+event without a numeric status counts as 400 and does not by itself switch
+accounts.
+[Core account failover](https://github.com/openagent-uno/openagent-core/blob/v1.1.0-beta.184/docs/subscriptions.md#declared-account-failover).
 
 ## Model settings and budgets
 
