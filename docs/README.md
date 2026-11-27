@@ -2,6 +2,7 @@
 
 - [App beta 77 and retrying a rejected chat message](releases/app-v1.1.0-beta.77.md).
 - [App beta 76 and conversation recovery](releases/app-v1.1.0-beta.76.md).
+- [Server beta 120 and recovery for the vault and subscription streams](releases/v1.1.9-beta.120.md).
 - [Server beta 119 and startup for agents using file or document storage](releases/v1.1.9-beta.119.md).
 - [Server beta 118 and coordinated answer display](releases/v1.1.9-beta.118.md).
 - [Server beta 117 and private conversation delivery](releases/v1.1.9-beta.117.md).
